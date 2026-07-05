@@ -1,12 +1,13 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="h-full">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{ title|default('Admin') }}</title>
+  <title>{{ title|default('Admin') }} - FarosCMS</title>
   <script>
     window.tailwind = window.tailwind || {};
     window.tailwind.config = {
+      theme: { extend: { fontFamily: { sans: ['"Inter Tight"', 'ui-sans-serif', 'system-ui', 'sans-serif'] } } },
       safelist: [
         'hidden',
         'block',
@@ -20,98 +21,151 @@
     };
   </script>
   <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="{{ url('assets/css/app.css') }}">
 </head>
-<body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
-  <div class="min-h-screen">
-    <aside class="fixed inset-y-0 left-0 z-30 flex w-[240px] flex-col border-r border-slate-800 bg-[#071538] text-slate-100">
-      <div class="border-b border-slate-800 px-4 py-5">
-        <div class="text-3xl font-semibold leading-[0.95] tracking-tight">{{ site.title|default('FarosCMS') }}</div>
+<body class="h-full bg-slate-100 font-sans text-slate-800 antialiased">
+  {% set current_type = current_type|default('pages') %}
+  {% set types = types|default([]) %}
+  {% set section = admin_section|default('content') %}
+  {% set current_user = user|default(null) %}
+  {% set display_name = current_user.display_name|default(current_user.username|default('Admin')) %}
+  {% set role = current_user.role|default('admin') %}
+  {% set initials = display_name|split(' ')|map(part => part|first)|join('')|slice(0, 2)|upper %}
+  {% set nav_base = 'group flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium transition' %}
+  {% set nav_active = 'bg-slate-900 text-white' %}
+  {% set nav_idle = 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' %}
+  {% set is_content_section = section == 'content' %}
+  {% set page_context = is_content_section ? current_type|title : section|title %}
+
+  <div class="flex h-full">
+    <div data-sidebar-backdrop class="fixed inset-0 z-30 hidden bg-slate-900/40 lg:hidden"></div>
+
+    <aside data-sidebar class="fixed inset-y-0 left-0 z-40 flex w-64 -translate-x-full flex-col border-r border-slate-200 bg-white transition-transform duration-200 lg:static lg:translate-x-0">
+      <div class="flex h-14 shrink-0 items-center gap-2.5 border-b border-slate-200 px-4">
+        <div class="flex h-7 w-7 items-center justify-center rounded bg-slate-900 text-xs font-bold text-white">FC</div>
+        <span class="text-sm font-semibold tracking-tight text-slate-900">FarosCMS</span>
+        <span class="ml-auto rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">base</span>
+        <button type="button" data-sidebar-close class="ml-1 rounded p-1 text-slate-400 hover:bg-slate-100 lg:hidden" aria-label="Close sidebar">
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
       </div>
 
-      <nav class="grid flex-1 content-start gap-2 overflow-y-auto px-2 py-4">
-        {% set current_type = current_type|default('pages') %}
-        {% set types = types|default([]) %}
-        {% set section = admin_section|default('content') %}
+      <nav class="scroll-thin flex-1 overflow-y-auto px-3 py-3">
+        <p class="px-2 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Overview</p>
+        <a href="{{ url('admin') }}" class="{{ nav_base }} {{ is_content_section and current_type != 'forms' ? nav_active : nav_idle }}">
+          <svg class="h-4 w-4 {{ is_content_section and current_type != 'forms' ? 'text-white/80' : 'text-slate-400 group-hover:text-slate-600' }}" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h10"/></svg>
+          Content
+        </a>
 
-        {% if types is empty %}
-          <a
-            class="block rounded-lg px-4 py-2.5 text-sm font-medium no-underline transition {% if section == 'content' and current_type == 'pages' %}bg-slate-600/60 text-white{% else %}text-slate-100 hover:bg-slate-700/60 hover:text-white{% endif %}"
-            href="{{ url('admin?type=pages') }}"
-          >Pages</a>
-        {% else %}
-          {% for t in types %}
-            <a
-              class="block rounded-lg px-4 py-2.5 text-sm font-medium no-underline transition {% if section == 'content' and t == current_type %}bg-slate-600/60 text-white{% else %}text-slate-100 hover:bg-slate-700/60 hover:text-white{% endif %}"
-              href="{{ url('admin?type=' ~ t) }}"
-            >{{ t|title }}</a>
-          {% endfor %}
+        {% if types is not empty %}
+          <div class="mt-1 grid gap-0.5 pl-6">
+            {% for t in types %}
+              {% if t != 'forms' %}
+                <a href="{{ url('admin?type=' ~ t) }}" class="truncate rounded px-2 py-1 text-xs font-medium {{ is_content_section and t == current_type ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900' }}">{{ t|title }}</a>
+              {% endif %}
+            {% endfor %}
+          </div>
         {% endif %}
 
-        <a class="block rounded-lg px-4 py-2.5 text-sm font-medium no-underline transition {% if section == 'menus' %}bg-slate-600/60 text-white{% else %}text-slate-100 hover:bg-slate-700/60 hover:text-white{% endif %}" href="{{ url('admin/menus') }}">Menus</a>
-        <a class="block rounded-lg px-4 py-2.5 text-sm font-medium no-underline transition {% if section == 'taxonomies' %}bg-slate-600/60 text-white{% else %}text-slate-100 hover:bg-slate-700/60 hover:text-white{% endif %}" href="{{ url('admin/taxonomies') }}">Taxonomies</a>
-        <a class="block rounded-lg px-4 py-2.5 text-sm font-medium no-underline transition {% if section == 'media' %}bg-slate-600/60 text-white{% else %}text-slate-100 hover:bg-slate-700/60 hover:text-white{% endif %}" href="{{ url('admin/media') }}">Media Library</a>
-        <a class="block rounded-lg px-4 py-2.5 text-sm font-medium no-underline transition {% if section == 'settings' %}bg-slate-600/60 text-white{% else %}text-slate-100 hover:bg-slate-700/60 hover:text-white{% endif %}" href="{{ url('admin/settings') }}">Settings</a>
-        <a class="block rounded-lg px-4 py-2.5 text-sm font-medium no-underline transition {% if section == 'translations' %}bg-slate-600/60 text-white{% else %}text-slate-100 hover:bg-slate-700/60 hover:text-white{% endif %}" href="{{ url('admin/translations') }}">Translations</a>
+        <p class="px-2 pb-1.5 pt-3 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Manage</p>
+        <a href="{{ url('admin?type=forms') }}" class="{{ nav_base }} {{ is_content_section and current_type == 'forms' ? nav_active : nav_idle }}">
+          <svg class="h-4 w-4 {{ is_content_section and current_type == 'forms' ? 'text-white/80' : 'text-slate-400 group-hover:text-slate-600' }}" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+          Forms
+        </a>
+        <a href="{{ url('admin/menus') }}" class="{{ nav_base }} {{ section == 'menus' ? nav_active : nav_idle }}">
+          <svg class="h-4 w-4 {{ section == 'menus' ? 'text-white/80' : 'text-slate-400 group-hover:text-slate-600' }}" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+          Menus
+        </a>
+        <a href="{{ url('admin/taxonomies') }}" class="{{ nav_base }} {{ section == 'taxonomies' ? nav_active : nav_idle }}">
+          <svg class="h-4 w-4 {{ section == 'taxonomies' ? 'text-white/80' : 'text-slate-400 group-hover:text-slate-600' }}" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 3H5a2 2 0 00-2 2v6l9 9a2 2 0 002.8 0l4.6-4.6a2 2 0 000-2.8L11 3zM7 7h.01"/></svg>
+          Taxonomies
+        </a>
+        <a href="{{ url('admin/media') }}" class="{{ nav_base }} {{ section == 'media' ? nav_active : nav_idle }}">
+          <svg class="h-4 w-4 {{ section == 'media' ? 'text-white/80' : 'text-slate-400 group-hover:text-slate-600' }}" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7a2 2 0 012-2h4l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H6a2 2 0 01-2-2V7z"/></svg>
+          Media
+        </a>
+
+        <p class="px-2 pb-1.5 pt-3 text-[10px] font-semibold uppercase tracking-wider text-slate-400">System</p>
+        <a href="{{ url('admin/settings') }}" class="{{ nav_base }} {{ section == 'settings' ? nav_active : nav_idle }}">
+          <svg class="h-4 w-4 {{ section == 'settings' ? 'text-white/80' : 'text-slate-400 group-hover:text-slate-600' }}" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15a3 3 0 100-6 3 3 0 000 6z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-2.82 1.17V21a2 2 0 11-4 0v-.09A1.65 1.65 0 007 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 14a1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 7.51l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6h.09A1.65 1.65 0 0011 3.09V3a2 2 0 114 0v.09a1.65 1.65 0 002.51 1.51h.09a1.65 1.65 0 011.82.33l.06.06a2 2 0 11-2.83 2.83"/></svg>
+          Settings
+        </a>
+        <a href="{{ url('admin/translations') }}" class="{{ nav_base }} {{ section == 'translations' ? nav_active : nav_idle }}">
+          <svg class="h-4 w-4 {{ section == 'translations' ? 'text-white/80' : 'text-slate-400 group-hover:text-slate-600' }}" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5h12M9 3v2c0 4.418-2.686 8-6 8m4-3c0 2.21 2.91 4 6.5 4M14 21l4.5-9 4.5 9m-7.65-2h6.3"/></svg>
+          Translations
+        </a>
       </nav>
 
-      <div class="shrink-0 border-t border-slate-800 px-2 py-3">
-        <div class="grid gap-1">
-          <a class="block rounded-lg px-6 py-3 text-base font-medium text-slate-100 no-underline transition hover:bg-slate-700/60 hover:text-white" href="{{ url('') }}" target="_blank" rel="noopener">View site</a>
-          <a class="block rounded-lg px-6 py-3 text-base font-medium text-slate-100 no-underline transition hover:bg-slate-700/60 hover:text-white" href="{{ url('admin/logout') }}">Logout</a>
+      <div class="shrink-0 border-t border-slate-200 p-3">
+        <a href="{{ url('') }}" target="_blank" rel="noopener" class="mb-2 flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50">View site</a>
+        <div class="rounded-md bg-slate-50 p-2.5">
+          <div class="flex items-center justify-between text-[11px] font-medium text-slate-500">
+            <span>Storage</span><span>local</span>
+          </div>
+          <div class="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
+            <div class="h-full w-[28%] rounded-full bg-slate-900"></div>
+          </div>
         </div>
       </div>
     </aside>
 
-    <main class="ml-[240px] min-w-0 overflow-x-hidden bg-slate-100 px-5 py-5 pr-24 md:px-6 md:pr-28">
-      {% set input_class = 'w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-300' %}
-      {% set select_class = 'w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-300' %}
-      {% set textarea_class = 'w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-300' %}
-      {% set checkbox_class = 'h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-400' %}
-      {% set file_class = 'block w-full text-sm text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-900 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-slate-700' %}
-      {% block content %}{% endblock %}
-    </main>
+    <div class="flex min-w-0 flex-1 flex-col">
+      <header class="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b border-slate-200 bg-white/90 px-4 backdrop-blur">
+        <button type="button" data-toggle="sidebar" class="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 lg:hidden" aria-label="Open sidebar">
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+
+        <div class="min-w-0">
+          <h1 class="truncate text-[15px] font-semibold leading-tight text-slate-900">{{ title|default(page_context) }}</h1>
+          <p class="truncate text-xs text-slate-400">FarosCMS admin / {{ page_context }}</p>
+        </div>
+
+        <div class="ml-auto flex items-center gap-2">
+          {% if is_content_section %}
+            <a href="{{ url('admin/new?type=' ~ current_type ~ '&lang=' ~ (lang|default(site.languages.default|default('en')))) }}" class="hidden items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-blue-700 sm:inline-flex">
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
+              New
+            </a>
+          {% endif %}
+
+          <div class="mx-1 h-6 w-px bg-slate-200"></div>
+
+          <div data-dropdown class="relative">
+            <button type="button" data-dropdown-trigger class="flex items-center gap-2 rounded-md px-1.5 py-1 hover:bg-slate-100">
+              <span class="flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white">{{ initials ?: 'AD' }}</span>
+              <span class="hidden text-left sm:block">
+                <span class="block text-xs font-semibold leading-tight text-slate-900">{{ display_name }}</span>
+                <span class="block text-[10px] leading-tight text-slate-400">{{ role }}</span>
+              </span>
+              <svg class="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <div data-dropdown-menu class="absolute right-0 z-30 mt-1.5 hidden w-52 rounded-md border border-slate-200 bg-white py-1 shadow-lg">
+              <div class="border-b border-slate-100 px-3 py-2">
+                <p class="text-sm font-medium text-slate-900">{{ display_name }}</p>
+                <p class="truncate text-xs text-slate-400">{{ current_user.username|default('admin') }}</p>
+              </div>
+              <a href="{{ url('admin/settings') }}" class="block px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50">Settings</a>
+              <div class="my-1 border-t border-slate-100"></div>
+              <a href="{{ url('admin/logout') }}" class="block px-3 py-1.5 text-sm text-red-600 hover:bg-red-50">Sign out</a>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main class="scroll-thin flex-1 overflow-y-auto p-4 lg:p-6">
+        {% set input_class = 'w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-300' %}
+        {% set select_class = 'w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-300' %}
+        {% set textarea_class = 'w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-300' %}
+        {% set checkbox_class = 'h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-400' %}
+        {% set file_class = 'block w-full text-sm text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-900 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-slate-700' %}
+        {% block content %}{% endblock %}
+      </main>
+    </div>
   </div>
 
-  <aside class="fixed inset-y-0 right-0 z-40 w-[76px] border-l border-slate-200 bg-white">
-    <div class="flex h-full flex-col items-center justify-end gap-3 px-2 py-4">
-      <a
-        href="{{ url('admin/translations') }}"
-        class="inline-flex h-12 w-12 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-700 shadow-sm transition hover:bg-slate-100"
-        title="Translations"
-        aria-label="Translations"
-      >
-        <svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-          <path d="M4 5h7"></path>
-          <path d="M7.5 3v2c0 4-1.5 7-4 9"></path>
-          <path d="M3.5 14c2.5 1.5 5 2 7.5 2"></path>
-          <path d="M14 5h6"></path>
-          <path d="M17 5v14"></path>
-          <path d="m14 14 3-5 3 5"></path>
-        </svg>
-      </a>
-      <a
-        href="{{ url('admin/settings') }}"
-        class="inline-flex h-12 w-12 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-700 shadow-sm transition hover:bg-slate-100"
-        title="Settings"
-        aria-label="Settings"
-      >
-        <svg viewBox="0 0 24 24" class="h-6 w-6" fill="currentColor" aria-hidden="true"><path d="M6.17071 18C6.58254 16.8348 7.69378 16 9 16C10.3062 16 11.4175 16.8348 11.8293 18H22V20H11.8293C11.4175 21.1652 10.3062 22 9 22C7.69378 22 6.58254 21.1652 6.17071 20H2V18H6.17071ZM12.1707 11C12.5825 9.83481 13.6938 9 15 9C16.3062 9 17.4175 9.83481 17.8293 11H22V13H17.8293C17.4175 14.1652 16.3062 15 15 15C13.6938 15 12.5825 14.1652 12.1707 13H2V11H12.1707ZM6.17071 4C6.58254 2.83481 7.69378 2 9 2C10.3062 2 11.4175 2.83481 11.8293 4H22V6H11.8293C11.4175 7.16519 10.3062 8 9 8C7.69378 8 6.58254 7.16519 6.17071 6H2V4H6.17071ZM9 6C9.55228 6 10 5.55228 10 5C10 4.44772 9.55228 4 9 4C8.44772 4 8 4.44772 8 5C8 5.55228 8.44772 6 9 6ZM15 13C15.5523 13 16 12.5523 16 12C16 11.4477 15.5523 11 15 11C14.4477 11 14 11.4477 14 12C14 12.5523 14.4477 13 15 13ZM9 20C9.55228 20 10 19.5523 10 19C10 18.4477 9.55228 18 9 18C8.44772 18 8 18.4477 8 19C8 19.5523 8.44772 20 9 20Z"></path></svg>
-      </a>
-      <a
-        href="{{ url('admin/logout') }}"
-        class="inline-flex h-12 w-12 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-700 shadow-sm transition hover:bg-slate-100"
-        title="Logout"
-        aria-label="Logout"
-      >
-        <svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-          <path d="m16 17 5-5-5-5"></path>
-          <path d="M21 12H9"></path>
-        </svg>
-      </a>
-    </div>
-  </aside>
+  <div data-toast-host class="pointer-events-none fixed bottom-4 right-4 z-50 flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2"></div>
 
+  <script src="{{ url('assets/js/admin.js') }}"></script>
   <script>
     (function () {
       const syncTabState = () => {
