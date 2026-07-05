@@ -15,6 +15,8 @@ body { font-feature-settings: "cv05" 1, "ss01" 1; }
 .scroll-thin::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
 .scroll-thin::-webkit-scrollbar-track { background: transparent; }
 
+.is-hidden { display: none !important; }
+
 /* Off-canvas + modal transition primitives (toggled by data attributes via admin.js) */
 [data-offcanvas] { transition: transform .25s ease; }
 [data-offcanvas][hidden] { display: block; transform: translateX(100%); }
@@ -146,7 +148,15 @@ html.dark body.bg-slate-100 { background-color: #0b1120; }
 .dark .border-blue-300 { border-color: rgba(96, 165, 250, .5); }
 
 /* Active tab / selected accents stay vivid in dark */
+.tab-button.active {
+  background: #0f172a;
+  color: #fff;
+}
 .dark .border-blue-600 { border-color: #60a5fa; }
+.dark .tab-button.active {
+  background: #2563eb;
+  color: #fff;
+}
 
 /* Dark scrollbars */
 .dark .scroll-thin { scrollbar-color: #334155 transparent; }
