@@ -1,2 +1,65 @@
-{% extends '@admin/base.twig' %} {% block content %} {% set btn = 'pill-button inline-flex items-center justify-center rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white no-underline transition hover:bg-slate-700' %} {% set btn_muted = 'pill-button pill-button-muted inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 no-underline transition hover:bg-slate-100' %} <header class="admin-header mb-5 flex flex-wrap items-start justify-between gap-4"> <div> <h1 class="text-4xl font-semibold tracking-tight text-slate-900">New Menu</h1> <p class="mt-1 text-sm text-slate-500">Create a new menu key. You can optionally clone an existing menu structure.</p> </div> <div class="actions mt-1 flex flex-wrap items-center gap-2"> <a class="{{ btn_muted }}" href="{{ url('admin/menus') }}">Back to Menus</a> </div> </header> {% if error %} <div class="alert mb-4 rounded-md border border-rose-300 bg-rose-50 px-3 py-2 text-sm text-rose-800">{{ error }}</div> {% endif %} <form method="post" class="editor"> <div class="form-section mb-4 grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm w-full"> <h3 class="text-xl font-semibold text-slate-900">Menu</h3> <div class="section-grid grid grid-cols-1 gap-4 md:grid-cols-2"> <label class="grid gap-1 text-sm font-medium text-slate-700"> Menu key <input type="text" name="new_key" value="{{ new_key }}" placeholder="services-menu" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-300"> </label> <label class="grid gap-1 text-sm font-medium text-slate-700"> Menu title <input type="text" name="new_title" value="{{ new_title }}" placeholder="Services Menu" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-300"> </label> <label class="grid gap-1 text-sm font-medium text-slate-700"> Clone from existing (optional) <select name="source_key" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-300"> <option value="">None</option> {% for key in menu_keys %} <option value="{{ key }}" {% if key == source_key %}selected{% endif %}>{{ key }}</option> {% endfor %} </select> </label> </div> </div> <div class="actions mt-4 flex flex-wrap items-center gap-2 mt-1"> <button type="submit" class="{{ btn }}">Create menu</button> </div> </form>
+{% extends '@admin/base.twig' %}
+
+{% block content %}
+  {% set primary_btn = 'inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm no-underline hover:bg-blue-700' %}
+  {% set secondary_btn = 'inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm no-underline hover:bg-slate-50' %}
+  {% set input_class = 'w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20' %}
+
+  <header class="mb-4 flex flex-wrap items-start justify-between gap-3">
+    <div class="min-w-0">
+      <h1 class="truncate text-2xl font-semibold tracking-tight text-slate-900">New menu</h1>
+      <p class="mt-1 text-sm text-slate-500">Create a menu key and optionally clone an existing structure.</p>
+    </div>
+    <a class="{{ secondary_btn }}" href="{{ url('admin/menus') }}">
+      <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+      </svg>
+      Back to menus
+    </a>
+  </header>
+
+  {% if error %}
+    <div class="mb-4 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{{ error }}</div>
+  {% endif %}
+
+  <form method="post" class="max-w-4xl">
+    <section class="rounded-lg border border-slate-200 bg-white">
+      <div class="border-b border-slate-200 px-4 py-3">
+        <h2 class="text-sm font-semibold text-slate-900">Menu details</h2>
+        <p class="mt-0.5 text-xs text-slate-400">Use a stable lowercase key for templates and navigation calls.</p>
+      </div>
+
+      <div class="grid gap-4 p-4 md:grid-cols-2">
+        <label class="grid gap-1 text-sm font-medium text-slate-700">
+          Menu key
+          <input type="text" name="new_key" value="{{ new_key }}" placeholder="services-menu" class="{{ input_class }}" autocomplete="off" required>
+        </label>
+
+        <label class="grid gap-1 text-sm font-medium text-slate-700">
+          Menu title
+          <input type="text" name="new_title" value="{{ new_title }}" placeholder="Services Menu" class="{{ input_class }}" autocomplete="off">
+        </label>
+
+        <label class="grid gap-1 text-sm font-medium text-slate-700 md:col-span-2">
+          Clone from existing
+          <select name="source_key" class="{{ input_class }}">
+            <option value="">None</option>
+            {% for key in menu_keys %}
+              <option value="{{ key }}" {% if key == source_key %}selected{% endif %}>{{ key }}</option>
+            {% endfor %}
+          </select>
+        </label>
+      </div>
+
+      <div class="flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 px-4 py-3">
+        <a class="{{ secondary_btn }}" href="{{ url('admin/menus') }}">Cancel</a>
+        <button type="submit" class="{{ primary_btn }}">
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" d="M12 5v14M5 12h14"/>
+          </svg>
+          Create menu
+        </button>
+      </div>
+    </section>
+  </form>
 {% endblock %}
