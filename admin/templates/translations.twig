@@ -1,2 +1,114 @@
-{% extends '@admin/base.twig' %} {% block content %} {% set btn = 'pill-button inline-flex items-center justify-center rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700' %} {% set btn_muted = 'pill-button pill-button-muted inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100' %} <header class="admin-header mb-5 flex flex-wrap items-start justify-between gap-4"> <div> <h1 class="text-4xl font-semibold tracking-tight text-slate-900">Translations</h1> <p class="mt-1 text-sm text-slate-500">Edit theme string translations for {{ lang|upper }}.</p> </div> </header> {% if saved %} <div class="toast toast-success fixed right-6 top-5 z-[999] flex items-center gap-3 rounded-md border border-emerald-300 bg-emerald-50 px-3.5 py-2.5 text-emerald-800 shadow"> <span>Saved.</span> <button type="button" class="toast-close border-0 bg-transparent text-lg leading-none text-current" onclick="this.parentElement.remove()">×</button> </div> {% endif %} <div class="toolbar mb-4"> <form method="get" class="filters flex flex-wrap items-end gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm"> <label class="grid gap-1 text-sm font-medium text-slate-700"> <span class="label-row inline-flex items-center gap-2">Language</span> <select name="lang" class="w-full min-w-[90px] rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-300"> {% for l in languages %} <option value="{{ l }}" {% if l == lang %}selected{% endif %}>{{ l|upper }}</option> {% endfor %} </select> </label> <button type="submit" class="{{ btn_muted }}">Apply</button> </form> </div> <form method="post" class="translations"> <input type="hidden" name="lang" value="{{ lang }}"> <div class="table overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm w-full"> <table class="list-table translations-table min-w-full table-auto border-collapse text-sm"> <thead> <tr> <th class="border-b border-slate-200 bg-slate-50 px-4 py-3 text-left font-semibold text-slate-700">Key</th> <th class="border-b border-slate-200 bg-slate-50 px-4 py-3 text-left font-semibold text-slate-700">Value</th> <th class="border-b border-slate-200 bg-slate-50 px-4 py-3 text-left font-semibold text-slate-700">Default ({{ default_lang|upper }})</th> </tr> </thead> <tbody> {% for key, value in translations %} <tr> <td class="border-b border-slate-200 px-4 py-3 align-top"><input type="text" name="keys[]" value="{{ key }}" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-300"></td> <td class="border-b border-slate-200 px-4 py-3 align-top"><input type="text" name="values[]" value="{{ value }}" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-300"></td> <td class="muted border-b border-slate-200 px-4 py-3 text-sm text-slate-500">{{ defaults[key] ?? '' }}</td> </tr> {% endfor %} <tr> <td class="px-4 py-3"><input type="text" name="keys[]" placeholder="new.key" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-300"></td> <td class="px-4 py-3"><input type="text" name="values[]" placeholder="New value" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-300"></td> <td class="muted px-4 py-3 text-sm text-slate-500"></td> </tr> </tbody> </table> </div> <div class="actions mt-4 flex flex-wrap items-center gap-2 mt-1"> <button type="submit" class="{{ btn }}">Save</button> </div> </form>
+{% extends '@admin/base.twig' %}
+
+{% block content %}
+  {% set btn_primary = 'inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700' %}
+  {% set btn_secondary = 'inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50' %}
+  {% set input_soft = 'w-full rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20' %}
+
+  <header class="mb-5 flex flex-wrap items-start justify-between gap-4">
+    <div>
+      <h1 class="text-3xl font-semibold tracking-tight text-slate-900">Translations</h1>
+      <p class="mt-1 text-sm text-slate-500">Edit theme string translations for {{ lang|upper }}.</p>
+    </div>
+  </header>
+
+  {% if saved %}
+    <div class="toast toast-success fixed right-6 top-5 z-[999] flex items-center gap-3 rounded-md border border-emerald-300 bg-emerald-50 px-3.5 py-2.5 text-emerald-800 shadow">
+      <span>Saved.</span>
+      <button type="button" class="toast-close border-0 bg-transparent text-lg leading-none text-current" onclick="this.parentElement.remove()">x</button>
+    </div>
+  {% endif %}
+
+  <div class="mb-4 rounded-lg border border-slate-200 bg-white p-4">
+    <form method="get" class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <label class="grid gap-1 text-sm font-medium text-slate-700">
+        Language
+        <select name="lang" class="w-full min-w-32 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20">
+          {% for l in languages %}
+            <option value="{{ l }}" {% if l == lang %}selected{% endif %}>{{ l|upper }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <button type="submit" class="{{ btn_secondary }}">Apply</button>
+    </form>
+  </div>
+
+  <form method="post" class="translations">
+    <input type="hidden" name="lang" value="{{ lang }}">
+
+    <div class="rounded-lg border border-slate-200 bg-white">
+      <div class="flex flex-col gap-3 border-b border-slate-200 p-3 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex items-center gap-3 text-sm">
+          <span class="font-medium text-slate-700">{{ translations|length }} strings</span>
+          <span class="h-4 w-px bg-slate-200"></span>
+          <span class="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">{{ lang|upper }}</span>
+          <span class="text-xs text-slate-400">Source: {{ default_lang|upper }}</span>
+        </div>
+        <button type="submit" class="{{ btn_primary }}">
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+          Save translations
+        </button>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-slate-100 bg-slate-50/50 text-left text-xs font-medium text-slate-400">
+              <th class="px-4 py-2 font-medium">Key</th>
+              <th class="px-4 py-2 font-medium">Source ({{ default_lang|upper }})</th>
+              <th class="px-4 py-2 font-medium">Translation</th>
+              <th class="px-4 py-2 font-medium">Status</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-50">
+            {% for key, value in translations %}
+              {% set default_value = defaults[key] ?? '' %}
+              {% set is_missing = value is same as('') %}
+              {% set is_source = lang != default_lang and value == default_value %}
+              <tr class="align-top hover:bg-slate-50">
+                <td class="px-4 py-2.5">
+                  <input type="hidden" name="keys[]" value="{{ key }}">
+                  <code class="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-600">{{ key }}</code>
+                </td>
+                <td class="max-w-md px-4 py-2.5 text-sm text-slate-600">
+                  {{ default_value }}
+                </td>
+                <td class="min-w-80 px-4 py-2.5">
+                  <input type="text" name="values[]" value="{{ value }}" placeholder="Add translation..." class="{{ input_soft }} {% if is_missing %}border-red-200 bg-red-50/30{% elseif is_source %}border-amber-200 bg-amber-50/30{% endif %}">
+                </td>
+                <td class="px-4 py-2.5">
+                  {% if is_missing %}
+                    <span class="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-700 ring-1 ring-inset ring-red-200">missing</span>
+                  {% elseif is_source %}
+                    <span class="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 ring-1 ring-inset ring-amber-200">source</span>
+                  {% else %}
+                    <span class="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200">translated</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+            <tr class="align-top bg-slate-50/40">
+              <td class="px-4 py-3">
+                <input type="text" name="keys[]" placeholder="new.key" class="{{ input_soft }} font-mono text-xs">
+              </td>
+              <td class="px-4 py-3 text-xs text-slate-400">New custom string</td>
+              <td class="min-w-80 px-4 py-3">
+                <input type="text" name="values[]" placeholder="New value" class="{{ input_soft }}">
+              </td>
+              <td class="px-4 py-3">
+                <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500 ring-1 ring-inset ring-slate-200">new</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="flex items-center justify-end border-t border-slate-200 px-4 py-3">
+        <button type="submit" class="{{ btn_primary }}">
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+          Save translations
+        </button>
+      </div>
+    </div>
+  </form>
 {% endblock %}
