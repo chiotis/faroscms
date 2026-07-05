@@ -1,0 +1,16 @@
+{% set is_home = item.type == 'pages' and item.slug == site.home_page %}
+{% set path = item.type == 'pages' ? (is_home ? prefix : prefix ~ item.slug) : prefix ~ item.type ~ '/' ~ item.slug %}
+<article class="content-item">
+  {% if item.meta.main_image is defined and item.meta.main_image %}
+    <a href="{{ url(path) }}"><img src="{{ item.meta.main_image }}" alt="{{ item.meta.title }}"></a>
+  {% endif %}
+  <div class="content-item-body">
+    <p class="content-meta">
+      {% if item.meta.date is defined %}{{ format_date(item.meta.date) }}{% endif %}
+      <span>{{ t('type.' ~ item.type, item.type|title) }}</span>
+    </p>
+    <h3><a href="{{ url(path) }}">{{ item.meta.title }}</a></h3>
+    <p>{{ (item.meta.excerpt ?? item.markdown)|striptags|slice(0, 170) }}{% if (item.meta.excerpt ?? item.markdown)|length > 170 %}...{% endif %}</p>
+    <a href="{{ url(path) }}">{{ t('archive.read_more') }}</a>
+  </div>
+</article>

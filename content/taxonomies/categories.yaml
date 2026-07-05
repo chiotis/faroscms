@@ -1,0 +1,12 @@
+title: Categories
+terms:
+  - id: news
+    slug: news
+    labels:
+      el: Νέα
+      en: News
+  - id: case-studies
+    slug: case-studies
+    labels:
+      el: Μελέτες Περίπτωσης
+      en: Case Studies

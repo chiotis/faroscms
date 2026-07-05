@@ -1,0 +1,47 @@
+{% extends 'base.twig' %}
+
+{% block content %}
+  {% set prefix = lang_prefix|default('') %}
+  <article class="site-wrap section-stack">
+    <section>
+      <p>{{ t('home.kicker', 'Business Website Starter') }}</p>
+      <h1>{{ item.meta.title }}</h1>
+      <p>{{ item.meta.excerpt ?? site.tagline }}</p>
+      <p>
+        <a href="{{ url(prefix ~ 'contact') }}">{{ t('home.cta_primary', 'Start a Project') }}</a>
+        <a href="{{ url(prefix ~ 'projects') }}">{{ t('home.cta_secondary', 'View Projects') }}</a>
+      </p>
+      {% if item.meta.main_image is defined and item.meta.main_image %}
+        <p><img src="{{ item.meta.main_image }}" alt="{{ item.meta.title }}"></p>
+      {% endif %}
+    </section>
+
+    <section class="prose-block">
+      {{ item.html|raw }}
+    </section>
+
+    {% if latest_projects is defined and latest_projects is not empty %}
+      <section>
+        <h2>{{ t('home.projects_title', 'Featured Projects') }}</h2>
+        <p><a href="{{ url(prefix ~ 'projects') }}">{{ t('home.view_all_projects', 'View all projects') }}</a></p>
+        <div class="content-grid">
+          {% for project_item in latest_projects %}
+            {% include 'parts/loop.twig' with { item: project_item } %}
+          {% endfor %}
+        </div>
+      </section>
+    {% endif %}
+
+    {% if latest_posts is defined and latest_posts is not empty %}
+      <section>
+        <h2>{{ t('home.news_title', 'Latest News') }}</h2>
+        <p><a href="{{ url(prefix ~ 'posts') }}">{{ t('home.view_all_news', 'View all news') }}</a></p>
+        <div class="content-grid">
+          {% for post_item in latest_posts %}
+            {% include 'parts/loop.twig' with { item: post_item } %}
+          {% endfor %}
+        </div>
+      </section>
+    {% endif %}
+  </article>
+{% endblock %}
