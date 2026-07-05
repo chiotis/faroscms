@@ -1,2 +1,160 @@
-{% extends '@admin/base.twig' %} {% block content %} {% set btn = 'pill-button inline-flex items-center justify-center rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white no-underline transition hover:bg-slate-700' %} {% set btn_muted = 'pill-button pill-button-muted inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 no-underline transition hover:bg-slate-100' %} {% set btn_danger = 'pill-button danger inline-flex items-center justify-center rounded-md bg-rose-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-rose-500' %} <header class="admin-header mb-5 flex flex-wrap items-start justify-between gap-4"> <div> <h1 class="text-4xl font-semibold tracking-tight text-slate-900">{{ current_type|title }}</h1> <p class="mt-1 text-sm text-slate-500">Manage {{ current_type|title }} content.</p> </div> <div class="actions mt-1 flex flex-wrap items-center gap-2"> {% if current_type != 'forms' %} <a class="{{ btn_muted }}" href="{{ url('admin/import?type=' ~ current_type) }}">Import CSV</a> <a class="{{ btn_muted }}" href="{{ url('admin/export?type=' ~ current_type) }}">Export CSV</a> {% endif %} {% set singular = current_type ends with 's' ? current_type|slice(0, -1) : current_type %} <a class="{{ btn }}" href="{{ url('admin/new?type=' ~ current_type ~ '&lang=' ~ lang) }}">+ New {{ singular|title }}</a> </div> </header> {% if deleted %} <div class="toast toast-success fixed right-6 top-5 z-[999] flex items-center gap-3 rounded-md border border-emerald-300 bg-emerald-50 px-3.5 py-2.5 text-emerald-800 shadow"> <span>Deleted.</span> <button type="button" class="toast-close border-0 bg-transparent text-lg leading-none text-current" onclick="this.parentElement.remove()">×</button> </div> {% endif %} <div class="toolbar mb-4"> <form method="get" class="filters flex flex-wrap items-end gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm"> <input type="hidden" name="type" value="{{ current_type }}"> <label class="grid gap-1 text-sm font-medium text-slate-700"> <span class="label-row inline-flex items-center gap-2">Language</span> <select name="lang" class="w-full min-w-[90px] rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-300"> {% for l in languages %} <option value="{{ l }}" {% if l == lang %}selected{% endif %}>{{ l }}</option> {% endfor %} </select> </label> <button type="submit" class="{{ btn_muted }}">Apply</button> </form> </div> <div class="table overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm w-full"> {% if items is empty %} <div class="row empty p-5 text-sm text-slate-500">No content yet.</div> {% else %} <table class="list-table min-w-full table-auto border-collapse text-sm"> <thead> <tr> <th class="border-b border-slate-200 bg-slate-50 px-4 py-3 text-left font-semibold text-slate-700">Title</th> <th class="border-b border-slate-200 bg-slate-50 px-4 py-3 text-left font-semibold text-slate-700">Status</th> <th class="border-b border-slate-200 bg-slate-50 px-4 py-3 text-left font-semibold text-slate-700">Lang</th> <th class="border-b border-slate-200 bg-slate-50 px-4 py-3 text-left font-semibold text-slate-700">Updated</th> <th class="border-b border-slate-200 bg-slate-50 px-4 py-3 text-right font-semibold text-slate-700"></th> </tr> </thead> <tbody> {% for item in items %} <tr> <td class="border-b border-slate-200 px-4 py-3 align-top text-slate-900"> {{ item.meta.title }} {% if current_type != 'pages' and item.meta.main_image %} <span class="meta-icon relative ml-2 inline-flex h-[18px] w-[18px] cursor-pointer items-center justify-center rounded-full border border-slate-300 text-slate-500" title="Has main image"> <svg viewBox="0 0 24 24" aria-hidden="true" class="h-3 w-3 fill-current"> <path d="M4 6a2 2 0 0 1 2-2h3l1.2 1.6a2 2 0 0 0 1.6.8H18a2 2 0 0 1 2 2v9.6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6zm2 3a1 1 0 0 0-1 1v7.6a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V10a1 1 0 0 0-1-1H6zm2 2.2a2 2 0 1 1 4 0 2 2 0 0 1-4 0zm1.5 5.4 2.7-3.2a1 1 0 0 1 1.6 0l2.7 3.2H9.5z"/> </svg> <span class="meta-tooltip pointer-events-none fixed z-50 hidden rounded-md border border-slate-300 bg-white p-1.5 shadow"> <img src="{{ item.meta.main_image }}" alt="Main image preview" class="h-20 w-32 rounded-md object-cover"> </span> </span> {% endif %} </td> <td class="border-b border-slate-200 px-4 py-3 align-top text-slate-900"> {{ item.meta.status ?? 'published' }} {% if current_type == 'pages' and item.slug == site.home_page %} <span class="pill ml-2 inline-flex items-center rounded-full bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-700">Home</span> {% endif %} {% if item.meta.seo is defined and item.meta.seo.noindex %} <span class="pill pill-warning ml-2 inline-flex items-center rounded-full bg-pink-100 px-2.5 py-1 text-xs font-semibold text-pink-700 bg-blue-100 text-blue-700">Non-Indexed</span> {% endif %} </td> <td class="border-b border-slate-200 px-4 py-3 align-top text-slate-900"> {{ item.lang }} {% set key = item.slug ~ '|' ~ item.lang %} {% for l in translation_langs[key]|default([]) %} <span class="lang-muted ml-2 opacity-30">{{ l }}</span> {% endfor %} </td> <td class="border-b border-slate-200 px-4 py-3 align-top text-slate-900">{{ item.mtime|date('Y-m-d H:i') }}</td> <td class="table-actions border-b border-slate-200 px-4 py-3 text-right align-top whitespace-nowrap"> <div class="inline-flex items-center gap-2 whitespace-nowrap"> <a class="{{ btn }}" href="{{ url('admin/edit?type=' ~ current_type ~ '&slug=' ~ item.slug ~ '&lang=' ~ item.lang) }}">Edit</a> {% set is_home = current_type == 'pages' and item.slug == site.home_page and item.lang == site.languages.default %} {% if not is_home %} <form method="post" action="{{ url('admin/delete') }}" class="inline" onsubmit="return confirm('Delete this item?');"> <input type="hidden" name="type" value="{{ current_type }}"> <input type="hidden" name="slug" value="{{ item.slug }}"> <input type="hidden" name="lang" value="{{ item.lang }}"> <button type="submit" class="{{ btn_danger }}">Delete</button> </form> {% endif %} </div> </td> </tr> {% endfor %} </tbody> </table> {% endif %} </div>
+{% extends '@admin/base.twig' %}
+
+{% block content %}
+  {% set singular = current_type ends with 's' ? current_type|slice(0, -1) : current_type %}
+  {% set btn_primary = 'inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm no-underline hover:bg-blue-700' %}
+  {% set btn_secondary = 'inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm no-underline hover:bg-slate-50' %}
+  {% set icon_button = 'rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700' %}
+  {% set icon_danger = 'rounded-md p-1.5 text-red-500 hover:bg-red-50 hover:text-red-600' %}
+
+  <header class="mb-5 flex flex-wrap items-start justify-between gap-4">
+    <div>
+      <h1 class="text-3xl font-semibold tracking-tight text-slate-900">{{ current_type|title }}</h1>
+      <p class="mt-1 text-sm text-slate-500">Manage {{ current_type|title }} content.</p>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-2">
+      {% if current_type != 'forms' %}
+        <a class="{{ btn_secondary }}" href="{{ url('admin/import?type=' ~ current_type) }}">
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+          Import CSV
+        </a>
+        <a class="{{ btn_secondary }}" href="{{ url('admin/export?type=' ~ current_type) }}">
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21V9m0 12 4-4m-4 4-4-4M4 7V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2"/></svg>
+          Export CSV
+        </a>
+      {% endif %}
+      <a class="{{ btn_primary }}" href="{{ url('admin/new?type=' ~ current_type ~ '&lang=' ~ lang) }}">
+        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
+        New {{ singular|title }}
+      </a>
+    </div>
+  </header>
+
+  {% if deleted %}
+    <div class="toast toast-success fixed right-6 top-5 z-[999] flex items-center gap-3 rounded-md border border-emerald-300 bg-emerald-50 px-3.5 py-2.5 text-emerald-800 shadow">
+      <span>Deleted.</span>
+      <button type="button" class="toast-close border-0 bg-transparent text-lg leading-none text-current" onclick="this.parentElement.remove()">x</button>
+    </div>
+  {% endif %}
+
+  <div id="contentFilter" class="mb-4 rounded-lg border border-slate-200 bg-white p-4">
+    <form method="get" class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <input type="hidden" name="type" value="{{ current_type }}">
+      <label class="grid gap-1 text-sm font-medium text-slate-700">
+        Language
+        <select name="lang" class="w-full min-w-32 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20">
+          {% for l in languages %}
+            <option value="{{ l }}" {% if l == lang %}selected{% endif %}>{{ l|upper }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <div class="flex items-center gap-2">
+        <button type="submit" class="{{ btn_primary }}">Apply</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="rounded-lg border border-slate-200 bg-white">
+    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-2.5">
+      <div class="flex items-center gap-2 text-sm">
+        <span class="font-medium text-slate-700">{{ items|length }} entries</span>
+        <span class="mx-1 h-4 w-px bg-slate-200"></span>
+        <span class="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">{{ lang|upper }}</span>
+      </div>
+      <div class="text-xs text-slate-400">Updated order</div>
+    </div>
+
+    {% if items is empty %}
+      <div class="flex flex-col items-center justify-center px-6 py-16 text-center">
+        <div class="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
+          <svg class="h-6 w-6 text-slate-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m-7 5h8a2 2 0 0 0 2-2V7l-5-5H7a2 2 0 0 0-2 2v15a2 2 0 0 0 2 2z"/></svg>
+        </div>
+        <h3 class="mt-3 text-sm font-semibold text-slate-900">No content yet</h3>
+        <p class="mt-1 max-w-sm text-sm text-slate-400">Create the first {{ singular }} for this language.</p>
+        <div class="mt-4">
+          <a class="{{ btn_primary }}" href="{{ url('admin/new?type=' ~ current_type ~ '&lang=' ~ lang) }}">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
+            New {{ singular|title }}
+          </a>
+        </div>
+      </div>
+    {% else %}
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-slate-100 bg-slate-50/50 text-left text-xs font-medium text-slate-400">
+              <th class="px-4 py-2 font-medium">Title</th>
+              <th class="px-4 py-2 font-medium">Status</th>
+              <th class="px-4 py-2 font-medium">Language</th>
+              <th class="px-4 py-2 font-medium">Updated</th>
+              <th class="px-4 py-2 text-right font-medium">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-50">
+            {% for item in items %}
+              {% set status = item.meta.status ?? 'published' %}
+              {% set key = item.slug ~ '|' ~ item.lang %}
+              {% set is_home = current_type == 'pages' and item.slug == site.home_page and item.lang == site.languages.default %}
+              <tr class="group hover:bg-slate-50">
+                <td class="px-4 py-2.5">
+                  <a href="{{ url('admin/edit?type=' ~ current_type ~ '&slug=' ~ item.slug ~ '&lang=' ~ item.lang) }}" class="font-medium text-slate-900 no-underline hover:text-blue-600">
+                    {{ item.meta.title ?: item.slug }}
+                  </a>
+                  <div class="mt-0.5 flex items-center gap-2 text-xs text-slate-400">
+                    <span>/{{ item.slug }}</span>
+                    {% if current_type != 'pages' and item.meta.main_image %}
+                      <span class="meta-icon relative inline-flex h-5 w-5 cursor-pointer items-center justify-center rounded border border-slate-200 bg-white text-slate-400" title="Has main image">
+                        <svg viewBox="0 0 24 24" aria-hidden="true" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16v12H4zM8 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM4 16l5-5 4 4 3-3 4 4"/></svg>
+                        <span class="meta-tooltip pointer-events-none fixed z-50 hidden rounded-md border border-slate-300 bg-white p-1.5 shadow">
+                          <img src="{{ item.meta.main_image }}" alt="Main image preview" class="h-20 w-32 rounded-md object-cover">
+                        </span>
+                      </span>
+                    {% endif %}
+                  </div>
+                </td>
+                <td class="px-4 py-2.5">
+                  <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset {% if status == 'published' %}bg-emerald-50 text-emerald-700 ring-emerald-200{% elseif status == 'draft' %}bg-slate-100 text-slate-600 ring-slate-200{% else %}bg-amber-50 text-amber-700 ring-amber-200{% endif %}">
+                    {{ status }}
+                  </span>
+                  {% if current_type == 'pages' and item.slug == site.home_page %}
+                    <span class="ml-1 inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-medium text-blue-700 ring-1 ring-inset ring-blue-200">Home</span>
+                  {% endif %}
+                  {% if item.meta.seo is defined and item.meta.seo.noindex %}
+                    <span class="ml-1 inline-flex items-center rounded-full bg-pink-50 px-2 py-0.5 text-[11px] font-medium text-pink-700 ring-1 ring-inset ring-pink-200">Noindex</span>
+                  {% endif %}
+                </td>
+                <td class="px-4 py-2.5">
+                  <div class="flex flex-wrap items-center gap-1">
+                    <span class="inline-flex h-5 min-w-7 items-center justify-center rounded bg-emerald-50 px-1 text-[10px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200">{{ item.lang|upper }}</span>
+                    {% for l in translation_langs[key]|default([]) %}
+                      <span class="inline-flex h-5 min-w-7 items-center justify-center rounded border border-dashed border-slate-300 px-1 text-[10px] font-semibold text-slate-300">{{ l|upper }}</span>
+                    {% endfor %}
+                  </div>
+                </td>
+                <td class="px-4 py-2.5 text-slate-400">{{ item.mtime|date('Y-m-d H:i') }}</td>
+                <td class="px-4 py-2.5">
+                  <div class="flex items-center justify-end gap-0.5">
+                    <a class="{{ icon_button }}" href="{{ url('admin/edit?type=' ~ current_type ~ '&slug=' ~ item.slug ~ '&lang=' ~ item.lang) }}" title="Edit {{ item.meta.title ?: item.slug }}" aria-label="Edit {{ item.meta.title ?: item.slug }}">
+                      <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
+                    </a>
+                    {% if not is_home %}
+                      <form method="post" action="{{ url('admin/delete') }}" class="inline" onsubmit="return confirm('Delete this item?');">
+                        <input type="hidden" name="type" value="{{ current_type }}">
+                        <input type="hidden" name="slug" value="{{ item.slug }}">
+                        <input type="hidden" name="lang" value="{{ item.lang }}">
+                        <button type="submit" class="{{ icon_danger }}" title="Delete {{ item.meta.title ?: item.slug }}" aria-label="Delete {{ item.meta.title ?: item.slug }}">
+                          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V6"/></svg>
+                        </button>
+                      </form>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+  </div>
 {% endblock %}
