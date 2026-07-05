@@ -1,0 +1,79 @@
+{% macro menu_link(item, prefix, link_class) %}
+  {% set path = item.url ?? '' %}
+  {% set target = item.target is defined ? item.target|trim : '' %}
+  {% set current = item.is_active|default(false) %}
+  {% set state_classes = '' %}
+  {% if current %}
+    {% set state_classes = state_classes ~ ' is-active' %}
+  {% endif %}
+  {% if item.is_trail|default(false) %}
+    {% set state_classes = state_classes ~ ' is-trail' %}
+  {% endif %}
+  {% set classes = (link_class ~ state_classes ~ ' ' ~ (item.class ?? ''))|trim %}
+  {% set is_external = path starts with 'http' or path starts with 'mailto:' or path starts with 'tel:' or path starts with '#' %}
+  {% if is_external %}
+    <a class="{{ classes }}" href="{{ path }}" {% if current %}aria-current="page"{% endif %} {% if target %}target="{{ target }}"{% endif %} {% if target == '_blank' %}rel="noopener"{% endif %}>{{ item.label }}</a>
+  {% else %}
+    {% set clean = path == '' ? prefix : (path == '/' ? prefix : prefix ~ path|trim('/')) %}
+    <a class="{{ classes }}" href="{{ url(clean) }}" {% if current %}aria-current="page"{% endif %} {% if target %}target="{{ target }}"{% endif %} {% if target == '_blank' %}rel="noopener"{% endif %}>{{ item.label }}</a>
+  {% endif %}
+{% endmacro %}
+
+{% macro location_menu(items, prefix, level, list_class, item_class, link_class, max_level) %}
+  <ul class="{{ list_class }} {{ list_class }}-{{ level }}">
+    {% for item in items %}
+      {% set label = '' %}
+      {% if item.label is defined and item.label|trim != '' %}
+        {% set label = item.label %}
+      {% elseif item.label_key is defined and item.label_key|trim != '' %}
+        {% set label = t(item.label_key, item.label_key) %}
+      {% endif %}
+      {% if label %}
+        {% set has_children = level < max_level and item.children is defined and item.children is not empty %}
+        <li class="{{ item_class }}{% if has_children %} has-children{% endif %}{% if item.is_active|default(false) %} is-active{% endif %}{% if item.is_trail|default(false) %} is-trail{% endif %}">
+          {{ _self.menu_link(item|merge({'label': label}), prefix, link_class) }}
+          {% if has_children %}
+            {{ _self.location_menu(item.children, prefix, level + 1, list_class, item_class, link_class, max_level) }}
+          {% endif %}
+        </li>
+      {% endif %}
+    {% endfor %}
+  </ul>
+{% endmacro %}
+
+{% macro header_menu(items, prefix, level) %}
+  {{ _self.location_menu(items, prefix, level, 'nav-list', 'nav-item', 'nav-link', 3) }}
+{% endmacro %}
+
+{% macro footer_menu(items, prefix, level) %}
+  {{ _self.location_menu(items, prefix, level, 'footer-list', 'footer-item', 'footer-link', 3) }}
+{% endmacro %}
+
+{% macro mobile_menu(items, prefix, level, max_level) %}
+  <ul class="mobile-menu mobile-menu-{{ level }}">
+    {% for item in items %}
+      {% set label = '' %}
+      {% if item.label is defined and item.label|trim != '' %}
+        {% set label = item.label %}
+      {% elseif item.label_key is defined and item.label_key|trim != '' %}
+        {% set label = t(item.label_key, item.label_key) %}
+      {% endif %}
+      {% if label %}
+        {% set has_children = level < max_level and item.children is defined and item.children is not empty %}
+        <li class="mobile-item{% if has_children %} has-children{% endif %}{% if item.is_active|default(false) %} is-active{% endif %}{% if item.is_trail|default(false) %} is-trail{% endif %}">
+          {% if has_children %}
+            <div class="mobile-link-row">
+              {{ _self.menu_link(item|merge({'label': label}), prefix, 'mobile-link') }}
+              <button type="button" class="mobile-submenu-toggle" data-mobile-toggle aria-expanded="false" aria-label="{{ t('nav.toggle', 'Toggle navigation') }}">
+                <span aria-hidden="true">+</span>
+              </button>
+            </div>
+            {{ _self.mobile_menu(item.children, prefix, level + 1, max_level) }}
+          {% else %}
+            {{ _self.menu_link(item|merge({'label': label}), prefix, 'mobile-link') }}
+          {% endif %}
+        </li>
+      {% endif %}
+    {% endfor %}
+  </ul>
+{% endmacro %}

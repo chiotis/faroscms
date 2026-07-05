@@ -1,0 +1,17 @@
+{
+  "name": "new-project/flatcms",
+  "description": "Flat-file CMS with Twig, Markdown, translations, and admin UI",
+  "type": "project",
+  "license": "MIT",
+  "require": {
+    "php": ">=8.1",
+    "twig/twig": "^3.9",
+    "league/commonmark": "^2.5",
+    "symfony/yaml": "^6.4"
+  },
+  "autoload": {
+    "psr-4": {
+      "FlatCMS\\": "src/"
+    }
+  }
+}

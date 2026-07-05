@@ -1,0 +1,41 @@
+title: 'Picolino CMS'
+tagline: 'A Pico-like flat-file CMS with Twig'
+base_url: ''
+theme: default
+home_page: index
+date_format: d/m/Y
+languages:
+  default: el
+  available:
+    - el
+    - en
+content_types:
+  - pages
+  - posts
+  - projects
+  - forms
+menu_locations:
+  header: main
+  footer: footer
+forms:
+  notifications:
+    driver: smtp
+    from: info@unicorg.gr
+    from_name: PicolinoCMS
+    smtp:
+      host: smtp.emailit.com
+      port: 587
+      username: emailit
+      password: secret_BdvI7EMCxc404ScRYf7OtaKbMTnMMilw
+      encryption: tls
+    ses:
+      key: ''
+      secret: ''
+      region: ''
+backup:
+  auto:
+    enabled: false
+    schedule: daily
+    last_run: '2026-03-01T16:55:37+00:00'
+  local:
+    keep: 2

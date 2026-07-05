@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en" class="h-full">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Edit user — phpFlat Admin</title>
+<!-- PRODUCTION: replace CDN with <link rel="stylesheet" href="/assets/css/app.css"> -->
+<script src="https://cdn.tailwindcss.com"></script>
+<script>tailwind.config={theme:{extend:{fontFamily:{sans:['"Inter Tight"','ui-sans-serif','system-ui','sans-serif']}}}};</script>
+<link rel="stylesheet" href="../public/assets/css/app.css">
+</head>
+<body class="h-full bg-slate-100 font-sans text-slate-800 antialiased">
+<div class="flex h-full">
+  <div data-sidebar-backdrop class="fixed inset-0 z-30 hidden bg-slate-900/40 lg:hidden"></div>
+  <aside data-sidebar class="fixed inset-y-0 left-0 z-40 flex w-64 -translate-x-full flex-col border-r border-slate-200 bg-white transition-transform duration-200 lg:static lg:translate-x-0">
+    <div class="flex h-14 shrink-0 items-center gap-2.5 border-b border-slate-200 px-4">
+      <div class="flex h-7 w-7 items-center justify-center rounded bg-slate-900 text-xs font-bold text-white">pF</div>
+      <span class="text-sm font-semibold tracking-tight text-slate-900">phpFlat</span>
+      <span class="ml-auto rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">v1.4.0</span>
+      <button data-sidebar-close class="ml-1 rounded p-1 text-slate-400 hover:bg-slate-100 lg:hidden"><svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <nav class="scroll-thin flex-1 overflow-y-auto px-3 py-3">
+      <p class="px-2 pb-1.5 pt-3 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Overview</p>
+      <a href="dashboard.html" class="group flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900"><svg class="h-4 w-4 text-slate-400 group-hover:text-slate-600" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l9-9 9 9M5 10v10a1 1 0 001 1h4v-6h4v6h4a1 1 0 001-1V10"/></svg>Dashboard</a>
+      <p class="px-2 pb-1.5 pt-3 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Manage</p>
+      <a href="content-list.html" class="group flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900"><svg class="h-4 w-4 text-slate-400 group-hover:text-slate-600" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h10"/></svg>Content</a>
+      <a href="forms-list.html" class="group flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900"><svg class="h-4 w-4 text-slate-400 group-hover:text-slate-600" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>Forms</a>
+      <a href="menus-list.html" class="group flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900"><svg class="h-4 w-4 text-slate-400 group-hover:text-slate-600" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>Menus</a>
+      <a href="taxonomies-list.html" class="group flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900"><svg class="h-4 w-4 text-slate-400 group-hover:text-slate-600" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 3H5a2 2 0 00-2 2v6l9 9a2 2 0 002.8 0l4.6-4.6a2 2 0 000-2.8L11 3zM7 7h.01"/></svg>Taxonomies</a>
+      <a href="files.html" class="group flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900"><svg class="h-4 w-4 text-slate-400 group-hover:text-slate-600" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7a2 2 0 012-2h4l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H6a2 2 0 01-2-2V7z"/></svg>Files</a>
+      <p class="px-2 pb-1.5 pt-3 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Logs</p>
+      <a href="email-logs.html" class="group flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900"><svg class="h-4 w-4 text-slate-400 group-hover:text-slate-600" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7l9 6 9-6M4 6h16a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V7a1 1 0 011-1z"/></svg>Email Logs</a>
+      <a href="activity-logs.html" class="group flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900"><svg class="h-4 w-4 text-slate-400 group-hover:text-slate-600" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12h4l2 6 4-14 2 8h6"/></svg>Activity Logs</a>
+      <p class="px-2 pb-1.5 pt-3 text-[10px] font-semibold uppercase tracking-wider text-slate-400">System</p>
+      <a href="users-list.html" aria-current="page" class="group flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium bg-slate-900 text-white"><svg class="h-4 w-4 text-white/80" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 14a4 4 0 10-8 0M12 7a3 3 0 110 0M3 20a6 6 0 0118 0"/></svg>Users</a><a href="backups.html" class="group flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900"><svg class="h-4 w-4 text-slate-400 group-hover:text-slate-600" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7c0-1.66 3.58-3 8-3s8 1.34 8 3-3.58 3-8 3-8-1.34-8-3zM4 7v10c0 1.66 3.58 3 8 3s8-1.34 8-3V7M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3"/></svg>Backups</a>
+      <a href="updates.html" class="group flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900"><svg class="h-4 w-4 text-slate-400 group-hover:text-slate-600" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v6h6M20 20v-6h-6M20 9a8 8 0 00-14.93-3M4 15a8 8 0 0014.93 3"/></svg>Updates
+        <span class="ml-auto rounded bg-amber-100 text-amber-700 px-1.5 py-0.5 text-[10px] font-semibold">1</span></a>
+      <a href="translations.html" class="group flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900"><svg class="h-4 w-4 text-slate-400 group-hover:text-slate-600" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5h12M9 3v2c0 4.418-2.686 8-6 8m4-3c0 2.21 2.91 4 6.5 4M14 21l4.5-9 4.5 9m-7.65-2h6.3"/></svg>Translations</a>
+      <a href="settings.html" class="group flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900"><svg class="h-4 w-4 text-slate-400 group-hover:text-slate-600" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15a3 3 0 100-6 3 3 0 000 6z"/></svg>Settings</a>
+    </nav>
+    <div class="shrink-0 border-t border-slate-200 p-3">
+      <div class="rounded-md bg-slate-50 p-2.5">
+        <div class="flex items-center justify-between text-[11px] font-medium text-slate-500"><span>Storage</span><span>6.4 / 20 GB</span></div>
+        <div class="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-200"><div class="h-full w-[32%] rounded-full bg-slate-900"></div></div>
+      </div>
+    </div>
+  </aside>
+  <div class="flex min-w-0 flex-1 flex-col">
+    <header class="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b border-slate-200 bg-white/90 px-4 backdrop-blur">
+      <button data-toggle="sidebar" class="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 lg:hidden"><svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+      <div class="min-w-0"><h1 class="truncate text-[15px] font-semibold leading-tight text-slate-900">Edit user</h1><p class="truncate text-xs text-slate-400">Nina Roy · admin</p></div>
+      <div class="ml-auto flex items-center gap-2">
+        <button class="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-blue-700"><svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Save user</button>
+        <div data-dropdown class="relative"><button data-dropdown-trigger class="relative rounded-md p-1.5 text-slate-500 hover:bg-slate-100"><svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2a2 2 0 01-.6 1.4L4 17h5m6 0a3 3 0 11-6 0"/></svg><span class="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"></span></button><div data-dropdown-menu class="absolute right-0 z-30 mt-1.5 hidden w-80 max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-md border border-slate-200 bg-white shadow-lg"><div class="flex items-center justify-between border-b border-slate-100 px-3 py-2.5"><div class="flex items-center gap-2"><p class="text-sm font-semibold text-slate-900">Notifications</p><span class="rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700">2 new</span></div><button class="text-xs font-medium text-blue-600 hover:text-blue-700">Mark all read</button></div><div class="scroll-thin max-h-80 divide-y divide-slate-50 overflow-y-auto"><a href="#" class="flex gap-2.5 px-3 py-2.5 hover:bg-slate-50 bg-blue-50/30"><span class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-violet-50 text-violet-600"><svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v6h6M20 9a8 8 0 00-14.93-3"/></svg></span><span class="min-w-0 flex-1"><span class="flex items-start justify-between gap-2"><span class="truncate text-sm font-medium text-slate-800">Update 1.4.1 available</span><span class="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500"></span></span><span class="block truncate text-xs text-slate-500">Security &amp; bug fixes are ready to install.</span><span class="mt-0.5 block text-[11px] text-slate-400">10 min ago</span></span></a><a href="#" class="flex gap-2.5 px-3 py-2.5 hover:bg-slate-50 bg-blue-50/30"><span class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-red-50 text-red-600"><svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7l9 6 9-6M4 6h16v12H4z"/></svg></span><span class="min-w-0 flex-1"><span class="flex items-start justify-between gap-2"><span class="truncate text-sm font-medium text-slate-800">Email delivery failed</span><span class="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500"></span></span><span class="block truncate text-xs text-slate-500">Invitation to j@new.co bounced (550).</span><span class="mt-0.5 block text-[11px] text-slate-400">3h ago</span></span></a><a href="#" class="flex gap-2.5 px-3 py-2.5 hover:bg-slate-50 "><span class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600"><svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg></span><span class="min-w-0 flex-1"><span class="flex items-start justify-between gap-2"><span class="truncate text-sm font-medium text-slate-800">Backup completed</span></span><span class="block truncate text-xs text-slate-500">Full backup finished successfully (248 MB).</span><span class="mt-0.5 block text-[11px] text-slate-400">5h ago</span></span></a><a href="#" class="flex gap-2.5 px-3 py-2.5 hover:bg-slate-50 "><span class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600"><svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 14a4 4 0 10-8 0M12 7a3 3 0 110 0M3 20a6 6 0 0118 0"/></svg></span><span class="min-w-0 flex-1"><span class="flex items-start justify-between gap-2"><span class="truncate text-sm font-medium text-slate-800">New user registered</span></span><span class="block truncate text-xs text-slate-500">Lia Voss created an account.</span><span class="mt-0.5 block text-[11px] text-slate-400">1d ago</span></span></a></div><a href="activity-logs.html" class="block border-t border-slate-100 px-3 py-2 text-center text-xs font-medium text-slate-600 hover:bg-slate-50">View all activity</a></div></div>
+        <div class="mx-1 h-6 w-px bg-slate-200"></div>
+        <div data-dropdown class="relative">
+          <button data-dropdown-trigger class="flex items-center gap-2 rounded-md px-1.5 py-1 hover:bg-slate-100">
+            <span class="flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white">SA</span>
+            <span class="hidden text-left sm:block"><span class="block text-xs font-semibold leading-tight text-slate-900">Sara Admin</span><span class="block text-[10px] leading-tight text-slate-400">superadmin</span></span>
+            <svg class="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <div data-dropdown-menu class="absolute right-0 z-30 mt-1.5 hidden w-52 rounded-md border border-slate-200 bg-white py-1 shadow-lg">
+            <div class="border-b border-slate-100 px-3 py-2"><p class="text-sm font-medium text-slate-900">Sara Admin</p><p class="truncate text-xs text-slate-400">sara@phpflat.dev</p></div>
+            <a href="user-edit.html" class="block px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50">Your profile</a>
+            <a href="settings.html" class="block px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50">Settings</a>
+            <div class="my-1 border-t border-slate-100"></div>
+            <a href="login.html" class="block px-3 py-1.5 text-sm text-red-600 hover:bg-red-50">Sign out</a>
+          </div>
+        </div>
+      </div>
+    </header>
+    <main class="scroll-thin flex-1 overflow-y-auto p-4 lg:p-6">
+      <div class="mb-3 flex items-center gap-2 text-sm text-slate-400"><a href="users-list.html" class="hover:text-slate-600">Users</a><span>/</span><span class="text-slate-600">Nina Roy</span></div>
+
+      <form class="grid grid-cols-1 gap-4 xl:grid-cols-3">
+        <div class="space-y-4 xl:col-span-2">
+          <div class="rounded-lg border border-slate-200 bg-white p-4">
+            <h3 class="mb-3 text-sm font-semibold text-slate-900">Profile</h3>
+            <div class="mb-4 flex items-center gap-3">
+              <span class="flex h-12 w-12 items-center justify-center rounded-full bg-blue-600 text-base font-semibold text-white">NR</span>
+              <div><button type="button" class="rounded-md border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">Change avatar</button><p class="mt-1 text-xs text-slate-400">JPG or PNG, max 1MB.</p></div>
+            </div>
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div><label class="mb-1 block text-sm font-medium text-slate-700">Name <span class="text-red-500">*</span></label><input type="text" value="Nina Roy" placeholder="" class="w-full rounded-md border border-slate-300 focus:border-blue-500 focus:ring-blue-500/20 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2"></div>
+              <div><label class="mb-1 block text-sm font-medium text-slate-700">Email <span class="text-red-500">*</span></label><input type="email" value="nina@acme.io" class="w-full rounded-md border border-red-300 focus:border-red-500 focus:ring-red-500/20 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2"><p class="mt-1 flex items-center gap-1 text-xs text-red-600">This email is already in use.</p></div>
+            </div>
+          </div>
+
+          <div class="rounded-lg border border-slate-200 bg-white p-4">
+            <h3 class="mb-3 text-sm font-semibold text-slate-900">Change password</h3>
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div><label class="mb-1 block text-sm font-medium text-slate-700">New password</label><input type="password" class="w-full rounded-md border border-slate-300 focus:border-blue-500 focus:ring-blue-500/20 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2" placeholder="••••••••"><p class="mt-1 text-xs text-slate-400">Min 12 characters.</p></div>
+              <div><label class="mb-1 block text-sm font-medium text-slate-700">Confirm password</label><input type="password" class="w-full rounded-md border border-slate-300 focus:border-blue-500 focus:ring-blue-500/20 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2" placeholder="••••••••"></div>
+            </div>
+            <p class="mt-3 text-xs text-slate-400">Leave blank to keep the current password. The user will be notified by email.</p>
+          </div>
+
+          <div class="rounded-lg border border-slate-200 bg-white p-4">
+            <h3 class="mb-3 text-sm font-semibold text-slate-900">Connected accounts</h3>
+            <div class="flex items-center justify-between rounded-md border border-slate-200 px-3 py-2.5">
+              <div class="flex items-center gap-2.5">
+                <svg class="h-5 w-5" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.76h3.57c2.08-1.92 3.27-4.74 3.27-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.76c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0012 23z"/><path fill="#FBBC05" d="M5.84 14.09a6.6 6.6 0 010-4.18V7.07H2.18a11 11 0 000 9.86l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1A11 11 0 002.18 7.07l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z"/></svg>
+                <div><p class="text-sm font-medium text-slate-900">Google</p><p class="text-xs text-slate-400">nina@acme.io</p></div>
+              </div>
+              <span class="inline-flex items-center gap-1 text-xs font-medium text-emerald-600"><span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>Linked</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-4">
+          <div class="sticky top-4 lg:top-6 space-y-4">
+            <div class="rounded-lg border border-slate-200 bg-white p-4">
+              <h3 class="mb-3 text-sm font-semibold text-slate-900">Access</h3>
+              <div class="space-y-3">
+                <div><label class="mb-1 block text-sm font-medium text-slate-700">Role</label><select class="w-full rounded-md border border-slate-300 focus:border-blue-500 focus:ring-blue-500/20 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2"><option>superadmin</option><option selected>admin</option><option>user</option></select><p class="mt-1 text-xs text-slate-400">Controls permissions across the panel.</p></div>
+                <div><label class="mb-1 block text-sm font-medium text-slate-700">Status</label><select class="w-full rounded-md border border-slate-300 focus:border-blue-500 focus:ring-blue-500/20 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2"><option selected>Active</option><option>Inactive</option></select></div>
+              </div>
+              <button class="mt-4 w-full rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700">Save user</button>
+            </div>
+
+            <div class="rounded-lg border border-slate-200 bg-white p-4 text-sm">
+              <h3 class="mb-2 text-sm font-semibold text-slate-900">Activity</h3>
+              <dl class="space-y-1.5 text-xs">
+                <div class="flex justify-between"><dt class="text-slate-400">Created</dt><dd class="text-slate-600">12 Jan 2025</dd></div>
+                <div class="flex justify-between"><dt class="text-slate-400">Last login</dt><dd class="text-slate-600">1h ago</dd></div>
+                <div class="flex justify-between"><dt class="text-slate-400">Login count</dt><dd class="text-slate-600">214</dd></div>
+              </dl>
+            </div>
+
+            <!-- Danger zone -->
+            <div class="rounded-lg border border-red-200 bg-white p-4">
+              <h3 class="text-sm font-semibold text-red-700">Danger zone</h3>
+              <div class="mt-3 space-y-2">
+                <button class="flex w-full items-center justify-between rounded-md border border-amber-200 px-3 py-2 text-sm font-medium text-amber-700 hover:bg-amber-50">Deactivate account<svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" d="M18.36 6.64A9 9 0 1112 3v9"/></svg></button>
+                <button data-modal-open="deleteUser" class="flex w-full items-center justify-between rounded-md border border-red-200 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50">Delete account<svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2m2 0v14a1 1 0 01-1 1H7a1 1 0 01-1-1V6"/></svg></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </form>
+    </main>
+  </div>
+</div>
+<div data-toast-host class="pointer-events-none fixed bottom-4 right-4 z-50 flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2"></div>
+<div id="deleteUser" data-modal hidden class="fixed inset-0 z-50 flex items-center justify-center p-4">
+  <div data-modal-backdrop class="absolute inset-0 bg-slate-900/40"></div>
+  <div class="relative w-full max-w-sm rounded-lg border border-slate-200 bg-white p-5 shadow-xl">
+    <div class="flex h-10 w-10 items-center justify-center rounded-full bg-red-50"><svg class="h-5 w-5 text-red-600" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L14.7 3.9a2 2 0 00-3.4 0z"/></svg></div>
+    <h3 class="mt-3 text-base font-semibold text-slate-900">Delete Nina Roy?</h3>
+    <p class="mt-1 text-sm text-slate-500">This permanently removes the account and revokes all sessions. This cannot be undone.</p>
+    <div class="mt-5 flex justify-end gap-2"><button data-modal-close class="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Cancel</button><button data-modal-close class="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700">Delete user</button></div>
+  </div>
+</div>
+<script src="../public/assets/js/admin.js"></script>
+</body>
+</html>

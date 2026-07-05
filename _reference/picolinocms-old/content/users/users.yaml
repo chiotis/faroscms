@@ -1,0 +1,4 @@
+- username: admin
+  password: "plain:1234"
+  role: admin
+  display_name: "Site Admin"

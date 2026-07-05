@@ -1,0 +1,35 @@
+{% extends 'base.twig' %}
+
+{% block content %}
+  {% set prefix = lang_prefix|default('') %}
+  <section class="single-hero">
+    <div class="site-wrap single-hero-inner">
+      <h1>{{ t('search.title') }}</h1>
+      <p class="single-hero-subtitle">{{ t('search.subtitle') }}</p>
+      <form method="get" action="{{ url(prefix ~ 'search') }}" class="search-form">
+        <input type="text" name="q" value="{{ query }}" placeholder="{{ t('search.placeholder') }}">
+        <button type="submit">{{ t('search.button') }}</button>
+      </form>
+    </div>
+  </section>
+
+  <section class="site-wrap section-stack single-body">
+    {% if query %}
+      <h2>{{ t('search.results_for') }} "{{ query }}"</h2>
+      {% if results is empty %}
+        <p>{{ t('search.no_results') }}</p>
+      {% else %}
+        <ul class="search-results">
+          {% for item in results %}
+            {% set is_home = item.type == 'pages' and item.slug == site.home_page %}
+            {% set path = item.type == 'pages' ? (is_home ? prefix : prefix ~ item.slug) : prefix ~ item.type ~ '/' ~ item.slug %}
+            <li>
+              <a href="{{ url(path) }}">{{ item.meta.title }}</a>
+              <small>{{ t('type.' ~ item.type, item.type|title) }}</small>
+            </li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endif %}
+  </section>
+{% endblock %}

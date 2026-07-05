@@ -1,0 +1,91 @@
+<section class="form-section">
+  {% if form_success %}
+    <p class="form-success">{{ form_message }}</p>
+  {% endif %}
+  {% if form_errors is defined and form_errors._form is defined %}
+    <p class="form-error">{{ form_errors._form }}</p>
+  {% endif %}
+
+  <form method="post" action="{{ url(form_action) }}" class="form-grid">
+    <input type="hidden" name="form_slug" value="{{ form.slug }}">
+    <input type="hidden" name="form_lang" value="{{ form.lang }}">
+    {% if form_redirect is defined and form_redirect %}
+      <input type="hidden" name="redirect_url" value="{{ form_redirect }}">
+    {% endif %}
+    {% if form_honeypot is defined and form_honeypot %}
+      <input type="text" name="{{ form_honeypot }}" class="form-honeypot" tabindex="-1" autocomplete="off" aria-hidden="true">
+    {% endif %}
+
+    {% for field in form_fields %}
+      {% set value = form_values[field.name]|default(field.default) %}
+      {% if field.type == 'hidden' %}
+        <input type="hidden" name="{{ field.name }}" value="{{ value }}">
+      {% elseif field.type == 'textarea' %}
+        <label>
+          <span>{{ field.label }}{% if field.required %} *{% endif %}</span>
+          <textarea name="{{ field.name }}" rows="{{ field.rows|default(4) }}" {% if field.required %}required{% endif %} placeholder="{{ field.placeholder }}">{{ value }}</textarea>
+          {% if field.help %}<small>{{ field.help }}</small>{% endif %}
+          {% if form_errors[field.name] is defined %}<small class="form-error">{{ form_errors[field.name] }}</small>{% endif %}
+        </label>
+      {% elseif field.type == 'select' %}
+        <label>
+          <span>{{ field.label }}{% if field.required %} *{% endif %}</span>
+          <select name="{{ field.name }}" {% if field.required %}required{% endif %}>
+            <option value="">{{ t('form.select', 'Select') }}</option>
+            {% for option in field.options %}
+              <option value="{{ option.value }}" {% if option.value == value %}selected{% endif %}>{{ option.label }}</option>
+            {% endfor %}
+          </select>
+          {% if field.help %}<small>{{ field.help }}</small>{% endif %}
+          {% if form_errors[field.name] is defined %}<small class="form-error">{{ form_errors[field.name] }}</small>{% endif %}
+        </label>
+      {% elseif field.type == 'radio' %}
+        <fieldset>
+          <legend>{{ field.label }}{% if field.required %} *{% endif %}</legend>
+          {% for option in field.options %}
+            <label class="inline">
+              <input type="radio" name="{{ field.name }}" value="{{ option.value }}" {% if option.value == value %}checked{% endif %} {% if field.required %}required{% endif %}>
+              <span>{{ option.label }}</span>
+            </label>
+          {% endfor %}
+          {% if field.help %}<small>{{ field.help }}</small>{% endif %}
+          {% if form_errors[field.name] is defined %}<small class="form-error">{{ form_errors[field.name] }}</small>{% endif %}
+        </fieldset>
+      {% elseif field.type == 'checkboxes' %}
+        <fieldset>
+          <legend>{{ field.label }}{% if field.required %} *{% endif %}</legend>
+          {% set selected = value is iterable ? value : [] %}
+          {% for option in field.options %}
+            <label class="inline">
+              <input type="checkbox" name="{{ field.name }}[]" value="{{ option.value }}" {% if option.value in selected %}checked{% endif %}>
+              <span>{{ option.label }}</span>
+            </label>
+          {% endfor %}
+          {% if field.help %}<small>{{ field.help }}</small>{% endif %}
+          {% if form_errors[field.name] is defined %}<small class="form-error">{{ form_errors[field.name] }}</small>{% endif %}
+        </fieldset>
+      {% elseif field.type == 'checkbox' %}
+        <label class="inline">
+          {% set checked = value == '1' or value == true %}
+          <input type="checkbox" name="{{ field.name }}" value="1" {% if checked %}checked{% endif %} {% if field.required %}required{% endif %}>
+          <span>{{ field.label }}{% if field.required %} *{% endif %}</span>
+          {% if field.help %}<small>{{ field.help }}</small>{% endif %}
+          {% if form_errors[field.name] is defined %}<small class="form-error">{{ form_errors[field.name] }}</small>{% endif %}
+        </label>
+      {% else %}
+        <label>
+          <span>{{ field.label }}{% if field.required %} *{% endif %}</span>
+          <input type="{{ field.type }}" name="{{ field.name }}" value="{{ value }}" {% if field.required %}required{% endif %} placeholder="{{ field.placeholder }}"
+            {% if field.min %}min="{{ field.min }}"{% endif %}
+            {% if field.max %}max="{{ field.max }}"{% endif %}
+            {% if field.step %}step="{{ field.step }}"{% endif %}
+          >
+          {% if field.help %}<small>{{ field.help }}</small>{% endif %}
+          {% if form_errors[field.name] is defined %}<small class="form-error">{{ form_errors[field.name] }}</small>{% endif %}
+        </label>
+      {% endif %}
+    {% endfor %}
+
+    <button type="submit">{{ form.meta.submit_label is defined and form.meta.submit_label ? form.meta.submit_label : t('form.submit', 'Submit') }}</button>
+  </form>
+</section>

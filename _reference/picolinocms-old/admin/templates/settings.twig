@@ -1,0 +1,305 @@
+{% extends '@admin/base.twig' %}
+
+{% block content %}
+  <header class="mb-5 flex flex-wrap items-start justify-between gap-4">
+    <div>
+      <h1 class="text-4xl font-semibold tracking-tight text-slate-900">Site Settings</h1>
+      <p class="mt-1 text-sm text-slate-500">Edit global configuration stored in YAML.</p>
+    </div>
+  </header>
+
+  {% if saved %}
+    <div class="fixed right-6 top-5 z-[999] flex items-center gap-3 rounded-md border border-emerald-300 bg-emerald-50 px-3.5 py-2.5 text-emerald-800 shadow">
+      <span>Saved.</span>
+      <button type="button" class="border-0 bg-transparent text-lg leading-none text-current" onclick="this.parentElement.remove()">×</button>
+    </div>
+  {% endif %}
+  {% if test_status == 'ok' %}
+    <div class="fixed right-6 top-5 z-[999] flex items-center gap-3 rounded-md border border-emerald-300 bg-emerald-50 px-3.5 py-2.5 text-emerald-800 shadow">
+      <span>Test email sent.</span>
+      <button type="button" class="border-0 bg-transparent text-lg leading-none text-current" onclick="this.parentElement.remove()">×</button>
+    </div>
+  {% elseif test_status == 'fail' %}
+    <div class="fixed right-6 top-5 z-[999] flex items-center gap-3 rounded-md border border-rose-300 bg-rose-50 px-3.5 py-2.5 text-rose-800 shadow">
+      <span>Test email failed. Check your SMTP/SES settings.</span>
+      <button type="button" class="border-0 bg-transparent text-lg leading-none text-current" onclick="this.parentElement.remove()">×</button>
+    </div>
+  {% elseif test_status == 'missing' %}
+    <div class="fixed right-6 top-5 z-[999] flex items-center gap-3 rounded-md border border-rose-300 bg-rose-50 px-3.5 py-2.5 text-rose-800 shadow">
+      <span>Please enter a test recipient email.</span>
+      <button type="button" class="border-0 bg-transparent text-lg leading-none text-current" onclick="this.parentElement.remove()">×</button>
+    </div>
+  {% endif %}
+  {% if backup_status == 'ok' %}
+    <div class="fixed right-6 top-5 z-[999] flex items-center gap-3 rounded-md border border-emerald-300 bg-emerald-50 px-3.5 py-2.5 text-emerald-800 shadow">
+      <span>{{ backup_message ?: 'Backup action completed.' }}</span>
+      <button type="button" class="border-0 bg-transparent text-lg leading-none text-current" onclick="this.parentElement.remove()">×</button>
+    </div>
+  {% elseif backup_status == 'fail' %}
+    <div class="fixed right-6 top-5 z-[999] flex items-center gap-3 rounded-md border border-rose-300 bg-rose-50 px-3.5 py-2.5 text-rose-800 shadow">
+      <span>{{ backup_message ?: 'Backup action failed.' }}</span>
+      <button type="button" class="border-0 bg-transparent text-lg leading-none text-current" onclick="this.parentElement.remove()">×</button>
+    </div>
+  {% endif %}
+  {% if theme_status == 'fail' %}
+    <div class="fixed right-6 top-5 z-[999] flex items-center gap-3 rounded-md border border-rose-300 bg-rose-50 px-3.5 py-2.5 text-rose-800 shadow">
+      <span>{{ theme_message ?: 'Theme settings could not be saved.' }}</span>
+      <button type="button" class="border-0 bg-transparent text-lg leading-none text-current" onclick="this.parentElement.remove()">×</button>
+    </div>
+  {% endif %}
+
+  <form method="post">
+    <input type="hidden" name="active_tab" value="{{ active_tab }}" data-active-tab-input>
+
+    <div class="mb-4 flex flex-wrap items-center gap-2" role="tablist">
+      <button type="button" class="tab-button inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-100{% if active_tab == 'basics' %} active{% endif %}" data-tab="basics">Basics</button>
+      <button type="button" class="tab-button inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-100{% if active_tab == 'menus' %} active{% endif %}" data-tab="menus">Menus</button>
+      <button type="button" class="tab-button inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-100{% if active_tab == 'apis' %} active{% endif %}" data-tab="apis">APIs</button>
+      <button type="button" class="tab-button inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-100{% if active_tab == 'theme' %} active{% endif %}" data-tab="theme">Theme</button>
+      <button type="button" class="tab-button inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-100{% if active_tab == 'smtp' %} active{% endif %}" data-tab="smtp">SMTP</button>
+      <button type="button" class="tab-button inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-100{% if active_tab == 'backup' %} active{% endif %}" data-tab="backup">Backup</button>
+      <button type="button" class="tab-button inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-100{% if active_tab == 'advanced' %} active{% endif %}" data-tab="advanced">Advanced</button>
+    </div>
+
+    <div class="tab-panel hidden{% if active_tab == 'basics' %} active{% endif %}" data-panel="basics">
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <label class="grid gap-1 text-sm font-medium text-slate-700">Title<input type="text" name="title" value="{{ settings_form.title }}" class="{{ input_class }}"></label>
+        <label class="grid gap-1 text-sm font-medium text-slate-700">Tagline<input type="text" name="tagline" value="{{ settings_form.tagline }}" class="{{ input_class }}"></label>
+        <label class="grid gap-1 text-sm font-medium text-slate-700">Base URL<input type="text" name="base_url" value="{{ settings_form.base_url }}" placeholder="https://example.com" class="{{ input_class }}"></label>
+        <label class="grid gap-1 text-sm font-medium text-slate-700">Theme<input type="text" name="theme" value="{{ settings_form.theme }}" class="{{ input_class }}"></label>
+        <label class="grid gap-1 text-sm font-medium text-slate-700">Home Page<input type="text" name="home_page" value="{{ settings_form.home_page }}" class="{{ input_class }}"></label>
+        <label class="grid gap-1 text-sm font-medium text-slate-700">Date Format<input type="text" name="date_format" value="{{ settings_form.date_format }}" placeholder="d/m/Y" class="{{ input_class }}"></label>
+        <label class="grid gap-1 text-sm font-medium text-slate-700">Default Language<input type="text" name="languages_default" value="{{ settings_form.languages_default }}" placeholder="el" class="{{ input_class }}"></label>
+        <label class="grid gap-1 text-sm font-medium text-slate-700">Available Languages<input type="text" name="languages_available" value="{{ settings_form.languages_available }}" placeholder="el, en" class="{{ input_class }}"></label>
+      </div>
+    </div>
+
+    <div class="tab-panel hidden{% if active_tab == 'menus' %} active{% endif %}" data-panel="menus">
+      <div class="mb-4 grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+        <h3 class="text-xl font-semibold text-slate-900">Menu Locations</h3>
+        <p class="text-sm text-slate-500">Map theme locations to menu keys. Menu items are managed in the Menus section.</p>
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <label class="grid gap-1 text-sm font-medium text-slate-700">Header location<input type="text" name="menu_location_header" value="{{ settings_form.menu_location_header }}" placeholder="main" class="{{ input_class }}"></label>
+          <label class="grid gap-1 text-sm font-medium text-slate-700">Footer location<input type="text" name="menu_location_footer" value="{{ settings_form.menu_location_footer }}" placeholder="footer" class="{{ input_class }}"></label>
+        </div>
+
+        <div class="grid gap-3">
+          <h3 class="text-xl font-semibold text-slate-900">Extra Locations</h3>
+          <div class="grid gap-3" data-menu-locations>
+            {% if settings_form.menu_location_keys is not empty %}
+              {% for index, key in settings_form.menu_location_keys %}
+                <div class="grid grid-cols-1 items-start gap-2 md:grid-cols-[1fr_2fr_auto]">
+                  <input type="text" name="menu_location_keys[]" value="{{ key }}" placeholder="sidebar" class="{{ input_class }}">
+                  <input type="text" name="menu_location_values[]" value="{{ settings_form.menu_location_values[index]|default('') }}" placeholder="sidebar-menu" class="{{ input_class }}">
+                  <button type="button" class="pill-button danger inline-flex items-center justify-center rounded-md border-0 bg-rose-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-rose-500 js-remove-menu-location">Remove</button>
+                </div>
+              {% endfor %}
+            {% else %}
+              <div class="grid grid-cols-1 items-start gap-2 md:grid-cols-[1fr_2fr_auto]">
+                <input type="text" name="menu_location_keys[]" placeholder="sidebar" class="{{ input_class }}">
+                <input type="text" name="menu_location_values[]" placeholder="sidebar-menu" class="{{ input_class }}">
+                <button type="button" class="pill-button danger inline-flex items-center justify-center rounded-md border-0 bg-rose-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-rose-500 js-remove-menu-location">Remove</button>
+              </div>
+            {% endif %}
+          </div>
+          <button type="button" class="pill-button inline-flex items-center justify-center rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 js-add-menu-location">+ Add location</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel hidden{% if active_tab == 'apis' %} active{% endif %}" data-panel="apis">
+      <div class="mb-4 grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+        <h3 class="text-xl font-semibold text-slate-900">APIs</h3>
+        <p class="text-sm text-slate-500">API settings will appear here.</p>
+      </div>
+    </div>
+
+    <div class="tab-panel hidden{% if active_tab == 'theme' %} active{% endif %}" data-panel="theme">
+      <details class="mb-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm" open>
+        <summary class="cursor-pointer font-semibold text-slate-700">Theme YAML</summary>
+        <label class="mt-3 grid gap-1 text-sm font-medium text-slate-700">settings/theme.yaml
+          <textarea name="theme_settings" rows="20" class="{{ textarea_class }} font-mono text-[13px] leading-6">{{ theme_settings_raw }}</textarea>
+        </label>
+      </details>
+    </div>
+
+    <div class="tab-panel hidden{% if active_tab == 'smtp' %} active{% endif %}" data-panel="smtp">
+      <div class="mb-4 grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+        <h3 class="text-xl font-semibold text-slate-900">Mailer</h3>
+        <div class="grid grid-cols-1 gap-4">
+          <label class="grid gap-1 text-sm font-medium text-slate-700">Provider
+            <select name="mail_driver" class="{{ select_class }}">
+              <option value="smtp" {% if settings_form.mail_driver == 'smtp' %}selected{% endif %}>SMTP</option>
+              <option value="ses" {% if settings_form.mail_driver == 'ses' %}selected{% endif %}>AWS SES</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <label class="grid gap-1 text-sm font-medium text-slate-700">From email<input type="text" name="mail_from" value="{{ settings_form.mail_from }}" placeholder="no-reply@example.com" class="{{ input_class }}"></label>
+          <label class="grid gap-1 text-sm font-medium text-slate-700">From name<input type="text" name="mail_from_name" value="{{ settings_form.mail_from_name }}" placeholder="PicolinoCMS" class="{{ input_class }}"></label>
+        </div>
+
+        <label class="grid gap-1 text-sm font-medium text-slate-700">Test recipient<input type="text" name="test_email_to" placeholder="you@example.com" class="{{ input_class }}"></label>
+        <div class="mt-1 flex flex-wrap items-center gap-2">
+          <button type="submit" class="pill-button pill-button-muted inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100" name="send_test" value="1">Send test email</button>
+        </div>
+      </div>
+
+      <div class="mb-4 grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+        <h3 class="text-xl font-semibold text-slate-900">SMTP</h3>
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <label class="grid gap-1 text-sm font-medium text-slate-700">Host<input type="text" name="smtp_host" value="{{ settings_form.smtp_host }}" placeholder="smtp.example.com" class="{{ input_class }}"></label>
+          <label class="grid gap-1 text-sm font-medium text-slate-700">Port<input type="number" name="smtp_port" value="{{ settings_form.smtp_port }}" placeholder="587" class="{{ input_class }}"></label>
+          <label class="grid gap-1 text-sm font-medium text-slate-700">Encryption
+            <select name="smtp_encryption" class="{{ select_class }}">
+              <option value="" {% if settings_form.smtp_encryption == '' %}selected{% endif %}>None</option>
+              <option value="tls" {% if settings_form.smtp_encryption == 'tls' %}selected{% endif %}>TLS</option>
+              <option value="ssl" {% if settings_form.smtp_encryption == 'ssl' %}selected{% endif %}>SSL</option>
+            </select>
+          </label>
+          <label class="grid gap-1 text-sm font-medium text-slate-700">Username<input type="text" name="smtp_user" value="{{ settings_form.smtp_user }}" class="{{ input_class }}"></label>
+          <label class="grid gap-1 text-sm font-medium text-slate-700">Password<input type="password" name="smtp_pass" value="{{ settings_form.smtp_pass }}" class="{{ input_class }}"></label>
+        </div>
+      </div>
+
+      <div class="mb-4 grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+        <h3 class="text-xl font-semibold text-slate-900">AWS SES</h3>
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <label class="grid gap-1 text-sm font-medium text-slate-700">Access key<input type="text" name="ses_key" value="{{ settings_form.ses_key }}" class="{{ input_class }}"></label>
+          <label class="grid gap-1 text-sm font-medium text-slate-700">Secret key<input type="password" name="ses_secret" value="{{ settings_form.ses_secret }}" class="{{ input_class }}"></label>
+          <label class="grid gap-1 text-sm font-medium text-slate-700">Region<input type="text" name="ses_region" value="{{ settings_form.ses_region }}" placeholder="eu-central-1" class="{{ input_class }}"></label>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel hidden{% if active_tab == 'backup' %} active{% endif %}" data-panel="backup">
+      <div class="mb-4 grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+        <h3 class="text-xl font-semibold text-slate-900">Automatic Backups</h3>
+        <label class="flex items-center gap-2 pt-2 text-sm font-medium text-slate-700">
+          <input type="checkbox" name="backup_auto_enabled" value="1" {% if settings_form.backup_auto_enabled %}checked{% endif %} class="{{ checkbox_class }}">
+          <span>Enable automatic backups</span>
+        </label>
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <label class="grid gap-1 text-sm font-medium text-slate-700">Schedule
+            <select name="backup_schedule" data-backup-schedule class="{{ select_class }}">
+              <option value="daily" {% if settings_form.backup_schedule == 'daily' %}selected{% endif %}>Daily</option>
+              <option value="weekly" {% if settings_form.backup_schedule == 'weekly' %}selected{% endif %}>Weekly</option>
+              <option value="monthly" {% if settings_form.backup_schedule == 'monthly' %}selected{% endif %}>Monthly</option>
+            </select>
+          </label>
+          <label class="grid gap-1 text-sm font-medium text-slate-700">Keep local snapshots<input type="number" min="1" name="backup_keep_local" value="{{ settings_form.backup_keep_local }}" class="{{ input_class }}"></label>
+        </div>
+        <p class="text-sm text-slate-500">Last automatic backup: {{ settings_form.backup_last_run ?: 'Never' }}</p>
+        <div class="mt-1 flex flex-wrap items-center gap-2">
+          <button type="submit" class="pill-button inline-flex items-center justify-center rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700" name="create_backup" value="1">Create snapshot now</button>
+        </div>
+      </div>
+
+      <div class="mb-4 grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+        <h3 class="text-xl font-semibold text-slate-900">Local Snapshots</h3>
+        {% if backup_snapshots is empty %}
+          <p class="text-sm text-slate-500">No local snapshots yet.</p>
+        {% else %}
+          <div class="w-full overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+            <table class="min-w-full table-auto border-collapse text-sm">
+              <thead>
+                <tr>
+                  <th class="border-b border-slate-200 bg-slate-50 px-4 py-3 text-left font-semibold text-slate-700">Filename</th>
+                  <th class="border-b border-slate-200 bg-slate-50 px-4 py-3 text-left font-semibold text-slate-700">Size</th>
+                  <th class="border-b border-slate-200 bg-slate-50 px-4 py-3 text-left font-semibold text-slate-700">Created</th>
+                  <th class="border-b border-slate-200 bg-slate-50 px-4 py-3 text-right font-semibold text-slate-700"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for snapshot in backup_snapshots %}
+                  <tr>
+                    <td class="border-b border-slate-200 px-4 py-3 align-top text-slate-900">{{ snapshot.filename }}</td>
+                    <td class="border-b border-slate-200 px-4 py-3 align-top text-slate-900">{{ snapshot.size_human }}</td>
+                    <td class="border-b border-slate-200 px-4 py-3 align-top text-slate-900">{{ snapshot.created_at }}</td>
+                    <td class="border-b border-slate-200 px-4 py-3 text-right align-top">
+                      <a class="pill-button pill-button-muted inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100" href="{{ url('admin/settings?tab=backup&download_backup=' ~ snapshot.filename) }}">Download</a>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="tab-panel hidden{% if active_tab == 'advanced' %} active{% endif %}" data-panel="advanced">
+      <details class="mb-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm" open>
+        <summary class="cursor-pointer font-semibold text-slate-700">Advanced</summary>
+        <label class="mt-3 grid gap-1 text-sm font-medium text-slate-700">settings/site.yaml
+          <textarea name="settings" rows="20" class="{{ textarea_class }} font-mono text-[13px] leading-6">{{ settings }}</textarea>
+        </label>
+      </details>
+    </div>
+
+    <div class="mt-1 flex flex-wrap items-center gap-2">
+      <button type="submit" class="pill-button inline-flex items-center justify-center rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700">Save</button>
+    </div>
+  </form>
+
+  <script>
+    (function () {
+      const buttons = document.querySelectorAll('.tab-button');
+      const panels = document.querySelectorAll('.tab-panel');
+      const activeTabInput = document.querySelector('[data-active-tab-input]');
+      const backupToggle = document.querySelector('input[name="backup_auto_enabled"]');
+      const backupSchedule = document.querySelector('[data-backup-schedule]');
+
+      buttons.forEach((button) => {
+        button.addEventListener('click', () => {
+          buttons.forEach((b) => b.classList.remove('active'));
+          panels.forEach((panel) => panel.classList.remove('active'));
+          button.classList.add('active');
+          const target = button.getAttribute('data-tab');
+          if (activeTabInput && target) activeTabInput.value = target;
+          const panel = document.querySelector(`.tab-panel[data-panel="${target}"]`);
+          if (panel) panel.classList.add('active');
+        });
+      });
+
+      const locationsContainer = document.querySelector('[data-menu-locations]');
+      const addLocationButton = document.querySelector('.js-add-menu-location');
+      const bindRemove = (button) => {
+        if (!button) return;
+        button.addEventListener('click', () => {
+          const row = button.closest('.grid');
+          if (row) row.remove();
+        });
+      };
+
+      if (locationsContainer) {
+        locationsContainer.querySelectorAll('.js-remove-menu-location').forEach(bindRemove);
+      }
+
+      if (locationsContainer && addLocationButton) {
+        addLocationButton.addEventListener('click', () => {
+          const row = document.createElement('div');
+          row.className = 'grid grid-cols-1 items-start gap-2 md:grid-cols-[1fr_2fr_auto]';
+          row.innerHTML = `
+            <input type="text" name="menu_location_keys[]" placeholder="sidebar" class="{{ input_class }}">
+            <input type="text" name="menu_location_values[]" placeholder="sidebar-menu" class="{{ input_class }}">
+            <button type="button" class="pill-button danger inline-flex items-center justify-center rounded-md border-0 bg-rose-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-rose-500 js-remove-menu-location">Remove</button>
+          `;
+          locationsContainer.appendChild(row);
+          bindRemove(row.querySelector('.js-remove-menu-location'));
+        });
+      }
+
+      const syncBackupScheduleState = () => {
+        if (!backupToggle || !backupSchedule) return;
+        backupSchedule.disabled = !backupToggle.checked;
+      };
+
+      if (backupToggle && backupSchedule) {
+        backupToggle.addEventListener('change', syncBackupScheduleState);
+        syncBackupScheduleState();
+      }
+    })();
+  </script>
+{% endblock %}

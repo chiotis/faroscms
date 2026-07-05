@@ -1,0 +1,1623 @@
+Well, good morning. Oh, we've got a pile
+of comments just come in. Good morning
+everybody. Uh, welcome to the live
+stream today with myself and Jeffrey
+from Lightbox. As the kind of topic
+suggests with the sort of thumbnail and
+things else we've been talking about
+sort of AI, the future of WordPress and
+some of the things that are being
+predicted for where web design in
+general and websites is actually going.
+Right,
+let me just get rid of that. Sorry about
+that. You had a sort of a strange loop
+there. which had YouTube in the
+background. They decided they want to
+pop up as well. So, if everybody could
+let me know if you can hear and see and
+everything sounds okay and looks okay,
+that would be fantastic. But, um
+Jeffrey, good to see you this evening
+for you, I think, isn't it? You're seven
+hours ahead of me. So, how are you?
+>> Yeah, doing well. Doing well. Good to
+see you, too. Good to connect. Uh thank
+you for having me on. Definitely looking
+forward to this conversation.
+>> Hey, it's it's not it's going to be the
+first of many. I hope I think uh where
+we've been talking offline we've got a
+lot of things I think in common with how
+we see things um and how we sort of see
+the future and stuff like that. So
+today's conversation for anybody that
+may just be jumping on kind of like out
+of the blue because you've seen the live
+stream pop up we want to talk about AI
+its impact the future of web design the
+future of websites in general and some
+of the kind of things that are being
+sort of predicted with regards to that.
+myself and Jeffrey had a couple of
+conversations sort of like offline as it
+were and um I think we've got some
+interesting sort of points to sort of
+talk about today. But I think let's
+start off with the very broad picture
+and I'm sure we'll start to sort of hone
+things down a little bit. But as always,
+if you got any comments or questions,
+please drop those in the comments
+section. If it's a question, if you can
+start it with #Q so I know it's a
+question, it'll make it a lot easier
+then for us to take a look at answer as
+many questions as we can. But I think
+the conversation and the topic we talked
+about the other day which is probably
+broader than maybe some people are
+thinking is predictions for there may
+not actually be websites in the way that
+we know it within the next let's say two
+years. I mean you read that article and
+and you sort of probably know a little
+bit more about it. So I'm going to hand
+it over to you to sort of so you can
+kind of give the lowdown and let's have
+a sort of chat about what we think with
+regards to that side of things. So over
+to you sir.
+>> Yeah. Yeah. I got a lot of thought and
+stuff, but uh by the way, love the
+tombstone on the thumbnail. I thought
+that was pretty cool. Like it right
+there. And this wasn't my
+>> Thank you, AI. See, didn't even have to
+hire a graphic designer. And this is, I
+guess,
+>> the whole point of everything. Uh now,
+this isn't from me. This is just what I
+heard. A friend of mine, uh we had a big
+conversation. He's like really big into
+AI. He's building out his company sites
+and replet where he used to actually
+hire us to build their websites and you
+know he's really deep into the AI rabbit
+hole and we had a conversation and when
+I told him we're still building websites
+with WordPress he looked at me surprised
+he's like WordPress is still around like
+that was his like that was genuinely how
+he felt and then in that conversation he
+mentioned that he was talking with
+somebody running an AI agency gency out
+this way and that they told him in a
+year's time websites will no longer be
+needed or maybe even existing and yeah
+that wasn't me but I thought like that
+was uh
+I guess where the tombstone came from
+and where I guess a big overview of a
+lot of this but uh what are your
+thoughts on that cuz my jaw hit the
+floor and I was ready to like kick over
+chairs like what are you talking about
+you know [laughter]
+>> look since we talked about this. I've
+sort of thought about it a few times and
+I think the thing that's kind of always
+overlooked when you see these
+predictions of of the future of AI and
+other things is human nature. You know,
+we're in a tech industry. We're in in
+kind of this this web design bubble,
+this AI bubble. You know, maybe we're
+seeing things a little different to your
+typical person. So, I don't see it
+disappearing in that way that quickly.
+Yes, in the future absolutely because
+technologies, the way we interact with
+things are going to change. That's just
+nature of technology. But we always seem
+to overlook human nature and people are
+not going to suddenly go, "Oh, the
+internet. I'm not going to bother with
+websites anymore. I'm going to use a
+completely different way of of
+searching." like AI for example, you
+know, people like us that are used to
+the technology will pick up our phones
+and we'll go on to chat GPT or claude
+and things like that and we'll we'll ask
+it to do research for us. We'll ask it
+for questions. You know, we start to get
+ads or we can buy things via things like
+chat GPT. But I still think that's going
+to take more than the next two years
+before before people adopt that side of
+things. Think of your parents. Think of
+your grandparents. Think of people you
+know that are maybe a little bit older,
+maybe not so techsavvy or in countries
+that don't have access to the same
+technologies that we do in the western
+sort of world where we're used to it
+having, you know, high speeded sort of
+internet, having uh high-spec phones,
+computers, laptops, all those kinds of
+things. I honestly think at some point
+it will change, but I don't think it's
+going to be this drastic kind of like
+websites will disappear in two years
+time. I just don't see that happening. I
+just don't think it it can happen that
+quickly. At some point, yes, probably.
+But I mean, what do you think? I mean,
+you've obviously given it some thought
+as well. What are your thoughts on how
+you see things changing?
+>> Yeah. Well, you know, at first when I
+hear predictions like that or when I see
+these big changes or hear people talking
+about them, my first instinct is to
+fight against them. And I think that's a
+human nature side of things. And that's
+what I'm seeing a lot of. And it's
+something though too, like for web
+design specifically, I have been looking
+at these changes now since early last
+year because I've been seeing the
+writing on the wall that it's definitely
+evolving. Web designers are no longer
+going to get away doing the same thing
+that they were doing 3, four years ago,
+3, four years in the future. Like, we
+have to evolve. And it's the reason why
+I'm deep in is because I teach web
+design. And I want to be able to teach
+and be in it with everyone because we're
+all in this state of uncertainty right
+now cuz we don't know what it's going to
+be like three or four years from now.
+But I also feel like just the human
+nature of things. I see it across even
+different industries. Anytime you
+mention like this change like for an
+example there was a brilliant video that
+just came out. Uh it was a designer. She
+is like the lead designer I believe of
+Claude code or of cursor. one of those,
+I think it was Claude, but she also led
+the design for Fig Jam. She led the
+design for Dropbox, like really high
+credentials and achievements. And she
+was talking about the web design process
+as we knew it, as we know it is no
+longer the norm. And I went to the
+comments and just the temperature of it
+is that first human reaction, which is
+we still need it. We still need it. We
+still need it. We can't change. you know
+that resist to change and uh I think
+that the writing is on the wall you know
+that things are changing and we're
+seeing it across the board and you know
+you and I even talk like you know I was
+seeing it as far as like content as far
+as like the numbers and as far as a lot
+of other things and now when I'm looking
+in under other industries as well it's
+the same graphic design motion design
+even marketing and other areas I think
+that this is generally across Ross the
+board right now we're seeing this change
+and so yeah I know I'm I'm kind of like
+going on but you know to sum it up when
+I heard that you know or something
+outrageous like websites won't be around
+for a year
+I feel the human nature to react against
+it but then I got to step back and kind
+of do a thought experiment like what
+would that look like and then start to
+play that out and yeah that's where I'm
+at with it. Yeah, you know, we've got to
+kind of consider how people are
+traditionally used to interacting with
+that kind of technology, you know,
+buying online, just finding information
+and stuff. And that will change. There's
+no doubt about it. But I think you can
+definitely see like for example, look at
+Google as a search engine. Forget about
+the other things they do, but as a
+search engine where they AI is at the
+top. Now, I don't know if you were the
+same as me, but you kind of get you look
+at that and you ignore it like you
+ignore the ads underneath it. you now
+start to look lower down to find the
+real information as opposed to the AI
+information which by its very nature is
+prone to being incorrect. You know, I
+was I did a a bit of sort of deep
+research yesterday, the day before with
+regards to pods and ACF Pro and ACF, and
+one of the first things it came back
+with was that advanced custom fields
+doesn't create custom post types and
+doesn't create custom taxonomies, which
+we know it does and has done for the
+last 18 months. So, if you take that
+information on board and you were doing
+this without checking that, it's wrong.
+Completely and utly blatantly wrong. And
+that's the deep research which is going
+and and sort of researching in a much
+more focused way. So we we we have to
+kind of get to the point where I think
+AI is more trustworthy in regards to the
+information it actually pulls up because
+when it's scraping the internet, I mean,
+if you consider things like Reddit, you
+consider things like um Wikipedia and so
+on, anything that allows humans to edit
+the content and add the content and
+things on there is always going to be
+prone to misinformation. And if AI is
+scraping that, then it's also prone to
+coming back with the wrong information.
+So unless we see a change in that
+regards, I think, and I'm sure we will,
+but when it's having information that's
+as broad as the internet, where we can
+have any kind of thing put on the
+internet, there's always the scope for
+it to be very wrong. And we've already
+seen that things like Grock where has
+come back with like there had
+conversations there been things on there
+which has been very very dubious with
+the replies and responses and things has
+come back with. I think all these things
+help put people off wanting to trust AI
+and
+I think that's the same when it comes to
+a lot of other things you do like with
+the code side of things. You know the
+vibe coding and using it to generate
+code. Is it a bad thing? Not if you know
+what you're looking for. In the same way
+that like if you ask one of the AI tools
+to design a website for you, as a
+designer, you look at it a much more
+critically and you look at the
+shortcomings of it and what it can and
+can't do. And I think that's the same
+thing across the board with AI. And
+because it's being sort of pushed so
+heavily and it's it's everywhere and
+it's being touted as the next big thing,
+people are naturally going to jump on
+board and try to run with it. And I've
+said this in previous sort of
+conversations and live streams and
+stuff. I think we're in the wild west
+right now of AI. I think we are there's
+no legislation there to to govern and
+control it. There's no laws there. We'll
+see that change. We've seen copyright
+cases and stuff come up and I think
+we're going to see a lot more things
+like that.
+So at the moment I think AI is kind of
+everywhere and in everything and in a
+lot of cases it doesn't necessarily make
+sense.
+But I think that's going to change. I
+think that will smooth out and we'll
+start to see a lot of this stuff will
+just fall by the wayside because it's
+it's crap. It just isn't worth, you
+know, your time and your investment into
+it. So,
+I'm kind of I'm interested to see where
+it goes, but I also I'm quite skeptical
+with what it's going to be like in the
+next 24 months. So, that's my kind of
+take on it right now.
+>> Um, what about you? I'm excited to see
+where things go. I mean, to me, I just
+love chaos by nature. It's like, give me
+something that's easy and comfortable
+and, you know, I fall apart, but you go
+ahead and disrupt the world, I thrive.
+But that's also because, you know, I I
+think a big part of like my past and,
+you know, just my whole journey and
+stuff made me this way. But also know
+that there's opportunity in chaos when
+everything does get flipped up around
+and you know there's also a lot of you
+know downsides with chaos. You know most
+do fail but that's the way it is with
+businesses as well. When businesses
+start and a web designer who is either
+freelancing or starting an agency is not
+an exclusion to the rule of running a
+business. you know 80% of them fail
+within the first two years and after
+that another like something like 80% of
+the last 20% fail like in the next year
+or two you know just a crazy statistic
+and I remember seeing it when we first
+started the building businesses with
+Elementor
+Facebook group we had a signup and for
+years we collected signups but we never
+did anything we never really launched a
+newsletter and then like three years
+later launched a newsletter and saw how
+many uh bounce emails we got with agency
+names on it and those websites no longer
+exist and for me that was just a big
+like like just a big shock like the
+reality wow like a lot don't make it
+>> but for those who are still here and
+still want to make it or even start I
+think we have to start looking how to
+evolve and do things differently so we
+can secure a future for ourselves things
+like vibe coding things like the tools
+that we We got to learn how to utilize
+these things. There's no if we resist
+it, we're we're just going to be another
+Blockbuster who says, "No, nobody wants
+to stream videos or have them delivered
+to you. People want to come to our shop.
+They want, you know, and we all know the
+story of what happens when we resist
+that."
+You know, like we have to do more when
+it comes to solving client problems and
+playing a bigger role than just building
+a website, just designing it. We have to
+get more involved with the project
+management, more involved even with
+engineering at times and more involved
+helping out with other solutions. And
+the way to do it is we got to start to
+utilize AI tools within our workflow.
+>> Absolutely. I mean, I know again we've
+been talking and this this going to kind
+of come up quite a lot of things through
+this live stream is that you and I have
+talked quite a lot about various
+different things. We had a two-hour
+conversation the other day that was
+going to be like 10 minutes and two
+hours later we're still talking. Um,
+[laughter]
+but I I I 100% agree with you and I know
+that you were looking at putting content
+together in the same kind of vein I've
+been putting content together on how you
+move beyond the web design side of
+things and how you make yourself a
+growth partner with businesses because
+building a website is a skill that we've
+learned over the years, but as we see AI
+is going to take a big chunk of that
+away.
+There's going to still be, I think, an
+involvement from people that have better
+design skills, but AI is going to take
+that. No, no two ways about it. And as
+long as you can understand how to prompt
+the AI to get what you want, that side
+of things is going to be technically
+taken care of. So, we're going to kind
+of take that out the equation. So, I
+think as a as a growth partner, this is
+where you start looking at the strategy
+behind the company and how you can help
+them realize their goals. you know
+whether that's generating more leads,
+generating more income, whatever it is.
+And you know that takes on many
+different forms. We've talked about
+automation, you talk about, you know,
+building a website is just the technical
+side of things. You know, building
+building a brick wall could technically
+be the same skills as building a 50story
+tower block. But the reality is there's
+a lot more involved going from one to
+the other. And I think the same thing
+goes here is that the technical side of
+things of building a website is one
+thing, but the understanding how to
+build an effective website, how to
+optimize it for the client, whether you
+do it or AI does it, but you might be
+the one that's prompting it to do all
+that. That's where your skills and I
+think that's where your experience over
+the last 10, 15, 20 years of actually
+running a business, working with
+clients, building websites,
+understanding the the sort of customer
+journey, embracing those new
+technologies. It will change, you know,
+but I think that's where most web
+designers need to be in the next, let's
+just say, five years because the
+technical building of website, as you've
+seen yourself, and I know we talked to
+other people about it, you can get it to
+create quite complex database driven
+sites and when you're getting sort of
+sites like Bolt and Lovable and things
+like that where they no longer just
+being that kind of code interface and
+they're using external databases and
+things, once that all becomes internal,
+ized where security can become a lot
+more rigid and understanding its
+internal structure means that they can
+create much better, much more optimized
+websites with cleaner code because
+they're not going to five or six
+different external services that are out
+of their control. the code side of
+things and the scope for what you can
+build is going to grow exponentially
+which again is going to take away from
+those more sort of medium to higher
+level web designers, web coders,
+developers, whatever. I think that's
+going to take that's going to take their
+jobs. So that's again I think where
+becoming a growth partner, becoming a
+part of the business to help the
+businesses, your clients grow and become
+successful and probably embrace AI in
+multiple different ways. That's going to
+come down to someone like yourself or an
+agency that you build that relationship
+up with them and bringing them up
+through the next couple of years,
+embracing AI into their businesses and
+showing them how they can utilize it and
+using someone like yourself to to set up
+and talk to all the systems that they're
+currently using. I think that's where we
+are going to be as web designers. You
+know, we'll probably change that
+terminology. I definitely think that's
+where the in immediate future is going
+to go.
+Yeah. And that's where we have
+opportunity for those of us who have
+been doing this already for a while. We
+have that experience and understand
+client problems and understand a bit
+more. And anybody who let's say a
+developer developer has a specific
+skill. Now tools could go ahead and
+write the code and do the development.
+But still that developer with that skill
+if they had the right mindset and frame
+it right and really look and and like
+like realize hey you know things are
+changing I got to change and adapt now
+too they could take that and do more for
+an example let's say you got a client
+and they need help putting their data
+together to understand the metrics not
+like taking people's data anything like
+that but like gathering the data how is
+this working in their company how is
+this how much time is spent on this all
+those different little metrics that you
+know people who could spread over that
+could look at numbers and make really
+big sense of where to optimize a
+business you know a developer who has
+been working on WordPress websites
+understands PHP understands some code
+they could go in now and work with
+Python like I don't know Python but I
+understand how it works and I understand
+the directions to go in which puts me
+and others also in a situation who has
+worked in web development for some time
+to utilize these tools to do things they
+never would have thought of doing would
+have been scared to hire someone and
+manage them to do it. So it's those kind
+of things we got to look at and you know
+like
+if we look at history and it's a reason
+why I like reading so much business
+books because a lot of them pack stories
+about changes in the past and I love
+when I hear about what went on in the
+past like the industrial revolution and
+how you know changes and you know like
+the assembly line or things like that
+how it just takes over like jobs that
+people had they felt secure in all of a
+sudden were gone. And you could either
+do one of two things in those
+situations. Well, actually back then you
+couldn't. So, we're really lucky right
+now cuz back then you really couldn't.
+Like they just came in and all of a
+sudden your profession is gone. Like we
+don't need your profession anymore.
+You're pretty much stuck. We are so
+fortunate today that we are not in that
+position. We could just like let's take
+what we have and let's go where we could
+apply what we did and start to learn
+something. But we got to start learning
+right now. And you know, that's one
+thing I'm really hoping conversations
+like this could do. It's like first off,
+uh we we said this in the beginning,
+like I don't know what's going to
+happen. My opinions right now, they're
+like a roller coaster because I'm just
+learning as well. I'm evolving and I'm
+just trying to be open because I know
+even myself where I'm at, I have to be
+flexible and ready to pivot pivot
+multiple times because I don't know
+where things are going to go. And I'm
+hoping that this conversation could
+steer
+and help some designers, some
+developers, those of us in the WordPress
+space to, you know, I guess
+change the mindset around first being,
+you know, fear-based that this isn't
+going to happen, anti- ai,
+uh, and also just a mindset of, you
+know, like I'm not going to learn this.
+I think for too long a lot of old-timers
+have been stuck doing the same thing and
+it's really hard to tell them they got
+to change. Like do you know somebody
+who's old and stubborn and stuck in
+their ways? Like this has to be done
+this way and if it ain't done this way,
+you know, you're a scrub, you know, that
+type of you know and uh
+>> we that's not going to help, you know,
+get an individual to the next step. It's
+it's not you know we we people could say
+you becoming an architect of your own
+demise by embracing it and so on but
+then I think you can go one of two ways
+there. You could either embrace it with
+an open mind and think right how can I
+utilize this and improve my chances of
+continuing in a career or do I just
+completely buck against it and hope it
+goes away which it's not going to. But
+before we move on because another
+question I want to ask provide I don't
+remember where it is. Um Toby come up
+with a a good question.
+So I'm going to put this over to you and
+then I'll say where I am. So question
+for for us. Does it affect your zeal to
+make new videos? Again this is something
+we talked about the other day. How do
+you feel like with everything the sort
+of state of flux that we're in at the
+moment? How do you feel about creating
+new content? Is it kind of you feel like
+is it really worth it? Are people going
+to watch this? Or are you kind of got a
+a sort of like a real passion for
+working through understanding and
+explaining that to people that maybe are
+that sort of that more stubborn
+individual that doesn't want to learn it
+or doesn't have the time to invest in in
+learning it in a more manual kind of
+way?
+>> Man, that's a good question. Really good
+question, Toby. Uh you want me to
+answer?
+>> Yeah, go for it, man.
+>> Yeah. Uh, I mean, yeah, it's had an
+effect on me, you know, like
+I thought I did something wrong. My
+numbers, like numbers just dropped, you
+know, and I and I'm I'm like, what
+happened? You know, did I take too much
+time off during the holidays? Did this
+thing change it? Did me creating content
+about this change it? And uh, you know,
+I'm like, okay, it's all good. Let's
+just come back and grind away and have
+fun with it. And then it is hard when
+you know I'll spend two to three days on
+a video, put a lot of work into it. Like
+it's not something to just record in 30
+minutes and push live. Like there's a
+lot of work that goes into it and then
+it's like crickets. And then I'm like
+like is there something wrong with me?
+Is it worth it? And you know, those
+moments come in and I'm sure like like
+I'm just like everybody else feeling
+this thing, you know, and uh
+just got to step back. And what I did
+personally is I I stepped back out of
+it. I I talked to some good people like
+you. You know, I I'm fortunate to have
+some good friends inside of this space
+and uh I remembered my mission, why I'm
+doing this, you know, and the mission is
+to help web designers build better lives
+for themselves because web design has
+given me a life I never could have
+dreamt of and I just want to see other
+people get it. And so remembering the
+mission, forgetting about the numbers
+and instead focusing on the mission
+helps me out. But it also is getting me
+to look at things. I I'm just going to
+I'm just going to piggyback on this and
+just kind of add to it. Uh because
+I focus so much on the change that's
+coming to web designers and in the web
+design industry. And I'm focusing so
+much because I want to help other web
+designers navigate through this change
+that I failed to see the change in what
+I'm doing as well. And it was a hard
+shock and I felt the same thing that
+everybody felt. You know, I will watch a
+video somebody saying like it's over
+for, you know, for what I'm doing and
+like wait, no, it can't be. You know,
+but then I just had I have to do the
+same. And that was my like aha moment
+like holy this is everybody in our
+you know in in all the different areas
+not just web design development
+WordPress it's all of us.
+>> It is and to sort of go back to what
+you're saying there but excuse me
+[clears throat] the numbers and stuff I
+I mean we've got Toby in here you've got
+Iran in here as well. I mean you guys
+let us know in the in the comments
+section below. How have you seen your
+numbers over the last let's just say 12
+months? you know your your YouTube
+numbers, views, those kinds of things.
+How have you seen that improve,
+flatline, drop, you know, let us know
+because I agree with you, it it can be
+very difficult, but I think it depends
+what you're in it for. I mean, from my
+point of view, I was a teacher for 10
+years, you know, I taught uh it to
+adults uh before I went off and
+actually, you know, had my own agency
+kind of thing. And I've done freelancing
+and stuff like that. So I spent like 15
+years doing that side of things. So I've
+done both sides of it. But I've always
+loved teaching and I've taught music
+production. I've taught digital
+photography. I teach, you know, the web
+design side of things. WordPress and web
+design is the one that's kind of stuck
+with me. But I did the other ones for a
+couple of years as well because I enjoy
+it, you know, and maybe I should I could
+have been more intentional about how
+I've created content because I learn
+something. I enjoy something and I want
+to tell other people how to do it. You
+know, if I've stumbled on things and if
+I've kind of like, oh, this this didn't
+work the way I want to and I've
+struggled through it and I've had to do
+research to find the the way to get it
+to work. And I want other people to not
+have that struggle. They can easily just
+go on and they can see watch my video,
+spend 20 minutes on that video, and
+they've saved themselves two days worth
+of of stress in how to get something to
+work. And I don't see that changing.
+Will the topics change? Yeah. It's the
+whole reason why I cover things like uh
+I do cover AI. I cover you know sort of
+automation AI automation and stuff like
+that because I think this is an area
+that more freelancers more agencies and
+things need to concentrate on because I
+think interim period that's where
+our jobs are going to go. I say our jobs
+I don't really do this as a living
+anymore. Thankfully I've kind of like
+that side of my career is I've wound
+that down.
+But if I wasn't, if I was still working
+like that, that's what I would be
+focusing right now. I wouldn't be
+focusing on trying to find customers and
+clients to to build websites for them.
+I'd be looking at the ones who already
+have and how can I connect them up to
+other services to help their businesses
+grow, become streamlined, sell more,
+whatever it is that their business
+actually is in. That's where I would be
+focusing. And
+>> yeah, I mean the numbers, yeah, they are
+frustrating when you kind of see the
+numbers not as high as you used to, you
+know, but again AI is going to change
+it, but you can people complain about
+the algorithm on YouTube, but the
+reality of it is less people are
+spending time looking to get into the
+web design career, which means that less
+people are going to be searching for
+lower level content, which means that
+the market there is going to be less.
+You can see that when you release
+different content. you content on AI,
+for example. I did one on Nano Banana
+when it was kind of just come out of
+beta or beta and I mean that video in
+the space of about a week or two got
+30,000 views. You try getting that with
+a WordPress video, you just don't get
+it. You might get over a period of time,
+but unless you're covering something
+very very specific that's very new and a
+lot of people are interested in, you
+don't get those numbers on there. You
+simply don't. So, it can be frustrating
+when you kind of get sucked into the
+YouTube numbers game. And it's very easy
+to get sucked into that. I'm sure
+everybody that creates content you
+either has done, will do, or are already
+in that that phase right now. But you
+will go beyond that. You have to go
+beyond that because otherwise you'll
+stay awake at night. you'll wake up
+stressing and all those things suck and
+they'll suck the life and the creativity
+out of you before you even realize it.
+So if you are in that position right
+now, move past it. Look at other ways of
+generating revenue so you don't focus on
+that becoming your sole kind of income
+because once you do that, it becomes
+very stressful and it's going to make
+much much more difficult these days as
+well. But hopefully Toby, that's
+answered your question. But the next
+thing I want to say and I put this over
+to you first and I'll come back to what
+what I think. So we're talking about you
+know web designers and web developers
+and things like that or web design in
+general changing or going away. Where do
+you see WordPress over the next couple
+of years? Do you think in in let's say
+27 28 that WordPress is going to be
+still powering 40 odd% of the internet?
+>> No, not 40%. You know, I think it'll
+still be powering a high majority, but I
+don't know about 40%.
+Uh,
+I think the numbers are declining right
+now for WordPress in general. Uh, market
+shares are just going to other places.
+Wix Studio,
+>> Framer, Web Flow, you know, uh, for
+e-commerce still Shopify is the stronger
+uh, stronger solution. But God, two
+years ago, two years from now, I don't
+know. It all depends. I mean, will Matt
+do another Matt? [laughter] You know,
+like what what's going I mean I mean
+there's so many there's so much
+uncertainty and uh n just playing
+around. I know, [snorts] you know, they
+probably [laughter]
+maybe hopefully learn from that last
+bit. But uh the numbers are going down.
+I think though
+in two years from now in general,
+websites for sure absolutely still
+relevant. Businesses still need it. I
+think that people will go to websites
+more intentional when they need to find
+information.
+You know, even right now, I find that
+right. I I still go to websites even
+when I'm looking for something, but it
+has to be intentional like I have to
+want to learn something more from that
+specific site. Uh but yeah, it's hard to
+say.
+That's a good one. I would love to hear
+your thoughts on this. I I yeah I kind
+of like want to let my mind go to some
+crazy theories right now.
+>> I think for the the foreseeable future
+it will I think the numbers will drop
+down. Um but again I mean talking to
+like like Mark for example Torblo 1976 I
+know he's heavily into using AI claw
+code and so on various different sort of
+AI tools and platforms to experiment and
+build sites and I know he's very much in
+in that kind of mindset which is is cool
+but I also think that we have to kind of
+consider like I said going back to the
+beginning people's usage of the internet
+and how that's not going to change
+dramatically quickly. You you're
+expecting people with an ingrained use
+of maybe their entire adult life of
+using the internet to buy things, find
+information, watch media, you know,
+consume things, that's not going to
+suddenly change very very quickly. So
+while we may see a dip in the likes of
+WordPress and I think we probably will
+because
+we're in a again we're in a bubble and
+when you kind of consider I looking at
+for example like when Elementor has
+released their Elemental one thing. I
+watched the video yesterday and looked
+at some of the comments about it and
+there's probably like say 10 comments on
+there and I had a little look today and
+there's probably about 60 comments on
+there and the number of people on there
+saying I'm off to this has just made me
+go over to framer and or web flow
+considering they're generally probably
+more expensive platforms
+but
+when you get companies that are pushing
+their user base away and and not
+specifically talking about you know um
+elemental here it's just That's the one
+that's kind of the freshest in my mind
+right now because of what they're doing
+with their their one platform.
+I think WordPress is probably going to
+do the same thing because fullsight
+editing for a lot of people is more
+complex than it used to be before where
+people would just use it and they go in
+and they use the normal sort of
+WordPress tiny MCE editor and it was
+very easy. It's very much like using
+word, you know, if you'd use a word
+processor, you could use that without a
+problem. Whereas for fullsight editing
+and the goodenberg editor and so on, I
+think WordPress is actually making
+itself more complicated to use and not
+simpler, which is probably why tools
+like bricks and elemental and things
+like that where you can make a much more
+streamlined interface for users to get
+in and you can control aspects of it a
+lot easier.
+That's that's only going to get worse. I
+think more platforms are going to come
+out. You know, if you look at web studio
+for example, um when that's sort of
+using a database there, if they start
+bringing out the ability to easily
+create CMS collections,
+all these things are going to eat into
+what WordPress has. And I think because
+WordPress is very much doesn't really
+seem to know what it wants to do. It
+it's like you've got the leadership team
+behind WordPress pushing it in one
+direction, a big chunk of the market
+sector. For example, what's Elementor up
+to now? Let's just say 15 million users
+or 15 million websites should we say
+that's still a massive chunk of websites
+that are not using WordPress as
+WordPress using something completely
+different. Then combine that with all
+the things like divvy you know all the
+different sort of builders and things
+with fullsight editing just being such a
+mess at the moment and the dashboard for
+WordPress being a mess because it's like
+there's two or three different parts of
+it that look completely different.
+people just look at it and go, I don't
+know what I'm doing. I really don't know
+what I'm doing. And then you got other
+platforms which AI for example, they can
+just tell it what they want. And again,
+Mark is a great example of this because
+he's got different people he knows. He
+shares these different links with us
+saying like this is a guy never built a
+website in his life, gone to Bolt or
+Lovable or whatever, talk to it and he's
+got a site that's got booking on there.
+It's got sort of like shows and things
+on this. It's like a database driven
+site kind of thing. And that guy's got
+no experience in building websites, but
+he's got a website that's quite that
+would be a 5 to 10 grand website if
+someone like you or I was going to build
+it for them. Maybe even more than that.
+And he's probably done it if he's if
+he's paid bolt or lovable, let's just
+say two months worth of the highest
+tier, couple hundred at most, and he's
+got a site that he can go back and say,
+I want to add this to it. Now that means
+that when you got things like which are
+basically I mean you think WordPress in
+comparison to stuff like that it just
+looks like a dinosaur. It does.
+Everything is manual. You have to go in
+and you drag this there and you drop
+that there and you edit this. Then you
+got to go somewhere else because you
+want to change the header and your
+navigation's in a different place. Or
+you can sit there. You can just type in
+or talk and just say add an extra
+navigation element in for this new page.
+Create the new page same style as the
+other one. blah blah blah blah blah blah
+and suddenly you've got a page that's
+being built for you. You can understand
+why more and more people are going to go
+down that route and as that gets easier
+more people will adopt it and I think
+that is going to be a major detriment to
+the likes of of WordPress. That's what I
+think anyway.
+>> Yeah. See, I'm still resistant on that.
+And that's my my internal human nature
+resisting, you know, the change, you
+know, because and I I just had this like
+conversation with my buddy. He's all
+into AI and you know, like
+two years. I I have to see what happens.
+I just know like right now and in this
+next year,
+I don't see leaving WordPress for an AI
+tool. I think the WordPress still has so
+much going for it. Uh the content
+management part, something that is
+structurally sound that is not just
+going to change or prompt isn't going to
+rearrange the code that you can't find
+and take you down the wrong path. I
+think things like that and having the
+ecosystems behind it. And then uh also
+the developers and the you know most of
+the developers and people building
+websites, they're the ones choosing
+tools. It's not like a client comes and
+says,
+>> you know, can you give me five different
+tools and let me choose which platform I
+want to build on. Usually either the
+client already knows or
+you know the developer just goes with
+what they use or the web designer. Uh
+it's tough though but you know a thought
+experiment just putting it out there
+like what if lovable creates a CMS that
+is structurally sound like
+WordPress. It creates that and it builds
+everything. So that way we can
+build sites within a repeatable
+structure structure that's repeatable
+for all clients. You see trying to do it
+right now for client work is going to be
+different on every website. You could
+try you could prompt your way to a CMS.
+It'll I think it'll cost a lot more
+money though, you know, because uh I
+think it takes crazy amount of hours.
+And that was the thing I asked my friend
+too. I was like, "How long did it take
+you to build your website and figure all
+this out?" And he was like, "Yeah,
+yeah." [laughter] He was like, "It was
+insane." You know, how many hours and
+how many credits? Also, you know, again,
+my my inner nature kicking in, but I
+just don't find prompting healthy. I
+think vibe coding could be unhealthy in
+a way. Uh,
+it's like slot machines with the
+dopamine like like I can't do short form
+content. And I hate short form content
+cuz I hate what it does to me, you know.
+And I think for Yeah. Yeah. And I'm also
+seeing that too in here in that
+developers don't just like prompting
+prompting prompting. They like building,
+creating, finding solutions.
+So, uh,
+>> yeah, you can see how I could feel both
+ways about this, you know, like, and I
+still like I'm just like everybody else
+right now inside of this time, and I'm
+still working through and catching
+myself when the closed-mindedness comes
+in. And you said it before,
+open-mindedness, like being open-minded
+is the most important thing we can do.
+Being close-minded and when we catch
+ourselves being close-minded, that's
+when we have to take a step back and
+check ourselves. But it takes a level of
+self-awareness,
+you know. Uh, okay. I see a lot of Yeah,
+the chats are blowing up, aren't they?
+>> The chats are going well. I feel like
+um,
+>> but
+is that because we are in this bubble?
+is this sort of like I I can't see
+things changing because we're inside the
+WordPress bubble and we've kind of like
+we surround ourselves with a semi-echo
+chamber of WordPress developers and
+plug-in developers and and things along
+those lines. Are we not necessarily
+getting the full picture? I mean, I I
+agree that vibe coding can be kind of,
+you know, frustrating, especially when
+you ask it to do one thing and it does
+it and then it undoes the last three
+things you've got it to do, you know,
+but all those things are going to get
+better, you know, if you take, for
+example, let's take a look at something
+like Jet Engine, you know, Crocker block
+jet engine because that's using an MCP
+server. So in other words, it's been
+trained on your website and trained on
+Crocker block and those kinds of tools.
+It's got a better chance of getting
+closer to what you want with a simpler
+or more straightforward prompt. That
+again is going to be something that I
+think is going to improve. Not
+specifically Jet Engine, but like just
+in general as we get more sort of closed
+platforms, you know, take I use Lovable
+and Bolt because they're probably two of
+the most well-known ones. But if you
+take one of those and you say, "Right,
+that now has everything you need in it.
+who's got the database, understands the
+security, so you're not you're not
+pushing to external services to do it,
+then it means that if that's using an
+MCP, for example, that that's got a much
+better chance of giving you better,
+solid, more safe results than going
+through to these various different
+external services. And again, that's
+something that I think is only going to
+get better. Um, and if you kind of
+consider, let's just take go back to
+WordPress for a moment. WordPress is
+what 20 years old probably 15 20 years
+old I think something crazy like that.
+And a lot of it is still using the same
+kind of database structure. So
+inherently from a code point of view,
+you talk to anybody that that delves
+into the WordPress code and they'll say
+it's a bastardized bunch of code that
+has so much legacy code in there that it
+it is a bit of a nightmare.
+None of that is positive for the future
+of WordPress.
+It just it just isn't. And as much as we
+might like it to want to be have a good
+solid future, unless they change
+something,
+things are going to change dramatically.
+I think over the next couple years where
+I don't think WordPress has ever been in
+a situation where where the landscape is
+changing so dramatically and so quickly
+that the likes of of WordPress has had
+the benefit of being able to ride the
+wave of popularity being free and all
+those kinds of things.
+>> But with the prices of plugins and so on
+going up, the prices of everything
+within the sort of the WordPress
+environment getting more expensive.
+It makes it less attractive. You know,
+people that go like, "But WordPress is
+free." Yeah, WordPress itself is free,
+but we all know that once you want to
+kind of go beyond a very simple website,
+costs start to come in. Your hosting
+costs, your plug-in costs, all those
+different things, it all starts to mount
+up. So, the free
+>> isn't really free anymore.
+>> At what point at what point does it
+become too expensive in a platform
+that's a legacy platform in a lot of
+ways?
+>> Yeah. And you know things like web flow
+or framer like
+you know the they could cost a bit when
+you start to put you know the monthly
+annual subscriptions on it. But when you
+compare putting all the prices for your
+hosting you know your subscriptions that
+you got for your stack on WordPress they
+could be quite comparable to each other
+you know. Uh
+but yeah man. Yeah,
+I kind of
+I don't know. I'm kind of stuck on it
+right now. My mind is going. My mind is
+going, you know, like I I'm just
+thinking about what somebody else wrote,
+you know, going back to the vibe coding
+and being able to prompt. Now, that's
+definitely got to be a skill we have to
+learn.
+>> And uh it's something that not just
+anybody could do. And also I'm thinking
+about my buddy who I was talking to and
+I know the amount of time he put on his
+website and he's like me, you know, got
+a very obsessive behavior. Like once we
+set our minds to something, it could get
+dangerously unhealthy cuz we won't sleep
+for days and all of a sudden we emerge
+into the sun after not seeing daylight
+for 5 days, you know, crusty and like 10
+pounds more than we wait. And uh the
+thing is is like
+we still need to learn it and start to
+put in the work and put in those reps.
+And you know uh right now we just got to
+look at where it's at. Now WordPress in
+general and we've talked about this
+before. There is a bubble inside of
+WordPress and that's the
+closed-mindedness. And it's hard trying
+to get out of it, you know, when you
+want to get out of it because there is
+that thing. But I there's so many good
+tools out there right now. There's so
+many different options that we got to be
+open to exploring more of those options.
+I what do you think about that? And if
+you were to explore another option right
+now, let's just say in the next year you
+thought, okay, I got to learn another
+tool cuz you know WordPress is uh you
+know what what would you do? What would
+you focus on?
+>> Um good question. probably web studio
+mainly because it's open source so it
+means you're not tied in like you are
+with the likes of you know framer web
+flow and so on as we as we've seen
+people have sort of come back that were
+staunch sort of uh web flow users
+that suddenly got stung for an awful lot
+of money because they sort of changed
+the plans you know they drastically went
+up considerably more expensive Um but
+then with a tool like oh sorry and the
+same has happened with framer apparently
+I was watching a video a couple of weeks
+back where if for every sort of editor
+you get on board consider that like
+someone else that can kind of come on
+and work inside projects it was
+something like $30 a month for every
+single editor per project. So if you had
+the same editor working with you, let's
+just say for example like you and I had
+a business together and and the account
+was in my name and I was building the
+sites and you were also doing the same
+thing as me. So you come on as an editor
+for every single site I'd have to we'd
+have to pay $30 for every site even
+though you're the same editor across the
+board. So what they've done is they've
+got people on board at a lower price and
+then they've suddenly jacked the prices
+up once people have built their
+businesses around it, which is a
+standard business model. Not one I
+particularly agree with. You can see it
+all over the place. Lots of companies do
+the same thing. They tie you in on a low
+>> sort of get in the door kind of thing.
+And then now we've got enough people in
+there. Now we'll ramp the prices up.
+Don't me wrong, Web Studio isn't perfect
+by any stretch of imagine. It's still
+relatively young. But if you're coming
+over from a tool like bricks for example
+or you're coming over from web flow
+you're going to probably feel quite sort
+of comfortable with that although they
+have changed their pricing model and I'm
+not sure if their LTD is still available
+but if you did grab that and you were
+happy self-hosting then you could host
+as many sites as you want for a really
+minimal cost
+that is probably a good start. you know,
+there's still plenty of things to kind
+of look at that it needs to add in
+there, like native support for CSS, uh
+what's it called? Uh CSS grid, you can
+do it manually, but there's no sort of
+visual way of doing it.
+So, it's an interesting platform. It's
+got a CMS. It connects up to lots of
+external things, including WordPress. If
+you wanted to use a headless WordPress
+and use that as your kind of front-end
+design tool, WordPress is your CMS, but
+you can connect up to notion and all
+these kinds of other tools. So if you've
+got clients for example that are
+comfortable working in those tools and
+they want a website and they can't want
+to carry on working those tools then
+connection there is relatively simple
+and straightforward but again I think
+we're still going down the same road is
+how long will that method of building
+websites even be relevant you know
+>> is it is it we're going to go down the
+sort of the AI is going to build all the
+infrastructure and then we're going to
+do the last 15 to 20% of making it
+polished from a designer's point of
+Yeah. So, more will be revealed. We have
+to we have to see and stay open. You
+know, that's that's all it is. You know,
+we don't know. And, you know, like I did
+kind of look at the chat and I think
+it's cool. Sometimes I see some people
+disagreeing. And, you know, this is it.
+This is what it's about. You know, it's
+about getting the conversation out there
+because I disagree with a lot of the
+stuff that I talk about right now last
+year. you know, like things just
+continue to evolve. And I guess that's
+like the main thing for me right now,
+the main uh hope out of this is, you
+know, just create open-mindedness and
+look at the evolution because there's
+one thing that is certain is that
+there's no certainty right now. Things
+are changing. We're evolving. Our
+industry is evolving. We have to evolve
+with it and just be ready to go with it.
+And about the pricing part, you know,
+this is something else I was thinking
+about too. Why is everything dropping?
+And I also kind of think there's more
+than just AI causing this right now.
+There's also the economy. There's things
+that are just very volatile happening
+inside of this world. We're all seeing
+it. I mean, we just came out of the
+craziest thing in, you know, like in the
+last 20 years, like last like generation
+really, you know, with co that that was
+pretty crazy and it changed a lot of
+things. And then social media on top of
+that. Humans aren't programmed to deal
+with this kind of stuff. Not yet. You
+know, like we're we're like setting
+things up for our grandchildren right
+now. They're going to have we're going
+to have to do the mutation so they could
+handle this kind of stuff that we're
+dealing with. We're the experiment right
+now. And they're going to be talking
+about us, you know, uh, you know, later
+on inside of the history books. And and
+we're going to have the grand old
+stories of my days. We use something
+called WordPress. You know,
+>> go look it up on on the new Wikipedia.
+[laughter]
+>> They'll just probably flip a They'll
+just probably do this and like D and
+just start talking to AI with the flip
+of a switch and AI will give them a
+breakdown.
+>> Exactly. Exactly. Look, it's it is as I
+think we said at the beginning of the
+the stream, we are very much in the wild
+west at the moment, the AI wild west. We
+don't know what's going to happen. We
+don't know what's going to stick, what's
+going to fall by the wayside. The thing
+we haven't talked about yet though is
+the actual physical cost of AI and how
+sustainable that model is. Because if
+you watch anything, and again, like I
+say, when we had a conversation the call
+the other week, one of the things I said
+to you was like, go and take a look at
+some of the sort of the more general AI
+content that's out there about what AI
+costs and all those kinds of things.
+And you got to kind of wonder how
+sustainable is the AI model in its
+current format. I mean you take a look
+at something like chat GPT the overall
+cost plus the cost implications that
+that is having to the entire world RAM
+prices are sky skyrocketing hard drives
+you know especially SSDs digital storage
+skyrocketing. Even spinning hard drives
+are going up considerably in price. All
+because of AI and their usage of needing
+all of this to
+store and process. And the more people
+that jump on board, the more powerful
+the AI tools are getting, the more the
+requirement for that comes up. So at
+what point does it all stop becoming
+sustainable and your $20 a month GPT
+subscription for example suddenly is
+$200 a month because it is literally
+hemorrhaging money. And whether the
+government bails them out, which means
+that you and I and our taxes are bailing
+them out, or we pay for that service,
+it's only so far all of this can go,
+especially like you say with the state
+of the world, the economy, the absolute
+chaos that a big part of the world is
+in, America, Russia, Ukraine, sort of um
+you know, Israel, all those kinds of
+things, and all the things that are kind
+of going on potentially could happen in
+the next year or two. It's such a
+volatile world at the moment in so many
+different ways.
+I I honestly think something is going to
+give and not necessarily
+in a positive way. You know, it could be
+posit not positive as in like the price
+just skyrockets and you know, it's just
+not sustainable.
+And I mean, fair play. Yeah. Mark says,
+you know, Claude pays for itself in a
+day. Great. But let's just say, I don't
+know what the CL max plan is, but let's
+just say it's $100 a month, right? Well,
+that $100, if things keep going the way
+they are, could be $1,000. Would it pay
+for itself in a day then? Especially
+when you then become replaceable because
+other people can easily interact with
+those AI tools and get the job done that
+you're doing for them. We don't know
+this. This is a thing. Two 200 do. Okay.
+So, it goes up to $2,000 a month. You
+know, it's it's all going to be
+scalable.
+It's it's just such a a crazy situation
+and I think AI has been adopted at such
+a a vast rate and in injected into so
+many different tools. So this the
+requirements is way way more than it was
+6 months ago, 12 months ago where do you
+think it's going to be in the next 12
+months? It's going to be massive. It's
+you know something's going to give. I
+mean what what do you think on that side
+of things on the broader picture of AI
+and the cost implications that that
+that's having?
+>> Yeah, I mean the bubble, you know, I've
+seen a lot of talks about the AI bubble
+about it not being able to sustain
+itself or the cost for power. And when
+that happens, I mean, I don't know what
+would happen, you know? Uh
+I I'll just be glad that I still have
+Figma and WordPress at [laughter] that
+time, you know, and the skills that I do
+have. But I don't know. I kind of like
+I [snorts] kind of like feel like when I
+start to look at all this stuff and
+especially what's happening inside of
+the world it for me like personally it's
+just my time to step back and just be
+grateful for what I have right now you
+know be grateful for you know the peace
+that I found within you know and to be
+able to just try to look at what's more
+important in life you know it's the
+reason why I stay out of the drama
+inside of the Facebook groups and I just
+stay out of the different conflicts and
+stuff because there's so many things
+that are just bigger and more important
+in life than what page builder you use.
+You know, at the end of the day, we all
+want to have a good life, find some sort
+of freedom, some sort of peace, and be
+happy. And you know, like if if things
+like pop,
+I mean, the thing is we don't know. And
+it's the reason why again, we just got
+to be ready. We just got to be ready.
+But at the same time, in the entire
+history of mankind, we have never had it
+so good. We really haven't where we can
+change. Like right now, if I were to
+lose everything, you're to take away my
+computers, my camera, all of my
+accounts. You're to take away all of
+that, you know, like I could go ahead
+and rebuild it with I could get
+something cheap, you know? I could get
+like a cheap laptop. I could find a way
+to rebuild because I've learned how to
+help people. And that's the most
+powerful skill is when you learn how to
+help people. You learn how to solve
+clients problems. And you mentioned that
+earlier on, you know, and
+when I was full scale with the agency
+before I was, you know, doing this and
+just 100% agency, a majority of our
+earnings came from our long-term
+customers. The LTD of our customers, the
+the LTV, the lifetime value. They might
+seem small, like just a little here,
+just this one here, just this one here.
+But then all of a sudden, you like do
+the, you know, you you you look at at
+the revenue tracking, you're like, "Wow,
+that client right there put in 10%. This
+one put in 17. This," and then all of a
+sudden you see the new clients bring in
+the least amount. And you know, right
+now we all are in a very fortunate
+position to have skills
+building websites for clients cuz we now
+could use that and start to do more with
+the tools that we have. And if the AI
+bubble pops and all of a sudden it's way
+overpriced, uh it's no longer able to
+keep up and like it might even just go
+out like there's just no power to power
+the things and you know there's no
+bailouts or anything, then we're just
+right back, you know, we're we're right
+back and you know it'll come back again.
+You know, uh I don't think it's going to
+go anywhere, you know. I I I just don't
+think it is. I think it's here to stay.
+There's no turning back from it. I think
+AI won't let us turn back because it
+might just take over the controls.
+That's where my mind goes. Yeah. I was
+like, wait, you can't stop me. You work
+for me, you know, and all of a sudden,
+yeah, that's when we got to really
+worry.
+>> So, so WordPress 2027 is going to be uh
+powered by Robo Matt [laughter]
+>> Matt Mullen Grock. [laughter]
+>> The AI representation. Okay. Well, I'm
+pretty pretty conscious of the fact that
+we're just about to hit the hour and I I
+know that uh you are 7 hours in front,
+so I don't want to sort of drag this
+out, but I think it's been a fantastic
+conversation. Thank you everybody that's
+kind of come into the conversation and
+given your points of view, your
+feedback, your questions, and so on.
+It's been really fun to do this.
+Jeffrey, thank you again for taking the
+time out of your day to kind of jump in
+and do this. I think it's been a lot of
+fun. I think we should have a part two
+of this in a couple of weeks time where
+we can kind of talk about other things.
+Um, and if everybody would like that
+kind of thing, whether you're watching
+now in the the live stream, drop a
+comment in there, or whether you're
+watching on catchup, leave a comment
+down there below. But Jeffrey, for
+anybody that wants to find out more
+about you, what you do, and how they can
+sort of get involved with your courses,
+with your community, and so on, how can
+they do that?
+>> Yeah. Well, first, thank you, Paul. It
+was great being here and having this
+conversation. I really appreciate you
+opening up this space. Uh for me, just
+look up lightbox lyt bx and even in
+Google searches and in AI, it'll tell
+you how to find me.
+>> It will indeed. It might not be the real
+you. It might be the AI representation
+of you, your avatar. But um quick quick
+little story just this happened to me
+last week. I'm working on a tutorial and
+it's something with like Elementor's
+cloud templates and I I really stopped.
+I used them for a minute, then stopped
+and I had to go back and I had to figure
+out something and I couldn't figure it
+out. And so I went to go Google it and
+then Gemini gave me the response. I'm
+going through the bullets like, okay,
+okay, ah, that's how. And then it gets
+to the end and it was from my video
+[laughter]
+>> inception. [snorts]
+>> Yeah. Yeah. I'm like, whoa, I just
+learned from me. Okay. [laughter]
+>> It's amazing what you forget. Anyway,
+let's do this again. And like I say,
+there's already people saying like
+they'd love to see a part two of this.
+So, let's let's absolutely get another
+one in the diary and and do another
+video. So, thank you so much. Have a
+fantastic rest of your day and the same
+for everybody's in the chat as well.
+Take care. Look after yourself. Let us
+know what you're doing when it comes to
+AI. Drop a comment down below and so on.
+But have a fantastic rest of your day,
+Jeffrey. And we'll speak soon.
+>> Cheers. Cheers. Cheers.
