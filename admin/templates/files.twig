@@ -1,191 +1,167 @@
 {% extends '@admin/base.twig' %}
 
 {% block content %}
-  {% set btn_primary = 'inline-flex items-center justify-center rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white no-underline transition hover:bg-slate-700' %}
+  {% set primary_btn = 'inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm no-underline hover:bg-blue-700' %}
+  {% set icon_btn = 'inline-flex items-center justify-center rounded-md p-1.5 text-slate-400 no-underline hover:bg-slate-100 hover:text-slate-700' %}
+  {% set danger_icon_btn = 'inline-flex items-center justify-center rounded-md p-1.5 text-rose-500 hover:bg-rose-50 hover:text-rose-600' %}
+  {% set file_class = 'block w-full cursor-pointer rounded-md border border-slate-300 bg-white text-sm text-slate-700 file:mr-3 file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-slate-700 hover:file:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20' %}
 
-  <header class="mb-5 flex flex-wrap items-start justify-between gap-4">
-    <div>
-      <h1 class="text-4xl font-semibold tracking-tight text-slate-900">Files</h1>
-      <p class="mt-1 text-sm text-slate-500">Upload and manage documents.</p>
+  <header class="mb-4 flex flex-wrap items-start justify-between gap-3">
+    <div class="min-w-0">
+      <h1 class="truncate text-2xl font-semibold tracking-tight text-slate-900">Files</h1>
+      <p class="mt-1 text-sm text-slate-500">Legacy document uploads. The active files screen is Media.</p>
     </div>
+    <a class="{{ primary_btn }}" href="{{ url('admin/media?type=document&view=list') }}">
+      <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M14 4h6v6M20 4l-9 9M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5"/>
+      </svg>
+      Open media
+    </a>
   </header>
 
   {% if saved %}
-    <div class="fixed right-6 top-5 z-[999] flex items-center gap-3 rounded-md border border-emerald-300 bg-emerald-50 px-3.5 py-2.5 text-emerald-800 shadow">
+    <div class="toast toast-success fixed right-6 top-5 z-[999] flex items-center gap-3 rounded-md border border-emerald-300 bg-emerald-50 px-3.5 py-2.5 text-emerald-800 shadow">
       <span>Upload complete.</span>
-      <button type="button" class="border-0 bg-transparent text-lg leading-none text-current" onclick="this.parentElement.remove()">×</button>
+      <button type="button" class="toast-close border-0 bg-transparent text-lg leading-none text-current" onclick="this.parentElement.remove()">x</button>
     </div>
   {% endif %}
   {% if deleted %}
-    <div class="fixed right-6 top-5 z-[999] flex items-center gap-3 rounded-md border border-emerald-300 bg-emerald-50 px-3.5 py-2.5 text-emerald-800 shadow">
+    <div class="toast toast-success fixed right-6 top-5 z-[999] flex items-center gap-3 rounded-md border border-emerald-300 bg-emerald-50 px-3.5 py-2.5 text-emerald-800 shadow">
       <span>File deleted.</span>
-      <button type="button" class="border-0 bg-transparent text-lg leading-none text-current" onclick="this.parentElement.remove()">×</button>
+      <button type="button" class="toast-close border-0 bg-transparent text-lg leading-none text-current" onclick="this.parentElement.remove()">x</button>
     </div>
   {% endif %}
   {% if error %}
-    <div class="fixed right-6 top-5 z-[999] flex items-center gap-3 rounded-md border border-rose-300 bg-rose-50 px-3.5 py-2.5 text-rose-800 shadow">
+    <div class="toast fixed right-6 top-5 z-[999] flex items-center gap-3 rounded-md border border-rose-300 bg-rose-50 px-3.5 py-2.5 text-rose-800 shadow">
       <span>{{ error }}</span>
-      <button type="button" class="border-0 bg-transparent text-lg leading-none text-current" onclick="this.parentElement.remove()">×</button>
+      <button type="button" class="toast-close border-0 bg-transparent text-lg leading-none text-current" onclick="this.parentElement.remove()">x</button>
     </div>
   {% endif %}
 
-  <form method="post" enctype="multipart/form-data" class="mb-5 flex flex-wrap items-end gap-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-    <label class="grid gap-1 text-sm font-medium text-slate-700">
-      Upload file
+  <form method="post" enctype="multipart/form-data" class="mb-4 rounded-lg border-2 border-dashed border-slate-200 bg-white p-6 text-center">
+    <label class="mx-auto grid max-w-3xl cursor-pointer gap-3">
+      <span class="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-slate-100">
+        <svg class="h-5 w-5 text-slate-400" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 16V4m0 0L8 8m4-4l4 4M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2"/>
+        </svg>
+      </span>
+      <span>
+        <span class="block text-sm font-medium text-slate-700">Drop files to upload</span>
+        <span class="block text-xs text-slate-400">or click to browse</span>
+      </span>
       <input type="file" name="asset" required class="{{ file_class }}">
     </label>
-    <button type="submit" class="{{ btn_primary }}">Upload</button>
+    <button type="submit" class="{{ primary_btn }} mt-4">
+      <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 16V4m0 0l-4 4m4-4l4 4M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3"/>
+      </svg>
+      Upload
+    </button>
   </form>
 
-  <div class="w-full overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+  <section class="rounded-lg border border-slate-200 bg-white">
+    <div class="flex items-center justify-between border-b border-slate-200 px-4 py-2.5">
+      <span class="text-sm font-medium text-slate-700">{{ files|length }} {{ files|length == 1 ? 'file' : 'files' }}</span>
+    </div>
+
     {% if files is empty %}
-      <div class="p-5 text-sm text-slate-500">No files yet.</div>
+      <div class="flex flex-col items-center justify-center px-6 py-16 text-center">
+        <div class="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
+          <svg class="h-6 w-6 text-slate-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m-7 5h8a2 2 0 002-2V7l-5-5H7a2 2 0 00-2 2v15a2 2 0 002 2z"/>
+          </svg>
+        </div>
+        <h2 class="mt-3 text-sm font-semibold text-slate-900">No files uploaded</h2>
+        <p class="mt-1 max-w-sm text-sm text-slate-400">Upload documents to use across content.</p>
+      </div>
     {% else %}
-      <table class="min-w-full table-auto border-collapse text-sm">
-        <thead>
-          <tr>
-            <th class="border-b border-slate-200 bg-slate-50 px-4 py-3 text-left font-semibold text-slate-700">Name</th>
-            <th class="border-b border-slate-200 bg-slate-50 px-4 py-3 text-left font-semibold text-slate-700">Ext</th>
-            <th class="border-b border-slate-200 bg-slate-50 px-4 py-3 text-left font-semibold text-slate-700">Size</th>
-            <th class="border-b border-slate-200 bg-slate-50 px-4 py-3 text-left font-semibold text-slate-700">URL</th>
-            <th class="border-b border-slate-200 bg-slate-50 px-4 py-3 text-right font-semibold text-slate-700">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for file in files %}
-            <tr>
-              <td class="border-b border-slate-200 px-4 py-3 align-top text-slate-900">
-                <div class="flex items-center gap-2">
-                  <span class="inline-flex h-5 w-5 items-center justify-center text-slate-500" aria-hidden="true">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4"><path d="M9 2.00318V2H19.9978C20.5513 2 21 2.45531 21 2.9918V21.0082C21 21.556 20.5551 22 20.0066 22H3.9934C3.44476 22 3 21.5501 3 20.9932V8L9 2.00318ZM5.82918 8H9V4.83086L5.82918 8ZM11 4V9C11 9.55228 10.5523 10 10 10H5V20H19V4H11Z"></path></svg>
-                  </span>
-                  <span>{{ file.name }}</span>
-                </div>
-              </td>
-              <td class="border-b border-slate-200 px-4 py-3 align-top text-slate-700 uppercase">{{ file.ext }}</td>
-              <td class="border-b border-slate-200 px-4 py-3 align-top text-slate-700">{{ (file.size / 1024)|round(1) }} KB</td>
-              <td class="border-b border-slate-200 px-4 py-3 align-top">
-                <div class="copy-field relative w-full">
-                  <input
-                    type="text"
-                    readonly
-                    value="{{ file.url }}"
-                    class="copy-input w-full cursor-pointer rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-300"
-                    title="Click to copy"
-                  >
-                  <span class="copy-toast pointer-events-none absolute right-2 top-1/2 hidden -translate-y-1/2 rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-semibold text-white">Copied</span>
-                </div>
-              </td>
-              <td class="border-b border-slate-200 px-4 py-3 text-right align-top whitespace-nowrap">
-                <div class="inline-flex items-center gap-2">
-                  <button
-                    type="button"
-                    class="rounded border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
-                    data-copy-url="{{ file.url }}"
-                    title="Copy URL"
-                    aria-label="Copy URL"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4" aria-hidden="true"><path d="M6.9998 6V3C6.9998 2.44772 7.44752 2 7.9998 2H19.9998C20.5521 2 20.9998 2.44772 20.9998 3V17C20.9998 17.5523 20.5521 18 19.9998 18H16.9998V20.9991C16.9998 21.5519 16.5499 22 15.993 22H4.00666C3.45059 22 3 21.5554 3 20.9991L3.0026 7.00087C3.0027 6.44811 3.45264 6 4.00942 6H6.9998ZM5.00242 8L5.00019 20H14.9998V8H5.00242ZM8.9998 6H16.9998V16H18.9998V4H8.9998V6ZM7 11H13V13H7V11ZM7 15H13V17H7V15Z"></path></svg>
-                  </button>
-                  <a
-                    href="{{ file.url }}"
-                    target="_blank"
-                    rel="noopener"
-                    class="rounded border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
-                    title="Open file"
-                    aria-label="Open file"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4" aria-hidden="true"><path d="M12.0003 3C17.3924 3 21.8784 6.87976 22.8189 12C21.8784 17.1202 17.3924 21 12.0003 21C6.60812 21 2.12215 17.1202 1.18164 12C2.12215 6.87976 6.60812 3 12.0003 3ZM12.0003 19C16.2359 19 19.8603 16.052 20.7777 12C19.8603 7.94803 16.2359 5 12.0003 5C7.7646 5 4.14022 7.94803 3.22278 12C4.14022 16.052 7.7646 19 12.0003 19ZM12.0003 16.5C9.51498 16.5 7.50026 14.4853 7.50026 12C7.50026 9.51472 9.51498 7.5 12.0003 7.5C14.4855 7.5 16.5003 9.51472 16.5003 12C16.5003 14.4853 14.4855 16.5 12.0003 16.5ZM12.0003 14.5C13.381 14.5 14.5003 13.3807 14.5003 12C14.5003 10.6193 13.381 9.5 12.0003 9.5C10.6196 9.5 9.50026 10.6193 9.50026 12C9.50026 13.3807 10.6196 14.5 12.0003 14.5Z"></path></svg>
-                  </a>
-                  <form method="post" action="{{ url('admin/files') }}" class="inline" onsubmit="return confirm('Delete this file?');">
-                    <input type="hidden" name="delete" value="1">
-                    <input type="hidden" name="filename" value="{{ file.name }}">
-                    <button
-                      type="submit"
-                      class="rounded border border-rose-300 px-2 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50"
-                      title="Delete"
-                      aria-label="Delete"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4" aria-hidden="true"><path d="M17 6H22V8H20V21C20 21.5523 19.5523 22 19 22H5C4.44772 22 4 21.5523 4 21V8H2V6H7V3C7 2.44772 7.44772 2 8 2H16C16.5523 2 17 2.44772 17 3V6ZM18 8H6V20H18V8ZM9 11H11V17H9V11ZM13 11H15V17H13V11ZM9 4V6H15V4H9Z"></path></svg>
-                    </button>
-                  </form>
-                </div>
-              </td>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-slate-100 bg-slate-50/50 text-left text-xs font-medium text-slate-400">
+              <th class="px-4 py-2 font-medium">File</th>
+              <th class="px-4 py-2 font-medium">Type</th>
+              <th class="px-4 py-2 font-medium">Size</th>
+              <th class="px-4 py-2 font-medium">URL</th>
+              <th class="px-4 py-2 text-right font-medium">Actions</th>
             </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+          </thead>
+          <tbody class="divide-y divide-slate-50">
+            {% for file in files %}
+              <tr class="hover:bg-slate-50">
+                <td class="px-4 py-2.5 align-top">
+                  <div class="flex items-center gap-2.5">
+                    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-500">
+                      <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M7 3h7l5 5v13H7a2 2 0 01-2-2V5a2 2 0 012-2z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M14 3v5h5"/>
+                      </svg>
+                    </span>
+                    <span class="font-medium text-slate-900">{{ file.name }}</span>
+                  </div>
+                </td>
+                <td class="px-4 py-2.5 align-top text-slate-600">{{ file.ext|upper }}</td>
+                <td class="px-4 py-2.5 align-top text-slate-600">{{ (file.size / 1024)|round(1) }} KB</td>
+                <td class="px-4 py-2.5 align-top">
+                  <input type="text" readonly value="{{ file.url }}" class="w-72 rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700">
+                </td>
+                <td class="px-4 py-2.5 text-right align-top">
+                  <div class="flex items-center justify-end gap-0.5">
+                    <button type="button" class="{{ icon_btn }}" data-copy-url="{{ file.url }}" title="Copy URL" aria-label="Copy URL">
+                      <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 8h10v10H8zM6 16H5a1 1 0 01-1-1V5a1 1 0 011-1h10a1 1 0 011 1v1"/>
+                      </svg>
+                    </button>
+                    <a href="{{ file.url }}" target="_blank" rel="noopener" class="{{ icon_btn }}" title="Open file" aria-label="Open file">
+                      <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M14 4h6v6M20 4l-9 9M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5"/>
+                      </svg>
+                    </a>
+                    <form method="post" action="{{ url('admin/files') }}" class="inline" onsubmit="return confirm('Delete this file?');">
+                      <input type="hidden" name="delete" value="1">
+                      <input type="hidden" name="filename" value="{{ file.name }}">
+                      <button type="submit" class="{{ danger_icon_btn }}" title="Delete" aria-label="Delete">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2m2 0v14a1 1 0 01-1 1H7a1 1 0 01-1-1V6"/>
+                        </svg>
+                      </button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     {% endif %}
+  </section>
+
+  <div id="files-copy-toast" class="pointer-events-none fixed right-6 top-16 z-[999] hidden rounded-md border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800 shadow">
+    URL copied
   </div>
 
   <script>
     (function () {
-      const copyFields = Array.from(document.querySelectorAll('.copy-field'));
-
-      const copyText = async (value) => {
-        if (!value) return false;
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          await navigator.clipboard.writeText(value);
-          return true;
-        }
-        const tmp = document.createElement('input');
-        tmp.value = value;
-        document.body.appendChild(tmp);
-        tmp.select();
-        const ok = document.execCommand('copy');
-        tmp.remove();
-        return ok;
-      };
-
-      const flashField = (field) => {
-        if (!field) return;
-        const input = field.querySelector('.copy-input');
-        const toast = field.querySelector('.copy-toast');
-        if (input) {
-          input.classList.add('border-emerald-500', 'ring-2', 'ring-emerald-300', 'text-slate-400');
-          input.blur();
-        }
-        if (toast) {
-          toast.classList.remove('hidden');
-        }
-        setTimeout(() => {
-          if (input) {
-            input.classList.remove('border-emerald-500', 'ring-2', 'ring-emerald-300', 'text-slate-400');
-          }
-          if (toast) {
-            toast.classList.add('hidden');
-          }
-        }, 1200);
-      };
-
-      copyFields.forEach((field) => {
-        const input = field.querySelector('.copy-input');
-        if (!input) return;
-
-        input.addEventListener('mousedown', (event) => {
-          event.preventDefault();
-        });
-
-        input.addEventListener('click', async () => {
-          try {
-            const ok = await copyText(input.value);
-            if (ok) {
-              flashField(field);
-            }
-          } catch (_) {}
-        });
-      });
-
+      const copyToast = document.getElementById('files-copy-toast');
       document.querySelectorAll('[data-copy-url]').forEach((button) => {
         button.addEventListener('click', async () => {
           const value = button.getAttribute('data-copy-url') || '';
           if (!value) return;
           try {
-            const ok = await copyText(value);
-            if (!ok) return;
-            const row = button.closest('tr');
-            const field = row ? row.querySelector('.copy-field') : null;
-            flashField(field);
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              await navigator.clipboard.writeText(value);
+            } else {
+              const tmp = document.createElement('input');
+              tmp.value = value;
+              document.body.appendChild(tmp);
+              tmp.select();
+              document.execCommand('copy');
+              tmp.remove();
+            }
+            if (copyToast) {
+              copyToast.classList.remove('hidden');
+              setTimeout(() => copyToast.classList.add('hidden'), 1100);
+            }
           } catch (_) {}
         });
       });

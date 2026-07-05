@@ -1,233 +1,363 @@
 {% extends '@admin/base.twig' %}
 
 {% block content %}
-  {% set btn_primary = 'inline-flex items-center justify-center rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white no-underline transition hover:bg-slate-700' %}
-  {% set btn_muted = 'inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 no-underline transition hover:bg-slate-100' %}
-  {% set btn_danger = 'inline-flex items-center justify-center rounded-md bg-rose-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-rose-500' %}
+  {% set primary_btn = 'inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm no-underline hover:bg-blue-700' %}
+  {% set secondary_btn = 'inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm no-underline hover:bg-slate-50' %}
+  {% set icon_btn = 'inline-flex items-center justify-center rounded-md p-1.5 text-slate-400 no-underline hover:bg-slate-100 hover:text-slate-700' %}
+  {% set danger_icon_btn = 'inline-flex items-center justify-center rounded-md p-1.5 text-rose-500 hover:bg-rose-50 hover:text-rose-600' %}
+  {% set input_class = 'w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20' %}
+  {% set select_class = input_class %}
   {% set summary_from = total_items > 0 ? ((page - 1) * per_page) + 1 : 0 %}
   {% set summary_to = total_items > 0 ? ((page - 1) * per_page) + (items|length) : 0 %}
+  {% set filters_open = q is not empty or tag is not empty %}
 
-  <header class="mb-5 flex flex-wrap items-start justify-between gap-4">
-    <div>
-      <h1 class="text-4xl font-semibold tracking-tight text-slate-900">Media Library</h1>
-      <p class="mt-1 text-sm text-slate-500">Central file and media storage for all modules.</p>
+  <header class="mb-4 flex flex-wrap items-start justify-between gap-3">
+    <div class="min-w-0">
+      <h1 class="truncate text-2xl font-semibold tracking-tight text-slate-900">Files</h1>
+      <p class="mt-1 text-sm text-slate-500">Uploads and media library.</p>
     </div>
-    <button
-      type="button"
-      id="toggle-upload-panel"
-      class="{{ btn_muted }}"
-      data-upload-toggle
-      aria-controls="upload-panel"
-      aria-expanded="false"
-    >Upload</button>
+    <button type="button" class="{{ primary_btn }}" data-upload-focus>
+      <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+        <path stroke-linecap="round" d="M12 5v14M5 12h14"/>
+      </svg>
+      Upload files
+    </button>
   </header>
 
   {% if success %}
-    <div class="fixed right-6 top-5 z-[999] flex items-center gap-3 rounded-md border border-emerald-300 bg-emerald-50 px-3.5 py-2.5 text-emerald-800 shadow">
+    <div class="toast toast-success fixed right-6 top-5 z-[999] flex items-center gap-3 rounded-md border border-emerald-300 bg-emerald-50 px-3.5 py-2.5 text-emerald-800 shadow">
       <span>{{ success }}</span>
-      <button type="button" class="border-0 bg-transparent text-lg leading-none text-current" onclick="this.parentElement.remove()">×</button>
+      <button type="button" class="toast-close border-0 bg-transparent text-lg leading-none text-current" onclick="this.parentElement.remove()">x</button>
     </div>
   {% endif %}
   {% if error %}
-    <div class="fixed right-6 top-5 z-[999] flex items-center gap-3 rounded-md border border-rose-300 bg-rose-50 px-3.5 py-2.5 text-rose-800 shadow">
+    <div class="toast fixed right-6 top-5 z-[999] flex items-center gap-3 rounded-md border border-rose-300 bg-rose-50 px-3.5 py-2.5 text-rose-800 shadow">
       <span>{{ error }}</span>
-      <button type="button" class="border-0 bg-transparent text-lg leading-none text-current" onclick="this.parentElement.remove()">×</button>
+      <button type="button" class="toast-close border-0 bg-transparent text-lg leading-none text-current" onclick="this.parentElement.remove()">x</button>
     </div>
   {% endif %}
 
-  <div id="upload-panel" class="mb-5 rounded-lg border border-slate-200 bg-white p-4 shadow-sm {% if not error %}hidden{% endif %}">
-    <form method="post" action="{{ url('admin/media') }}" enctype="multipart/form-data" class="grid gap-3 md:grid-cols-3">
-      <input type="hidden" name="media_action" value="upload">
-      <input type="hidden" name="_state_type" value="{{ type }}">
-      <input type="hidden" name="_state_tag" value="{{ tag }}">
-      <input type="hidden" name="_state_q" value="{{ q }}">
-      <input type="hidden" name="_state_view" value="{{ view_mode }}">
-      <input type="hidden" name="_state_per_page" value="{{ per_page }}">
-      <input type="hidden" name="_state_page" value="{{ page }}">
+  <form id="media-upload-form" method="post" action="{{ url('admin/media') }}" enctype="multipart/form-data" class="mb-4 rounded-lg border-2 border-dashed border-slate-200 bg-white p-6 text-center">
+    <input type="hidden" name="media_action" value="upload">
+    <input type="hidden" name="_state_type" value="{{ type }}">
+    <input type="hidden" name="_state_tag" value="{{ tag }}">
+    <input type="hidden" name="_state_q" value="{{ q }}">
+    <input type="hidden" name="_state_view" value="{{ view_mode }}">
+    <input type="hidden" name="_state_per_page" value="{{ per_page }}">
+    <input type="hidden" name="_state_page" value="{{ page }}">
 
-      <label class="grid gap-1 text-sm font-medium text-slate-700 md:col-span-2">
-        Files
-        <input
-          type="file"
-          name="upload_file[]"
-          multiple
-          required
-          class="block w-full text-sm text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-900 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-slate-700"
-        >
-        <span class="text-xs text-slate-500">Max upload size: {{ max_upload_mb }} MB per file.</span>
-      </label>
+    <label class="mx-auto grid max-w-3xl cursor-pointer gap-3">
+      <span class="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-slate-100">
+        <svg class="h-5 w-5 text-slate-400" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 16V4m0 0L8 8m4-4l4 4M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2"/>
+        </svg>
+      </span>
+      <span>
+        <span class="block text-sm font-medium text-slate-700">Drop files to upload</span>
+        <span class="block text-xs text-slate-400">or click to browse - max {{ max_upload_mb }} MB per file</span>
+      </span>
+      <input id="media-upload-input" type="file" name="upload_file[]" multiple required class="mx-auto block w-full max-w-xl cursor-pointer rounded-md border border-slate-300 bg-white text-sm text-slate-700 file:mr-3 file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-slate-700 hover:file:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+    </label>
 
-      <label class="grid gap-1 text-sm font-medium text-slate-700">
+    <div class="mx-auto mt-4 flex max-w-3xl flex-wrap items-end justify-center gap-3 text-left">
+      <label class="grid min-w-64 flex-1 gap-1 text-sm font-medium text-slate-700">
         Tags
         <input type="text" name="upload_tags" class="{{ input_class }}" placeholder="news, hero, brochure">
       </label>
+      <button type="submit" class="{{ primary_btn }}">
+        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 16V4m0 0l-4 4m4-4l4 4M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3"/>
+        </svg>
+        Upload
+      </button>
+    </div>
+  </form>
 
-      <div class="md:col-span-3">
-        <button type="submit" class="{{ btn_primary }}">Upload</button>
+  <div data-media-scope class="rounded-lg border border-slate-200 bg-white">
+    <div class="flex flex-col gap-3 border-b border-slate-200 px-4 py-2.5 xl:flex-row xl:items-center xl:justify-between">
+      <div class="flex items-center gap-2 overflow-x-auto">
+        <span data-media-count class="mr-1 shrink-0 text-sm font-medium text-slate-700">{{ total_items }} {{ total_items == 1 ? 'file' : 'files' }}</span>
+        <span class="mx-1 h-4 w-px shrink-0 bg-slate-200"></span>
+        {% for mediaType in types_available %}
+          <a href="{{ url('admin/media?type=' ~ mediaType ~ '&tag=' ~ tag|url_encode ~ '&q=' ~ q|url_encode ~ '&per_page=' ~ per_page ~ '&view=' ~ view_mode) }}" class="shrink-0 rounded-md px-2.5 py-1 text-xs font-medium no-underline {{ mediaType == type ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100' }}">{{ mediaType|title }}</a>
+        {% endfor %}
       </div>
-    </form>
-  </div>
 
-  {% set filters_open = q is not empty or tag is not empty or type != 'all' %}
+      <div class="flex flex-wrap items-center gap-2 xl:shrink-0">
+        <form method="get" action="{{ url('admin/media') }}" class="flex flex-wrap items-center gap-2">
+          <input type="hidden" name="type" value="{{ type }}">
+          <input type="hidden" name="view" value="{{ view_mode }}">
+          <input type="hidden" name="tag" value="{{ tag }}">
+          <input type="hidden" name="per_page" value="{{ per_page }}">
+          <div class="relative">
+            <svg class="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" d="M21 21l-4.3-4.3M11 18a7 7 0 110-14 7 7 0 010 14z"/>
+            </svg>
+            <input type="search" name="q" value="{{ q }}" placeholder="Search files..." class="w-48 rounded-md border border-slate-200 bg-slate-50 py-1.5 pl-8 pr-3 text-sm text-slate-700 placeholder:text-slate-400 focus:border-slate-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/5">
+          </div>
+        </form>
 
-  <div class="mb-4 flex flex-wrap items-center justify-end gap-2">
-    <button
-      type="button"
-      data-filter-toggle
-      aria-controls="media-filter-panel"
-      aria-expanded="{{ filters_open ? 'true' : 'false' }}"
-      class="inline-flex items-center justify-center rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold transition"
-    >
-      Filters
-    </button>
-    <a
-      href="{{ url('admin/media?type=' ~ type ~ '&tag=' ~ tag|url_encode ~ '&q=' ~ q|url_encode ~ '&per_page=' ~ per_page ~ '&view=list') }}"
-      class="inline-flex items-center justify-center rounded-md border px-4 py-2 text-sm font-semibold transition {{ view_mode == 'list' ? 'border-slate-900 bg-slate-900 text-white hover:bg-slate-700' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100' }}"
-    >List</a>
-    <a
-      href="{{ url('admin/media?type=' ~ type ~ '&tag=' ~ tag|url_encode ~ '&q=' ~ q|url_encode ~ '&per_page=' ~ per_page ~ '&view=thumbs') }}"
-      class="inline-flex items-center justify-center rounded-md border px-4 py-2 text-sm font-semibold transition {{ view_mode == 'thumbs' ? 'border-slate-900 bg-slate-900 text-white hover:bg-slate-700' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100' }}"
-    >Thumbnails</a>
-  </div>
+        <button type="button" data-toggle="filter" data-target="mediaFilter" class="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 5h18M6 12h12M10 19h4"/>
+          </svg>
+          Filter
+        </button>
 
-  <div id="media-filter-panel" class="mb-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm {% if not filters_open %}hidden{% endif %}">
-    <form method="get" action="{{ url('admin/media') }}" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-      <input type="hidden" name="view" value="{{ view_mode }}">
-
-      <label class="grid gap-1 text-sm font-medium text-slate-700">
-        Type
-        <select name="type" class="{{ select_class }}">
-          {% for mediaType in types_available %}
-            <option value="{{ mediaType }}" {% if mediaType == type %}selected{% endif %}>{{ mediaType|title }}</option>
-          {% endfor %}
-        </select>
-      </label>
-
-      <label class="grid gap-1 text-sm font-medium text-slate-700">
-        Tag
-        <select name="tag" class="{{ select_class }}">
-          <option value="">All tags</option>
-          {% for availableTag in available_tags %}
-            <option value="{{ availableTag }}" {% if availableTag == tag %}selected{% endif %}>{{ availableTag }}</option>
-          {% endfor %}
-        </select>
-      </label>
-
-      <label class="grid gap-1 text-sm font-medium text-slate-700">
-        Search
-        <input type="text" name="q" value="{{ q }}" class="{{ input_class }}" placeholder="Name, mime, tags">
-      </label>
-
-      <label class="grid gap-1 text-sm font-medium text-slate-700">
-        Per page
-        <select name="per_page" class="{{ select_class }}">
-          {% for option in per_page_options %}
-            <option value="{{ option }}" {% if option == per_page %}selected{% endif %}>{{ option }}</option>
-          {% endfor %}
-        </select>
-      </label>
-
-      <div class="flex items-end gap-2">
-        <button type="submit" class="{{ btn_muted }}">Apply</button>
-        <a class="{{ btn_muted }}" href="{{ url('admin/media') }}">Reset</a>
+        <div class="flex items-center gap-0.5 rounded-md bg-slate-100 p-0.5">
+          <a href="{{ url('admin/media?type=' ~ type ~ '&tag=' ~ tag|url_encode ~ '&q=' ~ q|url_encode ~ '&per_page=' ~ per_page ~ '&view=list') }}" title="List view" class="rounded p-1.5 no-underline {{ view_mode == 'list' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-700' }}">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
+            </svg>
+          </a>
+          <a href="{{ url('admin/media?type=' ~ type ~ '&tag=' ~ tag|url_encode ~ '&q=' ~ q|url_encode ~ '&per_page=' ~ per_page ~ '&view=thumbs') }}" title="Grid view" class="rounded p-1.5 no-underline {{ view_mode == 'thumbs' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-700' }}">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 5h6v6H4zM14 5h6v6h-6zM4 15h6v6H4zM14 15h6v6h-6z"/>
+            </svg>
+          </a>
+        </div>
       </div>
-    </form>
-  </div>
-
-  <section class="mb-4 hidden rounded-lg border border-slate-200 bg-white p-4 shadow-sm" id="media-bulk-panel">
-    <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
-      <p class="text-sm font-semibold text-slate-700">Bulk actions</p>
-      <p class="text-xs text-slate-500"><span id="media-selected-count">0</span> selected</p>
     </div>
 
-    <div class="mb-3 flex items-center gap-2 text-sm text-slate-700">
-      <input id="media-apply-all-filtered" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-400">
-      <label for="media-apply-all-filtered">Apply to all filtered results</label>
-    </div>
-
-    <div class="flex flex-wrap items-end gap-2">
-      <form id="media-bulk-tags-form" method="post" action="{{ url('admin/media') }}" class="flex flex-wrap items-end gap-2">
-        <input type="hidden" name="media_action" value="bulk_tags">
-        <input type="hidden" name="apply_all_filtered" value="0" data-apply-all-input>
-        <input type="hidden" name="_filter_type" value="{{ type }}">
-        <input type="hidden" name="_filter_tag" value="{{ tag }}">
-        <input type="hidden" name="_filter_q" value="{{ q }}">
-        <input type="hidden" name="_state_type" value="{{ type }}">
-        <input type="hidden" name="_state_tag" value="{{ tag }}">
-        <input type="hidden" name="_state_q" value="{{ q }}">
-        <input type="hidden" name="_state_view" value="{{ view_mode }}">
-        <input type="hidden" name="_state_per_page" value="{{ per_page }}">
-      <input type="hidden" name="_state_page" value="{{ page }}">
-        <div data-selected-ids></div>
+    <div id="mediaFilter" class="{{ filters_open ? '' : 'hidden' }} border-b border-slate-200 bg-slate-50/50 p-3">
+      <form method="get" action="{{ url('admin/media') }}" class="grid grid-cols-1 gap-3 sm:grid-cols-4">
+        <input type="hidden" name="view" value="{{ view_mode }}">
         <label class="grid gap-1 text-sm font-medium text-slate-700">
-          Add tags
-          <input type="text" name="tags" class="{{ input_class }}" placeholder="promo, homepage">
+          Type
+          <select name="type" class="{{ select_class }}">
+            {% for mediaType in types_available %}
+              <option value="{{ mediaType }}" {% if mediaType == type %}selected{% endif %}>{{ mediaType|title }}</option>
+            {% endfor %}
+          </select>
         </label>
-        <button type="submit" class="{{ btn_muted }}">Save tags</button>
-      </form>
-
-      <form id="media-bulk-delete-form" method="post" action="{{ url('admin/media') }}" onsubmit="return confirm('Delete selected media items?');">
-        <input type="hidden" name="media_action" value="bulk_delete">
-        <input type="hidden" name="apply_all_filtered" value="0" data-apply-all-input>
-        <input type="hidden" name="_filter_type" value="{{ type }}">
-        <input type="hidden" name="_filter_tag" value="{{ tag }}">
-        <input type="hidden" name="_filter_q" value="{{ q }}">
-        <input type="hidden" name="_state_type" value="{{ type }}">
-        <input type="hidden" name="_state_tag" value="{{ tag }}">
-        <input type="hidden" name="_state_q" value="{{ q }}">
-        <input type="hidden" name="_state_view" value="{{ view_mode }}">
-        <input type="hidden" name="_state_per_page" value="{{ per_page }}">
-      <input type="hidden" name="_state_page" value="{{ page }}">
-        <div data-selected-ids></div>
-        <button type="submit" class="{{ btn_danger }}">Delete selected</button>
+        <label class="grid gap-1 text-sm font-medium text-slate-700">
+          Tag
+          <select name="tag" class="{{ select_class }}">
+            <option value="">All tags</option>
+            {% for availableTag in available_tags %}
+              <option value="{{ availableTag }}" {% if availableTag == tag %}selected{% endif %}>{{ availableTag }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="grid gap-1 text-sm font-medium text-slate-700">
+          Per page
+          <select name="per_page" class="{{ select_class }}">
+            {% for option in per_page_options %}
+              <option value="{{ option }}" {% if option == per_page %}selected{% endif %}>{{ option }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="grid gap-1 text-sm font-medium text-slate-700">
+          Search
+          <input type="text" name="q" value="{{ q }}" class="{{ input_class }}" placeholder="Name, mime, tags">
+        </label>
+        <div class="flex items-end justify-end gap-2 sm:col-span-4">
+          <a class="{{ secondary_btn }}" href="{{ url('admin/media') }}">Reset</a>
+          <button type="submit" class="{{ primary_btn }}">Apply</button>
+        </div>
       </form>
     </div>
-  </section>
 
-  {% if items is empty %}
-    <div class="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
-      No media items found.
-    </div>
-  {% elseif view_mode == 'list' %}
-    <div class="w-full overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
-      <table class="min-w-full table-auto border-collapse text-sm">
-        <thead>
-          <tr>
-            <th class="border-b border-slate-200 bg-slate-50 px-4 py-3 text-left font-semibold text-slate-700">
-              <input id="media-select-all" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-400" aria-label="Select all">
-            </th>
-            <th class="border-b border-slate-200 bg-slate-50 px-4 py-3 text-left font-semibold text-slate-700">Preview</th>
-            <th class="border-b border-slate-200 bg-slate-50 px-4 py-3 text-left font-semibold text-slate-700">File</th>
-            <th class="border-b border-slate-200 bg-slate-50 px-4 py-3 text-left font-semibold text-slate-700">Type</th>
-            <th class="border-b border-slate-200 bg-slate-50 px-4 py-3 text-left font-semibold text-slate-700">Size</th>
-            <th class="border-b border-slate-200 bg-slate-50 px-4 py-3 text-left font-semibold text-slate-700">Tags</th>
-            <th class="border-b border-slate-200 bg-slate-50 px-4 py-3 text-left font-semibold text-slate-700">Created</th>
-            <th class="border-b border-slate-200 bg-slate-50 px-4 py-3 text-right font-semibold text-slate-700">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for item in items %}
-            <tr>
-              <td class="border-b border-slate-200 px-4 py-3 align-top">
-                <input type="checkbox" class="media-select-item h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-400" value="{{ item.id }}" data-kind="{{ item.kind }}">
-              </td>
-              <td class="border-b border-slate-200 px-4 py-3 align-top">
-                {% if item.kind == 'image' and item.thumbnail_url %}
-                  <img src="{{ item.thumbnail_url }}" alt="{{ item.original_name }}" class="h-12 w-12 rounded object-cover">
-                {% else %}
-                  <div class="flex h-12 w-12 items-center justify-center rounded bg-slate-100 text-slate-500" title="{{ item.kind|title }}">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-5 w-5" aria-hidden="true"><path d="M9 2.00318V2H19.9978C20.5513 2 21 2.45531 21 2.9918V21.0082C21 21.556 20.5551 22 20.0066 22H3.9934C3.44476 22 3 21.5501 3 20.9932V8L9 2.00318ZM5.82918 8H9V4.83086L5.82918 8ZM11 4V9C11 9.55228 10.5523 10 10 10H5V20H19V4H11Z"></path></svg>
+    <section class="hidden border-b border-slate-200 bg-slate-50/50 px-4 py-3" id="media-bulk-panel">
+      <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <p class="text-sm font-semibold text-slate-700">Bulk actions</p>
+          <p class="text-xs text-slate-500"><span id="media-selected-count">0</span> selected</p>
+          <label class="mt-2 inline-flex items-center gap-2 text-sm text-slate-700">
+            <input id="media-apply-all-filtered" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-400">
+            Apply to all filtered results
+          </label>
+        </div>
+
+        <div class="flex flex-wrap items-end gap-2">
+          <form id="media-bulk-tags-form" method="post" action="{{ url('admin/media') }}" class="flex flex-wrap items-end gap-2">
+            <input type="hidden" name="media_action" value="bulk_tags">
+            <input type="hidden" name="apply_all_filtered" value="0" data-apply-all-input>
+            <input type="hidden" name="_filter_type" value="{{ type }}">
+            <input type="hidden" name="_filter_tag" value="{{ tag }}">
+            <input type="hidden" name="_filter_q" value="{{ q }}">
+            <input type="hidden" name="_state_type" value="{{ type }}">
+            <input type="hidden" name="_state_tag" value="{{ tag }}">
+            <input type="hidden" name="_state_q" value="{{ q }}">
+            <input type="hidden" name="_state_view" value="{{ view_mode }}">
+            <input type="hidden" name="_state_per_page" value="{{ per_page }}">
+            <input type="hidden" name="_state_page" value="{{ page }}">
+            <div data-selected-ids></div>
+            <label class="grid gap-1 text-sm font-medium text-slate-700">
+              Add tags
+              <input type="text" name="tags" class="{{ input_class }}" placeholder="promo, homepage">
+            </label>
+            <button type="submit" class="{{ secondary_btn }}">Save tags</button>
+          </form>
+
+          <form id="media-bulk-delete-form" method="post" action="{{ url('admin/media') }}" onsubmit="return confirm('Delete selected media items?');">
+            <input type="hidden" name="media_action" value="bulk_delete">
+            <input type="hidden" name="apply_all_filtered" value="0" data-apply-all-input>
+            <input type="hidden" name="_filter_type" value="{{ type }}">
+            <input type="hidden" name="_filter_tag" value="{{ tag }}">
+            <input type="hidden" name="_filter_q" value="{{ q }}">
+            <input type="hidden" name="_state_type" value="{{ type }}">
+            <input type="hidden" name="_state_tag" value="{{ tag }}">
+            <input type="hidden" name="_state_q" value="{{ q }}">
+            <input type="hidden" name="_state_view" value="{{ view_mode }}">
+            <input type="hidden" name="_state_per_page" value="{{ per_page }}">
+            <input type="hidden" name="_state_page" value="{{ page }}">
+            <div data-selected-ids></div>
+            <button type="submit" class="inline-flex items-center gap-1.5 rounded-md bg-rose-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-rose-500">Delete selected</button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    {% if items is empty %}
+      <div class="flex flex-col items-center justify-center px-6 py-16 text-center">
+        <div class="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
+          <svg class="h-6 w-6 text-slate-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m-7 5h8a2 2 0 002-2V7l-5-5H7a2 2 0 00-2 2v15a2 2 0 002 2z"/>
+          </svg>
+        </div>
+        <h2 class="mt-3 text-sm font-semibold text-slate-900">No files uploaded</h2>
+        <p class="mt-1 max-w-sm text-sm text-slate-400">Upload images, documents and archives to use across content.</p>
+        <button type="button" class="{{ primary_btn }} mt-4" data-upload-focus>
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" d="M12 5v14M5 12h14"/>
+          </svg>
+          Upload files
+        </button>
+      </div>
+    {% elseif view_mode == 'list' %}
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-slate-100 bg-slate-50/50 text-left text-xs font-medium text-slate-400">
+              <th class="px-4 py-2 font-medium">
+                <input id="media-select-all" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-400" aria-label="Select all">
+              </th>
+              <th class="px-4 py-2 font-medium">File</th>
+              <th class="px-4 py-2 font-medium">Type</th>
+              <th class="px-4 py-2 font-medium">Size</th>
+              <th class="px-4 py-2 font-medium">Tags</th>
+              <th class="px-4 py-2 font-medium">Created</th>
+              <th class="px-4 py-2 text-right font-medium">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-50">
+            {% for item in items %}
+              <tr class="hover:bg-slate-50">
+                <td class="px-4 py-2.5 align-top">
+                  <input type="checkbox" class="media-select-item h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-400" value="{{ item.id }}" data-kind="{{ item.kind }}">
+                </td>
+                <td class="px-4 py-2.5 align-top">
+                  <div class="flex min-w-0 items-center gap-2.5">
+                    {% if item.kind == 'image' and item.thumbnail_url %}
+                      <img src="{{ item.thumbnail_url }}" alt="{{ item.original_name }}" class="h-8 w-8 rounded-md object-cover">
+                    {% else %}
+                      <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md {{ item.kind == 'document' ? 'bg-rose-50 text-rose-600' : (item.kind == 'archive' ? 'bg-amber-50 text-amber-600' : (item.kind == 'audio' ? 'bg-emerald-50 text-emerald-600' : (item.kind == 'video' ? 'bg-violet-50 text-violet-600' : 'bg-slate-100 text-slate-500'))) }}">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M7 3h7l5 5v13H7a2 2 0 01-2-2V5a2 2 0 012-2z"/>
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M14 3v5h5"/>
+                        </svg>
+                      </span>
+                    {% endif %}
+                    <div class="min-w-0">
+                      <p class="max-w-[280px] truncate font-medium text-slate-900" title="{{ item.original_name }}">{{ item.original_name }}</p>
+                      <p class="truncate text-xs text-slate-400">{{ item.mime_type }}</p>
+                    </div>
                   </div>
+                </td>
+                <td class="px-4 py-2.5 align-top text-slate-600">{{ item.kind|title }}</td>
+                <td class="px-4 py-2.5 align-top text-slate-600">{{ item.size_human }}</td>
+                <td class="px-4 py-2.5 align-top">
+                  <form method="post" action="{{ url('admin/media') }}" class="flex items-center gap-2">
+                    <input type="hidden" name="media_action" value="save_tags">
+                    <input type="hidden" name="id" value="{{ item.id }}">
+                    <input type="hidden" name="_state_type" value="{{ type }}">
+                    <input type="hidden" name="_state_tag" value="{{ tag }}">
+                    <input type="hidden" name="_state_q" value="{{ q }}">
+                    <input type="hidden" name="_state_view" value="{{ view_mode }}">
+                    <input type="hidden" name="_state_per_page" value="{{ per_page }}">
+                    <input type="hidden" name="_state_page" value="{{ page }}">
+                    <input type="text" name="tags" value="{{ item.tags_csv }}" class="w-44 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" placeholder="tag1, tag2">
+                    <button type="submit" class="{{ icon_btn }}" title="Save tags" aria-label="Save tags">
+                      <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                      </svg>
+                    </button>
+                  </form>
+                </td>
+                <td class="px-4 py-2.5 align-top text-slate-400">{{ item.created_at_display }}</td>
+                <td class="px-4 py-2.5 text-right align-top">
+                  <div class="flex items-center justify-end gap-0.5">
+                    <a href="{{ item.direct_url }}" target="_blank" rel="noopener" class="{{ icon_btn }}" title="Open file" aria-label="Open file">
+                      <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M14 4h6v6M20 4l-9 9M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5"/>
+                      </svg>
+                    </a>
+                    <button type="button" class="{{ icon_btn }}" data-copy-url="{{ item.direct_url }}" title="Copy URL" aria-label="Copy URL">
+                      <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 8h10v10H8zM6 16H5a1 1 0 01-1-1V5a1 1 0 011-1h10a1 1 0 011 1v1"/>
+                      </svg>
+                    </button>
+                    <form method="post" action="{{ url('admin/media') }}" onsubmit="return confirm('Delete this media item?');" class="inline">
+                      <input type="hidden" name="media_action" value="delete">
+                      <input type="hidden" name="id" value="{{ item.id }}">
+                      <input type="hidden" name="_state_type" value="{{ type }}">
+                      <input type="hidden" name="_state_tag" value="{{ tag }}">
+                      <input type="hidden" name="_state_q" value="{{ q }}">
+                      <input type="hidden" name="_state_view" value="{{ view_mode }}">
+                      <input type="hidden" name="_state_per_page" value="{{ per_page }}">
+                      <input type="hidden" name="_state_page" value="{{ page }}">
+                      <button type="submit" class="{{ danger_icon_btn }}" title="Delete" aria-label="Delete">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2m2 0v14a1 1 0 01-1 1H7a1 1 0 01-1-1V6"/>
+                        </svg>
+                      </button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="p-4">
+        <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          {% for item in items %}
+            <article class="group overflow-hidden rounded-lg border border-slate-200 bg-white transition hover:border-slate-300 hover:shadow-sm">
+              <div class="relative flex aspect-[4/3] items-center justify-center bg-slate-50 text-slate-500">
+                <label class="absolute left-2 top-2 z-10 inline-flex items-center gap-1 rounded bg-white/90 px-1.5 py-0.5 text-xs font-medium text-slate-600 shadow-sm">
+                  <input type="checkbox" class="media-select-item h-3.5 w-3.5 rounded border-slate-300 text-slate-900 focus:ring-slate-400" value="{{ item.id }}" data-kind="{{ item.kind }}">
+                  Select
+                </label>
+                {% if item.kind == 'image' and item.thumbnail_url %}
+                  <img src="{{ item.thumbnail_url }}" alt="{{ item.original_name }}" class="h-full w-full object-cover">
+                {% else %}
+                  <svg class="h-9 w-9 opacity-80" fill="none" stroke="currentColor" stroke-width="1.4" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M7 3h7l5 5v13a1 1 0 01-1 1H7a1 1 0 01-1-1V4a1 1 0 011-1z"/>
+                  </svg>
                 {% endif %}
-              </td>
-              <td class="border-b border-slate-200 px-4 py-3 align-top">
-                <p class="max-w-[280px] truncate font-semibold text-slate-900" title="{{ item.original_name }}">{{ item.original_name }}</p>
-                <p class="text-xs text-slate-500">{{ item.mime_type }}</p>
-              </td>
-              <td class="border-b border-slate-200 px-4 py-3 align-top text-slate-700">{{ item.kind|title }}</td>
-              <td class="border-b border-slate-200 px-4 py-3 align-top text-slate-700">{{ item.size_human }}</td>
-              <td class="border-b border-slate-200 px-4 py-3 align-top">
-                <form method="post" action="{{ url('admin/media') }}" class="flex items-center gap-2">
+                <span class="absolute bottom-2 left-2 rounded bg-white/85 px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-slate-500 backdrop-blur">{{ item.kind|title }}</span>
+                <div class="absolute right-1.5 top-1.5 flex gap-0.5 opacity-0 transition group-hover:opacity-100">
+                  <a href="{{ item.direct_url }}" target="_blank" rel="noopener" class="rounded-md bg-white/90 p-1.5 text-slate-500 shadow-sm hover:text-slate-800" title="Open file" aria-label="Open file">
+                    <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M14 4h6v6M20 4l-9 9M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5"/>
+                    </svg>
+                  </a>
+                  <button type="button" class="rounded-md bg-white/90 p-1.5 text-slate-500 shadow-sm hover:text-slate-800" data-copy-url="{{ item.direct_url }}" title="Copy URL" aria-label="Copy URL">
+                    <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M8 8h10v10H8zM6 16H5a1 1 0 01-1-1V5a1 1 0 011-1h10a1 1 0 011 1v1"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div class="p-2.5">
+                <p class="truncate text-sm font-medium text-slate-900" title="{{ item.original_name }}">{{ item.original_name }}</p>
+                <div class="mt-0.5 flex items-center justify-between gap-2 text-xs text-slate-400">
+                  <span>{{ item.size_human }}</span>
+                  <span>{{ item.created_at_display }}</span>
+                </div>
+                <form method="post" action="{{ url('admin/media') }}" class="mt-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-1.5">
                   <input type="hidden" name="media_action" value="save_tags">
                   <input type="hidden" name="id" value="{{ item.id }}">
                   <input type="hidden" name="_state_type" value="{{ type }}">
@@ -235,115 +365,61 @@
                   <input type="hidden" name="_state_q" value="{{ q }}">
                   <input type="hidden" name="_state_view" value="{{ view_mode }}">
                   <input type="hidden" name="_state_per_page" value="{{ per_page }}">
-      <input type="hidden" name="_state_page" value="{{ page }}">
-                  <input type="text" name="tags" value="{{ item.tags_csv }}" class="w-44 rounded border border-slate-300 px-2 py-1 text-xs" placeholder="tag1, tag2">
-                  <button type="submit" class="rounded border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100" title="Save tags" aria-label="Save tags">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4" aria-hidden="true"><path d="M7 19V13H17V19H19V7.82843L16.1716 5H5V19H7ZM4 3H17L21 7V20C21 20.5523 20.5523 21 20 21H4C3.44772 21 3 20.5523 3 20V4C3 3.44772 3.44772 3 4 3ZM9 15V19H15V15H9Z"></path></svg>
+                  <input type="hidden" name="_state_page" value="{{ page }}">
+                  <input type="text" name="tags" value="{{ item.tags_csv }}" class="min-w-0 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" placeholder="tag1, tag2">
+                  <button type="submit" class="{{ icon_btn }}" title="Save tags" aria-label="Save tags">
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                    </svg>
                   </button>
                 </form>
-              </td>
-              <td class="border-b border-slate-200 px-4 py-3 align-top whitespace-nowrap text-slate-700">{{ item.created_at_display }}</td>
-              <td class="border-b border-slate-200 px-4 py-3 align-top text-right whitespace-nowrap">
-                <div class="inline-flex items-center gap-2">
-                  <a href="{{ item.direct_url }}" target="_blank" rel="noopener" class="rounded border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100" title="Open file" aria-label="Open file">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4" aria-hidden="true"><path d="M12.0003 3C17.3924 3 21.8784 6.87976 22.8189 12C21.8784 17.1202 17.3924 21 12.0003 21C6.60812 21 2.12215 17.1202 1.18164 12C2.12215 6.87976 6.60812 3 12.0003 3ZM12.0003 19C16.2359 19 19.8603 16.052 20.7777 12C19.8603 7.94803 16.2359 5 12.0003 5C7.7646 5 4.14022 7.94803 3.22278 12C4.14022 16.052 7.7646 19 12.0003 19ZM12.0003 16.5C9.51498 16.5 7.50026 14.4853 7.50026 12C7.50026 9.51472 9.51498 7.5 12.0003 7.5C14.4855 7.5 16.5003 9.51472 16.5003 12C16.5003 14.4853 14.4855 16.5 12.0003 16.5ZM12.0003 14.5C13.381 14.5 14.5003 13.3807 14.5003 12C14.5003 10.6193 13.381 9.5 12.0003 9.5C10.6196 9.5 9.50026 10.6193 9.50026 12C9.50026 13.3807 10.6196 14.5 12.0003 14.5Z"></path></svg>
-                  </a>
-                  <button type="button" class="rounded border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100" data-copy-url="{{ item.direct_url }}" title="Copy URL" aria-label="Copy URL">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4" aria-hidden="true"><path d="M6.9998 6V3C6.9998 2.44772 7.44752 2 7.9998 2H19.9998C20.5521 2 20.9998 2.44772 20.9998 3V17C20.9998 17.5523 20.5521 18 19.9998 18H16.9998V20.9991C16.9998 21.5519 16.5499 22 15.993 22H4.00666C3.45059 22 3 21.5554 3 20.9991L3.0026 7.00087C3.0027 6.44811 3.45264 6 4.00942 6H6.9998ZM5.00242 8L5.00019 20H14.9998V8H5.00242ZM8.9998 6H16.9998V16H18.9998V4H8.9998V6ZM7 11H13V13H7V11ZM7 15H13V17H7V15Z"></path></svg>
+                <form method="post" action="{{ url('admin/media') }}" onsubmit="return confirm('Delete this media item?');" class="mt-2 text-right">
+                  <input type="hidden" name="media_action" value="delete">
+                  <input type="hidden" name="id" value="{{ item.id }}">
+                  <input type="hidden" name="_state_type" value="{{ type }}">
+                  <input type="hidden" name="_state_tag" value="{{ tag }}">
+                  <input type="hidden" name="_state_q" value="{{ q }}">
+                  <input type="hidden" name="_state_view" value="{{ view_mode }}">
+                  <input type="hidden" name="_state_per_page" value="{{ per_page }}">
+                  <input type="hidden" name="_state_page" value="{{ page }}">
+                  <button type="submit" class="{{ danger_icon_btn }}" title="Delete" aria-label="Delete">
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2m2 0v14a1 1 0 01-1 1H7a1 1 0 01-1-1V6"/>
+                    </svg>
                   </button>
-                  <form method="post" action="{{ url('admin/media') }}" onsubmit="return confirm('Delete this media item?');" class="inline">
-                    <input type="hidden" name="media_action" value="delete">
-                    <input type="hidden" name="id" value="{{ item.id }}">
-                    <input type="hidden" name="_state_type" value="{{ type }}">
-                    <input type="hidden" name="_state_tag" value="{{ tag }}">
-                    <input type="hidden" name="_state_q" value="{{ q }}">
-                    <input type="hidden" name="_state_view" value="{{ view_mode }}">
-                    <input type="hidden" name="_state_per_page" value="{{ per_page }}">
-      <input type="hidden" name="_state_page" value="{{ page }}">
-                    <button type="submit" class="rounded border border-rose-300 px-2 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50" title="Delete" aria-label="Delete">
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4" aria-hidden="true"><path d="M17 6H22V8H20V21C20 21.5523 19.5523 22 19 22H5C4.44772 22 4 21.5523 4 21V8H2V6H7V3C7 2.44772 7.44772 2 8 2H16C16.5523 2 17 2.44772 17 3V6ZM18 8H6V20H18V8ZM9 11H11V17H9V11ZM13 11H15V17H13V11ZM9 4V6H15V4H9Z"></path></svg>
-                    </button>
-                  </form>
-                </div>
-              </td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  {% else %}
-    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-      {% for item in items %}
-        <article class="grid min-w-0 gap-2 overflow-hidden rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
-          <label class="inline-flex items-center gap-2 text-xs font-semibold text-slate-600">
-            <input type="checkbox" class="media-select-item h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-400" value="{{ item.id }}" data-kind="{{ item.kind }}">
-            Select
-          </label>
-          <div class="w-full overflow-hidden rounded-md border border-slate-200 bg-slate-50">
-            {% if item.kind == 'image' and item.thumbnail_url %}
-              <img src="{{ item.thumbnail_url }}" alt="{{ item.original_name }}" class="block h-40 w-full object-cover">
-            {% else %}
-              <div class="flex h-40 items-center justify-center text-slate-500" title="{{ item.kind|title }}">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-9 w-9" aria-hidden="true"><path d="M9 2.00318V2H19.9978C20.5513 2 21 2.45531 21 2.9918V21.0082C21 21.556 20.5551 22 20.0066 22H3.9934C3.44476 22 3 21.5501 3 20.9932V8L9 2.00318ZM5.82918 8H9V4.83086L5.82918 8ZM11 4V9C11 9.55228 10.5523 10 10 10H5V20H19V4H11Z"></path></svg>
+                </form>
               </div>
-            {% endif %}
-          </div>
-          <div class="min-w-0">
-            <p class="truncate text-sm font-semibold text-slate-900" title="{{ item.original_name }}">{{ item.original_name }}</p>
-            <p class="text-xs text-slate-500">{{ item.size_human }} - {{ item.kind|title }}</p>
-          </div>
-          <form method="post" action="{{ url('admin/media') }}" class="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
-            <input type="hidden" name="media_action" value="save_tags">
-            <input type="hidden" name="id" value="{{ item.id }}">
-            <input type="hidden" name="_state_type" value="{{ type }}">
-            <input type="hidden" name="_state_tag" value="{{ tag }}">
-            <input type="hidden" name="_state_q" value="{{ q }}">
-            <input type="hidden" name="_state_view" value="{{ view_mode }}">
-            <input type="hidden" name="_state_per_page" value="{{ per_page }}">
-      <input type="hidden" name="_state_page" value="{{ page }}">
-            <input type="text" name="tags" value="{{ item.tags_csv }}" class="min-w-0 w-full rounded border border-slate-300 px-2 py-1 text-xs" placeholder="tag1, tag2">
-            <button type="submit" class="rounded border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100" title="Save tags" aria-label="Save tags">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4" aria-hidden="true"><path d="M7 19V13H17V19H19V7.82843L16.1716 5H5V19H7ZM4 3H17L21 7V20C21 20.5523 20.5523 21 20 21H4C3.44772 21 3 20.5523 3 20V4C3 3.44772 3.44772 3 4 3ZM9 15V19H15V15H9Z"></path></svg>
-            </button>
-          </form>
-          <div class="flex flex-wrap items-center gap-2">
-            <a href="{{ item.direct_url }}" target="_blank" rel="noopener" class="rounded border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100" title="Open file" aria-label="Open file">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4" aria-hidden="true"><path d="M12.0003 3C17.3924 3 21.8784 6.87976 22.8189 12C21.8784 17.1202 17.3924 21 12.0003 21C6.60812 21 2.12215 17.1202 1.18164 12C2.12215 6.87976 6.60812 3 12.0003 3ZM12.0003 19C16.2359 19 19.8603 16.052 20.7777 12C19.8603 7.94803 16.2359 5 12.0003 5C7.7646 5 4.14022 7.94803 3.22278 12C4.14022 16.052 7.7646 19 12.0003 19ZM12.0003 16.5C9.51498 16.5 7.50026 14.4853 7.50026 12C7.50026 9.51472 9.51498 7.5 12.0003 7.5C14.4855 7.5 16.5003 9.51472 16.5003 12C16.5003 14.4853 14.4855 16.5 12.0003 16.5ZM12.0003 14.5C13.381 14.5 14.5003 13.3807 14.5003 12C14.5003 10.6193 13.381 9.5 12.0003 9.5C10.6196 9.5 9.50026 10.6193 9.50026 12C9.50026 13.3807 10.6196 14.5 12.0003 14.5Z"></path></svg>
-            </a>
-            <button type="button" class="rounded border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100" data-copy-url="{{ item.direct_url }}" title="Copy URL" aria-label="Copy URL">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4" aria-hidden="true"><path d="M6.9998 6V3C6.9998 2.44772 7.44752 2 7.9998 2H19.9998C20.5521 2 20.9998 2.44772 20.9998 3V17C20.9998 17.5523 20.5521 18 19.9998 18H16.9998V20.9991C16.9998 21.5519 16.5499 22 15.993 22H4.00666C3.45059 22 3 21.5554 3 20.9991L3.0026 7.00087C3.0027 6.44811 3.45264 6 4.00942 6H6.9998ZM5.00242 8L5.00019 20H14.9998V8H5.00242ZM8.9998 6H16.9998V16H18.9998V4H8.9998V6ZM7 11H13V13H7V11ZM7 15H13V17H7V15Z"></path></svg>
-            </button>
-            <form method="post" action="{{ url('admin/media') }}" onsubmit="return confirm('Delete this media item?');" class="inline">
-              <input type="hidden" name="media_action" value="delete">
-              <input type="hidden" name="id" value="{{ item.id }}">
-              <input type="hidden" name="_state_type" value="{{ type }}">
-              <input type="hidden" name="_state_tag" value="{{ tag }}">
-              <input type="hidden" name="_state_q" value="{{ q }}">
-              <input type="hidden" name="_state_view" value="{{ view_mode }}">
-              <input type="hidden" name="_state_per_page" value="{{ per_page }}">
-      <input type="hidden" name="_state_page" value="{{ page }}">
-              <button type="submit" class="rounded border border-rose-300 px-2 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50" title="Delete" aria-label="Delete">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4" aria-hidden="true"><path d="M17 6H22V8H20V21C20 21.5523 19.5523 22 19 22H5C4.44772 22 4 21.5523 4 21V8H2V6H7V3C7 2.44772 7.44772 2 8 2H16C16.5523 2 17 2.44772 17 3V6ZM18 8H6V20H18V8ZM9 11H11V17H9V11ZM13 11H15V17H13V11ZM9 4V6H15V4H9Z"></path></svg>
-              </button>
-            </form>
-          </div>
-        </article>
-      {% endfor %}
-    </div>
-  {% endif %}
+            </article>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
 
-  <nav class="mt-4 flex flex-col gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between" aria-label="Media pagination">
-    <p class="text-sm text-slate-600">
-      Showing {{ summary_from }}-{{ summary_to }} of {{ total_items }}
-    </p>
-    <div class="flex items-center gap-2">
-      {% set prev_page = page > 1 ? page - 1 : 1 %}
-      {% set next_page = page < total_pages ? page + 1 : total_pages %}
-      <a class="{{ btn_muted }} {% if page <= 1 %}pointer-events-none opacity-50{% endif %}" href="{{ url('admin/media?type=' ~ type ~ '&tag=' ~ tag|url_encode ~ '&q=' ~ q|url_encode ~ '&view=' ~ view_mode ~ '&per_page=' ~ per_page ~ '&page=' ~ prev_page) }}">Previous</a>
-      <span class="text-sm text-slate-600">Page {{ page }} / {{ total_pages }}</span>
-      <a class="{{ btn_muted }} {% if page >= total_pages %}pointer-events-none opacity-50{% endif %}" href="{{ url('admin/media?type=' ~ type ~ '&tag=' ~ tag|url_encode ~ '&q=' ~ q|url_encode ~ '&view=' ~ view_mode ~ '&per_page=' ~ per_page ~ '&page=' ~ next_page) }}">Next</a>
+    <div class="flex flex-col gap-3 border-t border-slate-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+      <div class="flex items-center gap-3">
+        <p class="text-xs text-slate-500">Showing <span class="font-medium text-slate-700">{{ summary_from }}-{{ summary_to }}</span> of <span class="font-medium text-slate-700">{{ total_items }}</span></p>
+        <form method="get" action="{{ url('admin/media') }}" class="flex items-center gap-1.5">
+          <input type="hidden" name="type" value="{{ type }}">
+          <input type="hidden" name="tag" value="{{ tag }}">
+          <input type="hidden" name="q" value="{{ q }}">
+          <input type="hidden" name="view" value="{{ view_mode }}">
+          <label for="media-per-page" class="text-xs text-slate-500">Per page</label>
+          <select id="media-per-page" name="per_page" class="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-600 focus:border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-900/5" onchange="this.form.submit()">
+            {% for option in per_page_options %}
+              <option value="{{ option }}" {% if option == per_page %}selected{% endif %}>{{ option }}</option>
+            {% endfor %}
+          </select>
+        </form>
+      </div>
+      <div class="flex items-center gap-1">
+        {% set prev_page = page > 1 ? page - 1 : 1 %}
+        {% set next_page = page < total_pages ? page + 1 : total_pages %}
+        <a class="rounded-md border border-slate-200 px-2.5 py-1 text-xs font-medium no-underline {{ page <= 1 ? 'pointer-events-none text-slate-400' : 'text-slate-600 hover:bg-slate-50' }}" href="{{ url('admin/media?type=' ~ type ~ '&tag=' ~ tag|url_encode ~ '&q=' ~ q|url_encode ~ '&view=' ~ view_mode ~ '&per_page=' ~ per_page ~ '&page=' ~ prev_page) }}">Prev</a>
+        <span class="rounded-md border border-slate-200 bg-slate-900 px-2.5 py-1 text-xs font-medium text-white">{{ page }}</span>
+        <a class="rounded-md border border-slate-200 px-2.5 py-1 text-xs font-medium no-underline {{ page >= total_pages ? 'pointer-events-none text-slate-400' : 'text-slate-600 hover:bg-slate-50' }}" href="{{ url('admin/media?type=' ~ type ~ '&tag=' ~ tag|url_encode ~ '&q=' ~ q|url_encode ~ '&view=' ~ view_mode ~ '&per_page=' ~ per_page ~ '&page=' ~ next_page) }}">Next</a>
+      </div>
     </div>
-  </nav>
+  </div>
 
   <div id="media-copy-toast" class="pointer-events-none fixed right-6 top-16 z-[999] hidden rounded-md border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800 shadow">
     URL copied
@@ -351,39 +427,15 @@
 
   <script>
     (function () {
-      const uploadToggle = document.querySelector('[data-upload-toggle]');
-      const uploadPanel = document.getElementById('upload-panel');
-      if (uploadToggle && uploadPanel) {
-        uploadToggle.addEventListener('click', () => {
-          const hidden = uploadPanel.classList.toggle('hidden');
-          uploadToggle.setAttribute('aria-expanded', hidden ? 'false' : 'true');
+      const uploadInput = document.getElementById('media-upload-input');
+      document.querySelectorAll('[data-upload-focus]').forEach((button) => {
+        button.addEventListener('click', () => {
+          if (uploadInput) {
+            uploadInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            uploadInput.focus();
+          }
         });
-      }
-
-      const filterToggle = document.querySelector('[data-filter-toggle]');
-      const filterPanel = document.getElementById('media-filter-panel');
-      const syncFilterToggle = () => {
-        if (!filterToggle || !filterPanel) {
-          return;
-        }
-        const isOpen = !filterPanel.classList.contains('hidden');
-        filterToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-        filterToggle.classList.toggle('border-slate-900', isOpen);
-        filterToggle.classList.toggle('bg-slate-900', isOpen);
-        filterToggle.classList.toggle('text-white', isOpen);
-        filterToggle.classList.toggle('hover:bg-slate-700', isOpen);
-        filterToggle.classList.toggle('border-slate-300', !isOpen);
-        filterToggle.classList.toggle('bg-white', !isOpen);
-        filterToggle.classList.toggle('text-slate-700', !isOpen);
-        filterToggle.classList.toggle('hover:bg-slate-100', !isOpen);
-      };
-      if (filterToggle && filterPanel) {
-        filterToggle.addEventListener('click', () => {
-          filterPanel.classList.toggle('hidden');
-          syncFilterToggle();
-        });
-        syncFilterToggle();
-      }
+      });
 
       const copyToast = document.getElementById('media-copy-toast');
       document.querySelectorAll('[data-copy-url]').forEach((button) => {
@@ -425,9 +477,8 @@
         if (selectedCountNode) {
           selectedCountNode.textContent = String(ids.length);
         }
-        const hasImageSelection = checkboxes.some((box) => box.checked && (box.dataset.kind || '') === 'image');
         if (bulkPanel) {
-          bulkPanel.classList.toggle('hidden', !hasImageSelection);
+          bulkPanel.classList.toggle('hidden', ids.length === 0);
         }
         if (ids.length === 0 && applyAll) {
           applyAll.checked = false;
