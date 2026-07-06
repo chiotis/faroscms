@@ -37,10 +37,10 @@ Content remains file-based. SQLite is used for system/admin data, starting with 
 
 ### 3. Email Logs
 
-- [ ] Persist email send attempts in `email_logs`.
-- [ ] Capture recipient, subject, provider, status, timestamp, and error message.
-- [ ] Add `/admin/email-logs` screen from the admin template.
-- [ ] Add clear logs action.
+- [x] Persist email send attempts in `email_logs`.
+- [x] Capture recipient, subject, provider, status, timestamp, and error message.
+- [x] Add `/admin/email-logs` screen from the admin template.
+- [x] Add clear logs action.
 - [ ] Connect failed email notifications later.
 
 ### 4. Dashboard

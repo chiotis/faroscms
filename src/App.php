@@ -24,6 +24,7 @@ final class App
     private UserRepository $users;
     private PermissionService $permissions;
     private ActivityLogRepository $activityLogs;
+    private EmailLogRepository $emailLogs;
     private string $currentLang;
     private array $translations = [];
     private array $formStates = [];
@@ -51,6 +52,7 @@ final class App
         $this->users->ensureSuperadminExists();
         $this->permissions = new PermissionService();
         $this->activityLogs = new ActivityLogRepository($this->systemDatabase);
+        $this->emailLogs = new EmailLogRepository($this->systemDatabase);
         $this->content = new ContentRepository($this->contentDir, $markdown, $this->settings);
         $this->auth = new Auth($this->contentDir . '/users/users.yaml', $this->users);
 
@@ -306,6 +308,11 @@ final class App
             return;
         }
 
+        if ($action === 'email-logs') {
+            $this->handleEmailLogs();
+            return;
+        }
+
         if ($action === 'menus') {
             $this->handleMenusList();
             return;
@@ -546,6 +553,56 @@ final class App
             'types' => $this->content->getTypes(),
             'user' => $this->auth->user(),
             'admin_section' => 'activity',
+            'current_type' => 'pages',
+        ]);
+    }
+
+    private function handleEmailLogs(): void
+    {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $action = trim((string)($_POST['email_log_action'] ?? ''));
+            if ($action === 'clear') {
+                $cleared = $this->emailLogs->clear();
+                $this->logActivity('email_logs.clear', 'warning', 'email_logs', 'all', 'Email logs cleared.', [
+                    'cleared' => $cleared,
+                ]);
+                $this->redirect('/admin/email-logs?cleared=' . $cleared);
+                return;
+            }
+        }
+
+        $page = max(1, (int)($_GET['page'] ?? 1));
+        $perPage = (int)($_GET['per_page'] ?? 50);
+        if (!in_array($perPage, [25, 50, 100], true)) {
+            $perPage = 50;
+        }
+        $filters = [
+            'status' => trim((string)($_GET['status'] ?? '')),
+            'provider' => trim((string)($_GET['provider'] ?? '')),
+            'recipient' => trim((string)($_GET['recipient'] ?? '')),
+            'date_from' => trim((string)($_GET['date_from'] ?? '')),
+            'date_to' => trim((string)($_GET['date_to'] ?? '')),
+            'q' => trim((string)($_GET['q'] ?? '')),
+        ];
+        $total = $this->emailLogs->count($filters);
+        $totalPages = max(1, (int)ceil($total / $perPage));
+        $page = min($page, $totalPages);
+        $offset = ($page - 1) * $perPage;
+
+        $this->render('@admin/email-logs.twig', [
+            'title' => 'Email logs',
+            'logs' => $this->emailLogs->all($filters, $perPage, $offset),
+            'filters' => $filters,
+            'providers' => $this->emailLogs->providers(),
+            'total_logs' => $total,
+            'page' => $page,
+            'total_pages' => $totalPages,
+            'per_page' => $perPage,
+            'per_page_options' => [25, 50, 100],
+            'cleared' => isset($_GET['cleared']) ? (int)$_GET['cleared'] : null,
+            'types' => $this->content->getTypes(),
+            'user' => $this->auth->user(),
+            'admin_section' => 'email_logs',
             'current_type' => 'pages',
         ]);
     }
@@ -2449,6 +2506,22 @@ final class App
             ]);
         } catch (\Throwable) {
             // Activity logging must never block the admin workflow.
+        }
+    }
+
+    private function logEmailAttempt(string $to, string $subject, string $provider, bool $ok, string $error = '', array $context = []): void
+    {
+        try {
+            $this->emailLogs->record([
+                'recipient' => $to,
+                'subject' => $subject,
+                'status' => $ok ? 'sent' : 'failed',
+                'provider' => $provider,
+                'error_message' => $ok ? '' : $error,
+                'context' => $context,
+            ]);
+        } catch (\Throwable) {
+            // Email logging must never block sending or form handling.
         }
     }
 
@@ -7131,25 +7204,59 @@ final class App
     private function sendEmailMessage(string $to, string $subject, string $body, array $headers): bool
     {
         $driver = (string)($this->settings['forms']['notifications']['driver'] ?? '');
-        if ($driver === 'ses') {
-            if (!$this->shouldUseSes()) {
-                return false;
+        $provider = $this->resolveEmailProvider($driver);
+        $ok = false;
+        $error = '';
+
+        try {
+            if ($provider === 'ses') {
+                if (!$this->shouldUseSes()) {
+                    $error = 'SES is not configured.';
+                } else {
+                    $ok = $this->sendViaSes($to, $subject, $body, $headers);
+                }
+            } elseif ($provider === 'smtp') {
+                if (!$this->shouldUseSmtp()) {
+                    $error = 'SMTP is not configured.';
+                } else {
+                    $ok = $this->sendViaSmtp($to, $subject, $body, $headers);
+                }
+            } else {
+                $error = 'No email provider is configured.';
             }
-            return $this->sendViaSes($to, $subject, $body, $headers);
+        } catch (\Throwable $e) {
+            $ok = false;
+            $error = $e->getMessage();
         }
-        if ($driver === 'smtp') {
-            if (!$this->shouldUseSmtp()) {
-                return false;
-            }
-            return $this->sendViaSmtp($to, $subject, $body, $headers);
+
+        if (!$ok && $error === '') {
+            $error = strtoupper($provider) . ' send failed.';
+        }
+
+        $this->logEmailAttempt($to, $subject, $provider, $ok, $error, [
+            'driver_setting' => $driver,
+            'from' => (string)($headers['From'] ?? ''),
+            'reply_to' => (string)($headers['Reply-To'] ?? ''),
+            'cc' => (string)($headers['Cc'] ?? ''),
+            'bcc' => (string)($headers['Bcc'] ?? ''),
+        ]);
+
+        return $ok;
+    }
+
+    private function resolveEmailProvider(string $driver): string
+    {
+        $driver = strtolower(trim($driver));
+        if ($driver === 'ses' || $driver === 'smtp') {
+            return $driver;
         }
         if ($this->shouldUseSes()) {
-            return $this->sendViaSes($to, $subject, $body, $headers);
+            return 'ses';
         }
         if ($this->shouldUseSmtp()) {
-            return $this->sendViaSmtp($to, $subject, $body, $headers);
+            return 'smtp';
         }
-        return false;
+        return 'none';
     }
 
     private function sendViaMail(string $to, string $subject, string $body, array $headers): bool

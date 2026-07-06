@@ -16,6 +16,7 @@ Implemented now:
 - Users list/edit UI with roles, status, password changes, and Google account fields.
 - Role capability checks for admin modules, superadmin-only user management, self-profile editing, and forbidden responses.
 - Activity log storage and `/admin/activity-logs` with level, action, actor, subject, date, and search filters.
+- Email log storage and `/admin/email-logs` with provider, recipient, status, date, search, details, and clear action.
 - Google Sign-In settings and OAuth login flow for existing active users.
 - Content list, create, edit, save, delete, import, and export.
 - Page/post/project/form content types from Markdown/YAML files.
@@ -33,7 +34,6 @@ Implemented now:
 ### High Priority
 
 - Dashboard page: the template has a dashboard with content counts, users count, backup status, system status, recent activity, and quick actions. FarosCMS currently lands on content list.
-- Email logs page: the template has `email-logs.html`; FarosCMS sends emails but does not persist delivery logs or expose them in admin.
 - Updates page: the template has `updates.html`; FarosCMS has no update checker, update package workflow, version badge, changelog feed, or install action.
 - Notifications dropdown: the template shell has notifications for updates, failed emails, backups, and users. FarosCMS shell currently has no notification center or unread state.
 
@@ -79,9 +79,6 @@ Implemented now:
 
 ### Logs / Audit / Email
 
-- Email log storage: missing.
-- Email log admin screen with delivery status, recipient, subject, timestamp, and error message: missing.
-- Clear email logs action: missing.
 - Clear activity logs action: missing.
 - Logging around sensitive actions exists for the main admin workflows, but deeper coverage for every failed branch and frontend form/mail activity is still pending.
 
@@ -104,14 +101,13 @@ Implemented now:
 
 ## Suggested Implementation Order
 
-1. Email logs: persist send attempts and add the email logs screen.
-2. Dashboard: wire real counts/status from content, users, backups, logs, and storage.
-3. Notifications: derive notifications from update/email/backup/activity state.
-4. Dedicated backups page: move backup UX out of Settings while keeping settings for schedule/retention.
-5. Updates page: start with read-only version/changelog/check state, then add install flow later.
-6. UI consistency pass: filters, toasts, table sorting, badges, modals/off-canvas.
-7. System health/cache/index tools.
-8. Longer-term architecture pass: decide whether FarosCMS should stay Twig/Composer based or move closer to strict phpFlat structure.
+1. Dashboard: wire real counts/status from content, users, backups, logs, and storage.
+2. Notifications: derive notifications from update/email/backup/activity state.
+3. Dedicated backups page: move backup UX out of Settings while keeping settings for schedule/retention.
+4. Updates page: start with read-only version/changelog/check state, then add install flow later.
+5. UI consistency pass: filters, toasts, table sorting, badges, modals/off-canvas.
+6. System health/cache/index tools.
+7. Longer-term architecture pass: decide whether FarosCMS should stay Twig/Composer based or move closer to strict phpFlat structure.
 
 ## Notes
 
