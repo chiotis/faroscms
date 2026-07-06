@@ -1,2 +1,4 @@
 .DS_Store
 storage/backups/*.zip
+storage/db/*.sqlite
+storage/db/*.sqlite-*

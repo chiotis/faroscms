@@ -20,6 +20,7 @@ final class App
     private TwigEnvironment $twig;
     private ContentRepository $content;
     private Auth $auth;
+    private SystemDatabase $systemDatabase;
     private string $currentLang;
     private array $translations = [];
     private array $formStates = [];
@@ -42,6 +43,8 @@ final class App
 
         $this->content = new ContentRepository($this->contentDir, $markdown, $this->settings);
         $this->auth = new Auth($this->contentDir . '/users/users.yaml');
+        $this->systemDatabase = new SystemDatabase($this->basePath . '/storage');
+        $this->systemDatabase->initialize();
 
         $this->twig = $this->initTwig();
         $this->currentLang = $this->settings['languages']['default'] ?? 'en';

@@ -60,8 +60,8 @@ Implemented now:
 
 ### Architecture / Storage
 
-- SQLite system layer: phpFlat expects SQLite for users, permissions, indexing, relationships, activity, search, and email logs. FarosCMS currently remains mostly file-backed.
-- Rebuildable system DB: because there is no SQLite index layer yet, there is no "delete and rebuild DB from content" workflow.
+- SQLite system layer consumers: the foundation schema now exists, but users, permissions, indexing, relationships, activity, search, and email logs are not yet wired into application flows.
+- Rebuildable system DB: the database can be recreated, but content indexing/rebuild tooling is not implemented yet.
 - `system/` directory structure: phpFlat expects `system/Controllers`, `system/Models`, `system/Core`, and `system/Views`. FarosCMS currently uses `src/`, `admin/templates/`, and Twig.
 - Controller/model separation: FarosCMS still has most behavior in `src/App.php`, so admin modules are not split into controllers/models.
 - No Composer/no framework rule: phpFlat baseline prefers no Composer and no templating engine. FarosCMS currently uses Composer-vendored Twig, Symfony YAML, and League CommonMark inherited from PicolinoCMS.
@@ -118,5 +118,5 @@ Implemented now:
 ## Notes
 
 - Not every phpFlat baseline gap must be closed immediately. Some are architecture choices, especially Twig/Composer and `src/` versus `system/`.
-- The safest next functional module is Users, because both the admin template and phpFlat baseline expect it, and FarosCMS already has file-backed users and auth.
+- The safest next functional module is Users, because both the admin template and phpFlat baseline expect it, and FarosCMS now has a SQLite system foundation plus existing file-backed users/auth.
 - Logs should follow Users soon after, because dashboard, notifications, email logs, update notices, and auditability all depend on persisted events.
