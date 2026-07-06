@@ -122,9 +122,9 @@
 
         <div class="ml-auto flex items-center gap-2">
           {% if is_content_section %}
-            <a href="{{ url('admin/new?type=' ~ current_type ~ '&lang=' ~ (lang|default(site.languages.default|default('en')))) }}" class="hidden items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-blue-700 sm:inline-flex">
+            <a href="{{ url('admin/new?type=' ~ current_type ~ '&lang=' ~ (lang|default(site.languages.default|default('en')))) }}" class="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-2.5 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-blue-700 sm:px-3" aria-label="New {{ current_type|title }}">
               <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
-              New
+              <span class="hidden sm:inline">New</span>
             </a>
           {% endif %}
 

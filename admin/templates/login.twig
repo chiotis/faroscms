@@ -1,28 +1,61 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="h-full">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Admin Login</title>
+  <title>Sign in - FarosCMS</title>
+  <script>
+    window.tailwind = window.tailwind || {};
+    window.tailwind.config = {
+      theme: { extend: { fontFamily: { sans: ['"Inter Tight"', 'ui-sans-serif', 'system-ui', 'sans-serif'] } } }
+    };
+  </script>
   <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="{{ url('assets/css/app.css') }}">
 </head>
-<body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
-  <div class="min-h-screen grid place-items-center p-6">
-    <form method="post" class="w-full max-w-sm rounded-md border border-slate-300 bg-white p-8 shadow grid gap-4">
-      <h1 class="m-0 text-2xl font-bold">Admin Login</h1>
+<body class="flex min-h-full items-center justify-center bg-slate-100 px-4 py-8 font-sans text-slate-800 antialiased">
+  <button type="button" data-theme-toggle class="fixed right-4 top-4 rounded-md p-1.5 text-slate-500 hover:bg-white" aria-label="Toggle theme"></button>
+
+  <main class="w-full max-w-sm">
+    <div class="mb-6 flex items-center justify-center gap-2.5">
+      <div class="flex h-9 w-9 items-center justify-center rounded bg-slate-900 text-sm font-bold text-white">FC</div>
+      <div>
+        <div class="text-sm font-semibold tracking-tight text-slate-900">FarosCMS</div>
+        <div class="text-xs font-medium text-slate-400">Administration</div>
+      </div>
+    </div>
+
+    <section class="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+      <div>
+        <h1 class="text-xl font-semibold tracking-tight text-slate-900">Sign in</h1>
+        <p class="mt-1 text-sm text-slate-500">Use your administrator credentials.</p>
+      </div>
+
       {% if error %}
-        <div class="rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-sm text-rose-800">{{ error }}</div>
+        <div class="mt-4 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">{{ error }}</div>
       {% endif %}
-      <label class="grid gap-1 text-sm font-medium text-slate-700">
-        Username
-        <input type="text" name="username" required class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-emerald-400">
-      </label>
-      <label class="grid gap-1 text-sm font-medium text-slate-700">
-        Password
-        <input type="password" name="password" required class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-emerald-400">
-      </label>
-      <button type="submit" class="inline-flex items-center justify-center rounded-md bg-slate-800 px-4 py-2.5 font-semibold text-white transition hover:bg-slate-700">Sign in</button>
-    </form>
-  </div>
+
+      <form method="post" class="mt-5 grid gap-4">
+        <label class="grid gap-1 text-sm font-medium text-slate-700" for="username">
+          Username
+          <input id="username" type="text" name="username" autocomplete="username" required autofocus class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-500 focus:ring-2 focus:ring-slate-300">
+        </label>
+
+        <label class="grid gap-1 text-sm font-medium text-slate-700" for="password">
+          Password
+          <input id="password" type="password" name="password" autocomplete="current-password" required class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-500 focus:ring-2 focus:ring-slate-300">
+        </label>
+
+        <button type="submit" class="inline-flex w-full items-center justify-center rounded-md bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-700">
+          Sign in
+        </button>
+      </form>
+    </section>
+
+    <p class="mt-4 text-center text-xs text-slate-400">Authorized personnel only</p>
+  </main>
+
+  <div data-toast-host class="pointer-events-none fixed bottom-4 right-4 z-50 flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2"></div>
+  <script src="{{ url('assets/js/admin.js') }}"></script>
 </body>
 </html>
