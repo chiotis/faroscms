@@ -18,11 +18,11 @@ Content remains file-based. SQLite is used for system/admin data, starting with 
 
 ### 1. Permissions
 
-- [ ] Define role capabilities for `superadmin`, `admin`, and `user`.
-- [ ] Enforce module access in admin routes.
-- [ ] Protect user management so only `superadmin` can manage users.
-- [ ] Prevent unsafe self-lockout actions.
-- [ ] Add clear unauthorized/forbidden admin response.
+- [x] Define role capabilities for `superadmin`, `admin`, and `user`.
+- [x] Enforce module access in admin routes.
+- [x] Protect user management so only `superadmin` can manage users.
+- [x] Prevent unsafe self-lockout actions.
+- [x] Add clear unauthorized/forbidden admin response.
 
 ### 2. Activity Logs
 

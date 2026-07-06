@@ -14,6 +14,7 @@ Implemented now:
 - Admin authentication with session login/logout.
 - SQLite-backed users with YAML import fallback.
 - Users list/edit UI with roles, status, password changes, and Google account fields.
+- Role capability checks for admin modules, superadmin-only user management, self-profile editing, and forbidden responses.
 - Google Sign-In settings and OAuth login flow for existing active users.
 - Content list, create, edit, save, delete, import, and export.
 - Page/post/project/form content types from Markdown/YAML files.
@@ -61,7 +62,7 @@ Implemented now:
 
 ### Architecture / Storage
 
-- SQLite system layer consumers: users are now wired into application flows; permissions, indexing, relationships, activity, search, and email logs are not yet wired.
+- SQLite system layer consumers: users and basic permissions are now wired into application flows; indexing, relationships, activity, search, and email logs are not yet wired.
 - Rebuildable system DB: the database can be recreated, but content indexing/rebuild tooling is not implemented yet.
 - `system/` directory structure: phpFlat expects `system/Controllers`, `system/Models`, `system/Core`, and `system/Views`. FarosCMS currently uses `src/`, `admin/templates/`, and Twig.
 - Controller/model separation: FarosCMS still has most behavior in `src/App.php`, so admin modules are not split into controllers/models.
@@ -70,10 +71,10 @@ Implemented now:
 
 ### Auth / Users / Permissions
 
-- Role enforcement: phpFlat expects at least `superadmin`, `admin`, and `user` roles. FarosCMS stores/display roles but does not enforce a full permission matrix.
+- Role enforcement: basic `superadmin`, `admin`, and `user` capabilities are enforced in admin routes. A richer custom permission matrix is still missing.
 - User CRUD: basic create/edit/deactivate/password change exists; hard delete, invitations, and richer reset flows are missing.
 - Current-user profile editing: available through the user editor, but not yet as a dedicated self-profile workflow.
-- Permission checks per module/action: admin access is currently mostly "logged in" rather than granular per role.
+- Permission checks per module/action: basic checks exist for the current admin modules; finer action-level permissions and configurable policies are still missing.
 - User activity metadata: missing last login, status, invite state, created/updated metadata, and audit history.
 
 ### Logs / Audit / Email
@@ -105,16 +106,15 @@ Implemented now:
 
 ## Suggested Implementation Order
 
-1. Permissions: enforce role-specific access rules beyond simple login.
-2. Activity logs: create a lightweight append-only log store and admin screen.
-3. Email logs: persist send attempts and add the email logs screen.
-4. Dashboard: wire real counts/status from content, users, backups, logs, and storage.
-5. Notifications: derive notifications from update/email/backup/activity state.
-6. Dedicated backups page: move backup UX out of Settings while keeping settings for schedule/retention.
-7. Updates page: start with read-only version/changelog/check state, then add install flow later.
-8. UI consistency pass: filters, toasts, table sorting, badges, modals/off-canvas.
-9. System health/cache/index tools.
-10. Longer-term architecture pass: decide whether FarosCMS should stay Twig/Composer based or move closer to strict phpFlat structure.
+1. Activity logs: create a lightweight append-only log store and admin screen.
+2. Email logs: persist send attempts and add the email logs screen.
+3. Dashboard: wire real counts/status from content, users, backups, logs, and storage.
+4. Notifications: derive notifications from update/email/backup/activity state.
+5. Dedicated backups page: move backup UX out of Settings while keeping settings for schedule/retention.
+6. Updates page: start with read-only version/changelog/check state, then add install flow later.
+7. UI consistency pass: filters, toasts, table sorting, badges, modals/off-canvas.
+8. System health/cache/index tools.
+9. Longer-term architecture pass: decide whether FarosCMS should stay Twig/Composer based or move closer to strict phpFlat structure.
 
 ## Notes
 

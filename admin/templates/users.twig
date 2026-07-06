@@ -31,10 +31,12 @@
         <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5h18M6 12h12M10 19h4"/></svg>
         Filter
       </button>
-      <a href="{{ url('admin/users-edit') }}" class="{{ btn_primary }}">
-        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
-        Add user
-      </a>
+      {% if can('users.manage') %}
+        <a href="{{ url('admin/users-edit') }}" class="{{ btn_primary }}">
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
+          Add user
+        </a>
+      {% endif %}
     </div>
   </header>
 
@@ -124,7 +126,7 @@
                     <a class="{{ icon_button }}" href="{{ url('admin/users-edit?id=' ~ account.id) }}" title="Edit {{ label }}" aria-label="Edit {{ label }}">
                       <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
                     </a>
-                    {% if account.id != user.id|default(0) and account.status == 'active' %}
+                    {% if can('users.manage') and account.id != user.id|default(0) and account.status == 'active' %}
                       <form method="post" action="{{ url('admin/users-delete') }}" class="inline" onsubmit="return confirm('Deactivate this user?');">
                         <input type="hidden" name="id" value="{{ account.id }}">
                         <button type="submit" class="{{ icon_danger }}" title="Deactivate {{ label }}" aria-label="Deactivate {{ label }}">

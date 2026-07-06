@@ -63,6 +63,27 @@ final class UserRepository
         }
     }
 
+    public function ensureSuperadminExists(): void
+    {
+        if (!$this->isAvailable() || $this->count() === 0) {
+            return;
+        }
+
+        $stmt = $this->pdo()->query('SELECT COUNT(*) FROM users WHERE role = "superadmin" AND status = "active"');
+        if ((int)$stmt->fetchColumn() > 0) {
+            return;
+        }
+
+        $candidate = $this->pdo()->query('SELECT id FROM users WHERE status = "active" ORDER BY role = "admin" DESC, id ASC LIMIT 1');
+        $id = (int)$candidate->fetchColumn();
+        if ($id <= 0) {
+            return;
+        }
+
+        $update = $this->pdo()->prepare('UPDATE users SET role = "superadmin", updated_at = :updated_at WHERE id = :id');
+        $update->execute(['id' => $id, 'updated_at' => gmdate('c')]);
+    }
+
     public function count(): int
     {
         $stmt = $this->pdo()->query('SELECT COUNT(*) FROM users');

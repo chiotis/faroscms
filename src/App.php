@@ -22,6 +22,7 @@ final class App
     private Auth $auth;
     private SystemDatabase $systemDatabase;
     private UserRepository $users;
+    private PermissionService $permissions;
     private string $currentLang;
     private array $translations = [];
     private array $formStates = [];
@@ -46,6 +47,8 @@ final class App
         $this->systemDatabase->initialize();
         $this->users = new UserRepository($this->systemDatabase, $this->contentDir . '/users/users.yaml');
         $this->users->importYamlUsersIfEmpty();
+        $this->users->ensureSuperadminExists();
+        $this->permissions = new PermissionService();
         $this->content = new ContentRepository($this->contentDir, $markdown, $this->settings);
         $this->auth = new Auth($this->contentDir . '/users/users.yaml', $this->users);
 
@@ -273,6 +276,11 @@ final class App
             return;
         }
 
+        if (!$this->permissions->canAccessAction($this->auth->user(), $action)) {
+            $this->renderForbidden();
+            return;
+        }
+
         $this->maybeRunScheduledBackup();
 
         if ($action === 'settings') {
@@ -459,6 +467,11 @@ final class App
 
     private function handleUsersList(): void
     {
+        if (!$this->permissions->can($this->auth->user(), 'users.manage')) {
+            $this->renderForbidden();
+            return;
+        }
+
         $filters = [
             'q' => trim((string)($_GET['q'] ?? '')),
             'role' => trim((string)($_GET['role'] ?? '')),
@@ -479,6 +492,18 @@ final class App
     private function handleUserEdit(): void
     {
         $id = (int)($_GET['id'] ?? $_POST['id'] ?? 0);
+        $currentUser = $this->auth->user();
+        $currentId = (int)($currentUser['id'] ?? 0);
+        $canManageUsers = $this->permissions->can($currentUser, 'users.manage');
+        if ($id === 0 && !$this->permissions->canCreateUsers($currentUser)) {
+            $this->renderForbidden();
+            return;
+        }
+        if ($id > 0 && !$this->permissions->canEditUser($currentUser, $id)) {
+            $this->renderForbidden();
+            return;
+        }
+
         $saved = isset($_GET['saved']);
         $error = '';
         $user = $id > 0 ? $this->users->find($id) : null;
@@ -497,6 +522,14 @@ final class App
                 'google_sub' => trim((string)($_POST['google_sub'] ?? '')),
                 'google_email' => trim((string)($_POST['google_email'] ?? '')),
             ];
+            if ($id > 0 && !$this->permissions->canChangeAccessForUser($currentUser, $id)) {
+                $payload['role'] = (string)($user['role'] ?? 'user');
+                $payload['status'] = (string)($user['status'] ?? 'active');
+            }
+            if ($id > 0 && !$canManageUsers) {
+                $payload['google_sub'] = (string)($user['google_sub'] ?? '');
+                $payload['google_email'] = (string)($user['google_email'] ?? '');
+            }
             $password = (string)($_POST['password'] ?? '');
             $passwordConfirm = (string)($_POST['password_confirm'] ?? '');
             if ($payload['username'] === '') {
@@ -525,6 +558,7 @@ final class App
         }
 
         $this->render('@admin/user-edit.twig', [
+            'title' => $canManageUsers ? ($id === 0 ? 'Add user' : 'Edit user') : 'Your profile',
             'edited_user' => $user ?: [
                 'id' => 0,
                 'username' => '',
@@ -541,6 +575,9 @@ final class App
             'is_new' => $id === 0,
             'error' => $error,
             'saved' => $saved,
+            'can_manage_users' => $canManageUsers,
+            'can_change_access' => $this->permissions->canChangeAccessForUser($currentUser, $id),
+            'is_self' => $id > 0 && $id === $currentId,
             'types' => $this->content->getTypes(),
             'user' => $this->auth->user(),
             'admin_section' => 'users',
@@ -550,15 +587,21 @@ final class App
 
     private function handleUserDelete(): void
     {
+        if (!$this->permissions->can($this->auth->user(), 'users.manage')) {
+            $this->renderForbidden();
+            return;
+        }
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->redirect('/admin/users');
             return;
         }
         $id = (int)($_POST['id'] ?? 0);
         $currentId = (int)($this->auth->user()['id'] ?? 0);
-        if ($id > 0 && $id !== $currentId) {
-            $this->users->deactivate($id);
+        if ($id <= 0 || $id === $currentId) {
+            $this->renderForbidden();
+            return;
         }
+        $this->users->deactivate($id);
         $this->redirect('/admin/users?deleted=1');
     }
 
@@ -2203,6 +2246,10 @@ final class App
             return $this->buildAbsoluteUrl($path);
         }));
 
+        $twig->addFunction(new TwigFunction('can', function (string $capability): bool {
+            return $this->permissions->can($this->auth->user(), $capability);
+        }));
+
         $twig->addGlobal('site', $this->settings);
         $twig->addGlobal('theme_settings', $this->themeSettings);
         $twig->addGlobal('is_admin', $this->auth->check());
@@ -2216,6 +2263,18 @@ final class App
             'is_admin' => $this->auth->check(),
         ], $data);
         echo $this->twig->render($template, $data);
+    }
+
+    private function renderForbidden(): void
+    {
+        http_response_code(403);
+        $this->render('@admin/forbidden.twig', [
+            'title' => 'Access denied',
+            'types' => $this->content->getTypes(),
+            'user' => $this->auth->user(),
+            'admin_section' => 'forbidden',
+            'current_type' => 'pages',
+        ]);
     }
 
     private function render404(): void
