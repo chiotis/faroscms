@@ -23,6 +23,7 @@ final class App
     private SystemDatabase $systemDatabase;
     private UserRepository $users;
     private PermissionService $permissions;
+    private ActivityLogRepository $activityLogs;
     private string $currentLang;
     private array $translations = [];
     private array $formStates = [];
@@ -49,6 +50,7 @@ final class App
         $this->users->importYamlUsersIfEmpty();
         $this->users->ensureSuperadminExists();
         $this->permissions = new PermissionService();
+        $this->activityLogs = new ActivityLogRepository($this->systemDatabase);
         $this->content = new ContentRepository($this->contentDir, $markdown, $this->settings);
         $this->auth = new Auth($this->contentDir . '/users/users.yaml', $this->users);
 
@@ -243,10 +245,17 @@ final class App
             if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $username = trim((string)($_POST['username'] ?? ''));
                 $password = (string)($_POST['password'] ?? '');
-                if ($this->auth->attempt($username, $password)) {
+                    if ($this->auth->attempt($username, $password)) {
+                        $this->logActivity('auth.login_success', 'info', 'user', (string)($this->auth->user()['username'] ?? $username), 'User logged in.', [
+                            'method' => 'password',
+                    ]);
                     $this->redirect('/admin');
                     return;
                 }
+                $this->logActivity('auth.login_failure', 'warning', 'user', $username, 'Invalid password login attempt.', [
+                    'method' => 'password',
+                    'username' => $username,
+                ], ['username' => $username]);
                 $this->renderLogin('Invalid credentials.');
                 return;
             }
@@ -266,6 +275,7 @@ final class App
         }
 
         if ($action === 'logout') {
+            $this->logActivity('auth.logout', 'info', 'user', (string)($this->auth->user()['username'] ?? ''), 'User signed out.');
             $this->auth->logout();
             $this->redirect('/admin/login');
             return;
@@ -277,6 +287,9 @@ final class App
         }
 
         if (!$this->permissions->canAccessAction($this->auth->user(), $action)) {
+            $this->logActivity('auth.forbidden', 'warning', 'admin_route', $action, 'Blocked unauthorized admin route.', [
+                'action' => $action,
+            ]);
             $this->renderForbidden();
             return;
         }
@@ -285,6 +298,11 @@ final class App
 
         if ($action === 'settings') {
             $this->handleSettings();
+            return;
+        }
+
+        if ($action === 'activity-logs') {
+            $this->handleActivityLogs();
             return;
         }
 
@@ -462,6 +480,10 @@ final class App
         $this->users->linkGoogle((int)$user['id'], $sub, $email);
         $user = $this->users->find((int)$user['id']) ?: $user;
         $this->auth->loginUser($user);
+        $this->logActivity('auth.login_success', 'info', 'user', (string)($user['username'] ?? $email), 'User logged in.', [
+            'method' => 'google',
+            'email' => $email,
+        ]);
         $this->redirect('/admin');
     }
 
@@ -486,6 +508,45 @@ final class App
             'current_type' => 'pages',
             'saved' => isset($_GET['saved']),
             'deleted' => isset($_GET['deleted']),
+        ]);
+    }
+
+    private function handleActivityLogs(): void
+    {
+        $page = max(1, (int)($_GET['page'] ?? 1));
+        $perPage = (int)($_GET['per_page'] ?? 50);
+        if (!in_array($perPage, [25, 50, 100], true)) {
+            $perPage = 50;
+        }
+        $filters = [
+            'level' => trim((string)($_GET['level'] ?? '')),
+            'action' => trim((string)($_GET['action'] ?? '')),
+            'actor' => trim((string)($_GET['actor'] ?? '')),
+            'subject_type' => trim((string)($_GET['subject_type'] ?? '')),
+            'date_from' => trim((string)($_GET['date_from'] ?? '')),
+            'date_to' => trim((string)($_GET['date_to'] ?? '')),
+            'q' => trim((string)($_GET['q'] ?? '')),
+        ];
+        $total = $this->activityLogs->count($filters);
+        $totalPages = max(1, (int)ceil($total / $perPage));
+        $page = min($page, $totalPages);
+        $offset = ($page - 1) * $perPage;
+
+        $this->render('@admin/activity-logs.twig', [
+            'title' => 'Activity logs',
+            'logs' => $this->activityLogs->all($filters, $perPage, $offset),
+            'filters' => $filters,
+            'actions' => $this->activityLogs->actions(),
+            'subject_types' => $this->activityLogs->subjectTypes(),
+            'total_logs' => $total,
+            'page' => $page,
+            'total_pages' => $totalPages,
+            'per_page' => $perPage,
+            'per_page_options' => [25, 50, 100],
+            'types' => $this->content->getTypes(),
+            'user' => $this->auth->user(),
+            'admin_section' => 'activity',
+            'current_type' => 'pages',
         ]);
     }
 
@@ -545,8 +606,18 @@ final class App
                 try {
                     if ($id > 0) {
                         $this->users->update($id, $payload);
+                        $this->logActivity('users.update', 'info', 'user', (string)$id, 'User updated.', [
+                            'username' => $payload['username'],
+                            'role' => $payload['role'],
+                            'status' => $payload['status'],
+                        ]);
                     } else {
                         $id = $this->users->create($payload);
+                        $this->logActivity('users.create', 'info', 'user', (string)$id, 'User created.', [
+                            'username' => $payload['username'],
+                            'role' => $payload['role'],
+                            'status' => $payload['status'],
+                        ]);
                     }
                     $this->redirect('/admin/users-edit?id=' . $id . '&saved=1');
                     return;
@@ -602,6 +673,7 @@ final class App
             return;
         }
         $this->users->deactivate($id);
+        $this->logActivity('users.deactivate', 'warning', 'user', (string)$id, 'User deactivated.');
         $this->redirect('/admin/users?deleted=1');
     }
 
@@ -886,6 +958,7 @@ final class App
         }
 
         $path = $dir . '/' . $this->buildFilename($slug, $lang);
+        $wasExisting = file_exists($path);
         $oldPath = '';
         if ($originalSlug !== '' && $originalLang !== '') {
             $oldPath = $dir . '/' . $this->buildFilename($originalSlug, $originalLang);
@@ -1105,6 +1178,14 @@ final class App
             unlink($oldPath);
         }
 
+        $this->logActivity($wasExisting ? 'content.update' : 'content.create', 'info', $type, $slug . ':' . $lang, ($wasExisting ? 'Content updated.' : 'Content created.'), [
+            'type' => $type,
+            'slug' => $slug,
+            'lang' => $lang,
+            'title' => (string)($data['title'] ?? ''),
+            'status' => (string)($data['status'] ?? ''),
+            'renamed_from' => $oldPath !== '' && $oldPath !== $path ? $originalSlug . ':' . $originalLang : '',
+        ]);
         $this->redirect('/admin/edit?type=' . urlencode($type) . '&slug=' . urlencode($slug) . '&lang=' . urlencode($lang) . '&saved=1');
     }
 
@@ -1137,6 +1218,11 @@ final class App
         $path = $this->contentDir . '/' . $type . '/' . $this->buildFilename($slug, $lang);
         if (file_exists($path)) {
             unlink($path);
+            $this->logActivity('content.delete', 'warning', $type, $slug . ':' . $lang, 'Content deleted.', [
+                'type' => $type,
+                'slug' => $slug,
+                'lang' => $lang,
+            ]);
         }
 
         $this->redirect('/admin?type=' . urlencode($type) . '&lang=' . urlencode($lang) . '&deleted=1');
@@ -1214,6 +1300,9 @@ final class App
                 $this->redirect('/admin/settings?saved=1&tab=theme&theme=fail&theme_msg=' . $msg);
                 return;
             }
+            $this->logActivity('settings.update', 'info', 'settings', $activeTab, 'Settings updated.', [
+                'tab' => $activeTab,
+            ]);
             if (isset($_POST['send_test'])) {
                 $testTo = trim((string)($_POST['test_email_to'] ?? ''));
                 if ($testTo === '') {
@@ -1234,6 +1323,9 @@ final class App
                 $ok = $this->sendEmailMessage($testTo, $testSubject, "This is a test email from FarosCMS.", [
                     'From' => $fromHeader,
                 ]);
+                $this->logActivity($ok ? 'email.test_success' : 'email.test_failure', $ok ? 'info' : 'error', 'email', $testTo, $ok ? 'Test email sent.' : 'Test email failed.', [
+                    'recipient' => $testTo,
+                ]);
                 $this->redirect('/admin/settings?saved=1&tab=smtp&test=' . ($ok ? 'ok' : 'fail'));
                 return;
             }
@@ -1242,6 +1334,9 @@ final class App
                 if (($result['ok'] ?? false) === true) {
                     $this->updateBackupLastRun(date('c'));
                 }
+                $this->logActivity(($result['ok'] ?? false) ? 'backup.create_success' : 'backup.create_failure', ($result['ok'] ?? false) ? 'info' : 'error', 'backup', (string)($result['filename'] ?? ''), (string)($result['message'] ?? 'Backup action completed.'), [
+                    'result' => $result,
+                ]);
                 $query = [
                     'saved' => '1',
                     'tab' => 'backup',
@@ -1332,6 +1427,10 @@ final class App
                     'items' => $items,
                 ]);
                 $this->menusCache = [];
+                $this->logActivity('menus.create', 'info', 'menu', $newKey, 'Menu created.', [
+                    'title' => $title,
+                    'source_key' => $sourceKey,
+                ]);
                 $this->redirect('/admin/menus-edit?key=' . urlencode($newKey) . '&created=1');
                 return;
             }
@@ -1382,6 +1481,7 @@ final class App
                 if (is_file($path)) {
                     unlink($path);
                     $this->menusCache = [];
+                    $this->logActivity('menus.delete', 'warning', 'menu', $selectedKey, 'Menu deleted.');
                 }
                 $this->redirect('/admin/menus?deleted=1');
                 return;
@@ -1402,6 +1502,10 @@ final class App
                     'items' => $items,
                 ]);
                 $this->menusCache = [];
+                $this->logActivity('menus.update', 'info', 'menu', $selectedKey, 'Menu updated.', [
+                    'title' => $title,
+                    'items' => count($items),
+                ]);
                 $this->redirect('/admin/menus-edit?key=' . urlencode($selectedKey) . '&saved=1');
                 return;
             }
@@ -1487,6 +1591,10 @@ final class App
             }
 
             $this->saveTaxonomy($taxonomy, $title, $terms);
+            $this->logActivity('taxonomies.update', 'info', 'taxonomy', $taxonomy, 'Taxonomy updated.', [
+                'title' => $title,
+                'terms' => count($terms),
+            ]);
             $this->redirect('/admin/taxonomies?taxonomy=' . urlencode($taxonomy) . '&saved=1');
             return;
         }
@@ -1611,8 +1719,12 @@ final class App
                         continue;
                     }
                     try {
-                        $this->uploadMediaItem($upload, $tagsCsv);
+                        $uploaded = $this->uploadMediaItem($upload, $tagsCsv);
                         $uploadedCount++;
+                        $this->logActivity('media.upload', 'info', 'media', (string)($uploaded['id'] ?? ''), 'Media uploaded.', [
+                            'filename' => (string)($uploaded['filename'] ?? ''),
+                            'kind' => (string)($uploaded['kind'] ?? ''),
+                        ]);
                     } catch (\Throwable) {
                         $failedCount++;
                     }
@@ -1647,6 +1759,7 @@ final class App
                     $redirectMedia(['error' => 'Media item not found.']);
                     return;
                 }
+                $this->logActivity('media.tags_update', 'info', 'media', $id, 'Media tags updated.');
                 $redirectMedia(['success' => 'Tags updated.']);
                 return;
             }
@@ -1668,6 +1781,7 @@ final class App
                     $redirectMedia(['error' => 'Media item not found.']);
                     return;
                 }
+                $this->logActivity('media.delete', 'warning', 'media', $id, 'Media item deleted.');
                 $redirectMedia(['success' => 'Media item deleted.']);
                 return;
             }
@@ -1717,6 +1831,9 @@ final class App
                         $redirectMedia(['error' => 'No media items were updated.']);
                         return;
                     }
+                    $this->logActivity('media.bulk_tags_update', 'info', 'media', 'bulk', 'Bulk media tags updated.', [
+                        'count' => $updated,
+                    ]);
                     $redirectMedia(['success' => 'Updated tags for ' . $updated . ' items.']);
                     return;
                 }
@@ -1731,6 +1848,9 @@ final class App
                     $redirectMedia(['error' => 'No media items were deleted.']);
                     return;
                 }
+                $this->logActivity('media.bulk_delete', 'warning', 'media', 'bulk', 'Bulk media items deleted.', [
+                    'count' => $deletedCount,
+                ]);
                 $redirectMedia(['success' => 'Deleted ' . $deletedCount . ' items.']);
                 return;
             }
@@ -1875,6 +1995,12 @@ final class App
             $formSlug = $form->slug;
         }
         $filename = $siteSlug . '-' . $formSlug . '-submissions.csv';
+        $this->logActivity('forms.export', 'info', 'forms', $slug . ':' . $lang, 'Form submissions exported.', [
+            'slug' => $slug,
+            'lang' => $lang,
+            'submissions' => count($submissions),
+            'filename' => $filename,
+        ]);
         header('Content-Type: text/csv; charset=utf-8');
         header('Content-Disposition: attachment; filename="' . $filename . '"');
         $output = fopen('php://output', 'w');
@@ -1975,6 +2101,11 @@ final class App
         }
         $filename = $siteSlug . '-' . $type . '-all-languages.csv';
 
+        $this->logActivity('content.export', 'info', $type, 'all', 'Content exported.', [
+            'type' => $type,
+            'items' => count($items),
+            'filename' => $filename,
+        ]);
         header('Content-Type: text/csv; charset=utf-8');
         header('Content-Disposition: attachment; filename="' . $filename . '"');
         $output = fopen('php://output', 'w');
@@ -2053,6 +2184,12 @@ final class App
                     $applyResult = $this->applyContentImportBatch($type, $entries);
                     if (($applyResult['ok'] ?? false) === true) {
                         unset($_SESSION['content_import_preview'][$token]);
+                        $summary = is_array($cache['summary'] ?? null) ? $cache['summary'] : [];
+                        $this->logActivity('content.import_apply', 'info', $type, 'csv', 'Content import applied.', [
+                            'type' => $type,
+                            'filename' => (string)($cache['filename'] ?? ''),
+                            'summary' => $summary,
+                        ]);
                         $this->redirect('/admin/import?type=' . urlencode($type) . '&saved=1');
                         return;
                     }
@@ -2094,6 +2231,11 @@ final class App
                                         'created_at' => time(),
                                     ];
                                 }
+                                $this->logActivity('content.import_preview', 'info', $type, 'csv', 'Content import preview generated.', [
+                                    'type' => $type,
+                                    'filename' => $sourceFilename,
+                                    'summary' => $previewSummary,
+                                ]);
                             }
                         }
                     }
@@ -2174,6 +2316,10 @@ final class App
 
             ksort($translations);
             $this->writeTranslationFile($filePath, $translations);
+            $this->logActivity('translations.update', 'info', 'translation', $lang, 'Translations updated.', [
+                'lang' => $lang,
+                'keys' => count($translations),
+            ]);
             $this->redirect('/admin/translations?lang=' . urlencode($lang) . '&saved=1');
             return;
         }
@@ -2275,6 +2421,45 @@ final class App
             'admin_section' => 'forbidden',
             'current_type' => 'pages',
         ]);
+    }
+
+    private function logActivity(
+        string $action,
+        string $level = 'info',
+        ?string $subjectType = null,
+        ?string $subjectId = null,
+        ?string $message = null,
+        array $context = [],
+        ?array $actor = null
+    ): void
+    {
+        try {
+            $actor ??= $this->auth->user();
+            $this->activityLogs->record([
+                'level' => $level,
+                'action' => $action,
+                'actor_username' => (string)($actor['username'] ?? ''),
+                'actor_role' => (string)($actor['role'] ?? ''),
+                'ip_address' => $this->clientIpAddress(),
+                'user_agent' => (string)($_SERVER['HTTP_USER_AGENT'] ?? ''),
+                'subject_type' => $subjectType,
+                'subject_id' => $subjectId,
+                'message' => $message,
+                'context' => $context,
+            ]);
+        } catch (\Throwable) {
+            // Activity logging must never block the admin workflow.
+        }
+    }
+
+    private function clientIpAddress(): string
+    {
+        $forwarded = trim((string)($_SERVER['HTTP_X_FORWARDED_FOR'] ?? ''));
+        if ($forwarded !== '') {
+            $parts = array_map('trim', explode(',', $forwarded));
+            return (string)($parts[0] ?? '');
+        }
+        return (string)($_SERVER['REMOTE_ADDR'] ?? '');
     }
 
     private function render404(): void

@@ -26,14 +26,14 @@ Content remains file-based. SQLite is used for system/admin data, starting with 
 
 ### 2. Activity Logs
 
-- [ ] Add activity log writer around the existing `activity_logs` SQLite table.
-- [ ] Log login success/failure.
-- [ ] Log content create/update/delete.
-- [ ] Log media upload/delete/tag changes.
-- [ ] Log user create/update/deactivate.
-- [ ] Log settings changes.
-- [ ] Add `/admin/activity-logs` screen from the admin template.
-- [ ] Add filters by user, action, date, and level.
+- [x] Add activity log writer around the existing `activity_logs` SQLite table.
+- [x] Log login success/failure.
+- [x] Log content create/update/delete.
+- [x] Log media upload/delete/tag changes.
+- [x] Log user create/update/deactivate.
+- [x] Log settings changes.
+- [x] Add `/admin/activity-logs` screen from the admin template.
+- [x] Add filters by user, action, date, and level.
 
 ### 3. Email Logs
 
