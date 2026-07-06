@@ -10,7 +10,7 @@
       <h1 class="truncate text-2xl font-semibold tracking-tight text-slate-900">Import {{ type|title }}</h1>
       <p class="mt-1 text-sm text-slate-500">Upload a CSV and preview changes before writing content files.</p>
     </div>
-    <a class="{{ secondary_btn }}" href="{{ url('admin?type=' ~ type) }}">
+    <a class="{{ secondary_btn }}" href="{{ url('admin/content?type=' ~ type) }}">
       <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
         <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
       </svg>

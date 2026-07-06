@@ -17,6 +17,7 @@ Implemented now:
 - Role capability checks for admin modules, superadmin-only user management, self-profile editing, and forbidden responses.
 - Activity log storage and `/admin/activity-logs` with level, action, actor, subject, date, and search filters.
 - Email log storage and `/admin/email-logs` with provider, recipient, status, date, search, details, and clear action.
+- Dashboard landing page at `/admin` with content counts, users count, backup status, recent activity, recent email attempts, storage usage, system checks, and quick actions.
 - Google Sign-In settings and OAuth login flow for existing active users.
 - Content list, create, edit, save, delete, import, and export.
 - Page/post/project/form content types from Markdown/YAML files.
@@ -33,7 +34,6 @@ Implemented now:
 
 ### High Priority
 
-- Dashboard page: the template has a dashboard with content counts, users count, backup status, system status, recent activity, and quick actions. FarosCMS currently lands on content list.
 - Updates page: the template has `updates.html`; FarosCMS has no update checker, update package workflow, version badge, changelog feed, or install action.
 - Notifications dropdown: the template shell has notifications for updates, failed emails, backups, and users. FarosCMS shell currently has no notification center or unread state.
 
@@ -47,7 +47,6 @@ Implemented now:
 - Bulk actions: the media library has bulk selection, but content, users, logs, backups, and other list screens do not yet have template-style bulk actions.
 - Modal/off-canvas detail panels: admin JS supports modals/off-canvas, but FarosCMS does not yet use them for log details, destructive confirmations, profile panels, or quick edits as the template suggests.
 - Profile dropdown parity: the template has a full profile workflow; FarosCMS links to the user editor but does not yet have a separate self-profile screen.
-- Storage indicator with real values: the admin shell shows a static local storage indicator. It does not calculate real upload/storage usage.
 
 ### Lower Priority / Design-System Parity
 
@@ -95,19 +94,18 @@ Implemented now:
 
 - Admin-configurable backup retention is present, but restore-from-backup is missing.
 - Serious update workflow is missing: check, download, verify, backup-before-update, install, rollback.
-- System health/status checks are missing: writable paths, PHP version, upload limits, mail status, storage usage, cache/index status.
+- System health/status checks are partially wired for the dashboard: writable paths, PHP version, upload limit, memory limit, SQLite, mail status, storage usage, and disk free exist; cache/index status and scheduled task checks are still missing.
 - Search/index admin tooling is missing: rebuild index, inspect search index, or index status.
 - Cache management is missing: clear/rebuild cache, cache status, cache size.
 
 ## Suggested Implementation Order
 
-1. Dashboard: wire real counts/status from content, users, backups, logs, and storage.
-2. Notifications: derive notifications from update/email/backup/activity state.
-3. Dedicated backups page: move backup UX out of Settings while keeping settings for schedule/retention.
-4. Updates page: start with read-only version/changelog/check state, then add install flow later.
-5. UI consistency pass: filters, toasts, table sorting, badges, modals/off-canvas.
-6. System health/cache/index tools.
-7. Longer-term architecture pass: decide whether FarosCMS should stay Twig/Composer based or move closer to strict phpFlat structure.
+1. Notifications: derive notifications from update/email/backup/activity state.
+2. Dedicated backups page: move backup UX out of Settings while keeping settings for schedule/retention.
+3. Updates page: start with read-only version/changelog/check state, then add install flow later.
+4. UI consistency pass: filters, toasts, table sorting, badges, modals/off-canvas.
+5. System health/cache/index tools.
+6. Longer-term architecture pass: decide whether FarosCMS should stay Twig/Composer based or move closer to strict phpFlat structure.
 
 ## Notes
 

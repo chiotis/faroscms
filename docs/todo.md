@@ -45,12 +45,14 @@ Content remains file-based. SQLite is used for system/admin data, starting with 
 
 ### 4. Dashboard
 
-- [ ] Add real `/admin/dashboard` route or make `/admin` the dashboard.
-- [ ] Show real content counts.
-- [ ] Show users count.
-- [ ] Show backup status.
-- [ ] Show recent activity once logs exist.
-- [ ] Show system status from real checks only.
+- [x] Add real `/admin/dashboard` route or make `/admin` the dashboard.
+- [x] Show real content counts.
+- [x] Show users count.
+- [x] Show backup status.
+- [x] Show recent activity once logs exist.
+- [x] Show recent email log attempts.
+- [x] Show real storage usage in dashboard and admin shell.
+- [x] Show system status from real checks only.
 
 ### 5. Notifications
 
@@ -97,12 +99,13 @@ Content remains file-based. SQLite is used for system/admin data, starting with 
 - [ ] Add bulk actions beyond media where safe.
 - [ ] Normalize toast placement and behavior.
 - [ ] Use modal/off-canvas patterns for details and confirmations.
-- [ ] Replace static storage indicator with real storage usage.
+- [x] Replace static storage indicator with real storage usage.
 - [ ] Replace `base` badge with real version/status.
 
 ## System Backlog
 
-- [ ] Add system health checks: PHP version, writable dirs, upload limits, SQLite status, mail status.
+- [x] Add first-pass system health checks: PHP version, upload limit, memory limit, writable dirs, SQLite status, mail status, and disk free.
+- [ ] Add deeper system health checks: cache/index status and scheduled tasks.
 - [ ] Add content index rebuild command/action.
 - [ ] Wire `content_index` for faster admin filtering/search.
 - [ ] Add cache/status tooling if caching is introduced.

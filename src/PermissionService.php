@@ -10,6 +10,7 @@ final class PermissionService
     private array $roleCapabilities = [
         'superadmin' => [
             'admin.access',
+            'dashboard.view',
             'content.manage',
             'forms.manage',
             'media.manage',
@@ -27,6 +28,7 @@ final class PermissionService
         ],
         'admin' => [
             'admin.access',
+            'dashboard.view',
             'content.manage',
             'forms.manage',
             'media.manage',
@@ -66,6 +68,8 @@ final class PermissionService
     {
         $capability = match ($action) {
             'settings' => 'settings.manage',
+            'dashboard', 'index' => 'dashboard.view',
+            'content' => 'content.manage',
             'menus', 'menus-new', 'menus-edit' => 'menus.manage',
             'media', 'files' => 'media.manage',
             'forms-export', 'export' => 'exports.manage',
@@ -76,7 +80,7 @@ final class PermissionService
             'email-logs' => 'email_logs.manage',
             'users', 'users-delete' => 'users.manage',
             'users-edit' => null,
-            'edit', 'save', 'delete', 'new', 'index' => 'content.manage',
+            'edit', 'save', 'delete', 'new' => 'content.manage',
             default => 'content.manage',
         };
 

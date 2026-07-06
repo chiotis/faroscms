@@ -36,6 +36,7 @@
   {% set nav_idle = 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' %}
   {% set is_content_section = section == 'content' %}
   {% set page_context = is_content_section ? current_type|title : section|title %}
+  {% set storage_summary = admin_storage_summary|default({'label': 'local', 'percent': 0}) %}
 
   <div class="flex h-full">
     <div data-sidebar-backdrop class="fixed inset-0 z-30 hidden bg-slate-900/40 lg:hidden"></div>
@@ -51,9 +52,16 @@
       </div>
 
       <nav class="scroll-thin flex-1 overflow-y-auto px-3 py-3">
-        {% if can('content.manage') %}
+        {% if can('dashboard.view') %}
           <p class="px-2 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Overview</p>
-          <a href="{{ url('admin') }}" class="{{ nav_base }} {{ is_content_section and current_type != 'forms' ? nav_active : nav_idle }}">
+          <a href="{{ url('admin') }}" class="{{ nav_base }} {{ section == 'dashboard' ? nav_active : nav_idle }}">
+            <svg class="h-4 w-4 {{ section == 'dashboard' ? 'text-white/80' : 'text-slate-400 group-hover:text-slate-600' }}" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l9-9 9 9M5 10v10a1 1 0 001 1h4v-6h4v6h4a1 1 0 001-1V10"/></svg>
+            Dashboard
+          </a>
+        {% endif %}
+
+        {% if can('content.manage') %}
+          <a href="{{ url('admin/content') }}" class="{{ nav_base }} {{ is_content_section and current_type != 'forms' ? nav_active : nav_idle }}">
             <svg class="h-4 w-4 {{ is_content_section and current_type != 'forms' ? 'text-white/80' : 'text-slate-400 group-hover:text-slate-600' }}" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h10"/></svg>
             Content
           </a>
@@ -62,7 +70,7 @@
             <div class="mt-1 grid gap-0.5 pl-6">
               {% for t in types %}
                 {% if t != 'forms' %}
-                  <a href="{{ url('admin?type=' ~ t) }}" class="truncate rounded px-2 py-1 text-xs font-medium {{ is_content_section and t == current_type ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900' }}">{{ t|title }}</a>
+                  <a href="{{ url('admin/content?type=' ~ t) }}" class="truncate rounded px-2 py-1 text-xs font-medium {{ is_content_section and t == current_type ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900' }}">{{ t|title }}</a>
                 {% endif %}
               {% endfor %}
             </div>
@@ -71,7 +79,7 @@
 
         <p class="px-2 pb-1.5 pt-3 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Manage</p>
         {% if can('forms.manage') %}
-          <a href="{{ url('admin?type=forms') }}" class="{{ nav_base }} {{ is_content_section and current_type == 'forms' ? nav_active : nav_idle }}">
+          <a href="{{ url('admin/content?type=forms') }}" class="{{ nav_base }} {{ is_content_section and current_type == 'forms' ? nav_active : nav_idle }}">
             <svg class="h-4 w-4 {{ is_content_section and current_type == 'forms' ? 'text-white/80' : 'text-slate-400 group-hover:text-slate-600' }}" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
             Forms
           </a>
@@ -132,10 +140,10 @@
         <a href="{{ url('') }}" target="_blank" rel="noopener" class="mb-2 flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50">View site</a>
         <div class="rounded-md bg-slate-50 p-2.5">
           <div class="flex items-center justify-between text-[11px] font-medium text-slate-500">
-            <span>Storage</span><span>local</span>
+            <span>Storage</span><span>{{ storage_summary.label }}</span>
           </div>
           <div class="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
-            <div class="h-full w-[28%] rounded-full bg-slate-900"></div>
+            <div class="h-full rounded-full bg-slate-900" style="width: {{ storage_summary.percent|default(0) }}%"></div>
           </div>
         </div>
       </div>
@@ -153,7 +161,7 @@
         </div>
 
         <div class="ml-auto flex items-center gap-2">
-          {% if is_content_section and can('content.manage') %}
+          {% if (is_content_section or section == 'dashboard') and can('content.manage') %}
             <a href="{{ url('admin/new?type=' ~ current_type ~ '&lang=' ~ (lang|default(site.languages.default|default('en')))) }}" class="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-2.5 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-blue-700 sm:px-3" aria-label="New {{ current_type|title }}">
               <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
               <span class="hidden sm:inline">New</span>

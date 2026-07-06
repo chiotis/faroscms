@@ -242,14 +242,17 @@ final class App
     {
         $segments = explode('/', $path);
         $action = $segments[1] ?? 'index';
+        if ($action === 'index' && (isset($_GET['type']) || isset($_GET['lang']))) {
+            $action = 'content';
+        }
 
         if ($action === 'login') {
             if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $username = trim((string)($_POST['username'] ?? ''));
                 $password = (string)($_POST['password'] ?? '');
-                    if ($this->auth->attempt($username, $password)) {
-                        $this->logActivity('auth.login_success', 'info', 'user', (string)($this->auth->user()['username'] ?? $username), 'User logged in.', [
-                            'method' => 'password',
+                if ($this->auth->attempt($username, $password)) {
+                    $this->logActivity('auth.login_success', 'info', 'user', (string)($this->auth->user()['username'] ?? $username), 'User logged in.', [
+                        'method' => 'password',
                     ]);
                     $this->redirect('/admin');
                     return;
@@ -300,6 +303,16 @@ final class App
 
         if ($action === 'settings') {
             $this->handleSettings();
+            return;
+        }
+
+        if ($action === 'index' || $action === 'dashboard') {
+            $this->handleDashboard();
+            return;
+        }
+
+        if ($action === 'content') {
+            $this->handleAdminList();
             return;
         }
 
@@ -492,6 +505,193 @@ final class App
             'email' => $email,
         ]);
         $this->redirect('/admin');
+    }
+
+    private function handleDashboard(): void
+    {
+        $dashboard = $this->buildDashboardData();
+        $this->render('@admin/dashboard.twig', [
+            'title' => 'Dashboard',
+            'dashboard' => $dashboard,
+            'types' => $this->content->getTypes(),
+            'user' => $this->auth->user(),
+            'admin_section' => 'dashboard',
+            'current_type' => 'pages',
+            'admin_storage_summary' => $dashboard['storage'],
+        ]);
+    }
+
+    private function buildDashboardData(): array
+    {
+        $types = $this->content->getTypes();
+        $contentTypes = [];
+        $contentTotal = 0;
+        $publishedTotal = 0;
+        $draftTotal = 0;
+        $recentContent = [];
+
+        foreach ($types as $type) {
+            $items = $this->content->getItems($type, null, true, false);
+            $published = 0;
+            $draft = 0;
+            foreach ($items as $item) {
+                $status = (string)($item->meta['status'] ?? 'published');
+                if ($status === 'draft') {
+                    $draft++;
+                } else {
+                    $published++;
+                }
+                $recentContent[] = [
+                    'type' => $type,
+                    'slug' => $item->slug,
+                    'lang' => $item->lang,
+                    'title' => (string)($item->meta['title'] ?? $item->slug),
+                    'status' => $status,
+                    'mtime' => $item->mtime,
+                    'updated_at' => date('Y-m-d H:i', $item->mtime),
+                ];
+            }
+
+            $count = count($items);
+            $contentTypes[] = [
+                'type' => $type,
+                'count' => $count,
+                'published' => $published,
+                'draft' => $draft,
+            ];
+            $contentTotal += $count;
+            $publishedTotal += $published;
+            $draftTotal += $draft;
+        }
+
+        usort($recentContent, fn(array $a, array $b): int => ((int)$b['mtime']) <=> ((int)$a['mtime']));
+        $recentContent = array_slice($recentContent, 0, 5);
+
+        $users = $this->users->all();
+        $activeUsers = array_values(array_filter($users, fn(array $user): bool => (string)($user['status'] ?? '') === 'active'));
+        $backups = $this->listBackupSnapshots();
+        $storage = $this->buildStorageSummary();
+        $systemChecks = $this->buildDashboardSystemChecks($storage);
+        $systemStatus = $this->summarizeSystemStatus($systemChecks);
+        $recentActivity = $this->activityLogs->all([], 5, 0);
+        $recentEmails = $this->emailLogs->all([], 5, 0);
+
+        return [
+            'content_total' => $contentTotal,
+            'content_published' => $publishedTotal,
+            'content_draft' => $draftTotal,
+            'content_types' => $contentTypes,
+            'recent_content' => $recentContent,
+            'users_total' => count($users),
+            'users_active' => count($activeUsers),
+            'backups_total' => count($backups),
+            'last_backup' => $backups[0] ?? null,
+            'recent_activity' => $recentActivity,
+            'activity_total' => $this->activityLogs->count(),
+            'recent_emails' => $recentEmails,
+            'email_total' => $this->emailLogs->count(),
+            'failed_emails' => $this->emailLogs->count(['status' => 'failed']),
+            'storage' => $storage,
+            'system_checks' => $systemChecks,
+            'system_status' => $systemStatus,
+            'php_version' => PHP_VERSION,
+            'upload_limit' => ini_get('upload_max_filesize') ?: '',
+            'memory_limit' => ini_get('memory_limit') ?: '',
+        ];
+    }
+
+    private function buildStorageSummary(): array
+    {
+        $paths = [
+            $this->contentDir,
+            $this->basePath . '/storage',
+            $this->basePath . '/public/uploads',
+        ];
+        $used = 0;
+        foreach ($paths as $path) {
+            $used += $this->directorySize($path);
+        }
+        $diskFree = (int)(disk_free_space($this->basePath) ?: 0);
+        $total = $used + $diskFree;
+        $percent = $total > 0 ? (int)round(($used / $total) * 100) : 0;
+        if ($used > 0 && $percent === 0) {
+            $percent = 1;
+        }
+
+        return [
+            'used' => $used,
+            'used_human' => $this->formatFileSize($used),
+            'disk_free' => $diskFree,
+            'disk_free_human' => $this->formatFileSize($diskFree),
+            'percent' => max(0, min(100, $percent)),
+            'label' => $this->formatFileSize($used),
+        ];
+    }
+
+    private function buildDashboardSystemChecks(array $storage): array
+    {
+        $mailProvider = $this->resolveEmailProvider((string)($this->settings['forms']['notifications']['driver'] ?? ''));
+
+        return [
+            [
+                'label' => 'PHP',
+                'value' => PHP_VERSION,
+                'status' => version_compare(PHP_VERSION, '8.0.0', '>=') ? 'ok' : 'error',
+            ],
+            [
+                'label' => 'Upload limit',
+                'value' => ini_get('upload_max_filesize') ?: 'unknown',
+                'status' => (ini_get('upload_max_filesize') ?: '') !== '' ? 'ok' : 'warning',
+            ],
+            [
+                'label' => 'Memory limit',
+                'value' => ini_get('memory_limit') ?: 'unknown',
+                'status' => (ini_get('memory_limit') ?: '') !== '' ? 'ok' : 'warning',
+            ],
+            [
+                'label' => 'SQLite',
+                'value' => $this->systemDatabase->isAvailable() ? 'available' : ($this->systemDatabase->lastError() ?: 'unavailable'),
+                'status' => $this->systemDatabase->isAvailable() ? 'ok' : 'error',
+            ],
+            [
+                'label' => 'Content directory',
+                'value' => is_writable($this->contentDir) ? 'writable' : 'not writable',
+                'status' => is_writable($this->contentDir) ? 'ok' : 'error',
+            ],
+            [
+                'label' => 'Storage directory',
+                'value' => is_writable($this->basePath . '/storage') ? 'writable' : 'not writable',
+                'status' => is_writable($this->basePath . '/storage') ? 'ok' : 'error',
+            ],
+            [
+                'label' => 'Uploads directory',
+                'value' => is_writable($this->basePath . '/public/uploads') ? 'writable' : 'not writable',
+                'status' => is_writable($this->basePath . '/public/uploads') ? 'ok' : 'warning',
+            ],
+            [
+                'label' => 'Email provider',
+                'value' => $mailProvider === 'none' ? 'not configured' : strtoupper($mailProvider),
+                'status' => $mailProvider === 'none' ? 'warning' : 'ok',
+            ],
+            [
+                'label' => 'Disk free',
+                'value' => $storage['disk_free_human'],
+                'status' => ((int)$storage['percent']) > 90 ? 'warning' : 'ok',
+            ],
+        ];
+    }
+
+    private function summarizeSystemStatus(array $checks): array
+    {
+        $errors = count(array_filter($checks, fn(array $check): bool => (string)($check['status'] ?? '') === 'error'));
+        $warnings = count(array_filter($checks, fn(array $check): bool => (string)($check['status'] ?? '') === 'warning'));
+        if ($errors > 0) {
+            return ['label' => 'Needs attention', 'status' => 'error', 'detail' => $errors . ' critical checks'];
+        }
+        if ($warnings > 0) {
+            return ['label' => 'Warnings', 'status' => 'warning', 'detail' => $warnings . ' checks to review'];
+        }
+        return ['label' => 'Healthy', 'status' => 'ok', 'detail' => 'All checks passing'];
     }
 
     private function handleUsersList(): void
@@ -1263,12 +1463,12 @@ final class App
         }
 
         if ($slug === '') {
-            $this->redirect('/admin?type=' . urlencode($type) . '&lang=' . urlencode($lang));
+            $this->redirect('/admin/content?type=' . urlencode($type) . '&lang=' . urlencode($lang));
             return;
         }
 
         if ($type === 'pages' && $slug === $homeSlug && $lang === $defaultLang) {
-            $this->redirect('/admin?type=' . urlencode($type) . '&lang=' . urlencode($lang));
+            $this->redirect('/admin/content?type=' . urlencode($type) . '&lang=' . urlencode($lang));
             return;
         }
 
@@ -1282,7 +1482,7 @@ final class App
             ]);
         }
 
-        $this->redirect('/admin?type=' . urlencode($type) . '&lang=' . urlencode($lang) . '&deleted=1');
+        $this->redirect('/admin/content?type=' . urlencode($type) . '&lang=' . urlencode($lang) . '&deleted=1');
     }
 
     private function handleNew(): void
@@ -2018,13 +2218,13 @@ final class App
         $slug = $this->slugify((string)($_GET['slug'] ?? ''));
         $lang = $this->slugify((string)($_GET['lang'] ?? ($this->settings['languages']['default'] ?? 'en')));
         if ($slug === '') {
-            $this->redirect('/admin?type=forms');
+            $this->redirect('/admin/content?type=forms');
             return;
         }
 
         $form = $this->content->find('forms', $slug, $lang, true, false);
         if (!$form) {
-            $this->redirect('/admin?type=forms&lang=' . urlencode($lang));
+            $this->redirect('/admin/content?type=forms&lang=' . urlencode($lang));
             return;
         }
 
@@ -2095,7 +2295,7 @@ final class App
         $type = $this->sanitizeType((string)($_GET['type'] ?? 'pages'));
         $types = $this->content->getTypes();
         if (!in_array($type, $types, true) || $type === 'forms') {
-            $this->redirect('/admin?type=' . urlencode($type));
+            $this->redirect('/admin/content?type=' . urlencode($type));
             return;
         }
 
@@ -2226,7 +2426,7 @@ final class App
         $this->cleanupImportPreviewCache();
 
         if ($type === 'forms') {
-            $this->redirect('/admin?type=forms');
+            $this->redirect('/admin/content?type=forms');
             return;
         }
 
@@ -2462,9 +2662,14 @@ final class App
 
     private function render(string $template, array $data = []): void
     {
-        $data = array_merge([
+        $defaults = [
             'is_admin' => $this->auth->check(),
-        ], $data);
+        ];
+        if (str_starts_with($template, '@admin/') && $this->auth->check() && !isset($data['admin_storage_summary'])) {
+            $defaults['admin_storage_summary'] = $this->buildStorageSummary();
+        }
+
+        $data = array_merge($defaults, $data);
         echo $this->twig->render($template, $data);
     }
 
@@ -5093,6 +5298,25 @@ final class App
             $unitIndex++;
         }
         return number_format($value, 1) . ' ' . $units[$unitIndex];
+    }
+
+    private function directorySize(string $path): int
+    {
+        if (!is_dir($path)) {
+            return 0;
+        }
+
+        $size = 0;
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($path, \FilesystemIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::LEAVES_ONLY
+        );
+        foreach ($iterator as $fileInfo) {
+            if ($fileInfo->isFile()) {
+                $size += (int)$fileInfo->getSize();
+            }
+        }
+        return $size;
     }
 
     private function downloadBackupSnapshot(string $filename): void
