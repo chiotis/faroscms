@@ -41,7 +41,7 @@ Content remains file-based. SQLite is used for system/admin data, starting with 
 - [x] Capture recipient, subject, provider, status, timestamp, and error message.
 - [x] Add `/admin/email-logs` screen from the admin template.
 - [x] Add clear logs action.
-- [ ] Connect failed email notifications later.
+- [x] Connect failed email notifications.
 
 ### 4. Dashboard
 
@@ -56,10 +56,11 @@ Content remains file-based. SQLite is used for system/admin data, starting with 
 
 ### 5. Notifications
 
-- [ ] Wire `notifications` SQLite table.
-- [ ] Add notification dropdown to the admin header.
-- [ ] Add mark-as-read and mark-all-read actions.
-- [ ] Derive notifications from failed emails, backups, updates, and system checks.
+- [x] Wire `notifications` SQLite table.
+- [x] Add notification dropdown to the admin header.
+- [x] Add mark-as-read and mark-all-read actions.
+- [x] Derive notifications from failed emails, backups, and system checks.
+- [ ] Derive update notifications once the Updates module exists.
 
 ## Admin Modules Backlog
 

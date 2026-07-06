@@ -17,6 +17,7 @@ Implemented now:
 - Role capability checks for admin modules, superadmin-only user management, self-profile editing, and forbidden responses.
 - Activity log storage and `/admin/activity-logs` with level, action, actor, subject, date, and search filters.
 - Email log storage and `/admin/email-logs` with provider, recipient, status, date, search, details, and clear action.
+- Notification storage, topbar dropdown, unread badge, mark-read actions, and derived failed-email/backup/system notifications.
 - Dashboard landing page at `/admin` with content counts, users count, backup status, recent activity, recent email attempts, storage usage, system checks, and quick actions.
 - Google Sign-In settings and OAuth login flow for existing active users.
 - Content list, create, edit, save, delete, import, and export.
@@ -35,7 +36,7 @@ Implemented now:
 ### High Priority
 
 - Updates page: the template has `updates.html`; FarosCMS has no update checker, update package workflow, version badge, changelog feed, or install action.
-- Notifications dropdown: the template shell has notifications for updates, failed emails, backups, and users. FarosCMS shell currently has no notification center or unread state.
+- Update-derived notifications: the topbar notification center exists, but update notifications wait for the Updates module.
 
 ### Medium Priority
 
@@ -52,7 +53,7 @@ Implemented now:
 
 - Components catalog: the template includes `components.html`; FarosCMS does not need this in production, but it could be kept as an internal UI reference.
 - Version badge: the template shows a product version; FarosCMS shell currently shows `base`.
-- Mark-all-read notifications behavior: absent because notification persistence is absent.
+- Notification archive/list page: the topbar center exists, but there is no dedicated notification history screen yet.
 - Empty states consistency: many screens have empty states, but not every admin module follows the same template pattern.
 - Toast placement/timing consistency: FarosCMS has shared toast support, but older modules still contain local toast markup and top-right placement.
 - Strict icon-only action buttons everywhere: most tables use icon actions, but the pattern is not fully normalized across every admin screen.
@@ -100,9 +101,9 @@ Implemented now:
 
 ## Suggested Implementation Order
 
-1. Notifications: derive notifications from update/email/backup/activity state.
-2. Dedicated backups page: move backup UX out of Settings while keeping settings for schedule/retention.
-3. Updates page: start with read-only version/changelog/check state, then add install flow later.
+1. Dedicated backups page: move backup UX out of Settings while keeping settings for schedule/retention.
+2. Updates page: start with read-only version/changelog/check state, then add install flow later.
+3. Add update-derived notifications after the Updates module can report state.
 4. UI consistency pass: filters, toasts, table sorting, badges, modals/off-canvas.
 5. System health/cache/index tools.
 6. Longer-term architecture pass: decide whether FarosCMS should stay Twig/Composer based or move closer to strict phpFlat structure.

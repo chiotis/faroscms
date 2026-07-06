@@ -25,6 +25,7 @@ final class App
     private PermissionService $permissions;
     private ActivityLogRepository $activityLogs;
     private EmailLogRepository $emailLogs;
+    private NotificationRepository $notifications;
     private string $currentLang;
     private array $translations = [];
     private array $formStates = [];
@@ -53,6 +54,7 @@ final class App
         $this->permissions = new PermissionService();
         $this->activityLogs = new ActivityLogRepository($this->systemDatabase);
         $this->emailLogs = new EmailLogRepository($this->systemDatabase);
+        $this->notifications = new NotificationRepository($this->systemDatabase);
         $this->content = new ContentRepository($this->contentDir, $markdown, $this->settings);
         $this->auth = new Auth($this->contentDir . '/users/users.yaml', $this->users);
 
@@ -323,6 +325,16 @@ final class App
 
         if ($action === 'email-logs') {
             $this->handleEmailLogs();
+            return;
+        }
+
+        if ($action === 'notification-read') {
+            $this->handleNotificationRead();
+            return;
+        }
+
+        if ($action === 'notifications-read-all') {
+            $this->handleNotificationsReadAll();
             return;
         }
 
@@ -805,6 +817,37 @@ final class App
             'admin_section' => 'email_logs',
             'current_type' => 'pages',
         ]);
+    }
+
+    private function handleNotificationRead(): void
+    {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+            $this->redirect('/admin');
+            return;
+        }
+
+        $id = (int)($_POST['id'] ?? 0);
+        $target = $this->sanitizeAdminReturnUrl((string)($_POST['target_url'] ?? '/admin'));
+        if ($id > 0 && $this->notifications->markRead($id)) {
+            $this->logActivity('notification.read', 'info', 'notification', (string)$id, 'Notification marked as read.');
+        }
+        $this->redirect($target);
+    }
+
+    private function handleNotificationsReadAll(): void
+    {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+            $this->redirect('/admin');
+            return;
+        }
+
+        $count = $this->notifications->markAllRead();
+        if ($count > 0) {
+            $this->logActivity('notifications.read_all', 'info', 'notification', 'all', 'Notifications marked as read.', [
+                'count' => $count,
+            ]);
+        }
+        $this->redirect($this->sanitizeAdminReturnUrl((string)($_POST['return_to'] ?? '/admin')));
     }
 
     private function handleUserEdit(): void
@@ -1594,6 +1637,7 @@ final class App
                 $this->logActivity(($result['ok'] ?? false) ? 'backup.create_success' : 'backup.create_failure', ($result['ok'] ?? false) ? 'info' : 'error', 'backup', (string)($result['filename'] ?? ''), (string)($result['message'] ?? 'Backup action completed.'), [
                     'result' => $result,
                 ]);
+                $this->notifyBackupResult($result, false);
                 $query = [
                     'saved' => '1',
                     'tab' => 'backup',
@@ -2665,8 +2709,16 @@ final class App
         $defaults = [
             'is_admin' => $this->auth->check(),
         ];
-        if (str_starts_with($template, '@admin/') && $this->auth->check() && !isset($data['admin_storage_summary'])) {
-            $defaults['admin_storage_summary'] = $this->buildStorageSummary();
+        if (str_starts_with($template, '@admin/') && $this->auth->check()) {
+            if (!isset($data['admin_storage_summary'])) {
+                $defaults['admin_storage_summary'] = $this->buildStorageSummary();
+            }
+            if (!isset($data['admin_notifications']) || !isset($data['admin_notification_unread_count'])) {
+                $this->syncSystemNotifications();
+                $defaults['admin_notifications'] = $this->notifications->recent(6);
+                $defaults['admin_notification_unread_count'] = $this->notifications->unreadCount();
+                $defaults['admin_current_url'] = $this->currentRequestPath();
+            }
         }
 
         $data = array_merge($defaults, $data);
@@ -2725,9 +2777,104 @@ final class App
                 'error_message' => $ok ? '' : $error,
                 'context' => $context,
             ]);
+            if (!$ok) {
+                $this->notifyEmailFailure($to, $subject, $provider, $error);
+            }
         } catch (\Throwable) {
             // Email logging must never block sending or form handling.
         }
+    }
+
+    private function notifyEmailFailure(string $to, string $subject, string $provider, string $error): void
+    {
+        try {
+            $body = trim($error) !== '' ? $error : 'Email delivery failed.';
+            $this->notifications->createIfMissing([
+                'type' => 'email.failed',
+                'title' => 'Email delivery failed',
+                'body' => $to . ' - ' . $body,
+                'severity' => 'error',
+                'target_url' => '/admin/email-logs?status=failed',
+                'context' => [
+                    'recipient' => $to,
+                    'subject' => $subject,
+                    'provider' => $provider,
+                    'error' => $error,
+                ],
+            ]);
+        } catch (\Throwable) {
+            // Notifications must never block the primary workflow.
+        }
+    }
+
+    private function notifyBackupResult(array $result, bool $scheduled): void
+    {
+        try {
+            $ok = ($result['ok'] ?? false) === true;
+            $this->notifications->createIfMissing([
+                'type' => $ok ? 'backup.success' : 'backup.failed',
+                'title' => $ok ? 'Backup completed' : 'Backup failed',
+                'body' => (string)($result['message'] ?? ($ok ? 'Backup completed.' : 'Backup failed.')),
+                'severity' => $ok ? 'success' : 'error',
+                'target_url' => '/admin/settings?tab=backup',
+                'context' => [
+                    'scheduled' => $scheduled,
+                    'filename' => (string)($result['filename'] ?? ''),
+                    'result' => $result,
+                ],
+            ]);
+        } catch (\Throwable) {
+            // Notifications must never block backup creation.
+        }
+    }
+
+    private function syncSystemNotifications(): void
+    {
+        try {
+            $storage = $this->buildStorageSummary();
+            foreach ($this->buildDashboardSystemChecks($storage) as $check) {
+                $status = (string)($check['status'] ?? 'ok');
+                if (!in_array($status, ['warning', 'error'], true)) {
+                    continue;
+                }
+                $label = (string)($check['label'] ?? 'System check');
+                $this->notifications->createIfMissing([
+                    'type' => 'system.' . strtolower(str_replace(' ', '_', $label)),
+                    'title' => 'System check: ' . $label,
+                    'body' => (string)($check['value'] ?? ''),
+                    'severity' => $status,
+                    'target_url' => '/admin',
+                    'context' => [
+                        'check' => $check,
+                    ],
+                ], true);
+            }
+        } catch (\Throwable) {
+            // System notification sync should never block rendering.
+        }
+    }
+
+    private function currentRequestPath(): string
+    {
+        $uri = (string)($_SERVER['REQUEST_URI'] ?? '/admin');
+        $path = parse_url($uri, PHP_URL_PATH) ?: '/admin';
+        $query = parse_url($uri, PHP_URL_QUERY);
+        return $query ? $path . '?' . $query : $path;
+    }
+
+    private function sanitizeAdminReturnUrl(string $url): string
+    {
+        $url = trim($url);
+        if ($url === '' || str_starts_with($url, '//') || preg_match('/^[a-z][a-z0-9+.-]*:/i', $url)) {
+            return '/admin';
+        }
+
+        $path = parse_url($url, PHP_URL_PATH) ?: '/admin';
+        if (!str_starts_with($path, '/admin')) {
+            return '/admin';
+        }
+        $query = parse_url($url, PHP_URL_QUERY);
+        return $query ? $path . '?' . $query : $path;
     }
 
     private function clientIpAddress(): string
@@ -5157,6 +5304,7 @@ final class App
         if (($result['ok'] ?? false) === true) {
             $this->updateBackupLastRun(date('c'));
         }
+        $this->notifyBackupResult($result, true);
 
         @flock($lockHandle, LOCK_UN);
         fclose($lockHandle);
