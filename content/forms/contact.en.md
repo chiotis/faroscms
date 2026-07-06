@@ -8,7 +8,7 @@ success_message: Thank you. Your message has been submitted and our team will co
 store_submissions: true
 notifications:
   enabled: true
-  to: hello@picolino.unicorg.gr
+  to: hello@faroscms.test
   subject: "New contact form submission"
   reply_to_field: email
   auto_reply: true

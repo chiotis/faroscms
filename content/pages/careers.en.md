@@ -12,4 +12,4 @@ seo:
 
 We look for people with practical thinking, design sensitivity, and delivery discipline.
 
-Send your CV and portfolio to careers@picolino.unicorg.gr.
+Send your CV and portfolio to careers@faroscms.test.

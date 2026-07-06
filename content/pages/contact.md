@@ -12,7 +12,7 @@ seo:
 
 Μοιραστείτε στόχους, προθεσμίες και πλαίσιο έργου για να προτείνουμε τα επόμενα βήματα.
 
-- Email: hello@picolino.unicorg.gr
+- Email: hello@faroscms.test
 - Τηλέφωνο: +30 210 000 0000
 
 [form slug="contact"]

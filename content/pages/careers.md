@@ -12,4 +12,4 @@ seo:
 
 Αναζητούμε ανθρώπους με πρακτική σκέψη, αισθητική και διάθεση για ποιοτική υλοποίηση.
 
-Στείλτε CV και portfolio στο careers@picolino.unicorg.gr.
+Στείλτε CV και portfolio στο careers@faroscms.test.

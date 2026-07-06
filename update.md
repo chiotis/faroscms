@@ -32,7 +32,7 @@ If you do a clean deploy from ZIP, restore these paths from backup afterwards.
 Run on the production server, inside your project directory.
 
 ```bash
-cd /path/to/picolinocms
+cd /path/to/faroscms
 
 # Optional: inspect local changes first
 git status
@@ -84,7 +84,7 @@ If something breaks:
 2. If using git, return to previous commit/tag and re-run Composer:
 
 ```bash
-cd /path/to/picolinocms
+cd /path/to/faroscms
 git log --oneline -n 10
 # checkout previous stable commit/tag
 # git checkout <commit-or-tag>

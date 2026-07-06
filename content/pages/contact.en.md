@@ -12,7 +12,7 @@ seo:
 
 Share goals, timelines, and context so we can propose practical next steps.
 
-- Email: hello@picolino.unicorg.gr
+- Email: hello@faroscms.test
 - Phone: +30 210 000 0000
 
 [form slug="contact"]

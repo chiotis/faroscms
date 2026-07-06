@@ -8,7 +8,7 @@ success_message: Ευχαριστούμε. Το μήνυμά σας καταχω
 store_submissions: true
 notifications:
   enabled: true
-  to: hello@picolino.unicorg.gr
+  to: hello@faroscms.test
   subject: "Νέα υποβολή φόρμας επικοινωνίας"
   reply_to_field: email
   auto_reply: true

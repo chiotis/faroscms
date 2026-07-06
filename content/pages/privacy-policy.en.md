@@ -12,4 +12,4 @@ seo:
 
 We process personal data only for service delivery and communication.
 
-For data requests: privacy@picolino.unicorg.gr.
+For data requests: privacy@faroscms.test.
