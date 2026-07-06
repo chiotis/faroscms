@@ -21,7 +21,7 @@ The initial foundation migration creates:
 - `content_index`
 - `backup_runs`
 
-These tables are intentionally not fully wired into the admin flows yet. The first checkpoint only creates the database layer and schema so the next features can build on stable storage.
+The users table is now wired into login and the Users admin module. The remaining tables are intentionally not fully wired into admin flows yet; they exist so the next features can build on stable storage.
 
 ## Boundaries
 

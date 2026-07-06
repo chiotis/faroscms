@@ -12,6 +12,9 @@ It intentionally lists gaps only. Existing FarosCMS functionality such as conten
 Implemented now:
 
 - Admin authentication with session login/logout.
+- SQLite-backed users with YAML import fallback.
+- Users list/edit UI with roles, status, password changes, and Google account fields.
+- Google Sign-In settings and OAuth login flow for existing active users.
 - Content list, create, edit, save, delete, import, and export.
 - Page/post/project/form content types from Markdown/YAML files.
 - Form builder fields, form submissions, CSV export, notifications, honeypot, and rate limiting.
@@ -28,8 +31,6 @@ Implemented now:
 ### High Priority
 
 - Dashboard page: the template has a dashboard with content counts, users count, backup status, system status, recent activity, and quick actions. FarosCMS currently lands on content list.
-- Users list page: the template has `users-list.html`; FarosCMS has `content/users/users.yaml` and auth loading, but `/admin/users` redirects to `/admin`.
-- User edit/profile page: the template has `user-edit.html`; FarosCMS has no admin UI to create/edit users, change roles, reset passwords, activate/deactivate users, or edit the current profile.
 - Email logs page: the template has `email-logs.html`; FarosCMS sends emails but does not persist delivery logs or expose them in admin.
 - Activity logs page: the template has `activity-logs.html`; FarosCMS does not persist an audit trail of content, user, settings, backup, media, import, or login events.
 - Updates page: the template has `updates.html`; FarosCMS has no update checker, update package workflow, version badge, changelog feed, or install action.
@@ -44,7 +45,7 @@ Implemented now:
 - Sortable table controls: template tables imply structured list workflows. FarosCMS lists are rendered in stable order, but admin-side sortable columns are not implemented broadly.
 - Bulk actions: the media library has bulk selection, but content, users, logs, backups, and other list screens do not yet have template-style bulk actions.
 - Modal/off-canvas detail panels: admin JS supports modals/off-canvas, but FarosCMS does not yet use them for log details, destructive confirmations, profile panels, or quick edits as the template suggests.
-- Profile dropdown parity: the template has "Your profile"; FarosCMS only has Settings and Sign out.
+- Profile dropdown parity: the template has a full profile workflow; FarosCMS links to the user editor but does not yet have a separate self-profile screen.
 - Storage indicator with real values: the admin shell shows a static local storage indicator. It does not calculate real upload/storage usage.
 
 ### Lower Priority / Design-System Parity
@@ -60,7 +61,7 @@ Implemented now:
 
 ### Architecture / Storage
 
-- SQLite system layer consumers: the foundation schema now exists, but users, permissions, indexing, relationships, activity, search, and email logs are not yet wired into application flows.
+- SQLite system layer consumers: users are now wired into application flows; permissions, indexing, relationships, activity, search, and email logs are not yet wired.
 - Rebuildable system DB: the database can be recreated, but content indexing/rebuild tooling is not implemented yet.
 - `system/` directory structure: phpFlat expects `system/Controllers`, `system/Models`, `system/Core`, and `system/Views`. FarosCMS currently uses `src/`, `admin/templates/`, and Twig.
 - Controller/model separation: FarosCMS still has most behavior in `src/App.php`, so admin modules are not split into controllers/models.
@@ -70,8 +71,8 @@ Implemented now:
 ### Auth / Users / Permissions
 
 - Role enforcement: phpFlat expects at least `superadmin`, `admin`, and `user` roles. FarosCMS stores/display roles but does not enforce a full permission matrix.
-- User CRUD: missing create/edit/deactivate/delete/password reset flows.
-- Current-user profile editing: missing.
+- User CRUD: basic create/edit/deactivate/password change exists; hard delete, invitations, and richer reset flows are missing.
+- Current-user profile editing: available through the user editor, but not yet as a dedicated self-profile workflow.
 - Permission checks per module/action: admin access is currently mostly "logged in" rather than granular per role.
 - User activity metadata: missing last login, status, invite state, created/updated metadata, and audit history.
 
@@ -104,7 +105,7 @@ Implemented now:
 
 ## Suggested Implementation Order
 
-1. Users and permissions: add user list/edit/profile and start enforcing roles.
+1. Permissions: enforce role-specific access rules beyond simple login.
 2. Activity logs: create a lightweight append-only log store and admin screen.
 3. Email logs: persist send attempts and add the email logs screen.
 4. Dashboard: wire real counts/status from content, users, backups, logs, and storage.
@@ -118,5 +119,4 @@ Implemented now:
 ## Notes
 
 - Not every phpFlat baseline gap must be closed immediately. Some are architecture choices, especially Twig/Composer and `src/` versus `system/`.
-- The safest next functional module is Users, because both the admin template and phpFlat baseline expect it, and FarosCMS now has a SQLite system foundation plus existing file-backed users/auth.
-- Logs should follow Users soon after, because dashboard, notifications, email logs, update notices, and auditability all depend on persisted events.
+- Logs should follow Users soon, because dashboard, notifications, email logs, update notices, and auditability all depend on persisted events.

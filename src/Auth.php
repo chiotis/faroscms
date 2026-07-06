@@ -9,10 +9,12 @@ use Symfony\Component\Yaml\Yaml;
 final class Auth
 {
     private string $usersFile;
+    private ?UserRepository $users;
 
-    public function __construct(string $usersFile)
+    public function __construct(string $usersFile, ?UserRepository $users = null)
     {
         $this->usersFile = $usersFile;
+        $this->users = $users;
     }
 
     public function check(): bool
@@ -27,6 +29,20 @@ final class Auth
 
     public function attempt(string $username, string $password): bool
     {
+        if ($this->users && $this->users->isAvailable()) {
+            $user = $this->users->findForLogin($username);
+            if ($user) {
+                $hash = (string)($user['password_hash'] ?? '');
+                if ($this->users->isActive($user) && $hash !== '' && password_verify($password, $hash)) {
+                    $this->users->markLastLogin((int)$user['id']);
+                    $_SESSION['user'] = $this->users->publicUser($user);
+                    $_SESSION['user']['last_login_at'] = gmdate('c');
+                    return true;
+                }
+                return false;
+            }
+        }
+
         $users = $this->loadUsers();
         foreach ($users as $user) {
             if (($user['username'] ?? '') !== $username) {
@@ -49,6 +65,16 @@ final class Auth
             return false;
         }
         return false;
+    }
+
+    public function loginUser(array $user): void
+    {
+        if ($this->users && isset($user['id'])) {
+            $this->users->markLastLogin((int)$user['id']);
+            $user = $this->users->publicUser($user);
+            $user['last_login_at'] = gmdate('c');
+        }
+        $_SESSION['user'] = $user;
     }
 
     public function logout(): void

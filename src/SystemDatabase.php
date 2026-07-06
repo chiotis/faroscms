@@ -80,7 +80,12 @@ final class SystemDatabase
             )'
         );
 
-        $version = '202607060001_system_foundation';
+        $this->applyMigration($pdo, '202607060001_system_foundation', fn(PDO $db) => $this->createFoundationSchema($db));
+        $this->applyMigration($pdo, '202607060002_users_google_auth', fn(PDO $db) => $this->addGoogleAuthColumns($db));
+    }
+
+    private function applyMigration(PDO $pdo, string $version, callable $callback): void
+    {
         $stmt = $pdo->prepare('SELECT 1 FROM schema_migrations WHERE version = :version LIMIT 1');
         $stmt->execute(['version' => $version]);
         if ($stmt->fetchColumn()) {
@@ -89,7 +94,7 @@ final class SystemDatabase
 
         $pdo->beginTransaction();
         try {
-            $this->createFoundationSchema($pdo);
+            $callback($pdo);
             $insert = $pdo->prepare('INSERT INTO schema_migrations (version, applied_at) VALUES (:version, :applied_at)');
             $insert->execute([
                 'version' => $version,
@@ -122,6 +127,8 @@ final class SystemDatabase
                 role TEXT NOT NULL DEFAULT "admin",
                 status TEXT NOT NULL DEFAULT "active",
                 source TEXT NOT NULL DEFAULT "sqlite",
+                google_sub TEXT,
+                google_email TEXT,
                 last_login_at TEXT,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
@@ -129,6 +136,7 @@ final class SystemDatabase
         );
         $pdo->exec('CREATE INDEX IF NOT EXISTS idx_users_role ON users (role)');
         $pdo->exec('CREATE INDEX IF NOT EXISTS idx_users_status ON users (status)');
+        $pdo->exec('CREATE INDEX IF NOT EXISTS idx_users_google_sub ON users (google_sub)');
 
         $pdo->exec(
             'CREATE TABLE IF NOT EXISTS activity_logs (
@@ -210,5 +218,21 @@ final class SystemDatabase
             )'
         );
         $pdo->exec('CREATE INDEX IF NOT EXISTS idx_backup_runs_created ON backup_runs (created_at)');
+    }
+
+    private function addGoogleAuthColumns(PDO $pdo): null
+    {
+        $columns = [];
+        foreach ($pdo->query('PRAGMA table_info(users)') as $row) {
+            $columns[] = (string)$row['name'];
+        }
+        if (!in_array('google_sub', $columns, true)) {
+            $pdo->exec('ALTER TABLE users ADD COLUMN google_sub TEXT');
+        }
+        if (!in_array('google_email', $columns, true)) {
+            $pdo->exec('ALTER TABLE users ADD COLUMN google_email TEXT');
+        }
+        $pdo->exec('CREATE INDEX IF NOT EXISTS idx_users_google_sub ON users (google_sub)');
+        return null;
     }
 }

@@ -21,6 +21,7 @@ final class App
     private ContentRepository $content;
     private Auth $auth;
     private SystemDatabase $systemDatabase;
+    private UserRepository $users;
     private string $currentLang;
     private array $translations = [];
     private array $formStates = [];
@@ -41,10 +42,12 @@ final class App
         $environment->addExtension(new CommonMarkCoreExtension());
         $markdown = new MarkdownConverter($environment);
 
-        $this->content = new ContentRepository($this->contentDir, $markdown, $this->settings);
-        $this->auth = new Auth($this->contentDir . '/users/users.yaml');
         $this->systemDatabase = new SystemDatabase($this->basePath . '/storage');
         $this->systemDatabase->initialize();
+        $this->users = new UserRepository($this->systemDatabase, $this->contentDir . '/users/users.yaml');
+        $this->users->importYamlUsersIfEmpty();
+        $this->content = new ContentRepository($this->contentDir, $markdown, $this->settings);
+        $this->auth = new Auth($this->contentDir . '/users/users.yaml', $this->users);
 
         $this->twig = $this->initTwig();
         $this->currentLang = $this->settings['languages']['default'] ?? 'en';
@@ -241,13 +244,21 @@ final class App
                     $this->redirect('/admin');
                     return;
                 }
-                $this->render('@admin/login.twig', [
-                    'error' => 'Invalid credentials.',
-                ]);
+                $this->renderLogin('Invalid credentials.');
                 return;
             }
 
-            $this->render('@admin/login.twig');
+            $this->renderLogin();
+            return;
+        }
+
+        if ($action === 'google-login') {
+            $this->handleGoogleLogin();
+            return;
+        }
+
+        if ($action === 'google-callback') {
+            $this->handleGoogleCallback();
             return;
         }
 
@@ -320,7 +331,17 @@ final class App
         }
 
         if ($action === 'users') {
-            $this->redirect('/admin');
+            $this->handleUsersList();
+            return;
+        }
+
+        if ($action === 'users-edit') {
+            $this->handleUserEdit();
+            return;
+        }
+
+        if ($action === 'users-delete') {
+            $this->handleUserDelete();
             return;
         }
 
@@ -345,6 +366,200 @@ final class App
         }
 
         $this->handleAdminList();
+    }
+
+    private function renderLogin(string $error = ''): void
+    {
+        $google = $this->googleAuthSettings();
+        $this->render('@admin/login.twig', [
+            'error' => $error,
+            'google_auth' => $google,
+        ]);
+    }
+
+    private function handleGoogleLogin(): void
+    {
+        $google = $this->googleAuthSettings();
+        if (!$google['ready']) {
+            $this->renderLogin('Google Sign-In is not configured yet.');
+            return;
+        }
+
+        $state = bin2hex(random_bytes(16));
+        $_SESSION['google_oauth_state'] = $state;
+        $query = http_build_query([
+            'client_id' => $google['client_id'],
+            'redirect_uri' => $google['redirect_uri'],
+            'response_type' => 'code',
+            'scope' => 'openid email profile',
+            'state' => $state,
+            'access_type' => 'online',
+            'prompt' => 'select_account',
+        ]);
+        header('Location: https://accounts.google.com/o/oauth2/v2/auth?' . $query);
+        exit;
+    }
+
+    private function handleGoogleCallback(): void
+    {
+        $google = $this->googleAuthSettings();
+        if (!$google['ready']) {
+            $this->renderLogin('Google Sign-In is not configured yet.');
+            return;
+        }
+
+        $state = (string)($_GET['state'] ?? '');
+        if ($state === '' || $state !== (string)($_SESSION['google_oauth_state'] ?? '')) {
+            unset($_SESSION['google_oauth_state']);
+            $this->renderLogin('Google Sign-In state could not be verified.');
+            return;
+        }
+        unset($_SESSION['google_oauth_state']);
+
+        $code = (string)($_GET['code'] ?? '');
+        if ($code === '') {
+            $this->renderLogin('Google did not return an authorization code.');
+            return;
+        }
+
+        $token = $this->googleTokenRequest($code, $google);
+        if (!$token['ok']) {
+            $this->renderLogin((string)$token['message']);
+            return;
+        }
+        $profile = $this->googleUserInfo((string)$token['access_token']);
+        if (!$profile['ok']) {
+            $this->renderLogin((string)$profile['message']);
+            return;
+        }
+
+        $email = strtolower(trim((string)($profile['email'] ?? '')));
+        $sub = trim((string)($profile['sub'] ?? ''));
+        $verified = (bool)($profile['email_verified'] ?? false);
+        if ($email === '' || !$verified) {
+            $this->renderLogin('Google account email is not verified.');
+            return;
+        }
+        if ($google['allowed_domain'] !== '' && !str_ends_with($email, '@' . $google['allowed_domain'])) {
+            $this->renderLogin('This Google account is not allowed for this FarosCMS installation.');
+            return;
+        }
+
+        $user = $this->users->findByEmail($email);
+        if (!$user || !$this->users->isActive($user)) {
+            $this->renderLogin('No active FarosCMS user matches this Google account.');
+            return;
+        }
+
+        $this->users->linkGoogle((int)$user['id'], $sub, $email);
+        $user = $this->users->find((int)$user['id']) ?: $user;
+        $this->auth->loginUser($user);
+        $this->redirect('/admin');
+    }
+
+    private function handleUsersList(): void
+    {
+        $filters = [
+            'q' => trim((string)($_GET['q'] ?? '')),
+            'role' => trim((string)($_GET['role'] ?? '')),
+            'status' => trim((string)($_GET['status'] ?? '')),
+        ];
+        $this->render('@admin/users.twig', [
+            'users' => $this->users->all($filters),
+            'filters' => $filters,
+            'types' => $this->content->getTypes(),
+            'user' => $this->auth->user(),
+            'admin_section' => 'users',
+            'current_type' => 'pages',
+            'saved' => isset($_GET['saved']),
+            'deleted' => isset($_GET['deleted']),
+        ]);
+    }
+
+    private function handleUserEdit(): void
+    {
+        $id = (int)($_GET['id'] ?? $_POST['id'] ?? 0);
+        $saved = isset($_GET['saved']);
+        $error = '';
+        $user = $id > 0 ? $this->users->find($id) : null;
+        if ($id > 0 && !$user) {
+            $this->redirect('/admin/users');
+            return;
+        }
+
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $payload = [
+                'username' => trim((string)($_POST['username'] ?? '')),
+                'email' => trim((string)($_POST['email'] ?? '')),
+                'display_name' => trim((string)($_POST['display_name'] ?? '')),
+                'role' => trim((string)($_POST['role'] ?? 'admin')),
+                'status' => trim((string)($_POST['status'] ?? 'active')),
+                'google_sub' => trim((string)($_POST['google_sub'] ?? '')),
+                'google_email' => trim((string)($_POST['google_email'] ?? '')),
+            ];
+            $password = (string)($_POST['password'] ?? '');
+            $passwordConfirm = (string)($_POST['password_confirm'] ?? '');
+            if ($payload['username'] === '') {
+                $error = 'Username is required.';
+            } elseif ($id === 0 && $password === '') {
+                $error = 'Password is required for new users.';
+            } elseif ($password !== '' && $password !== $passwordConfirm) {
+                $error = 'Password confirmation does not match.';
+            } else {
+                if ($password !== '') {
+                    $payload['password_hash'] = $this->users->passwordHash($password);
+                }
+                try {
+                    if ($id > 0) {
+                        $this->users->update($id, $payload);
+                    } else {
+                        $id = $this->users->create($payload);
+                    }
+                    $this->redirect('/admin/users-edit?id=' . $id . '&saved=1');
+                    return;
+                } catch (\Throwable $e) {
+                    $error = 'User could not be saved. Check for duplicate usernames or invalid values.';
+                }
+            }
+            $user = array_merge($user ?: [], $payload, ['id' => $id]);
+        }
+
+        $this->render('@admin/user-edit.twig', [
+            'edited_user' => $user ?: [
+                'id' => 0,
+                'username' => '',
+                'email' => '',
+                'display_name' => '',
+                'role' => 'admin',
+                'status' => 'active',
+                'google_sub' => '',
+                'google_email' => '',
+                'created_at' => '',
+                'updated_at' => '',
+                'last_login_at' => '',
+            ],
+            'is_new' => $id === 0,
+            'error' => $error,
+            'saved' => $saved,
+            'types' => $this->content->getTypes(),
+            'user' => $this->auth->user(),
+            'admin_section' => 'users',
+            'current_type' => 'pages',
+        ]);
+    }
+
+    private function handleUserDelete(): void
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('/admin/users');
+            return;
+        }
+        $id = (int)($_POST['id'] ?? 0);
+        $currentId = (int)($this->auth->user()['id'] ?? 0);
+        if ($id > 0 && $id !== $currentId) {
+            $this->users->deactivate($id);
+        }
+        $this->redirect('/admin/users?deleted=1');
     }
 
     private function handleAdminList(): void
@@ -941,6 +1156,10 @@ final class App
                 'backup_auto_enabled' => isset($_POST['backup_auto_enabled']) ? '1' : '0',
                 'backup_schedule' => (string)($_POST['backup_schedule'] ?? ''),
                 'backup_keep_local' => (string)($_POST['backup_keep_local'] ?? ''),
+                'google_enabled' => isset($_POST['google_enabled']) ? '1' : '0',
+                'google_client_id' => (string)($_POST['google_client_id'] ?? ''),
+                'google_client_secret' => (string)($_POST['google_client_secret'] ?? ''),
+                'google_allowed_domain' => (string)($_POST['google_allowed_domain'] ?? ''),
             ];
             $this->saveSettings($settingsPath, $raw, $form);
             $this->settings = $this->loadSettings();
@@ -3951,6 +4170,10 @@ final class App
             'backup_schedule' => $backupSchedule,
             'backup_last_run' => (string)($merged['backup']['auto']['last_run'] ?? ''),
             'backup_keep_local' => (string)$backupKeep,
+            'google_enabled' => $this->isTruthy($merged['auth']['google']['enabled'] ?? false),
+            'google_client_id' => (string)($merged['auth']['google']['client_id'] ?? ''),
+            'google_client_secret' => (string)($merged['auth']['google']['client_secret'] ?? ''),
+            'google_allowed_domain' => (string)($merged['auth']['google']['allowed_domain'] ?? ''),
         ];
     }
 
@@ -4066,8 +4289,95 @@ final class App
             ],
         ];
 
+        $data['auth']['google'] = [
+            'enabled' => $this->isTruthy($form['google_enabled'] ?? false),
+            'client_id' => (string)($form['google_client_id'] ?? ''),
+            'client_secret' => (string)($form['google_client_secret'] ?? ''),
+            'allowed_domain' => strtolower(trim((string)($form['google_allowed_domain'] ?? ''))),
+        ];
+
         $yaml = Yaml::dump($data, 4, 2);
         file_put_contents($path, $yaml);
+    }
+
+    /** @return array<string, mixed> */
+    private function googleAuthSettings(): array
+    {
+        $config = $this->settings['auth']['google'] ?? [];
+        if (!is_array($config)) {
+            $config = [];
+        }
+        $clientId = trim((string)($config['client_id'] ?? ''));
+        $clientSecret = trim((string)($config['client_secret'] ?? ''));
+        $enabled = $this->isTruthy($config['enabled'] ?? false);
+        $allowedDomain = strtolower(trim((string)($config['allowed_domain'] ?? '')));
+        return [
+            'enabled' => $enabled,
+            'client_id' => $clientId,
+            'client_secret' => $clientSecret,
+            'allowed_domain' => $allowedDomain,
+            'redirect_uri' => $this->buildAbsoluteUrl('/admin/google-callback'),
+            'ready' => $enabled && $clientId !== '' && $clientSecret !== '',
+        ];
+    }
+
+    /** @param array<string, mixed> $google */
+    private function googleTokenRequest(string $code, array $google): array
+    {
+        if (!function_exists('curl_init')) {
+            return ['ok' => false, 'message' => 'PHP cURL is required for Google Sign-In.'];
+        }
+        $ch = curl_init('https://oauth2.googleapis.com/token');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => http_build_query([
+                'code' => $code,
+                'client_id' => (string)$google['client_id'],
+                'client_secret' => (string)$google['client_secret'],
+                'redirect_uri' => (string)$google['redirect_uri'],
+                'grant_type' => 'authorization_code',
+            ]),
+            CURLOPT_HTTPHEADER => ['Content-Type: application/x-www-form-urlencoded'],
+            CURLOPT_TIMEOUT => 15,
+        ]);
+        $body = curl_exec($ch);
+        $status = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+        $error = curl_error($ch);
+        curl_close($ch);
+        if (!is_string($body) || $body === '' || $status < 200 || $status >= 300) {
+            return ['ok' => false, 'message' => 'Google token exchange failed.' . ($error !== '' ? ' ' . $error : '')];
+        }
+        $data = json_decode($body, true);
+        if (!is_array($data) || empty($data['access_token'])) {
+            return ['ok' => false, 'message' => 'Google token response was invalid.'];
+        }
+        return ['ok' => true, 'access_token' => (string)$data['access_token']];
+    }
+
+    private function googleUserInfo(string $accessToken): array
+    {
+        if (!function_exists('curl_init')) {
+            return ['ok' => false, 'message' => 'PHP cURL is required for Google Sign-In.'];
+        }
+        $ch = curl_init('https://openidconnect.googleapis.com/v1/userinfo');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $accessToken],
+            CURLOPT_TIMEOUT => 15,
+        ]);
+        $body = curl_exec($ch);
+        $status = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+        curl_close($ch);
+        if (!is_string($body) || $body === '' || $status < 200 || $status >= 300) {
+            return ['ok' => false, 'message' => 'Google profile lookup failed.'];
+        }
+        $data = json_decode($body, true);
+        if (!is_array($data)) {
+            return ['ok' => false, 'message' => 'Google profile response was invalid.'];
+        }
+        $data['ok'] = true;
+        return $data;
     }
 
     private function resolveArchiveTemplate(string $type): string
@@ -4270,7 +4580,7 @@ final class App
     private function sanitizeSettingsTab(string $tab): string
     {
         $tab = strtolower(trim($tab));
-        $allowed = ['basics', 'menus', 'apis', 'theme', 'smtp', 'backup', 'advanced'];
+        $allowed = ['basics', 'menus', 'apis', 'theme', 'smtp', 'auth', 'backup', 'advanced'];
         if (!in_array($tab, $allowed, true)) {
             return 'basics';
         }

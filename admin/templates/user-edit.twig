@@ -1,0 +1,123 @@
+{% extends '@admin/base.twig' %}
+
+{% block content %}
+  {% set btn_primary = 'inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-blue-700' %}
+  {% set btn_secondary = 'inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50' %}
+  {% set label = edited_user.display_name ?: edited_user.username ?: 'New user' %}
+  {% set initials = label|split(' ')|map(part => part|first)|join('')|slice(0, 2)|upper %}
+
+  {% if saved %}
+    <div data-toast class="pointer-events-auto fixed right-4 top-4 z-[999] flex w-80 max-w-[calc(100vw-2rem)] items-start gap-3 rounded-md border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-sm text-emerald-800 shadow-sm">
+      <span class="mt-px flex-1">Saved.</span>
+      <button type="button" data-toast-dismiss class="text-current/60 hover:text-current">&times;</button>
+    </div>
+  {% endif %}
+
+  <div class="mb-3 flex items-center gap-2 text-sm text-slate-400">
+    <a href="{{ url('admin/users') }}" class="hover:text-slate-600">Users</a>
+    <span>/</span>
+    <span class="text-slate-600">{{ label }}</span>
+  </div>
+
+  <form method="post" class="grid grid-cols-1 gap-4 xl:grid-cols-3">
+    <input type="hidden" name="id" value="{{ edited_user.id }}">
+
+    <div class="space-y-4 xl:col-span-2">
+      {% if error %}
+        <div class="rounded-md border border-red-200 bg-red-50 px-3.5 py-2.5 text-sm text-red-800">{{ error }}</div>
+      {% endif %}
+
+      <div class="rounded-lg border border-slate-200 bg-white p-4">
+        <h3 class="mb-3 text-sm font-semibold text-slate-900">Profile</h3>
+        <div class="mb-4 flex items-center gap-3">
+          <span class="flex h-12 w-12 items-center justify-center rounded-full bg-slate-900 text-base font-semibold text-white">{{ initials ?: 'U' }}</span>
+          <div>
+            <p class="text-sm font-medium text-slate-900">{{ label }}</p>
+            <p class="mt-1 text-xs text-slate-400">User profile and login identity.</p>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <label class="block">
+            <span class="mb-1 block text-sm font-medium text-slate-700">Username <span class="text-red-500">*</span></span>
+            <input type="text" name="username" value="{{ edited_user.username }}" required class="{{ input_class }}">
+          </label>
+          <label class="block">
+            <span class="mb-1 block text-sm font-medium text-slate-700">Email</span>
+            <input type="email" name="email" value="{{ edited_user.email }}" class="{{ input_class }}">
+          </label>
+          <label class="block sm:col-span-2">
+            <span class="mb-1 block text-sm font-medium text-slate-700">Display name</span>
+            <input type="text" name="display_name" value="{{ edited_user.display_name }}" class="{{ input_class }}">
+          </label>
+        </div>
+      </div>
+
+      <div class="rounded-lg border border-slate-200 bg-white p-4">
+        <h3 class="mb-3 text-sm font-semibold text-slate-900">Password</h3>
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <label class="block">
+            <span class="mb-1 block text-sm font-medium text-slate-700">New password{% if is_new %} <span class="text-red-500">*</span>{% endif %}</span>
+            <input type="password" name="password" class="{{ input_class }}" autocomplete="new-password">
+          </label>
+          <label class="block">
+            <span class="mb-1 block text-sm font-medium text-slate-700">Confirm password</span>
+            <input type="password" name="password_confirm" class="{{ input_class }}" autocomplete="new-password">
+          </label>
+        </div>
+        <p class="mt-3 text-xs text-slate-400">Leave blank to keep the current password for existing users.</p>
+      </div>
+
+      <div class="rounded-lg border border-slate-200 bg-white p-4">
+        <h3 class="mb-3 text-sm font-semibold text-slate-900">Connected accounts</h3>
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <label class="block">
+            <span class="mb-1 block text-sm font-medium text-slate-700">Google subject</span>
+            <input type="text" name="google_sub" value="{{ edited_user.google_sub }}" class="{{ input_class }}">
+          </label>
+          <label class="block">
+            <span class="mb-1 block text-sm font-medium text-slate-700">Google email</span>
+            <input type="email" name="google_email" value="{{ edited_user.google_email }}" class="{{ input_class }}">
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="space-y-4">
+      <div class="sticky top-4 space-y-4 lg:top-6">
+        <div class="rounded-lg border border-slate-200 bg-white p-4">
+          <h3 class="mb-3 text-sm font-semibold text-slate-900">Access</h3>
+          <div class="space-y-3">
+            <label class="block">
+              <span class="mb-1 block text-sm font-medium text-slate-700">Role</span>
+              <select name="role" class="{{ select_class }}">
+                {% for role in ['superadmin', 'admin', 'user'] %}
+                  <option value="{{ role }}" {% if edited_user.role == role %}selected{% endif %}>{{ role }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label class="block">
+              <span class="mb-1 block text-sm font-medium text-slate-700">Status</span>
+              <select name="status" class="{{ select_class }}">
+                {% for status in ['active', 'inactive'] %}
+                  <option value="{{ status }}" {% if edited_user.status == status %}selected{% endif %}>{{ status|title }}</option>
+                {% endfor %}
+              </select>
+            </label>
+          </div>
+          <button type="submit" class="mt-4 w-full rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700">Save user</button>
+        </div>
+
+        <div class="rounded-lg border border-slate-200 bg-white p-4 text-sm">
+          <h3 class="mb-2 text-sm font-semibold text-slate-900">Activity</h3>
+          <dl class="space-y-1.5 text-xs">
+            <div class="flex justify-between gap-3"><dt class="text-slate-400">Created</dt><dd class="text-right text-slate-600">{{ edited_user.created_at ?: '—' }}</dd></div>
+            <div class="flex justify-between gap-3"><dt class="text-slate-400">Updated</dt><dd class="text-right text-slate-600">{{ edited_user.updated_at ?: '—' }}</dd></div>
+            <div class="flex justify-between gap-3"><dt class="text-slate-400">Last login</dt><dd class="text-right text-slate-600">{{ edited_user.last_login_at ?: 'Never' }}</dd></div>
+          </dl>
+        </div>
+
+        <a href="{{ url('admin/users') }}" class="{{ btn_secondary }} w-full justify-center">Back to users</a>
+      </div>
+    </div>
+  </form>
+{% endblock %}
