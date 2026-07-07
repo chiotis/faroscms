@@ -129,10 +129,10 @@
         <div class="{{ section_class }}">
           <div class="{{ section_header_class }}">
             <h3 class="text-sm font-semibold text-slate-900">Theme YAML</h3>
-            <p class="mt-0.5 text-xs text-slate-400">Raw theme configuration stored in content/settings/theme.yaml.</p>
+            <p class="mt-0.5 text-xs text-slate-400">Raw theme configuration stored in SQLite system settings.</p>
           </div>
           <label class="block">
-            <span class="mb-1 block text-sm font-medium text-slate-700">content/settings/theme.yaml</span>
+            <span class="mb-1 block text-sm font-medium text-slate-700">system_meta.theme_settings</span>
             <textarea name="theme_settings" rows="22" class="{{ textarea_class }} font-mono text-[13px] leading-6">{{ theme_settings_raw }}</textarea>
           </label>
         </div>
@@ -465,10 +465,10 @@
         <div class="{{ section_class }}">
           <div class="{{ section_header_class }}">
             <h3 class="text-sm font-semibold text-slate-900">System YAML</h3>
-            <p class="mt-0.5 text-xs text-slate-400">Raw site configuration stored in content/settings/site.yaml.</p>
+            <p class="mt-0.5 text-xs text-slate-400">Raw site configuration stored in SQLite system settings.</p>
           </div>
           <label class="block">
-            <span class="mb-1 block text-sm font-medium text-slate-700">content/settings/site.yaml</span>
+            <span class="mb-1 block text-sm font-medium text-slate-700">system_meta.site_settings</span>
             <textarea name="settings" rows="24" class="{{ textarea_class }} font-mono text-[13px] leading-6">{{ settings }}</textarea>
           </label>
         </div>

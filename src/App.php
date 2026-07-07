@@ -38,6 +38,9 @@ final class App
     {
         $this->basePath = rtrim($basePath, '/');
         $this->contentDir = $this->basePath . '/content';
+
+        $this->systemDatabase = new SystemDatabase($this->basePath . '/storage');
+        $this->systemDatabase->initialize();
         $this->settings = $this->loadSettings();
         $this->themeSettings = $this->loadThemeSettings();
         $this->ensureDefaultMenus();
@@ -47,8 +50,6 @@ final class App
         $environment->addExtension(new CommonMarkCoreExtension());
         $markdown = new MarkdownConverter($environment);
 
-        $this->systemDatabase = new SystemDatabase($this->basePath . '/storage');
-        $this->systemDatabase->initialize();
         $this->users = new UserRepository($this->systemDatabase, $this->contentDir . '/users/users.yaml');
         $this->users->importYamlUsersIfEmpty();
         $this->users->ensureSuperadminExists();
@@ -1831,8 +1832,8 @@ final class App
             return;
         }
 
-        $raw = file_exists($settingsPath) ? (string)file_get_contents($settingsPath) : '';
-        $themeRaw = file_exists($themePath) ? (string)file_get_contents($themePath) : Yaml::dump($this->themeSettings, 4, 2);
+        $raw = $this->loadSettingsRaw('site_settings', $settingsPath, $this->defaultSettings());
+        $themeRaw = $this->loadSettingsRaw('theme_settings', $themePath, $this->defaultThemeSettings());
         $parsed = [];
         if ($raw !== '') {
             $parsed = Yaml::parse($raw) ?: [];
@@ -3097,7 +3098,27 @@ final class App
 
     private function loadSettings(): array
     {
-        $defaults = [
+        $defaults = $this->defaultSettings();
+        $raw = $this->loadSettingsRaw('site_settings', $this->contentDir . '/settings/site.yaml', $defaults);
+        if ($raw === '') {
+            return $defaults;
+        }
+
+        try {
+            $data = Yaml::parse($raw);
+        } catch (\Throwable) {
+            return $defaults;
+        }
+        if (!is_array($data)) {
+            return $defaults;
+        }
+
+        return array_replace_recursive($defaults, $data);
+    }
+
+    private function defaultSettings(): array
+    {
+        return [
             'title' => 'FarosCMS',
             'tagline' => 'A flat-file CMS powered by Markdown and Twig.',
             'base_url' => '',
@@ -3170,23 +3191,29 @@ final class App
                 'latest_version' => '',
             ],
         ];
-
-        $settingsPath = $this->contentDir . '/settings/site.yaml';
-        if (!file_exists($settingsPath)) {
-            return $defaults;
-        }
-
-        $data = Yaml::parseFile($settingsPath);
-        if (!is_array($data)) {
-            return $defaults;
-        }
-
-        return array_replace_recursive($defaults, $data);
     }
 
     private function loadThemeSettings(): array
     {
-        $defaults = [
+        $defaults = $this->defaultThemeSettings();
+        $raw = $this->loadSettingsRaw('theme_settings', $this->contentDir . '/settings/theme.yaml', $defaults);
+        if ($raw === '') {
+            return $defaults;
+        }
+        try {
+            $data = Yaml::parse($raw);
+        } catch (\Throwable) {
+            return $defaults;
+        }
+        if (!is_array($data)) {
+            return $defaults;
+        }
+        return array_replace_recursive($defaults, $data);
+    }
+
+    private function defaultThemeSettings(): array
+    {
+        return [
             'appearance' => [
                 'mode' => 'system',
                 'palette' => 'slate',
@@ -3212,20 +3239,50 @@ final class App
                 'address' => '',
             ],
         ];
+    }
 
-        $path = $this->contentDir . '/settings/theme.yaml';
-        if (!file_exists($path)) {
-            return $defaults;
+    private function loadSettingsRaw(string $key, string $legacyPath, array $defaults): string
+    {
+        if ($this->systemDatabase->isAvailable()) {
+            $raw = $this->getSystemMeta($key);
+            if ($raw !== null) {
+                return $raw;
+            }
+
+            $raw = is_file($legacyPath) ? (string)file_get_contents($legacyPath) : Yaml::dump($defaults, 4, 2);
+            $this->setSystemMeta($key, $raw);
+            return $raw;
         }
-        try {
-            $data = Yaml::parseFile($path);
-        } catch (\Throwable) {
-            return $defaults;
+
+        return is_file($legacyPath) ? (string)file_get_contents($legacyPath) : Yaml::dump($defaults, 4, 2);
+    }
+
+    private function getSystemMeta(string $key): ?string
+    {
+        if (!$this->systemDatabase->isAvailable()) {
+            return null;
         }
-        if (!is_array($data)) {
-            return $defaults;
+        $stmt = $this->systemDatabase->connection()->prepare('SELECT value FROM system_meta WHERE key = :key LIMIT 1');
+        $stmt->execute(['key' => $key]);
+        $value = $stmt->fetchColumn();
+        return is_string($value) ? $value : null;
+    }
+
+    private function setSystemMeta(string $key, string $value): void
+    {
+        if (!$this->systemDatabase->isAvailable()) {
+            return;
         }
-        return array_replace_recursive($defaults, $data);
+        $stmt = $this->systemDatabase->connection()->prepare(
+            'INSERT INTO system_meta (key, value, updated_at)
+             VALUES (:key, :value, :updated_at)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at'
+        );
+        $stmt->execute([
+            'key' => $key,
+            'value' => $value,
+            'updated_at' => gmdate('c'),
+        ]);
     }
 
     /** @return array{ok: bool, message?: string} */
@@ -3233,7 +3290,12 @@ final class App
     {
         $raw = trim($raw);
         if ($raw === '') {
-            file_put_contents($path, Yaml::dump($this->loadThemeSettings(), 4, 2));
+            $raw = Yaml::dump($this->loadThemeSettings(), 4, 2);
+            if ($this->systemDatabase->isAvailable()) {
+                $this->setSystemMeta('theme_settings', $raw);
+            } else {
+                file_put_contents($path, $raw);
+            }
             return ['ok' => true];
         }
         try {
@@ -3244,7 +3306,11 @@ final class App
         if (!is_array($parsed)) {
             return ['ok' => false, 'message' => 'Theme YAML must contain a top-level mapping.'];
         }
-        file_put_contents($path, $raw . "\n");
+        if ($this->systemDatabase->isAvailable()) {
+            $this->setSystemMeta('theme_settings', $raw . "\n");
+        } else {
+            file_put_contents($path, $raw . "\n");
+        }
         return ['ok' => true];
     }
 
@@ -5237,7 +5303,11 @@ final class App
         ];
 
         $yaml = Yaml::dump($data, 4, 2);
-        file_put_contents($path, $yaml);
+        if ($this->systemDatabase->isAvailable()) {
+            $this->setSystemMeta('site_settings', $yaml);
+        } else {
+            file_put_contents($path, $yaml);
+        }
     }
 
     /** @return string[] */
@@ -6104,13 +6174,18 @@ final class App
 
     private function updateBackupLastRun(string $isoDate): void
     {
-        $path = $this->contentDir . '/settings/site.yaml';
-        $data = file_exists($path) ? (Yaml::parseFile($path) ?: []) : [];
+        $raw = $this->loadSettingsRaw('site_settings', $this->contentDir . '/settings/site.yaml', $this->defaultSettings());
+        $data = $raw !== '' ? (Yaml::parse($raw) ?: []) : [];
         if (!is_array($data)) {
             $data = [];
         }
         $data['backup']['auto']['last_run'] = $isoDate;
-        file_put_contents($path, Yaml::dump($data, 4, 2));
+        $yaml = Yaml::dump($data, 4, 2);
+        if ($this->systemDatabase->isAvailable()) {
+            $this->setSystemMeta('site_settings', $yaml);
+        } else {
+            file_put_contents($this->contentDir . '/settings/site.yaml', $yaml);
+        }
         $this->settings = $this->loadSettings();
     }
 

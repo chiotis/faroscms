@@ -2,7 +2,8 @@
 
 FarosCMS uses a hybrid storage model:
 
-- Markdown/YAML files remain the source of truth for content.
+- Markdown files remain the source of truth for content and content metadata.
+- Site/theme/admin settings are stored in SQLite system metadata.
 - Uploaded files remain on the filesystem.
 - SQLite stores system/admin data that benefits from querying, filtering, history, and indexes.
 
@@ -21,14 +22,15 @@ The initial foundation migration creates:
 - `content_index`
 - `backup_runs`
 
-The users, activity logs, email logs, notifications, and backup runs tables are now wired into admin flows. The remaining tables are intentionally not fully wired into admin flows yet; they exist so the next features can build on stable storage.
+The users, settings metadata, activity logs, email logs, notifications, and backup runs tables are now wired into admin flows. The remaining tables are intentionally not fully wired into admin flows yet; they exist so the next features can build on stable storage.
 
 ## Boundaries
 
-Do not move page/post/project/menu/taxonomy/settings content into SQLite as the primary source of truth.
+Do not move page/post/project content and content frontmatter into SQLite as the primary source of truth.
 
 SQLite should be used for:
 
+- site/theme/admin settings
 - users and roles
 - permission metadata
 - activity logs
@@ -38,4 +40,4 @@ SQLite should be used for:
 - backup/update history
 - rate-limit and operational state
 
-The CMS should continue to run from flat files even if `storage/db/app.sqlite` is deleted and recreated. Historical system data such as logs may be lost when the database is deleted unless separately backed up.
+If `storage/db/app.sqlite` is deleted, content remains available from Markdown files, but admin/system settings and historical system data such as logs are lost unless restored from backup. Legacy `content/settings/*.yaml` files are imported into SQLite only when the matching SQLite settings key does not exist.
