@@ -27,7 +27,7 @@ Implemented now:
 - Media/files library with uploads, metadata, filters, tags, bulk selection, delete, and direct URLs.
 - Menus list/create/edit with language/translation handling.
 - Taxonomies list/edit with YAML-backed terms.
-- Settings tabs for general, theme, menus, email/SMTP/SES, backups, APIs placeholder, and system/raw YAML.
+- Settings tabs for general, theme, menus, email/SMTP/SES, backups, backup remote storage, APIs placeholder, and system/raw YAML.
 - Translations editor.
 - Frontend routing, archives, taxonomy pages, search, sitemap, robots, language links, and theme rendering.
 - Local backup snapshots integrated inside Settings.
@@ -93,7 +93,7 @@ Implemented now:
 
 ### Operational Features
 
-- Admin-configurable backup retention and backup history are present, but restore-from-backup is still intentionally missing until the safety flow is designed.
+- Admin-configurable backup retention, remote storage destination settings, and backup history are present, but remote upload/test/pruning and restore-from-backup are still intentionally missing until the safety flows are designed.
 - Serious update workflow is missing: check, download, verify, backup-before-update, install, rollback.
 - System health/status checks are partially wired for the dashboard: writable paths, PHP version, upload limit, memory limit, SQLite, mail status, storage usage, and disk free exist; cache/index status and scheduled task checks are still missing.
 - Search/index admin tooling is missing: rebuild index, inspect search index, or index status.

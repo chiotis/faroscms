@@ -1683,6 +1683,16 @@ final class App
                 'backup_auto_enabled' => isset($_POST['backup_auto_enabled']) ? '1' : '0',
                 'backup_schedule' => (string)($_POST['backup_schedule'] ?? ''),
                 'backup_keep_local' => (string)($_POST['backup_keep_local'] ?? ''),
+                'backup_remote_enabled' => isset($_POST['backup_remote_enabled']) ? '1' : '0',
+                'backup_remote_provider' => (string)($_POST['backup_remote_provider'] ?? ''),
+                'backup_remote_endpoint' => (string)($_POST['backup_remote_endpoint'] ?? ''),
+                'backup_remote_region' => (string)($_POST['backup_remote_region'] ?? ''),
+                'backup_remote_bucket' => (string)($_POST['backup_remote_bucket'] ?? ''),
+                'backup_remote_access_key' => (string)($_POST['backup_remote_access_key'] ?? ''),
+                'backup_remote_secret_key' => (string)($_POST['backup_remote_secret_key'] ?? ''),
+                'backup_remote_prefix' => (string)($_POST['backup_remote_prefix'] ?? ''),
+                'backup_remote_keep' => (string)($_POST['backup_remote_keep'] ?? ''),
+                'backup_remote_path_style' => isset($_POST['backup_remote_path_style']) ? '1' : '0',
                 'google_enabled' => isset($_POST['google_enabled']) ? '1' : '0',
                 'google_client_id' => (string)($_POST['google_client_id'] ?? ''),
                 'google_client_secret' => (string)($_POST['google_client_secret'] ?? ''),
@@ -3063,6 +3073,18 @@ final class App
                 ],
                 'local' => [
                     'keep' => 20,
+                ],
+                'remote' => [
+                    'enabled' => false,
+                    'provider' => 'custom',
+                    'endpoint' => '',
+                    'region' => '',
+                    'bucket' => '',
+                    'access_key' => '',
+                    'secret_key' => '',
+                    'prefix' => '',
+                    'keep' => 20,
+                    'path_style' => false,
                 ],
             ],
         ];
@@ -4909,6 +4931,14 @@ final class App
         if ($backupKeep < 1) {
             $backupKeep = 1;
         }
+        $remoteProvider = (string)($merged['backup']['remote']['provider'] ?? 'custom');
+        if (!in_array($remoteProvider, $this->backupRemoteProviders(), true)) {
+            $remoteProvider = 'custom';
+        }
+        $remoteKeep = (int)($merged['backup']['remote']['keep'] ?? 20);
+        if ($remoteKeep < 1) {
+            $remoteKeep = 1;
+        }
 
         return [
             'title' => (string)($merged['title'] ?? ''),
@@ -4938,6 +4968,16 @@ final class App
             'backup_schedule' => $backupSchedule,
             'backup_last_run' => (string)($merged['backup']['auto']['last_run'] ?? ''),
             'backup_keep_local' => (string)$backupKeep,
+            'backup_remote_enabled' => $this->isTruthy($merged['backup']['remote']['enabled'] ?? false),
+            'backup_remote_provider' => $remoteProvider,
+            'backup_remote_endpoint' => (string)($merged['backup']['remote']['endpoint'] ?? ''),
+            'backup_remote_region' => (string)($merged['backup']['remote']['region'] ?? ''),
+            'backup_remote_bucket' => (string)($merged['backup']['remote']['bucket'] ?? ''),
+            'backup_remote_access_key' => (string)($merged['backup']['remote']['access_key'] ?? ''),
+            'backup_remote_secret_key' => (string)($merged['backup']['remote']['secret_key'] ?? ''),
+            'backup_remote_prefix' => (string)($merged['backup']['remote']['prefix'] ?? ''),
+            'backup_remote_keep' => (string)$remoteKeep,
+            'backup_remote_path_style' => $this->isTruthy($merged['backup']['remote']['path_style'] ?? false),
             'google_enabled' => $this->isTruthy($merged['auth']['google']['enabled'] ?? false),
             'google_client_id' => (string)($merged['auth']['google']['client_id'] ?? ''),
             'google_client_secret' => (string)($merged['auth']['google']['client_secret'] ?? ''),
@@ -5045,6 +5085,14 @@ final class App
             $backupKeep = 1;
         }
         $backupLastRun = (string)($data['backup']['auto']['last_run'] ?? '');
+        $remoteProvider = strtolower((string)($form['backup_remote_provider'] ?? 'custom'));
+        if (!in_array($remoteProvider, $this->backupRemoteProviders(), true)) {
+            $remoteProvider = 'custom';
+        }
+        $remoteKeep = (int)($form['backup_remote_keep'] ?? 20);
+        if ($remoteKeep < 1) {
+            $remoteKeep = 1;
+        }
 
         $data['backup'] = [
             'auto' => [
@@ -5054,6 +5102,18 @@ final class App
             ],
             'local' => [
                 'keep' => $backupKeep,
+            ],
+            'remote' => [
+                'enabled' => $this->isTruthy($form['backup_remote_enabled'] ?? false),
+                'provider' => $remoteProvider,
+                'endpoint' => (string)($form['backup_remote_endpoint'] ?? ''),
+                'region' => (string)($form['backup_remote_region'] ?? ''),
+                'bucket' => (string)($form['backup_remote_bucket'] ?? ''),
+                'access_key' => (string)($form['backup_remote_access_key'] ?? ''),
+                'secret_key' => (string)($form['backup_remote_secret_key'] ?? ''),
+                'prefix' => trim((string)($form['backup_remote_prefix'] ?? ''), '/'),
+                'keep' => $remoteKeep,
+                'path_style' => $this->isTruthy($form['backup_remote_path_style'] ?? false),
             ],
         ];
 
@@ -5066,6 +5126,12 @@ final class App
 
         $yaml = Yaml::dump($data, 4, 2);
         file_put_contents($path, $yaml);
+    }
+
+    /** @return string[] */
+    private function backupRemoteProviders(): array
+    {
+        return ['custom', 'aws_s3', 'backblaze_b2', 'cloudflare_r2', 'wasabi', 'digitalocean_spaces', 'minio'];
     }
 
     /** @return array<string, mixed> */
