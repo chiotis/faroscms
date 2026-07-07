@@ -958,9 +958,13 @@ final class App
         if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $action = trim((string)($_POST['updates_action'] ?? ''));
             if ($action === 'check') {
+                $source = $this->updateSourceConfig();
+                $remoteVersion = $this->fetchRemoteVersion((string)$source['version_url']);
                 $this->logActivity('updates.check', 'info', 'updates', 'local', 'Read-only update check completed.', [
                     'current_version' => $this->currentVersion(),
-                    'source' => $this->updatesManifestUrl() !== '' ? 'configured' : 'local',
+                    'remote_version' => $remoteVersion,
+                    'repository' => $source['repository'],
+                    'source' => $source['version_url'],
                 ]);
                 $this->redirect('/admin/updates?checked=1');
                 return;
@@ -968,10 +972,16 @@ final class App
         }
 
         $currentVersion = $this->currentVersion();
-        $updateSource = $this->updatesManifestUrl();
-        $latestVersion = $this->configuredLatestVersion();
+        $source = $this->updateSourceConfig();
+        $remoteVersion = $this->fetchRemoteVersion((string)$source['version_url']);
+        $sourceStatus = (string)$source['version_url'] === '' ? 'not_configured' : ($remoteVersion !== '' ? 'ok' : 'unreachable');
+        $latestVersion = $remoteVersion !== '' ? $remoteVersion : $this->configuredLatestVersion();
         $hasUpdate = $latestVersion !== '' && version_compare($latestVersion, $currentVersion, '>');
         $changelog = $this->readChangelogEntries();
+        $remoteChangelog = $this->fetchRemoteChangelogEntries((string)$source['changelog_url']);
+        if (!empty($remoteChangelog)) {
+            $changelog = $remoteChangelog;
+        }
         $lastRelease = $changelog[0] ?? null;
         $latestDisplay = $latestVersion !== '' ? $latestVersion : (string)($lastRelease['version'] ?? $currentVersion);
         $backups = $this->listBackupSnapshots();
@@ -985,8 +995,14 @@ final class App
             'current_version' => $currentVersion,
             'current_commit' => $this->currentGitCommit(),
             'latest_version' => $latestDisplay,
+            'remote_version' => $remoteVersion,
             'has_update' => $hasUpdate,
-            'update_source' => $updateSource,
+            'update_source' => (string)$source['version_url'],
+            'update_source_status' => $sourceStatus,
+            'update_repository' => (string)$source['repository'],
+            'update_branch' => (string)$source['branch'],
+            'update_changelog_url' => (string)$source['changelog_url'],
+            'update_package_url' => (string)$source['package_url'],
             'update_channel' => (string)($this->settings['updates']['channel'] ?? 'stable'),
             'checked' => isset($_GET['checked']),
             'changelog_entries' => $changelog,
@@ -2868,6 +2884,7 @@ final class App
             'is_admin' => $this->auth->check(),
         ];
         if (str_starts_with($template, '@admin/') && $this->auth->check()) {
+            $defaults['admin_version'] = $this->currentVersion();
             if (!isset($data['admin_storage_summary'])) {
                 $defaults['admin_storage_summary'] = $this->buildStorageSummary();
             }
@@ -3138,7 +3155,11 @@ final class App
             ],
             'updates' => [
                 'channel' => 'stable',
-                'manifest_url' => '',
+                'repository' => 'chiotis/faroscms',
+                'branch' => 'main',
+                'version_url' => 'https://raw.githubusercontent.com/chiotis/faroscms/main/VERSION',
+                'changelog_url' => 'https://raw.githubusercontent.com/chiotis/faroscms/main/CHANGELOG.md',
+                'package_url' => 'https://github.com/chiotis/faroscms/archive/refs/heads/main.zip',
                 'latest_version' => '',
             ],
         ];
@@ -5229,12 +5250,95 @@ final class App
 
     private function updatesManifestUrl(): string
     {
-        return trim((string)($this->settings['updates']['manifest_url'] ?? ''));
+        return (string)$this->updateSourceConfig()['version_url'];
     }
 
     private function configuredLatestVersion(): string
     {
         return trim((string)($this->settings['updates']['latest_version'] ?? ''));
+    }
+
+    /** @return array{repository: string, branch: string, version_url: string, changelog_url: string, package_url: string} */
+    private function updateSourceConfig(): array
+    {
+        $config = $this->settings['updates'] ?? [];
+        if (!is_array($config)) {
+            $config = [];
+        }
+        $repository = trim((string)($config['repository'] ?? 'chiotis/faroscms'));
+        if ($repository === '') {
+            $repository = 'chiotis/faroscms';
+        }
+        $branch = trim((string)($config['branch'] ?? 'main'));
+        if ($branch === '') {
+            $branch = 'main';
+        }
+        $encodedBranch = rawurlencode($branch);
+        $versionUrl = trim((string)($config['version_url'] ?? ''));
+        if ($versionUrl === '') {
+            $versionUrl = 'https://raw.githubusercontent.com/' . $repository . '/' . $encodedBranch . '/VERSION';
+        }
+        $changelogUrl = trim((string)($config['changelog_url'] ?? ''));
+        if ($changelogUrl === '') {
+            $changelogUrl = 'https://raw.githubusercontent.com/' . $repository . '/' . $encodedBranch . '/CHANGELOG.md';
+        }
+        $packageUrl = trim((string)($config['package_url'] ?? ''));
+        if ($packageUrl === '') {
+            $packageUrl = 'https://github.com/' . $repository . '/archive/refs/heads/' . $encodedBranch . '.zip';
+        }
+
+        return [
+            'repository' => $repository,
+            'branch' => $branch,
+            'version_url' => $versionUrl,
+            'changelog_url' => $changelogUrl,
+            'package_url' => $packageUrl,
+        ];
+    }
+
+    private function fetchRemoteVersion(string $url): string
+    {
+        $body = $this->readRemoteText($url);
+        if ($body === '') {
+            return '';
+        }
+        $line = trim(strtok($body, "\r\n") ?: '');
+        if ($line === '' || !preg_match('/^[A-Za-z0-9][A-Za-z0-9._+\\-]*$/', $line)) {
+            return '';
+        }
+
+        return $line;
+    }
+
+    /** @return array<int, array{version: string, items: array<int, string>}> */
+    private function fetchRemoteChangelogEntries(string $url): array
+    {
+        $body = $this->readRemoteText($url);
+        if ($body === '') {
+            return [];
+        }
+
+        return $this->parseChangelogEntries(preg_split('/\R/', $body) ?: []);
+    }
+
+    private function readRemoteText(string $url): string
+    {
+        $url = trim($url);
+        if ($url === '' || !preg_match('#^https?://#i', $url)) {
+            return '';
+        }
+        $context = stream_context_create([
+            'http' => [
+                'timeout' => 3,
+                'user_agent' => 'FarosCMS update checker',
+            ],
+        ]);
+        $body = @file_get_contents($url, false, $context);
+        if (!is_string($body)) {
+            return '';
+        }
+
+        return trim($body);
     }
 
     /** @return array<int, array{version: string, items: array<int, string>}> */
@@ -5249,6 +5353,15 @@ final class App
             return [];
         }
 
+        return $this->parseChangelogEntries($lines);
+    }
+
+    /**
+     * @param string[] $lines
+     * @return array<int, array{version: string, items: array<int, string>}>
+     */
+    private function parseChangelogEntries(array $lines): array
+    {
         $entries = [];
         $current = null;
         foreach ($lines as $line) {
@@ -5310,6 +5423,7 @@ final class App
     private function buildUpdatePreflightChecks(): array
     {
         $backupDir = $this->backupDirectory();
+        $source = $this->updateSourceConfig();
         return [
             [
                 'label' => 'PHP compatibility',
@@ -5333,8 +5447,8 @@ final class App
             ],
             [
                 'label' => 'Update source',
-                'value' => $this->updatesManifestUrl() !== '' ? 'configured' : 'not configured',
-                'status' => $this->updatesManifestUrl() !== '' ? 'ok' : 'warning',
+                'value' => (string)$source['version_url'] !== '' ? 'configured' : 'not configured',
+                'status' => (string)$source['version_url'] !== '' ? 'ok' : 'warning',
             ],
         ];
     }

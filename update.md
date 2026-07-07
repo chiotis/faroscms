@@ -2,6 +2,13 @@
 
 This document explains a safe update process when new code is available in the main repository.
 
+## Update Source
+
+- Repository: `chiotis/faroscms`
+- Branch: `main`
+- Version source: `https://raw.githubusercontent.com/chiotis/faroscms/main/VERSION`
+- Changelog source: `https://raw.githubusercontent.com/chiotis/faroscms/main/CHANGELOG.md`
+
 ## 1) Before You Update
 
 - Ensure PHP version is compatible (`>= 8.1`).
@@ -100,4 +107,3 @@ For production stability:
 - Keep customizations in separate commits/branch.
 - Update via staging first, then production.
 - Treat updates as: **backup -> update -> verify -> keep snapshot**.
-

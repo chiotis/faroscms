@@ -20,7 +20,7 @@ Implemented now:
 - Notification storage, topbar dropdown, unread badge, mark-read actions, and derived failed-email/backup/system notifications.
 - Dashboard landing page at `/admin` with content counts, users count, backup status, recent activity, recent email attempts, storage usage, system checks, and quick actions.
 - Dedicated `/admin/backups` module with full/database backup actions, downloads, delete action, policy summary, local archive list, and SQLite run history.
-- Dedicated `/admin/updates` module with current version, local changelog, read-only status check, preflight checks, and disabled install state.
+- Dedicated `/admin/updates` module with local `VERSION`, GitHub raw `VERSION` source, changelog, read-only status check, preflight checks, and disabled install state.
 - Google Sign-In settings and OAuth login flow for existing active users.
 - Content list, create, edit, save, delete, import, and export.
 - Page/post/project/form content types from Markdown/YAML files.
@@ -53,7 +53,7 @@ Implemented now:
 ### Lower Priority / Design-System Parity
 
 - Components catalog: the template includes `components.html`; FarosCMS does not need this in production, but it could be kept as an internal UI reference.
-- Version badge: the template shows a product version; FarosCMS shell currently shows `base` until a release `VERSION` file is introduced.
+- Version badge: the admin shell reads the local `VERSION` file.
 - Notification archive/list page: the topbar center exists, but there is no dedicated notification history screen yet.
 - Empty states consistency: many screens have empty states, but not every admin module follows the same template pattern.
 - Toast placement/timing consistency: FarosCMS has shared toast support, but older modules still contain local toast markup and top-right placement.
