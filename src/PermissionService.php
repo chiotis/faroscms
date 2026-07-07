@@ -81,6 +81,7 @@ final class PermissionService
             'activity-logs' => 'activity.manage',
             'email-logs' => 'email_logs.manage',
             'notification-read', 'notifications-read-all' => 'notifications.manage',
+            'backups' => 'backups.manage',
             'users', 'users-delete' => 'users.manage',
             'users-edit' => null,
             'edit', 'save', 'delete', 'new' => 'content.manage',

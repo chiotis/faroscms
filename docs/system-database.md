@@ -21,7 +21,7 @@ The initial foundation migration creates:
 - `content_index`
 - `backup_runs`
 
-The users, activity logs, email logs, and notifications tables are now wired into admin flows. The remaining tables are intentionally not fully wired into admin flows yet; they exist so the next features can build on stable storage.
+The users, activity logs, email logs, notifications, and backup runs tables are now wired into admin flows. The remaining tables are intentionally not fully wired into admin flows yet; they exist so the next features can build on stable storage.
 
 ## Boundaries
 

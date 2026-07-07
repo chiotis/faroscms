@@ -26,6 +26,7 @@ final class App
     private ActivityLogRepository $activityLogs;
     private EmailLogRepository $emailLogs;
     private NotificationRepository $notifications;
+    private BackupRunRepository $backupRuns;
     private string $currentLang;
     private array $translations = [];
     private array $formStates = [];
@@ -55,6 +56,7 @@ final class App
         $this->activityLogs = new ActivityLogRepository($this->systemDatabase);
         $this->emailLogs = new EmailLogRepository($this->systemDatabase);
         $this->notifications = new NotificationRepository($this->systemDatabase);
+        $this->backupRuns = new BackupRunRepository($this->systemDatabase);
         $this->content = new ContentRepository($this->contentDir, $markdown, $this->settings);
         $this->auth = new Auth($this->contentDir . '/users/users.yaml', $this->users);
 
@@ -325,6 +327,11 @@ final class App
 
         if ($action === 'email-logs') {
             $this->handleEmailLogs();
+            return;
+        }
+
+        if ($action === 'backups') {
+            $this->handleBackups();
             return;
         }
 
@@ -848,6 +855,97 @@ final class App
             ]);
         }
         $this->redirect($this->sanitizeAdminReturnUrl((string)($_POST['return_to'] ?? '/admin')));
+    }
+
+    private function handleBackups(): void
+    {
+        $downloadBackup = trim((string)($_GET['download'] ?? ''));
+        if ($downloadBackup !== '') {
+            $this->downloadBackupSnapshot($downloadBackup, '/admin/backups');
+            return;
+        }
+
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+            $action = trim((string)($_POST['backup_action'] ?? ''));
+            if ($action === 'create_full') {
+                $result = $this->createBackupSnapshot();
+                if (($result['ok'] ?? false) === true) {
+                    $this->updateBackupLastRun(date('c'));
+                }
+                $this->recordBackupRun($result);
+                $this->logActivity(($result['ok'] ?? false) ? 'backup.create_success' : 'backup.create_failure', ($result['ok'] ?? false) ? 'info' : 'error', 'backup', (string)($result['filename'] ?? ''), (string)($result['message'] ?? 'Backup action completed.'), [
+                    'result' => $result,
+                    'source' => 'backups_module',
+                ]);
+                $this->notifyBackupResult($result, false);
+                $this->redirect('/admin/backups?' . http_build_query([
+                    'backup' => (($result['ok'] ?? false) ? 'ok' : 'fail'),
+                    'backup_msg' => (string)($result['message'] ?? ''),
+                ]));
+                return;
+            }
+
+            if ($action === 'create_database') {
+                $result = $this->createDatabaseBackupSnapshot();
+                $this->recordBackupRun($result);
+                $this->logActivity(($result['ok'] ?? false) ? 'backup.database_success' : 'backup.database_failure', ($result['ok'] ?? false) ? 'info' : 'error', 'backup', (string)($result['filename'] ?? ''), (string)($result['message'] ?? 'Database backup action completed.'), [
+                    'result' => $result,
+                    'source' => 'backups_module',
+                ]);
+                $this->notifyBackupResult($result, false);
+                $this->redirect('/admin/backups?' . http_build_query([
+                    'backup' => (($result['ok'] ?? false) ? 'ok' : 'fail'),
+                    'backup_msg' => (string)($result['message'] ?? ''),
+                ]));
+                return;
+            }
+
+            if ($action === 'delete') {
+                $filename = $this->sanitizeBackupFilename((string)($_POST['filename'] ?? ''));
+                $result = $this->deleteBackupSnapshot($filename);
+                $this->logActivity(($result['ok'] ?? false) ? 'backup.delete_success' : 'backup.delete_failure', ($result['ok'] ?? false) ? 'warning' : 'error', 'backup', $filename, (string)($result['message'] ?? 'Backup delete action completed.'), [
+                    'filename' => $filename,
+                ]);
+                $this->redirect('/admin/backups?' . http_build_query([
+                    'deleted' => (($result['ok'] ?? false) ? 'ok' : 'fail'),
+                    'backup_msg' => (string)($result['message'] ?? ''),
+                ]));
+                return;
+            }
+        }
+
+        $snapshots = $this->listBackupSnapshots();
+        $storageBytes = array_sum(array_map(fn(array $snapshot): int => (int)($snapshot['size'] ?? 0), $snapshots));
+        $schedule = $this->settings['backup']['auto'] ?? [];
+        if (!is_array($schedule)) {
+            $schedule = [];
+        }
+        $keep = (int)($this->settings['backup']['local']['keep'] ?? 20);
+        if ($keep < 1) {
+            $keep = 1;
+        }
+
+        $this->render('@admin/backups.twig', [
+            'title' => 'Backups',
+            'types' => $this->content->getTypes(),
+            'user' => $this->auth->user(),
+            'admin_section' => 'backups',
+            'current_type' => 'pages',
+            'backup_snapshots' => $snapshots,
+            'backup_runs' => $this->backupRuns->recent(20),
+            'backup_status' => (string)($_GET['backup'] ?? ''),
+            'delete_status' => (string)($_GET['deleted'] ?? ''),
+            'backup_message' => trim((string)($_GET['backup_msg'] ?? '')),
+            'backup_total' => count($snapshots),
+            'backup_storage_human' => $this->formatFileSize($storageBytes),
+            'last_backup' => $snapshots[0] ?? null,
+            'backup_schedule' => [
+                'enabled' => $this->isTruthy($schedule['enabled'] ?? false),
+                'frequency' => (string)($schedule['schedule'] ?? 'daily'),
+                'last_run' => (string)($schedule['last_run'] ?? ''),
+                'keep' => $keep,
+            ],
+        ]);
     }
 
     private function handleUserEdit(): void
@@ -1634,6 +1732,7 @@ final class App
                 if (($result['ok'] ?? false) === true) {
                     $this->updateBackupLastRun(date('c'));
                 }
+                $this->recordBackupRun($result);
                 $this->logActivity(($result['ok'] ?? false) ? 'backup.create_success' : 'backup.create_failure', ($result['ok'] ?? false) ? 'info' : 'error', 'backup', (string)($result['filename'] ?? ''), (string)($result['message'] ?? 'Backup action completed.'), [
                     'result' => $result,
                 ]);
@@ -2816,7 +2915,7 @@ final class App
                 'title' => $ok ? 'Backup completed' : 'Backup failed',
                 'body' => (string)($result['message'] ?? ($ok ? 'Backup completed.' : 'Backup failed.')),
                 'severity' => $ok ? 'success' : 'error',
-                'target_url' => '/admin/settings?tab=backup',
+                'target_url' => '/admin/backups',
                 'context' => [
                     'scheduled' => $scheduled,
                     'filename' => (string)($result['filename'] ?? ''),
@@ -5304,6 +5403,7 @@ final class App
         if (($result['ok'] ?? false) === true) {
             $this->updateBackupLastRun(date('c'));
         }
+        $this->recordBackupRun($result);
         $this->notifyBackupResult($result, true);
 
         @flock($lockHandle, LOCK_UN);
@@ -5383,6 +5483,60 @@ final class App
             'message' => 'Snapshot created.',
             'filename' => $filename,
         ];
+    }
+
+    /** @return array{ok: bool, message: string, filename?: string} */
+    private function createDatabaseBackupSnapshot(): array
+    {
+        if (!class_exists(\ZipArchive::class)) {
+            return ['ok' => false, 'message' => 'Zip extension is not available on this server.'];
+        }
+
+        $dbPath = $this->basePath . '/storage/db/app.sqlite';
+        if (!is_file($dbPath)) {
+            return ['ok' => false, 'message' => 'System database file was not found.'];
+        }
+
+        $this->ensureBackupDirectory();
+        $siteSlug = $this->slugify((string)($this->settings['title'] ?? 'site'));
+        if ($siteSlug === '') {
+            $siteSlug = 'site';
+        }
+        $filename = $siteSlug . '-database-backup-' . date('Ymd-His') . '-' . bin2hex(random_bytes(3)) . '.zip';
+        $snapshotPath = $this->backupDirectory() . '/' . $filename;
+
+        $zip = new \ZipArchive();
+        if ($zip->open($snapshotPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+            return ['ok' => false, 'message' => 'Could not create database backup archive.'];
+        }
+        $zip->addFile($dbPath, 'storage/db/app.sqlite');
+        $zip->close();
+
+        return [
+            'ok' => true,
+            'message' => 'Database backup created.',
+            'filename' => $filename,
+        ];
+    }
+
+    private function recordBackupRun(array $result): void
+    {
+        try {
+            $filename = (string)($result['filename'] ?? '');
+            $size = 0;
+            if ($filename !== '') {
+                $path = $this->backupDirectory() . '/' . $this->sanitizeBackupFilename($filename);
+                $size = is_file($path) ? (int)(filesize($path) ?: 0) : 0;
+            }
+            $this->backupRuns->record([
+                'filename' => $filename,
+                'status' => (($result['ok'] ?? false) === true) ? 'success' : 'failed',
+                'size_bytes' => $size,
+                'message' => (string)($result['message'] ?? ''),
+            ]);
+        } catch (\Throwable) {
+            // Backup run history must never block the backup workflow.
+        }
     }
 
     private function shouldExcludeBackupPath(string $relative): bool
@@ -5467,16 +5621,16 @@ final class App
         return $size;
     }
 
-    private function downloadBackupSnapshot(string $filename): void
+    private function downloadBackupSnapshot(string $filename, string $failureBase = '/admin/settings?tab=backup'): void
     {
         $filename = $this->sanitizeBackupFilename($filename);
         if ($filename === '') {
-            $this->redirect('/admin/settings?tab=backup&backup=fail&backup_msg=' . urlencode('Invalid backup file.'));
+            $this->redirect($failureBase . (str_contains($failureBase, '?') ? '&' : '?') . 'backup=fail&backup_msg=' . urlencode('Invalid backup file.'));
             return;
         }
         $path = $this->backupDirectory() . '/' . $filename;
         if (!is_file($path)) {
-            $this->redirect('/admin/settings?tab=backup&backup=fail&backup_msg=' . urlencode('Backup file not found.'));
+            $this->redirect($failureBase . (str_contains($failureBase, '?') ? '&' : '?') . 'backup=fail&backup_msg=' . urlencode('Backup file not found.'));
             return;
         }
         header('Content-Type: application/zip');
@@ -5484,6 +5638,22 @@ final class App
         header('Content-Length: ' . (string)(filesize($path) ?: 0));
         readfile($path);
         exit;
+    }
+
+    /** @return array{ok: bool, message: string} */
+    private function deleteBackupSnapshot(string $filename): array
+    {
+        if ($filename === '') {
+            return ['ok' => false, 'message' => 'Invalid backup file.'];
+        }
+        $path = $this->backupDirectory() . '/' . $filename;
+        if (!is_file($path)) {
+            return ['ok' => false, 'message' => 'Backup file not found.'];
+        }
+        if (!@unlink($path)) {
+            return ['ok' => false, 'message' => 'Could not delete backup file.'];
+        }
+        return ['ok' => true, 'message' => 'Backup deleted.'];
     }
 
     private function sanitizeBackupFilename(string $value): string

@@ -207,7 +207,7 @@
         <a class="{{ btn_secondary }}" href="{{ url('admin/users-edit') }}">Add user</a>
       {% endif %}
       {% if can('settings.manage') %}
-        <a class="{{ btn_secondary }}" href="{{ url('admin/settings?tab=backup') }}">Backups</a>
+        <a class="{{ btn_secondary }}" href="{{ url('admin/backups') }}">Backups</a>
         <a class="{{ btn_secondary }}" href="{{ url('admin/settings?tab=smtp') }}">Email settings</a>
       {% endif %}
       {% if can('activity.manage') %}

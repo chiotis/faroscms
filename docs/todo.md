@@ -66,11 +66,11 @@ Content remains file-based. SQLite is used for system/admin data, starting with 
 
 ### Backups
 
-- [ ] Create dedicated `/admin/backups` page.
-- [ ] Keep schedule/retention settings in Settings.
-- [ ] Add backup history from SQLite `backup_runs`.
+- [x] Create dedicated `/admin/backups` page.
+- [x] Keep schedule/retention settings in Settings.
+- [x] Add backup history from SQLite `backup_runs`.
 - [ ] Add restore flow after careful safety review.
-- [ ] Add delete old snapshot action.
+- [x] Add delete old snapshot action.
 
 ### Updates
 

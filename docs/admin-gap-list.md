@@ -19,6 +19,7 @@ Implemented now:
 - Email log storage and `/admin/email-logs` with provider, recipient, status, date, search, details, and clear action.
 - Notification storage, topbar dropdown, unread badge, mark-read actions, and derived failed-email/backup/system notifications.
 - Dashboard landing page at `/admin` with content counts, users count, backup status, recent activity, recent email attempts, storage usage, system checks, and quick actions.
+- Dedicated `/admin/backups` module with full/database backup actions, downloads, delete action, policy summary, local archive list, and SQLite run history.
 - Google Sign-In settings and OAuth login flow for existing active users.
 - Content list, create, edit, save, delete, import, and export.
 - Page/post/project/form content types from Markdown/YAML files.
@@ -40,7 +41,6 @@ Implemented now:
 
 ### Medium Priority
 
-- Dedicated Backups page: the template has `backups.html`; FarosCMS has backups inside Settings only. Missing as a first-class admin section with richer restore/clear/history controls.
 - Separate Forms list template parity: FarosCMS manages forms as a content type and has form-specific edit behavior, but it does not yet have a faithful standalone `forms-list.html` experience from the template.
 - Full file manager parity: FarosCMS maps `/admin/files` to the media document list. The core file behavior exists, but the URL/module identity is not a standalone Files section matching the template.
 - Filter toggle parity: the template uses hidden filter panels opened by a Filter button on most list screens. Some FarosCMS screens still show filters inline or vary by module.
@@ -93,7 +93,7 @@ Implemented now:
 
 ### Operational Features
 
-- Admin-configurable backup retention is present, but restore-from-backup is missing.
+- Admin-configurable backup retention and backup history are present, but restore-from-backup is still intentionally missing until the safety flow is designed.
 - Serious update workflow is missing: check, download, verify, backup-before-update, install, rollback.
 - System health/status checks are partially wired for the dashboard: writable paths, PHP version, upload limit, memory limit, SQLite, mail status, storage usage, and disk free exist; cache/index status and scheduled task checks are still missing.
 - Search/index admin tooling is missing: rebuild index, inspect search index, or index status.
@@ -101,9 +101,9 @@ Implemented now:
 
 ## Suggested Implementation Order
 
-1. Dedicated backups page: move backup UX out of Settings while keeping settings for schedule/retention.
-2. Updates page: start with read-only version/changelog/check state, then add install flow later.
-3. Add update-derived notifications after the Updates module can report state.
+1. Updates page: start with read-only version/changelog/check state, then add install flow later.
+2. Add update-derived notifications after the Updates module can report state.
+3. Forms module: make forms feel like a standalone admin section.
 4. UI consistency pass: filters, toasts, table sorting, badges, modals/off-canvas.
 5. System health/cache/index tools.
 6. Longer-term architecture pass: decide whether FarosCMS should stay Twig/Composer based or move closer to strict phpFlat structure.
