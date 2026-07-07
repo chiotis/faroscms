@@ -20,6 +20,7 @@ Implemented now:
 - Notification storage, topbar dropdown, unread badge, mark-read actions, and derived failed-email/backup/system notifications.
 - Dashboard landing page at `/admin` with content counts, users count, backup status, recent activity, recent email attempts, storage usage, system checks, and quick actions.
 - Dedicated `/admin/backups` module with full/database backup actions, downloads, delete action, policy summary, local archive list, and SQLite run history.
+- Dedicated `/admin/updates` module with current version, local changelog, read-only status check, preflight checks, and disabled install state.
 - Google Sign-In settings and OAuth login flow for existing active users.
 - Content list, create, edit, save, delete, import, and export.
 - Page/post/project/form content types from Markdown/YAML files.
@@ -36,8 +37,8 @@ Implemented now:
 
 ### High Priority
 
-- Updates page: the template has `updates.html`; FarosCMS has no update checker, update package workflow, version badge, changelog feed, or install action.
-- Update-derived notifications: the topbar notification center exists, but update notifications wait for the Updates module.
+- Update install workflow: `/admin/updates` exists in read-only mode, but FarosCMS still has no package download, checksum verification, backup-before-update, install action, or rollback action.
+- Update-derived notifications: the topbar notification center exists, but it does not yet derive notifications from update status.
 
 ### Medium Priority
 
@@ -52,7 +53,7 @@ Implemented now:
 ### Lower Priority / Design-System Parity
 
 - Components catalog: the template includes `components.html`; FarosCMS does not need this in production, but it could be kept as an internal UI reference.
-- Version badge: the template shows a product version; FarosCMS shell currently shows `base`.
+- Version badge: the template shows a product version; FarosCMS shell currently shows `base` until a release `VERSION` file is introduced.
 - Notification archive/list page: the topbar center exists, but there is no dedicated notification history screen yet.
 - Empty states consistency: many screens have empty states, but not every admin module follows the same template pattern.
 - Toast placement/timing consistency: FarosCMS has shared toast support, but older modules still contain local toast markup and top-right placement.
@@ -94,15 +95,15 @@ Implemented now:
 ### Operational Features
 
 - Admin-configurable backup retention, remote storage destination settings, and backup history are present, but remote upload/test/pruning and restore-from-backup are still intentionally missing until the safety flows are designed.
-- Serious update workflow is missing: check, download, verify, backup-before-update, install, rollback.
+- Serious update workflow is missing: remote manifest fetch, package download, checksum verification, backup-before-update, install, and rollback.
 - System health/status checks are partially wired for the dashboard: writable paths, PHP version, upload limit, memory limit, SQLite, mail status, storage usage, and disk free exist; cache/index status and scheduled task checks are still missing.
 - Search/index admin tooling is missing: rebuild index, inspect search index, or index status.
 - Cache management is missing: clear/rebuild cache, cache status, cache size.
 
 ## Suggested Implementation Order
 
-1. Updates page: start with read-only version/changelog/check state, then add install flow later.
-2. Add update-derived notifications after the Updates module can report state.
+1. Update notifications from the read-only Updates module.
+2. Design backup-before-update, package verification, install, and rollback before enabling update actions.
 3. Forms module: make forms feel like a standalone admin section.
 4. UI consistency pass: filters, toasts, table sorting, badges, modals/off-canvas.
 5. System health/cache/index tools.

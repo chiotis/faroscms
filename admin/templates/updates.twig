@@ -1,0 +1,167 @@
+{% extends '@admin/base.twig' %}
+
+{% block content %}
+  {% set primary_button = 'inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-blue-700' %}
+  {% set secondary_button = 'inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50' %}
+  {% set disabled_button = 'inline-flex cursor-not-allowed items-center gap-1.5 rounded-md bg-slate-200 px-3 py-1.5 text-sm font-medium text-slate-500' %}
+
+  {% if checked %}
+    <div data-toast class="pointer-events-auto fixed right-4 top-4 z-[999] flex w-80 max-w-[calc(100vw-2rem)] items-start gap-3 rounded-md border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-sm text-emerald-800 shadow-sm">
+      <span class="mt-px flex-1">Read-only update check completed.</span>
+      <button type="button" data-toast-dismiss class="text-current/60 hover:text-current">&times;</button>
+    </div>
+  {% endif %}
+
+  <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+      <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Updates</h1>
+      <p class="mt-1 text-sm text-slate-500">System version, release notes, and safe update readiness.</p>
+    </div>
+    <div class="flex flex-wrap gap-2">
+      <a href="{{ url('admin/backups') }}" class="{{ secondary_button }}">
+        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7c0-1.66 3.58-3 8-3s8 1.34 8 3-3.58 3-8 3-8-1.34-8-3zM4 7v10c0 1.66 3.58 3 8 3s8-1.34 8-3V7"/></svg>
+        Backups
+      </a>
+      <form method="post" action="{{ url('admin/updates') }}">
+        <input type="hidden" name="updates_action" value="check">
+        <button type="submit" class="{{ primary_button }}">
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v6h6M20 9A8 8 0 006.2 5.3M4 15a8 8 0 0013.8 3.7M20 20v-6h-6"/></svg>
+          Check status
+        </button>
+      </form>
+    </div>
+  </div>
+
+  {% if has_update %}
+    <div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex items-start gap-3">
+          <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100">
+            <svg class="h-5 w-5 text-amber-600" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0 0l-4-4m4 4l4-4M4 19h16"/></svg>
+          </span>
+          <div>
+            <p class="text-sm font-semibold text-amber-900">Update available: {{ latest_version }}</p>
+            <p class="text-xs text-amber-700">Download and install actions stay disabled until package verification and rollback are wired.</p>
+          </div>
+        </div>
+        <button type="button" class="{{ disabled_button }}" disabled>Apply disabled</button>
+      </div>
+    </div>
+  {% elseif update_source == '' %}
+    <div class="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p class="text-sm font-semibold text-slate-900">No update source configured yet</p>
+          <p class="mt-0.5 text-xs text-slate-500">This page is running in read-only local status mode. A remote manifest can be added later for real version checks.</p>
+        </div>
+        <span class="inline-flex w-fit rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600 ring-1 ring-inset ring-slate-200">Local mode</span>
+      </div>
+    </div>
+  {% else %}
+    <div class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+      <p class="text-sm font-semibold text-emerald-900">FarosCMS is up to date</p>
+      <p class="mt-0.5 text-xs text-emerald-700">Configured source: {{ update_source }}</p>
+    </div>
+  {% endif %}
+
+  <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
+    <div class="space-y-4 xl:col-span-2">
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div class="rounded-lg border border-slate-200 bg-white p-4">
+          <p class="text-xs font-medium uppercase tracking-wide text-slate-400">Current version</p>
+          <p class="mt-1.5 truncate text-2xl font-semibold tracking-tight text-slate-900">{{ current_version }}</p>
+          <p class="mt-1 truncate text-xs text-slate-400">{{ current_commit ? 'Commit ' ~ current_commit : 'No git commit detected' }}</p>
+        </div>
+        <div class="rounded-lg border border-slate-200 bg-white p-4">
+          <p class="text-xs font-medium uppercase tracking-wide text-slate-400">Latest known</p>
+          <p class="mt-1.5 truncate text-2xl font-semibold tracking-tight {{ has_update ? 'text-amber-700' : 'text-slate-900' }}">{{ latest_version }}</p>
+          <p class="mt-1 text-xs text-slate-400">{{ update_channel|title }} channel</p>
+        </div>
+        <div class="rounded-lg border border-slate-200 bg-white p-4">
+          <p class="text-xs font-medium uppercase tracking-wide text-slate-400">Backups</p>
+          <p class="mt-1.5 text-2xl font-semibold tracking-tight text-slate-900">{{ backup_total }}</p>
+          <p class="mt-1 truncate text-xs text-slate-400">{{ latest_backup ? latest_backup.created_at : 'No local backup yet' }}</p>
+        </div>
+      </div>
+
+      <div class="rounded-lg border border-slate-200 bg-white">
+        <div class="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+          <h2 class="text-sm font-semibold text-slate-900">Release notes</h2>
+          <span class="text-xs text-slate-400">Local changelog</span>
+        </div>
+        {% if changelog_entries is empty %}
+          <div class="px-4 py-10 text-center text-sm text-slate-400">No changelog entries found.</div>
+        {% else %}
+          <div class="divide-y divide-slate-100">
+            {% for entry in changelog_entries %}
+              <div class="p-4">
+                <div class="mb-2 flex items-center gap-2">
+                  <h3 class="text-sm font-semibold text-slate-900">{{ entry.version }}</h3>
+                  {% if loop.first %}
+                    <span class="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 ring-1 ring-inset ring-blue-200">latest local</span>
+                  {% endif %}
+                </div>
+                {% if entry.items is empty %}
+                  <p class="text-sm text-slate-400">No summary items.</p>
+                {% else %}
+                  <ul class="space-y-1 text-sm text-slate-600">
+                    {% for item in entry.items %}
+                      <li class="flex gap-2"><span class="mt-2 h-1 w-1 shrink-0 rounded-full bg-slate-300"></span><span>{{ item }}</span></li>
+                    {% endfor %}
+                  </ul>
+                {% endif %}
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="space-y-4">
+      <div class="rounded-lg border border-slate-200 bg-white p-4">
+        <h2 class="text-sm font-semibold text-slate-900">Update status</h2>
+        <dl class="mt-3 space-y-2 text-sm">
+          <div class="flex justify-between gap-3"><dt class="text-slate-500">Mode</dt><dd class="font-medium text-slate-900">{{ update_source == '' ? 'Local read-only' : 'Manifest read-only' }}</dd></div>
+          <div class="flex justify-between gap-3"><dt class="text-slate-500">Source</dt><dd class="max-w-40 truncate text-right font-medium text-slate-900">{{ update_source ?: 'Not configured' }}</dd></div>
+          <div class="flex justify-between gap-3"><dt class="text-slate-500">Install action</dt><dd class="font-medium text-slate-900">Disabled</dd></div>
+        </dl>
+      </div>
+
+      <div class="rounded-lg border border-slate-200 bg-white">
+        <div class="border-b border-slate-200 px-4 py-3">
+          <h2 class="text-sm font-semibold text-slate-900">Preflight checks</h2>
+        </div>
+        <ul class="divide-y divide-slate-50">
+          {% for check in preflight_checks %}
+            {% set tone = check.status == 'ok'
+              ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
+              : (check.status == 'warning' ? 'bg-amber-50 text-amber-700 ring-amber-200' : 'bg-red-50 text-red-700 ring-red-200')
+            %}
+            <li class="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
+              <span class="text-slate-600">{{ check.label }}</span>
+              <span class="inline-flex max-w-36 truncate rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset {{ tone }}">{{ check.value }}</span>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+
+      <div class="rounded-lg border border-amber-200 bg-amber-50 p-4">
+        <h2 class="text-sm font-semibold text-amber-900">Install flow pending</h2>
+        <p class="mt-1 text-xs leading-relaxed text-amber-800">Applying updates will stay disabled until FarosCMS has package download, checksum verification, mandatory backup, rollback, and post-update checks.</p>
+      </div>
+
+      <div class="rounded-lg border border-slate-200 bg-white p-4">
+        <h2 class="text-sm font-semibold text-slate-900">Safe update guide</h2>
+        {% if update_guide is empty %}
+          <p class="mt-2 text-sm text-slate-400">No local update guide found.</p>
+        {% else %}
+          <ul class="mt-3 space-y-2 text-sm text-slate-600">
+            {% for item in update_guide %}
+              <li class="flex gap-2"><span class="mt-2 h-1 w-1 shrink-0 rounded-full bg-slate-300"></span><span>{{ item }}</span></li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+{% endblock %}

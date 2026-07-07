@@ -335,6 +335,11 @@ final class App
             return;
         }
 
+        if ($action === 'updates') {
+            $this->handleUpdates();
+            return;
+        }
+
         if ($action === 'notification-read') {
             $this->handleNotificationRead();
             return;
@@ -945,6 +950,50 @@ final class App
                 'last_run' => (string)($schedule['last_run'] ?? ''),
                 'keep' => $keep,
             ],
+        ]);
+    }
+
+    private function handleUpdates(): void
+    {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+            $action = trim((string)($_POST['updates_action'] ?? ''));
+            if ($action === 'check') {
+                $this->logActivity('updates.check', 'info', 'updates', 'local', 'Read-only update check completed.', [
+                    'current_version' => $this->currentVersion(),
+                    'source' => $this->updatesManifestUrl() !== '' ? 'configured' : 'local',
+                ]);
+                $this->redirect('/admin/updates?checked=1');
+                return;
+            }
+        }
+
+        $currentVersion = $this->currentVersion();
+        $updateSource = $this->updatesManifestUrl();
+        $latestVersion = $this->configuredLatestVersion();
+        $hasUpdate = $latestVersion !== '' && version_compare($latestVersion, $currentVersion, '>');
+        $changelog = $this->readChangelogEntries();
+        $lastRelease = $changelog[0] ?? null;
+        $latestDisplay = $latestVersion !== '' ? $latestVersion : (string)($lastRelease['version'] ?? $currentVersion);
+        $backups = $this->listBackupSnapshots();
+
+        $this->render('@admin/updates.twig', [
+            'title' => 'Updates',
+            'types' => $this->content->getTypes(),
+            'user' => $this->auth->user(),
+            'admin_section' => 'updates',
+            'current_type' => 'pages',
+            'current_version' => $currentVersion,
+            'current_commit' => $this->currentGitCommit(),
+            'latest_version' => $latestDisplay,
+            'has_update' => $hasUpdate,
+            'update_source' => $updateSource,
+            'update_channel' => (string)($this->settings['updates']['channel'] ?? 'stable'),
+            'checked' => isset($_GET['checked']),
+            'changelog_entries' => $changelog,
+            'update_guide' => $this->readUpdateGuideSummary(),
+            'latest_backup' => $backups[0] ?? null,
+            'backup_total' => count($backups),
+            'preflight_checks' => $this->buildUpdatePreflightChecks(),
         ]);
     }
 
@@ -3087,6 +3136,11 @@ final class App
                     'path_style' => false,
                 ],
             ],
+            'updates' => [
+                'channel' => 'stable',
+                'manifest_url' => '',
+                'latest_version' => '',
+            ],
         ];
 
         $settingsPath = $this->contentDir . '/settings/site.yaml';
@@ -5132,6 +5186,157 @@ final class App
     private function backupRemoteProviders(): array
     {
         return ['custom', 'aws_s3', 'backblaze_b2', 'cloudflare_r2', 'wasabi', 'digitalocean_spaces', 'minio'];
+    }
+
+    private function currentVersion(): string
+    {
+        $path = $this->basePath . '/VERSION';
+        if (is_file($path)) {
+            $version = trim((string)file_get_contents($path));
+            if ($version !== '') {
+                return $version;
+            }
+        }
+
+        return 'base';
+    }
+
+    private function currentGitCommit(): string
+    {
+        $headPath = $this->basePath . '/.git/HEAD';
+        if (!is_file($headPath)) {
+            return '';
+        }
+        $head = trim((string)file_get_contents($headPath));
+        if ($head === '') {
+            return '';
+        }
+        if (!str_starts_with($head, 'ref: ')) {
+            return substr($head, 0, 12);
+        }
+        $ref = trim(substr($head, 5));
+        if ($ref === '' || str_contains($ref, '..')) {
+            return '';
+        }
+        $refPath = $this->basePath . '/.git/' . $ref;
+        if (is_file($refPath)) {
+            $commit = trim((string)file_get_contents($refPath));
+            return $commit !== '' ? substr($commit, 0, 12) : '';
+        }
+
+        return '';
+    }
+
+    private function updatesManifestUrl(): string
+    {
+        return trim((string)($this->settings['updates']['manifest_url'] ?? ''));
+    }
+
+    private function configuredLatestVersion(): string
+    {
+        return trim((string)($this->settings['updates']['latest_version'] ?? ''));
+    }
+
+    /** @return array<int, array{version: string, items: array<int, string>}> */
+    private function readChangelogEntries(): array
+    {
+        $path = $this->basePath . '/CHANGELOG.md';
+        if (!is_file($path)) {
+            return [];
+        }
+        $lines = file($path, FILE_IGNORE_NEW_LINES);
+        if ($lines === false) {
+            return [];
+        }
+
+        $entries = [];
+        $current = null;
+        foreach ($lines as $line) {
+            if (preg_match('/^##\s+(.+)$/', $line, $matches)) {
+                if (is_array($current)) {
+                    $entries[] = $current;
+                }
+                $current = [
+                    'version' => trim((string)$matches[1]),
+                    'items' => [],
+                ];
+                continue;
+            }
+            if (!is_array($current)) {
+                continue;
+            }
+            $trimmed = trim($line);
+            if (str_starts_with($trimmed, '- ')) {
+                $current['items'][] = trim(substr($trimmed, 2));
+            }
+        }
+        if (is_array($current)) {
+            $entries[] = $current;
+        }
+
+        return array_slice(array_map(static function (array $entry): array {
+            $entry['items'] = array_slice($entry['items'], 0, 8);
+            return $entry;
+        }, $entries), 0, 5);
+    }
+
+    /** @return string[] */
+    private function readUpdateGuideSummary(): array
+    {
+        $path = $this->basePath . '/update.md';
+        if (!is_file($path)) {
+            return [];
+        }
+        $lines = file($path, FILE_IGNORE_NEW_LINES);
+        if ($lines === false) {
+            return [];
+        }
+
+        $items = [];
+        foreach ($lines as $line) {
+            $trimmed = trim($line);
+            if (str_starts_with($trimmed, '- ')) {
+                $items[] = trim(substr($trimmed, 2));
+            }
+            if (count($items) >= 6) {
+                break;
+            }
+        }
+
+        return $items;
+    }
+
+    /** @return array<int, array{label: string, value: string, status: string}> */
+    private function buildUpdatePreflightChecks(): array
+    {
+        $backupDir = $this->backupDirectory();
+        return [
+            [
+                'label' => 'PHP compatibility',
+                'value' => PHP_VERSION,
+                'status' => version_compare(PHP_VERSION, '8.1.0', '>=') ? 'ok' : 'error',
+            ],
+            [
+                'label' => 'Content writable',
+                'value' => is_writable($this->contentDir) ? 'yes' : 'no',
+                'status' => is_writable($this->contentDir) ? 'ok' : 'error',
+            ],
+            [
+                'label' => 'Storage writable',
+                'value' => is_writable($this->basePath . '/storage') ? 'yes' : 'no',
+                'status' => is_writable($this->basePath . '/storage') ? 'ok' : 'error',
+            ],
+            [
+                'label' => 'Backup directory',
+                'value' => is_dir($backupDir) && is_writable($backupDir) ? 'ready' : 'not ready',
+                'status' => is_dir($backupDir) && is_writable($backupDir) ? 'ok' : 'warning',
+            ],
+            [
+                'label' => 'Update source',
+                'value' => $this->updatesManifestUrl() !== '' ? 'configured' : 'not configured',
+                'status' => $this->updatesManifestUrl() !== '' ? 'ok' : 'warning',
+            ],
+        ];
     }
 
     /** @return array<string, mixed> */

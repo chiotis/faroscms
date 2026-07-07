@@ -206,8 +206,13 @@
       {% if can('users.manage') %}
         <a class="{{ btn_secondary }}" href="{{ url('admin/users-edit') }}">Add user</a>
       {% endif %}
-      {% if can('settings.manage') %}
+      {% if can('backups.manage') %}
         <a class="{{ btn_secondary }}" href="{{ url('admin/backups') }}">Backups</a>
+      {% endif %}
+      {% if can('updates.manage') %}
+        <a class="{{ btn_secondary }}" href="{{ url('admin/updates') }}">Updates</a>
+      {% endif %}
+      {% if can('settings.manage') %}
         <a class="{{ btn_secondary }}" href="{{ url('admin/settings?tab=smtp') }}">Email settings</a>
       {% endif %}
       {% if can('activity.manage') %}

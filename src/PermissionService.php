@@ -26,6 +26,7 @@ final class PermissionService
             'imports.manage',
             'exports.manage',
             'backups.manage',
+            'updates.manage',
         ],
         'admin' => [
             'admin.access',
@@ -44,6 +45,7 @@ final class PermissionService
             'imports.manage',
             'exports.manage',
             'backups.manage',
+            'updates.manage',
         ],
         'user' => [
             'admin.access',
@@ -82,6 +84,7 @@ final class PermissionService
             'email-logs' => 'email_logs.manage',
             'notification-read', 'notifications-read-all' => 'notifications.manage',
             'backups' => 'backups.manage',
+            'updates' => 'updates.manage',
             'users', 'users-delete' => 'users.manage',
             'users-edit' => null,
             'edit', 'save', 'delete', 'new' => 'content.manage',

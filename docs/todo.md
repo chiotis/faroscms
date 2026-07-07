@@ -76,10 +76,10 @@ Content remains file-based. SQLite is used for system/admin data, starting with 
 
 ### Updates
 
-- [ ] Add `/admin/updates` page.
-- [ ] Add version display.
-- [ ] Add read-only update check first.
-- [ ] Add changelog display.
+- [x] Add `/admin/updates` page.
+- [x] Add version display.
+- [x] Add read-only update check first.
+- [x] Add changelog display.
 - [ ] Design backup-before-update flow before any install action.
 
 ### Forms
