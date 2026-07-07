@@ -417,10 +417,36 @@
       <div class="{{ panel_class }}{% if active_tab != 'apis' %} hidden{% else %} active{% endif %}" data-panel="apis">
         <div class="{{ section_class }}">
           <div class="{{ section_header_class }}">
-            <h3 class="text-sm font-semibold text-slate-900">API Settings</h3>
-            <p class="mt-0.5 text-xs text-slate-400">Reserved for future integrations.</p>
+            <h3 class="text-sm font-semibold text-slate-900">Update Source</h3>
+            <p class="mt-0.5 text-xs text-slate-400">GitHub repository used by the read-only Updates module.</p>
           </div>
-          <p class="text-sm text-slate-500">API settings will appear here.</p>
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label class="block">
+              <span class="mb-1 block text-sm font-medium text-slate-700">Repository</span>
+              <input type="text" name="update_repository" value="{{ settings_form.update_repository }}" placeholder="chiotis/faroscms" class="{{ input_class }}">
+            </label>
+            <label class="block">
+              <span class="mb-1 block text-sm font-medium text-slate-700">Branch</span>
+              <input type="text" name="update_branch" value="{{ settings_form.update_branch }}" placeholder="main" class="{{ input_class }}">
+            </label>
+            <label class="block sm:col-span-2">
+              <span class="mb-1 block text-sm font-medium text-slate-700">VERSION URL</span>
+              <input type="url" name="update_version_url" value="{{ settings_form.update_version_url }}" placeholder="https://raw.githubusercontent.com/chiotis/faroscms/main/VERSION" class="{{ input_class }}">
+            </label>
+            <label class="block sm:col-span-2">
+              <span class="mb-1 block text-sm font-medium text-slate-700">CHANGELOG URL</span>
+              <input type="url" name="update_changelog_url" value="{{ settings_form.update_changelog_url }}" placeholder="https://raw.githubusercontent.com/chiotis/faroscms/main/CHANGELOG.md" class="{{ input_class }}">
+            </label>
+            <label class="block sm:col-span-2">
+              <span class="mb-1 block text-sm font-medium text-slate-700">Package URL</span>
+              <input type="url" name="update_package_url" value="{{ settings_form.update_package_url }}" placeholder="https://github.com/chiotis/faroscms/archive/refs/heads/main.zip" class="{{ input_class }}">
+            </label>
+            <label class="block sm:col-span-2">
+              <span class="mb-1 block text-sm font-medium text-slate-700">GitHub token</span>
+              <input type="password" name="update_github_token" value="" autocomplete="new-password" placeholder="{{ settings_form.update_github_token ? 'Token saved. Leave blank to keep it.' : 'Required only for private repositories' }}" class="{{ input_class }}">
+              <span class="mt-1 block text-xs text-slate-400">Needed when the repository is private. Leave blank to keep the existing token.</span>
+            </label>
+          </div>
         </div>
       </div>
 

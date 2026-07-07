@@ -8,6 +8,7 @@ This document explains a safe update process when new code is available in the m
 - Branch: `main`
 - Version source: `https://raw.githubusercontent.com/chiotis/faroscms/main/VERSION`
 - Changelog source: `https://raw.githubusercontent.com/chiotis/faroscms/main/CHANGELOG.md`
+- Private repositories require a GitHub token in Admin `Settings -> APIs`.
 
 ## 1) Before You Update
 

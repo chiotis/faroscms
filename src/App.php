@@ -1762,6 +1762,12 @@ final class App
                 'google_client_id' => (string)($_POST['google_client_id'] ?? ''),
                 'google_client_secret' => (string)($_POST['google_client_secret'] ?? ''),
                 'google_allowed_domain' => (string)($_POST['google_allowed_domain'] ?? ''),
+                'update_repository' => (string)($_POST['update_repository'] ?? ''),
+                'update_branch' => (string)($_POST['update_branch'] ?? ''),
+                'update_version_url' => (string)($_POST['update_version_url'] ?? ''),
+                'update_changelog_url' => (string)($_POST['update_changelog_url'] ?? ''),
+                'update_package_url' => (string)($_POST['update_package_url'] ?? ''),
+                'update_github_token' => (string)($_POST['update_github_token'] ?? ''),
             ];
             $this->saveSettings($settingsPath, $raw, $form);
             $this->settings = $this->loadSettings();
@@ -3160,6 +3166,7 @@ final class App
                 'version_url' => 'https://raw.githubusercontent.com/chiotis/faroscms/main/VERSION',
                 'changelog_url' => 'https://raw.githubusercontent.com/chiotis/faroscms/main/CHANGELOG.md',
                 'package_url' => 'https://github.com/chiotis/faroscms/archive/refs/heads/main.zip',
+                'github_token' => '',
                 'latest_version' => '',
             ],
         ];
@@ -5057,6 +5064,12 @@ final class App
             'google_client_id' => (string)($merged['auth']['google']['client_id'] ?? ''),
             'google_client_secret' => (string)($merged['auth']['google']['client_secret'] ?? ''),
             'google_allowed_domain' => (string)($merged['auth']['google']['allowed_domain'] ?? ''),
+            'update_repository' => (string)($merged['updates']['repository'] ?? 'chiotis/faroscms'),
+            'update_branch' => (string)($merged['updates']['branch'] ?? 'main'),
+            'update_version_url' => (string)($merged['updates']['version_url'] ?? ''),
+            'update_changelog_url' => (string)($merged['updates']['changelog_url'] ?? ''),
+            'update_package_url' => (string)($merged['updates']['package_url'] ?? ''),
+            'update_github_token' => (string)($merged['updates']['github_token'] ?? ''),
         ];
     }
 
@@ -5199,6 +5212,30 @@ final class App
             'allowed_domain' => strtolower(trim((string)($form['google_allowed_domain'] ?? ''))),
         ];
 
+        $existingUpdates = is_array($data['updates'] ?? null) ? $data['updates'] : [];
+        $repository = trim((string)($form['update_repository'] ?? ''));
+        if ($repository === '') {
+            $repository = 'chiotis/faroscms';
+        }
+        $branch = trim((string)($form['update_branch'] ?? ''));
+        if ($branch === '') {
+            $branch = 'main';
+        }
+        $githubToken = (string)($form['update_github_token'] ?? '');
+        if ($githubToken === '') {
+            $githubToken = (string)($existingUpdates['github_token'] ?? '');
+        }
+        $data['updates'] = [
+            'channel' => (string)($existingUpdates['channel'] ?? 'stable'),
+            'repository' => $repository,
+            'branch' => $branch,
+            'version_url' => (string)($form['update_version_url'] ?? ''),
+            'changelog_url' => (string)($form['update_changelog_url'] ?? ''),
+            'package_url' => (string)($form['update_package_url'] ?? ''),
+            'github_token' => $githubToken,
+            'latest_version' => (string)($existingUpdates['latest_version'] ?? ''),
+        ];
+
         $yaml = Yaml::dump($data, 4, 2);
         file_put_contents($path, $yaml);
     }
@@ -5327,10 +5364,16 @@ final class App
         if ($url === '' || !preg_match('#^https?://#i', $url)) {
             return '';
         }
+        $headers = ['User-Agent: FarosCMS update checker'];
+        $token = $this->updateGitHubToken();
+        if ($token !== '' && preg_match('#^https?://(raw\.githubusercontent\.com|api\.github\.com)/#i', $url)) {
+            $headers[] = 'Authorization: Bearer ' . $token;
+            $headers[] = 'X-GitHub-Api-Version: 2022-11-28';
+        }
         $context = stream_context_create([
             'http' => [
                 'timeout' => 3,
-                'user_agent' => 'FarosCMS update checker',
+                'header' => implode("\r\n", $headers),
             ],
         ]);
         $body = @file_get_contents($url, false, $context);
@@ -5339,6 +5382,11 @@ final class App
         }
 
         return trim($body);
+    }
+
+    private function updateGitHubToken(): string
+    {
+        return trim((string)($this->settings['updates']['github_token'] ?? ''));
     }
 
     /** @return array<int, array{version: string, items: array<int, string>}> */
