@@ -67,6 +67,7 @@
           <button type="button" class="{{ tab_button_class }}{% if active_tab == 'smtp' %} active{% endif %}" data-tab="smtp">Email / SMTP</button>
           <button type="button" class="{{ tab_button_class }}{% if active_tab == 'auth' %} active{% endif %}" data-tab="auth">Auth</button>
           <button type="button" class="{{ tab_button_class }}{% if active_tab == 'backup' %} active{% endif %}" data-tab="backup">Backups</button>
+          <button type="button" class="{{ tab_button_class }}{% if active_tab == 'updates' %} active{% endif %}" data-tab="updates">Updates</button>
           <button type="button" class="{{ tab_button_class }}{% if active_tab == 'apis' %} active{% endif %}" data-tab="apis">APIs</button>
           <button type="button" class="{{ tab_button_class }}{% if active_tab == 'advanced' %} active{% endif %}" data-tab="advanced">System</button>
         </div>
@@ -414,7 +415,7 @@
         </div>
       </div>
 
-      <div class="{{ panel_class }}{% if active_tab != 'apis' %} hidden{% else %} active{% endif %}" data-panel="apis">
+      <div class="{{ panel_class }}{% if active_tab != 'updates' %} hidden{% else %} active{% endif %}" data-panel="updates">
         <div class="{{ section_class }}">
           <div class="{{ section_header_class }}">
             <h3 class="text-sm font-semibold text-slate-900">Update Source</h3>
@@ -447,6 +448,16 @@
               <span class="mt-1 block text-xs text-slate-400">Needed when the repository is private. Leave blank to keep the existing token.</span>
             </label>
           </div>
+        </div>
+      </div>
+
+      <div class="{{ panel_class }}{% if active_tab != 'apis' %} hidden{% else %} active{% endif %}" data-panel="apis">
+        <div class="{{ section_class }}">
+          <div class="{{ section_header_class }}">
+            <h3 class="text-sm font-semibold text-slate-900">API Settings</h3>
+            <p class="mt-0.5 text-xs text-slate-400">Reserved for future integrations.</p>
+          </div>
+          <p class="text-sm text-slate-500">API settings will appear here.</p>
         </div>
       </div>
 

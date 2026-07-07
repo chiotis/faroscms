@@ -5781,7 +5781,7 @@ final class App
     private function sanitizeSettingsTab(string $tab): string
     {
         $tab = strtolower(trim($tab));
-        $allowed = ['basics', 'menus', 'apis', 'theme', 'smtp', 'auth', 'backup', 'advanced'];
+        $allowed = ['basics', 'menus', 'apis', 'theme', 'smtp', 'auth', 'backup', 'updates', 'advanced'];
         if (!in_array($tab, $allowed, true)) {
             return 'basics';
         }

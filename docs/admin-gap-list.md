@@ -28,7 +28,7 @@ Implemented now:
 - Media/files library with uploads, metadata, filters, tags, bulk selection, delete, and direct URLs.
 - Menus list/create/edit with language/translation handling.
 - Taxonomies list/edit with YAML-backed terms.
-- Settings tabs for general, theme, menus, email/SMTP/SES, backups, backup remote storage, APIs placeholder, and system/raw YAML.
+- Settings tabs for general, theme, menus, email/SMTP/SES, backups, updates, backup remote storage, APIs placeholder, and system/raw YAML.
 - Translations editor.
 - Frontend routing, archives, taxonomy pages, search, sitemap, robots, language links, and theme rendering.
 - Local backup snapshots integrated inside Settings.
