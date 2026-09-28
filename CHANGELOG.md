@@ -12,6 +12,9 @@
 - Backups: every archive carries a SHA-256 manifest and a consistent `VACUUM INTO` database copy; new Verify action
 - Backups: superadmin restore of content, uploads, translations, and the system database with verification, mandatory safety snapshot, staged swap, and automatic rollback
 - Updates: verified pre-update backup action and preflight gate; safe update design documented in `docs/update-workflow.md`
+- Forms: standalone `/admin/forms` module with submission counts, shortcode copy, language versions, filters, and sorting
+- Forms: submissions browser with search, language/date filters, pagination, detail panel, reply-by-email, and single/bulk delete
+- Fix: CSV export/import no longer emits PHP 8.4+ `fputcsv`/`fgetcsv` deprecation output into the file
 - Updates: remote status is cached in SQLite and refreshed every 12 hours; a notification appears once per new release, and the sidebar version badge and dashboard show when an update is available
 
 ## 2026-03-01

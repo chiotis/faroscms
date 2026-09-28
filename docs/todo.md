@@ -106,10 +106,10 @@ See `docs/security.md`.
 
 ### Forms
 
-- [ ] Make Forms feel like a standalone admin module.
-- [ ] Adapt closer to `forms-list.html`.
-- [ ] Improve submission browsing.
-- [ ] Keep export behavior.
+- [x] Make Forms feel like a standalone admin module (`/admin/forms`).
+- [x] Adapt closer to `forms-list.html` (KPIs, shortcode copy, language versions, filters, sorting).
+- [x] Improve submission browsing (`/admin/form-submissions`: search, language/date filters, pagination, detail panel, single and bulk delete).
+- [x] Keep export behavior.
 
 ### Files / Media
 

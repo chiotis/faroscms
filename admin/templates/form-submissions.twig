@@ -1,0 +1,189 @@
+{% extends '@admin/base.twig' %}
+{% import '@admin/partials/ui.twig' as ui %}
+
+{% block content %}
+  {% set btn_primary = 'inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-blue-700' %}
+  {% set btn_secondary = 'inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50' %}
+  {% set btn_danger = 'inline-flex items-center gap-1.5 rounded-md border border-red-200 bg-white px-3 py-1.5 text-sm font-medium text-red-600 shadow-sm hover:bg-red-50' %}
+  {% set icon_button = 'rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700' %}
+  {% set icon_danger = 'rounded-md p-1.5 text-red-500 hover:bg-red-50 hover:text-red-600' %}
+  {% set base_query = {'slug': form.slug}|merge(filters|filter(v => v != ''))|merge(per_page != 25 ? {'per_page': per_page} : {}) %}
+
+  {{ ui.flash(deleted_count > 0 ? (deleted_count == 1 ? 'Submission deleted.' : deleted_count ~ ' submissions deleted.') : '', 'success') }}
+  {{ ui.flash(error, 'error') }}
+
+  <div class="mb-2 flex items-center gap-2 text-sm text-slate-400">
+    <a href="{{ url('admin/forms') }}" class="hover:text-slate-600">Forms</a>
+    <span>/</span>
+    <a href="{{ url('admin/edit?type=forms&slug=' ~ form.slug ~ '&lang=' ~ form.lang) }}" class="hover:text-slate-600">{{ form.title }}</a>
+    <span>/</span>
+    <span class="text-slate-600">Submissions</span>
+  </div>
+
+  <header class="mb-4 flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
+    <div class="min-w-0">
+      <h1 class="truncate text-[15px] font-semibold leading-tight text-slate-900">{{ form.title }} submissions</h1>
+      <p class="truncate text-xs text-slate-400">{{ total_all|number_format }} stored · {{ recent }} in the last 7 days</p>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+      {{ ui.filter_button('submissionFilter', filters_active) }}
+      {% if can('exports.manage') %}
+        <a class="{{ btn_secondary }}" href="{{ url('admin/forms-export?slug=' ~ form.slug ~ '&lang=' ~ form.lang) }}">
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0 0l-4-4m4 4l4-4M4 19h16"/></svg>
+          Export CSV
+        </a>
+      {% endif %}
+      <a class="{{ btn_secondary }}" href="{{ url('admin/edit?type=forms&slug=' ~ form.slug ~ '&lang=' ~ form.lang) }}">Edit form</a>
+    </div>
+  </header>
+
+  <div id="submissionFilter" class="mb-4 rounded-lg border border-slate-200 bg-white p-4 {{ filters_active ? '' : 'hidden' }}">
+    <form method="get" action="{{ url('admin/form-submissions') }}" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <input type="hidden" name="slug" value="{{ form.slug }}">
+      <label class="block">
+        <span class="mb-1 block text-sm font-medium text-slate-700">Search</span>
+        <input type="text" name="q" value="{{ filters.q }}" placeholder="Name, email, message…" class="{{ input_class }}">
+      </label>
+      <label class="block">
+        <span class="mb-1 block text-sm font-medium text-slate-700">Language</span>
+        <select name="lang" class="{{ select_class }}">
+          <option value="">All</option>
+          {% for code in languages %}
+            <option value="{{ code }}" {% if filters.lang == code %}selected{% endif %}>{{ code|upper }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="block">
+        <span class="mb-1 block text-sm font-medium text-slate-700">From</span>
+        <input type="date" name="date_from" value="{{ filters.date_from }}" class="{{ input_class }}">
+      </label>
+      <label class="block">
+        <span class="mb-1 block text-sm font-medium text-slate-700">To</span>
+        <input type="date" name="date_to" value="{{ filters.date_to }}" class="{{ input_class }}">
+      </label>
+      <div class="flex justify-end gap-2 sm:col-span-2 lg:col-span-4">
+        <a href="{{ url('admin/form-submissions?slug=' ~ form.slug) }}" class="rounded-md px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100">Reset</a>
+        <button type="submit" class="{{ btn_primary }}">Apply</button>
+      </div>
+    </form>
+  </div>
+
+  <form method="post" action="{{ url('admin/form-submissions') }}" class="rounded-lg border border-slate-200 bg-white" data-confirm="Delete the selected submissions? This cannot be undone." data-confirm-button="Delete">
+    {{ csrf_field() }}
+    <input type="hidden" name="slug" value="{{ form.slug }}">
+    <input type="hidden" name="submission_action" value="bulk_delete">
+    <input type="hidden" name="return_to" value="{{ current_url }}">
+    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-2.5">
+      <span class="text-sm font-medium text-slate-700">{{ total|number_format }} {{ filters_active ? 'matching' : '' }} submission{{ total == 1 ? '' : 's' }}</span>
+      <div class="flex items-center gap-2">
+        {% if rows is not empty %}
+          <button type="submit" class="{{ btn_danger }}">Delete selected</button>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if rows is empty %}
+      {{ ui.empty_state(filters_active ? 'No submissions match these filters' : 'No submissions yet', filters_active ? 'Try a wider date range or clear the search.' : 'Submissions appear here once visitors send this form.') }}
+    {% else %}
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm" data-sortable>
+          <thead>
+            <tr class="border-b border-slate-100 bg-slate-50/50 text-left text-xs font-medium text-slate-400">
+              <th class="w-8 px-4 py-2"><input type="checkbox" data-select-all="selected_ids[]" class="h-4 w-4 rounded border-slate-300" aria-label="Select all on this page"></th>
+              <th class="px-4 py-2 font-medium" data-sort="text">Submitted</th>
+              <th class="px-4 py-2 font-medium" data-sort="text">From</th>
+              <th class="px-4 py-2 font-medium" data-sort="text">Language</th>
+              <th class="px-4 py-2 font-medium">Summary</th>
+              <th class="px-4 py-2 text-right font-medium">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-50">
+            {% for row in rows %}
+              <tr class="hover:bg-slate-50">
+                <td class="px-4 py-2.5"><input type="checkbox" name="selected_ids[]" value="{{ row.id }}" class="h-4 w-4 rounded border-slate-300" aria-label="Select submission {{ row.id }}"></td>
+                <td class="whitespace-nowrap px-4 py-2.5 text-slate-500">{{ row.submitted_at }}</td>
+                <td class="px-4 py-2.5">
+                  <button type="button" data-offcanvas-open="submission-{{ row.id }}" class="text-left font-medium text-slate-900 hover:text-blue-600">{{ row.title }}</button>
+                  {% if row.email and row.email != row.title %}<div class="text-xs text-slate-400">{{ row.email }}</div>{% endif %}
+                </td>
+                <td class="px-4 py-2.5">{% if row.lang %}<span class="inline-flex h-5 min-w-7 items-center justify-center rounded bg-slate-100 px-1 text-[10px] font-semibold text-slate-600">{{ row.lang|upper }}</span>{% endif %}</td>
+                <td class="max-w-md px-4 py-2.5 text-slate-500"><span class="line-clamp-1">{{ row.summary }}</span></td>
+                <td class="px-4 py-2.5">
+                  <div class="flex items-center justify-end gap-0.5">
+                    <button type="button" data-offcanvas-open="submission-{{ row.id }}" class="{{ icon_button }}" title="View" aria-label="View submission from {{ row.title }}">
+                      <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M2.5 12S6 5 12 5s9.5 7 9.5 7-3.5 7-9.5 7-9.5-7-9.5-7z"/><circle cx="12" cy="12" r="3"/></svg>
+                    </button>
+                    <button type="submit" form="delete-submission-{{ row.id }}" class="{{ icon_danger }}" title="Delete" aria-label="Delete submission from {{ row.title }}">
+                      <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V6"/></svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+
+    <div class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-4 py-2.5">
+      <label class="flex items-center gap-2 text-xs text-slate-500">
+        Per page
+        <select class="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-600" onchange="window.location.search = new URLSearchParams(Object.assign({{ base_query|json_encode }}, {per_page: this.value})).toString()">
+          {% for option in per_page_options %}
+            <option value="{{ option }}" {% if option == per_page %}selected{% endif %}>{{ option }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      {{ ui.pagination(page, total_pages, base_query) }}
+    </div>
+  </form>
+
+  {# Single-row delete forms live outside the bulk form (forms cannot nest); buttons reference them by id. #}
+  {% for row in rows %}
+    <form id="delete-submission-{{ row.id }}" method="post" action="{{ url('admin/form-submissions') }}" data-confirm="Delete the submission from {{ row.title }}?" data-confirm-button="Delete" hidden>
+      {{ csrf_field() }}
+      <input type="hidden" name="slug" value="{{ form.slug }}">
+      <input type="hidden" name="submission_action" value="delete">
+      <input type="hidden" name="id" value="{{ row.id }}">
+      <input type="hidden" name="return_to" value="{{ current_url }}">
+    </form>
+
+    <div id="submission-{{ row.id }}" data-offcanvas-root hidden class="fixed inset-0 z-50">
+      <div data-offcanvas-backdrop class="absolute inset-0 bg-slate-900/40"></div>
+      <aside data-offcanvas class="absolute inset-y-0 right-0 flex w-full max-w-md translate-x-full flex-col bg-white shadow-xl transition-transform duration-200" role="dialog" aria-modal="true" aria-label="Submission details">
+        <div class="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-3">
+          <div class="min-w-0">
+            <p class="truncate text-sm font-semibold text-slate-900">{{ row.title }}</p>
+            <p class="text-xs text-slate-400">{{ row.submitted_at }}{% if row.lang %} · {{ row.lang|upper }}{% endif %}</p>
+          </div>
+          <button type="button" data-offcanvas-close class="rounded-md p-1.5 text-slate-400 hover:bg-slate-100" aria-label="Close">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/></svg>
+          </button>
+        </div>
+        <div class="scroll-thin flex-1 overflow-y-auto px-4 py-4">
+          <dl class="space-y-3">
+            {% for field in row.fields %}
+              <div>
+                <dt class="text-xs font-medium uppercase tracking-wide text-slate-400">{{ field.label }}</dt>
+                <dd class="mt-0.5 whitespace-pre-line break-words text-sm text-slate-800">{{ field.value ?: '—' }}</dd>
+              </div>
+            {% endfor %}
+          </dl>
+          <div class="mt-6 space-y-1 border-t border-slate-100 pt-3 text-xs text-slate-400">
+            <p>ID: <span class="font-mono">{{ row.id }}</span></p>
+            {% if row.ip %}<p>IP: {{ row.ip }}</p>{% endif %}
+            {% if row.user_agent %}<p class="break-words">Browser: {{ row.user_agent }}</p>{% endif %}
+          </div>
+        </div>
+        <div class="flex justify-between gap-2 border-t border-slate-200 px-4 py-3">
+          {% if row.email %}
+            <a href="mailto:{{ row.email }}" class="{{ btn_secondary }}">Reply by email</a>
+          {% else %}
+            <span></span>
+          {% endif %}
+          <button type="submit" form="delete-submission-{{ row.id }}" class="{{ btn_danger }}">Delete</button>
+        </div>
+      </aside>
+    </div>
+  {% endfor %}
+{% endblock %}

@@ -497,10 +497,13 @@
           <div class="{{ section_header_class }} flex items-center justify-between gap-3">
             <div>
               <h3 class="text-sm font-semibold text-slate-900">Submissions</h3>
-              <p class="mt-0.5 text-xs text-slate-400">Stored submissions for this form.</p>
+              <p class="mt-0.5 text-xs text-slate-400">{{ form_submissions_total > form_submissions|length ? 'Latest ' ~ form_submissions|length ~ ' of ' ~ form_submissions_total ~ ' stored submissions.' : 'Stored submissions for this form.' }}</p>
             </div>
             {% if slug %}
-              <a class="{{ secondary_button_class }}" href="{{ url('admin/forms-export?slug=' ~ slug ~ '&lang=' ~ lang) }}">Export CSV</a>
+              <div class="flex flex-wrap gap-2">
+                <a class="{{ secondary_button_class }}" href="{{ url('admin/form-submissions?slug=' ~ slug) }}">Browse all{% if form_submissions_total > form_submissions|length %} ({{ form_submissions_total }}){% endif %}</a>
+                <a class="{{ secondary_button_class }}" href="{{ url('admin/forms-export?slug=' ~ slug ~ '&lang=' ~ lang) }}">Export CSV</a>
+              </div>
             {% endif %}
           </div>
           {% if form_submissions is empty %}

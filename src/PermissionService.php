@@ -77,6 +77,7 @@ final class PermissionService
             'content' => 'content.manage',
             'menus', 'menus-new', 'menus-edit' => 'menus.manage',
             'media', 'files' => 'media.manage',
+            'forms', 'form-submissions' => 'forms.manage',
             'forms-export', 'export' => 'exports.manage',
             'import' => 'imports.manage',
             'translations' => 'translations.manage',

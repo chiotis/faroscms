@@ -89,8 +89,8 @@
 
         <p class="px-2 pb-1.5 pt-3 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Manage</p>
         {% if can('forms.manage') %}
-          <a href="{{ url('admin/content?type=forms') }}" class="{{ nav_base }} {{ is_content_section and current_type == 'forms' ? nav_active : nav_idle }}">
-            <svg class="h-4 w-4 {{ is_content_section and current_type == 'forms' ? 'text-white/80' : 'text-slate-400 group-hover:text-slate-600' }}" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+          <a href="{{ url('admin/forms') }}" class="{{ nav_base }} {{ section == 'forms' ? nav_active : nav_idle }}">
+            <svg class="h-4 w-4 {{ section == 'forms' ? 'text-white/80' : 'text-slate-400 group-hover:text-slate-600' }}" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
             Forms
           </a>
         {% endif %}

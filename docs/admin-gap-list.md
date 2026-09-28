@@ -24,7 +24,7 @@ Implemented now:
 - Google Sign-In settings and OAuth login flow for existing active users.
 - Content list, create, edit, save, delete, import, and export.
 - Page/post/project/form content types from Markdown/YAML files.
-- Form builder fields, form submissions, CSV export, notifications, honeypot, and rate limiting.
+- Standalone Forms module (`/admin/forms`) with form builder fields, submissions browser, CSV export, notifications, honeypot, and rate limiting.
 - Media/files library with uploads, metadata, filters, tags, bulk selection, delete, and direct URLs.
 - Menus list/create/edit with language/translation handling.
 - Taxonomies list/edit with YAML-backed terms.
@@ -41,7 +41,6 @@ Implemented now:
 
 ### Medium Priority
 
-- Separate Forms list template parity: FarosCMS manages forms as a content type and has form-specific edit behavior, but it does not yet have a faithful standalone `forms-list.html` experience from the template.
 - Full file manager parity: FarosCMS maps `/admin/files` to the media document list. The core file behavior exists, but the URL/module identity is not a standalone Files section matching the template.
 - Filter toggle parity: the template uses hidden filter panels opened by a Filter button on most list screens. Some FarosCMS screens still show filters inline or vary by module.
 - Sortable table controls: template tables imply structured list workflows. FarosCMS lists are rendered in stable order, but admin-side sortable columns are not implemented broadly.
@@ -102,10 +101,9 @@ Implemented now:
 ## Suggested Implementation Order
 
 1. Build one-click install following `docs/update-workflow.md` Part 2.
-2. Forms module: make forms feel like a standalone admin section.
-3. UI consistency pass: filters, toasts, table sorting, badges, modals/off-canvas.
-4. System health/cache/index tools.
-5. Longer-term architecture pass: decide whether FarosCMS should stay Twig/Composer based or move closer to strict phpFlat structure.
+2. UI consistency pass: filters, toasts, table sorting, badges, modals/off-canvas.
+3. System health/cache/index tools.
+4. Longer-term architecture pass: decide whether FarosCMS should stay Twig/Composer based or move closer to strict phpFlat structure.
 
 ## Notes
 

@@ -30,6 +30,7 @@ final class App
     private BackupRunRepository $backupRuns;
     private LoginThrottle $loginThrottle;
     private BackupService $backups;
+    private FormSubmissionRepository $formSubmissions;
     private string $currentLang;
     private array $translations = [];
     private array $formStates = [];
@@ -64,6 +65,7 @@ final class App
         $this->backupRuns = new BackupRunRepository($this->systemDatabase);
         $this->loginThrottle = new LoginThrottle($this->systemDatabase);
         $this->backups = new BackupService($this->basePath, $this->systemDatabase);
+        $this->formSubmissions = new FormSubmissionRepository($this->contentDir);
         $this->content = new ContentRepository($this->contentDir, $markdown, $this->settings);
         $this->auth = new Auth($this->contentDir . '/users/users.yaml', $this->users);
 
@@ -445,6 +447,16 @@ final class App
 
         if ($action === 'files') {
             $this->redirect('/admin/media?type=document&view=list');
+            return;
+        }
+
+        if ($action === 'forms') {
+            $this->handleFormsList();
+            return;
+        }
+
+        if ($action === 'form-submissions') {
+            $this->handleFormSubmissions();
             return;
         }
 
@@ -1540,6 +1552,10 @@ final class App
     private function handleAdminList(): void
     {
         $type = $this->sanitizeType((string)($_GET['type'] ?? 'pages'));
+        if ($type === 'forms') {
+            $this->redirect('/admin/forms' . (isset($_GET['deleted']) ? '?deleted=1' : ''));
+            return;
+        }
         $lang = $this->slugify((string)($_GET['lang'] ?? ($this->settings['languages']['default'] ?? 'en')));
         $deleted = isset($_GET['deleted']);
         $types = $this->content->getTypes();
@@ -1698,8 +1714,11 @@ final class App
         if ($isNew && $metaForm['date'] === '') {
             $metaForm['date'] = date('Y-m-d');
         }
+        $formSubmissionsTotal = 0;
         if ($type === 'forms' && $slug !== '') {
             $formSubmissions = $this->listFormSubmissions($slug);
+            $formSubmissionsTotal = count($formSubmissions);
+            $formSubmissions = array_slice($formSubmissions, 0, 10);
         }
         if ($type !== 'forms') {
             $this->ensureMediaLibraryDirectories();
@@ -1733,12 +1752,13 @@ final class App
             'user' => $this->auth->user(),
             'saved' => $saved,
             'deleted' => $deleted,
-            'admin_section' => 'content',
+            'admin_section' => $type === 'forms' ? 'forms' : 'content',
             'current_type' => $type,
             'form_fields' => $formFields,
             'form_notifications' => $formNotifications,
             'form_settings' => $formSettings,
             'form_submissions' => $formSubmissions,
+            'form_submissions_total' => $formSubmissionsTotal,
             'form_field_types' => $this->formFieldTypes(),
             'media_picker_images' => $mediaPickerImages,
         ]);
@@ -2931,7 +2951,7 @@ final class App
             return;
         }
         $siteTitle = (string)($this->settings['title'] ?? '');
-        fputcsv($output, $headers);
+        fputcsv($output, $headers, ',', '"', '');
         foreach ($submissions as $submission) {
             $row = [];
             foreach ($headers as $header) {
@@ -2950,10 +2970,221 @@ final class App
                 $value = $submission['fields'][$header] ?? '';
                 $row[] = $this->stringifySubmissionValue($value);
             }
-            fputcsv($output, $row);
+            fputcsv($output, $row, ',', '"', '');
         }
         fclose($output);
         exit;
+    }
+
+    private function handleFormsList(): void
+    {
+        $defaultLang = (string)($this->settings['languages']['default'] ?? 'en');
+        $languages = array_values(array_map('strval', $this->settings['languages']['available'] ?? [$defaultLang]));
+        $filters = [
+            'q' => trim((string)($_GET['q'] ?? '')),
+            'status' => trim((string)($_GET['status'] ?? '')),
+        ];
+        $sort = (string)($_GET['sort'] ?? 'updated');
+        if (!in_array($sort, ['updated', 'submissions', 'name'], true)) {
+            $sort = 'updated';
+        }
+
+        $groups = [];
+        foreach ($this->content->getItems('forms', null, true, false) as $item) {
+            $groups[$item->slug][$item->lang] = $item;
+        }
+
+        $rows = [];
+        $totals = ['forms' => 0, 'published' => 0, 'submissions' => 0, 'recent' => 0];
+        foreach ($groups as $slug => $versions) {
+            $primary = $versions[$defaultLang] ?? reset($versions);
+            $stats = $this->formSubmissions->stats((string)$slug);
+            $notifications = is_array($primary->meta['notifications'] ?? null) ? $primary->meta['notifications'] : [];
+            $status = (string)($primary->meta['status'] ?? 'published');
+            $rows[] = [
+                'slug' => (string)$slug,
+                'title' => (string)($primary->meta['title'] ?? $slug),
+                'status' => $status,
+                'lang' => $primary->lang,
+                'field_count' => count($this->normalizeFormFields($primary->meta['fields'] ?? [])),
+                'languages' => array_keys($versions),
+                'missing_languages' => array_values(array_diff($languages, array_keys($versions))),
+                'submissions' => $stats['total'],
+                'recent' => $stats['last_7_days'],
+                'latest_submission' => $stats['latest'] !== '' ? $this->formatSubmissionDate($stats['latest']) : '',
+                'updated' => max(array_map(static fn(ContentItem $version): int => $version->mtime, $versions)),
+                'notifications' => $this->isTruthy($notifications['enabled'] ?? false),
+                'stores' => $this->isTruthy($primary->meta['store_submissions'] ?? ($this->settings['forms']['store_submissions'] ?? true)),
+                'shortcode' => '[form slug="' . $slug . '"]',
+            ];
+            $totals['forms']++;
+            $totals['published'] += $status === 'published' ? 1 : 0;
+            $totals['submissions'] += $stats['total'];
+            $totals['recent'] += $stats['last_7_days'];
+        }
+
+        if ($filters['q'] !== '') {
+            $needle = mb_strtolower($filters['q']);
+            $rows = array_values(array_filter($rows, static fn(array $row): bool => str_contains(mb_strtolower($row['title'] . ' ' . $row['slug']), $needle)));
+        }
+        if ($filters['status'] !== '') {
+            $rows = array_values(array_filter($rows, static fn(array $row): bool => $row['status'] === $filters['status']));
+        }
+        usort($rows, static fn(array $a, array $b): int => match ($sort) {
+            'submissions' => $b['submissions'] <=> $a['submissions'],
+            'name' => strcasecmp($a['title'], $b['title']),
+            default => $b['updated'] <=> $a['updated'],
+        });
+
+        $this->render('@admin/forms-list.twig', [
+            'title' => 'Forms',
+            'rows' => $rows,
+            'totals' => $totals,
+            'filters' => $filters,
+            'sort' => $sort,
+            'filters_active' => $filters['q'] !== '' || $filters['status'] !== '' || $sort !== 'updated',
+            'languages' => $languages,
+            'default_lang' => $defaultLang,
+            'deleted' => isset($_GET['deleted']),
+            'types' => $this->content->getTypes(),
+            'user' => $this->auth->user(),
+            'admin_section' => 'forms',
+            'current_type' => 'forms',
+        ]);
+    }
+
+    private function handleFormSubmissions(): void
+    {
+        $slug = $this->slugify((string)($_GET['slug'] ?? ($_POST['slug'] ?? '')));
+        $defaultLang = (string)($this->settings['languages']['default'] ?? 'en');
+        $versions = [];
+        foreach ($this->content->getItems('forms', null, true, false) as $item) {
+            if ($item->slug === $slug) {
+                $versions[$item->lang] = $item;
+            }
+        }
+        if ($slug === '' || $versions === []) {
+            $this->redirect('/admin/forms');
+            return;
+        }
+        $form = $versions[$defaultLang] ?? reset($versions);
+
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+            $action = (string)($_POST['submission_action'] ?? '');
+            $ids = $action === 'delete'
+                ? [(string)($_POST['id'] ?? '')]
+                : (is_array($_POST['selected_ids'] ?? null) ? array_map('strval', $_POST['selected_ids']) : []);
+            $deleted = 0;
+            if (in_array($action, ['delete', 'bulk_delete'], true)) {
+                foreach ($ids as $id) {
+                    if ($this->formSubmissions->delete($slug, $id)) {
+                        $deleted++;
+                    }
+                }
+                if ($deleted > 0) {
+                    $this->logActivity('forms.submission_delete', 'warning', 'forms', $slug, $deleted === 1 ? 'Form submission deleted.' : 'Form submissions deleted.', [
+                        'slug' => $slug,
+                        'count' => $deleted,
+                        'ids' => array_slice($ids, 0, 50),
+                    ]);
+                }
+            }
+            $return = $this->sanitizeAdminReturnUrl((string)($_POST['return_to'] ?? ''));
+            parse_str((string)parse_url($return, PHP_URL_QUERY), $query);
+            if (!str_starts_with($return, '/admin/form-submissions')) {
+                $query = [];
+            }
+            unset($query['deleted'], $query['error']);
+            $query = ['slug' => $slug] + $query + ($deleted > 0 ? ['deleted' => $deleted] : ['error' => 'Nothing was deleted.']);
+            $this->redirect('/admin/form-submissions?' . http_build_query($query));
+            return;
+        }
+
+        $filters = [
+            'lang' => $this->slugify((string)($_GET['lang'] ?? '')),
+            'q' => trim((string)($_GET['q'] ?? '')),
+            'date_from' => preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)($_GET['date_from'] ?? '')) ? (string)$_GET['date_from'] : '',
+            'date_to' => preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)($_GET['date_to'] ?? '')) ? (string)$_GET['date_to'] : '',
+        ];
+        $perPage = (int)($_GET['per_page'] ?? 25);
+        if (!in_array($perPage, [25, 50, 100], true)) {
+            $perPage = 25;
+        }
+        $all = $this->formSubmissions->all($slug);
+        $filtered = $this->formSubmissions->filter($all, $filters);
+        $total = count($filtered);
+        $totalPages = max(1, (int)ceil($total / $perPage));
+        $page = min(max(1, (int)($_GET['page'] ?? 1)), $totalPages);
+
+        $labels = [];
+        $formFields = $this->normalizeFormFields($form->meta['fields'] ?? []);
+        foreach ($formFields as $field) {
+            $name = (string)($field['name'] ?? '');
+            if ($name !== '') {
+                $labels[$name] = (string)($field['label'] ?? $this->titleFromSlug($name));
+            }
+        }
+        $rows = [];
+        foreach (array_slice($filtered, ($page - 1) * $perPage, $perPage) as $entry) {
+            $fields = [];
+            foreach ($entry['fields'] as $key => $value) {
+                $fields[] = [
+                    'key' => (string)$key,
+                    'label' => $labels[(string)$key] ?? $this->titleFromSlug((string)$key),
+                    'value' => $this->stringifySubmissionValue($value),
+                ];
+            }
+            $summaryParts = [];
+            foreach ($fields as $field) {
+                if (in_array($field['key'], ['name', 'full_name', 'email'], true) || $field['value'] === '') {
+                    continue;
+                }
+                $summaryParts[] = $field['value'];
+                if (count($summaryParts) >= 2) {
+                    break;
+                }
+            }
+            $rows[] = [
+                'id' => $entry['id'],
+                'submitted_at' => $this->formatSubmissionDate((string)$entry['submitted_at']),
+                'lang' => (string)$entry['lang'],
+                'title' => $this->submissionTitle($entry['fields']),
+                'email' => $this->findReplyToEmail($entry['fields'], $formFields, ''),
+                'summary' => mb_strimwidth(implode(' · ', $summaryParts), 0, 120, '…'),
+                'fields' => $fields,
+                'ip' => (string)$entry['ip'],
+                'user_agent' => (string)$entry['user_agent'],
+            ];
+        }
+
+        $stats = $this->formSubmissions->stats($slug);
+        $this->render('@admin/form-submissions.twig', [
+            'title' => 'Submissions',
+            'form' => [
+                'slug' => $slug,
+                'title' => (string)($form->meta['title'] ?? $slug),
+                'lang' => $form->lang,
+                'languages' => array_keys($versions),
+            ],
+            'rows' => $rows,
+            'filters' => $filters,
+            'filters_active' => array_filter($filters) !== [],
+            'total_all' => count($all),
+            'total' => $total,
+            'recent' => $stats['last_7_days'],
+            'page' => $page,
+            'total_pages' => $totalPages,
+            'per_page' => $perPage,
+            'per_page_options' => [25, 50, 100],
+            'deleted_count' => (int)($_GET['deleted'] ?? 0),
+            'error' => trim((string)($_GET['error'] ?? '')),
+            'current_url' => $this->currentRequestPath(),
+            'languages' => array_values(array_map('strval', $this->settings['languages']['available'] ?? [])),
+            'types' => $this->content->getTypes(),
+            'user' => $this->auth->user(),
+            'admin_section' => 'forms',
+            'current_type' => 'forms',
+        ]);
     }
 
     private function handleContentExport(): void
@@ -3036,7 +3267,7 @@ final class App
             return;
         }
 
-        fputcsv($output, $headers);
+        fputcsv($output, $headers, ',', '"', '');
         foreach ($items as $item) {
             $key = $item->slug . '|' . $item->lang;
             $flatMeta = $flatMetaRows[$key] ?? [];
@@ -3062,7 +3293,7 @@ final class App
             foreach ($metaHeaders as $metaHeader) {
                 $row[] = (string)($flatMeta[$metaHeader] ?? '');
             }
-            fputcsv($output, $row);
+            fputcsv($output, $row, ',', '"', '');
         }
 
         fclose($output);
@@ -7793,13 +8024,7 @@ final class App
 
     private function storeFormSubmission(ContentItem $form, array $values): void
     {
-        $dir = $this->contentDir . '/forms-submissions/' . $form->slug;
-        if (!is_dir($dir)) {
-            mkdir($dir, 0775, true);
-        }
-        $id = date('Ymd-His') . '-' . bin2hex(random_bytes(4));
-        $payload = [
-            'id' => $id,
+        $this->formSubmissions->store($form->slug, [
             'form' => $form->slug,
             'lang' => $form->lang,
             'translation_id' => (string)($form->meta['translation_id'] ?? ''),
@@ -7807,8 +8032,7 @@ final class App
             'ip' => (string)($_SERVER['REMOTE_ADDR'] ?? ''),
             'user_agent' => (string)($_SERVER['HTTP_USER_AGENT'] ?? ''),
             'fields' => $values,
-        ];
-        file_put_contents($dir . '/' . $id . '.json', json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+        ]);
     }
 
     /** @return array<int, array<string, mixed>> */
@@ -7840,32 +8064,7 @@ final class App
     /** @return array<int, array<string, mixed>> */
     private function loadFormSubmissionsRaw(string $slug): array
     {
-        $dir = $this->contentDir . '/forms-submissions/' . $slug;
-        if (!is_dir($dir)) {
-            return [];
-        }
-        $entries = [];
-        foreach (glob($dir . '/*.json') ?: [] as $path) {
-            $raw = (string)file_get_contents($path);
-            $data = json_decode($raw, true);
-            if (!is_array($data)) {
-                continue;
-            }
-            $entries[] = [
-                'id' => (string)($data['id'] ?? basename($path, '.json')),
-                'submitted_at' => (string)($data['submitted_at'] ?? ''),
-                'form' => (string)($data['form'] ?? $slug),
-                'lang' => (string)($data['lang'] ?? ''),
-                'translation_id' => (string)($data['translation_id'] ?? ''),
-                'ip' => (string)($data['ip'] ?? ''),
-                'user_agent' => (string)($data['user_agent'] ?? ''),
-                'fields' => is_array($data['fields'] ?? null) ? $data['fields'] : [],
-            ];
-        }
-        usort($entries, function (array $a, array $b): int {
-            return strcmp((string)($b['submitted_at'] ?? ''), (string)($a['submitted_at'] ?? ''));
-        });
-        return $entries;
+        return $this->formSubmissions->all($slug);
     }
 
     private function submissionTitle(mixed $fields): string
@@ -7948,7 +8147,7 @@ final class App
         $delimiter = $this->detectCsvDelimiter($firstLine);
         rewind($handle);
 
-        $headers = fgetcsv($handle, 0, $delimiter);
+        $headers = fgetcsv($handle, 0, $delimiter, '"', '');
         if (!is_array($headers) || empty($headers)) {
             fclose($handle);
             return ['ok' => false, 'error' => 'CSV headers are invalid.'];
@@ -7969,7 +8168,7 @@ final class App
         }
 
         $rows = [];
-        while (($line = fgetcsv($handle, 0, $delimiter)) !== false) {
+        while (($line = fgetcsv($handle, 0, $delimiter, '"', '')) !== false) {
             if ($line === [null] || $line === []) {
                 continue;
             }
