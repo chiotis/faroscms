@@ -7,6 +7,7 @@ Reference docs:
 - `docs/migration-plan.md` explains the original migration strategy.
 - `docs/admin-gap-list.md` compares FarosCMS with the admin template and phpFlat baseline.
 - `docs/system-database.md` documents the SQLite system layer.
+- `docs/security.md` documents admin security behavior and the operator checklist.
 
 ## Current Status
 
@@ -61,6 +62,21 @@ Content remains file-based. SQLite is used for system/admin data, starting with 
 - [x] Add mark-as-read and mark-all-read actions.
 - [x] Derive notifications from failed emails, backups, and system checks.
 - [ ] Derive update notifications once the Updates module exists.
+
+### 6. Security Hardening
+
+See `docs/security.md`.
+
+- [x] CSRF tokens on every admin POST, including sign-in.
+- [x] Sign-out through POST only.
+- [x] Session cookie flags, strict mode, and id regeneration on sign-in/sign-out.
+- [x] Re-check user status and role on every admin request.
+- [x] Throttle repeated failed sign-ins by address and username.
+- [x] Never render stored secrets back into Settings.
+- [x] Restrict media uploads to inert file types and reject scripted SVGs.
+- [x] Security headers for admin and frontend responses.
+- [x] Warn while the shipped default admin password is still in use.
+- [ ] Rotate any credential that was ever committed to git (manual, provider side).
 
 ## Admin Modules Backlog
 

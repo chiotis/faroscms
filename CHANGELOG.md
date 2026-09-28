@@ -6,6 +6,9 @@
 - Theme settings are edited through a form (palette, font, hero layouts, home sections, footer) that matches the default theme options
 - Site/theme settings live in SQLite; legacy `content/settings/*.yaml` files are still imported once on upgrade
 - Development-only folders (`_reference/`, `node_modules/`) are excluded from full snapshots
+- Security: CSRF protection on all admin forms, POST-only sign-out, hardened session cookies with id rotation, and immediate effect of user deactivation/role changes
+- Security: failed sign-in throttling, masked settings secrets, upload type allowlist with SVG script checks, and security response headers
+- Security: admin banner and notification while the shipped default password is still in use
 
 ## 2026-03-01
 - Media/files consolidation completed:

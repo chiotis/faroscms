@@ -57,6 +57,7 @@
   {% endif %}
 
   <form method="post" class="grid gap-4">
+    {{ csrf_field() }}
     <input type="hidden" name="taxonomy" value="{{ taxonomy }}">
 
     <section class="rounded-lg border border-slate-200 bg-white">

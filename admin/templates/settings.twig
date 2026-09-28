@@ -20,6 +20,16 @@
     </div>
   {% endmacro %}
 
+  {% macro secret_input(name, is_set, input_class, empty_placeholder) %}
+    <input type="password" name="{{ name }}" value="" autocomplete="new-password" placeholder="{{ is_set ? 'Saved. Leave blank to keep it.' : empty_placeholder }}" class="{{ input_class }}">
+    {% if is_set %}
+      <span class="mt-1 flex items-center gap-1.5 text-xs text-slate-400">
+        <input type="checkbox" name="clear_secret[]" value="{{ name }}" class="h-3.5 w-3.5 rounded border-slate-300">
+        Remove the saved value
+      </span>
+    {% endif %}
+  {% endmacro %}
+
   {% import _self as ui %}
 
   {% if saved %}
@@ -47,6 +57,7 @@
   {% endif %}
 
   <form method="post" class="space-y-4">
+    {{ csrf_field() }}
     <input type="hidden" name="active_tab" value="{{ active_tab }}" data-active-tab-input>
 
     <div class="flex flex-col gap-3 border-b border-slate-200 pb-4 lg:flex-row lg:items-center lg:justify-between">
@@ -357,7 +368,7 @@
             </label>
             <label class="block">
               <span class="mb-1 block text-sm font-medium text-slate-700">Password</span>
-              <input type="password" name="smtp_pass" value="{{ settings_form.smtp_pass }}" class="{{ input_class }}">
+              {{ ui.secret_input('smtp_pass', settings_form.smtp_pass_set, input_class, '') }}
             </label>
             <label class="block">
               <span class="mb-1 block text-sm font-medium text-slate-700">Encryption</span>
@@ -382,7 +393,7 @@
             </label>
             <label class="block">
               <span class="mb-1 block text-sm font-medium text-slate-700">Secret key</span>
-              <input type="password" name="ses_secret" value="{{ settings_form.ses_secret }}" class="{{ input_class }}">
+              {{ ui.secret_input('ses_secret', settings_form.ses_secret_set, input_class, '') }}
             </label>
             <label class="block">
               <span class="mb-1 block text-sm font-medium text-slate-700">Region</span>
@@ -416,7 +427,7 @@
             </label>
             <label class="block sm:col-span-2">
               <span class="mb-1 block text-sm font-medium text-slate-700">Google Client Secret</span>
-              <input type="password" name="google_client_secret" value="{{ settings_form.google_client_secret }}" class="{{ input_class }}">
+              {{ ui.secret_input('google_client_secret', settings_form.google_client_secret_set, input_class, '') }}
             </label>
             <label class="block sm:col-span-2">
               <span class="mb-1 block text-sm font-medium text-slate-700">Allowed domain</span>
@@ -511,7 +522,7 @@
             </label>
             <label class="block">
               <span class="mb-1 block text-sm font-medium text-slate-700">Secret key</span>
-              <input type="password" name="backup_remote_secret_key" value="{{ settings_form.backup_remote_secret_key }}" autocomplete="new-password" class="{{ input_class }}">
+              {{ ui.secret_input('backup_remote_secret_key', settings_form.backup_remote_secret_key_set, input_class, '') }}
             </label>
             <label class="block">
               <span class="mb-1 block text-sm font-medium text-slate-700">Path prefix</span>
@@ -564,7 +575,7 @@
             </label>
             <label class="block sm:col-span-2">
               <span class="mb-1 block text-sm font-medium text-slate-700">GitHub token</span>
-              <input type="password" name="update_github_token" value="" autocomplete="new-password" placeholder="{{ settings_form.update_github_token ? 'Token saved. Leave blank to keep it.' : 'Required only for private repositories' }}" class="{{ input_class }}">
+              {{ ui.secret_input('update_github_token', settings_form.update_github_token_set, input_class, 'Required only for private repositories') }}
               <span class="mt-1 block text-xs text-slate-400">Needed when the repository is private. Leave blank to keep the existing token.</span>
             </label>
           </div>

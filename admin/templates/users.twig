@@ -128,6 +128,7 @@
                     </a>
                     {% if can('users.manage') and account.id != user.id|default(0) and account.status == 'active' %}
                       <form method="post" action="{{ url('admin/users-delete') }}" class="inline" onsubmit="return confirm('Deactivate this user?');">
+                        {{ csrf_field() }}
                         <input type="hidden" name="id" value="{{ account.id }}">
                         <button type="submit" class="{{ icon_danger }}" title="Deactivate {{ label }}" aria-label="Deactivate {{ label }}">
                           <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M18.36 6.64A9 9 0 1 1 12 3v9"/></svg>

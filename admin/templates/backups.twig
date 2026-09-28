@@ -40,6 +40,7 @@
     </div>
     <div class="flex flex-wrap gap-2">
       <form method="post" action="{{ url('admin/backups') }}">
+        {{ csrf_field() }}
         <input type="hidden" name="backup_action" value="create_database">
         <button type="submit" class="{{ secondary_button }}">
           <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7c0-1.66 3.58-3 8-3s8 1.34 8 3-3.58 3-8 3-8-1.34-8-3zM4 7v10c0 1.66 3.58 3 8 3s8-1.34 8-3V7"/></svg>
@@ -47,6 +48,7 @@
         </button>
       </form>
       <form method="post" action="{{ url('admin/backups') }}">
+        {{ csrf_field() }}
         <input type="hidden" name="backup_action" value="create_full">
         <button type="submit" class="{{ primary_button }}">
           <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
@@ -118,6 +120,7 @@
                         <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v6h6M20 9a8 8 0 00-14.93-3M4 15a8 8 0 0014.93 3"/></svg>
                       </button>
                       <form method="post" action="{{ url('admin/backups') }}" onsubmit="return confirm('Delete this backup file?');">
+                        {{ csrf_field() }}
                         <input type="hidden" name="backup_action" value="delete">
                         <input type="hidden" name="filename" value="{{ snapshot.filename }}">
                         <button type="submit" class="{{ danger_icon_button }}" title="Delete" aria-label="Delete {{ snapshot.filename }}">

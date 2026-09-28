@@ -34,6 +34,7 @@
   </div>
 
   <form method="post" class="translations">
+    {{ csrf_field() }}
     <input type="hidden" name="lang" value="{{ lang }}">
 
     <div class="rounded-lg border border-slate-200 bg-white">

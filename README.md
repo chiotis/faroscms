@@ -24,4 +24,6 @@ Username: admin
 Password: 1234
 ```
 
-Change this before using FarosCMS outside local development.
+Change this before using FarosCMS outside local development. The admin shows a red banner while this password is still in use.
+
+See [docs/security.md](docs/security.md) for the security model and the server operator checklist.

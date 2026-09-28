@@ -24,6 +24,7 @@
         Filter
       </button>
       <form method="post" onsubmit="return confirm('Clear all email logs?');">
+        {{ csrf_field() }}
         <input type="hidden" name="email_log_action" value="clear">
         <button type="submit" class="{{ btn_danger }}">
           <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2m2 0v14a1 1 0 01-1 1H7a1 1 0 01-1-1V6"/></svg>

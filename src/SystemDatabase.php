@@ -82,6 +82,22 @@ final class SystemDatabase
 
         $this->applyMigration($pdo, '202607060001_system_foundation', fn(PDO $db) => $this->createFoundationSchema($db));
         $this->applyMigration($pdo, '202607060002_users_google_auth', fn(PDO $db) => $this->addGoogleAuthColumns($db));
+        $this->applyMigration($pdo, '202609280001_login_attempts', fn(PDO $db) => $this->createLoginAttemptsTable($db));
+    }
+
+    private function createLoginAttemptsTable(PDO $pdo): void
+    {
+        $pdo->exec(
+            'CREATE TABLE IF NOT EXISTS login_attempts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                address TEXT NOT NULL,
+                username TEXT NOT NULL,
+                succeeded INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL
+            )'
+        );
+        $pdo->exec('CREATE INDEX IF NOT EXISTS idx_login_attempts_address ON login_attempts (address, created_at)');
+        $pdo->exec('CREATE INDEX IF NOT EXISTS idx_login_attempts_username ON login_attempts (username, created_at)');
     }
 
     private function applyMigration(PDO $pdo, string $version, callable $callback): void

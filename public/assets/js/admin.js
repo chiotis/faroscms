@@ -241,6 +241,22 @@
     }
   });
 
+  /* ---- CSRF safety net ----
+   * Every server-rendered POST form already carries {{ csrf_field() }}; this covers forms
+   * built or moved by scripts so they cannot silently fail verification. */
+  document.addEventListener('submit', function (e) {
+    var form = e.target;
+    if (!form || String(form.getAttribute('method') || '').toLowerCase() !== 'post') return;
+    if (form.querySelector('input[name="_csrf"]')) return;
+    var meta = document.querySelector('meta[name="csrf-token"]');
+    if (!meta) return;
+    var input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = '_csrf';
+    input.value = meta.getAttribute('content') || '';
+    form.appendChild(input);
+  }, true);
+
   /* Activate first tab in each tab group on load */
   document.addEventListener('DOMContentLoaded', function () {
     injectThemeToggle();

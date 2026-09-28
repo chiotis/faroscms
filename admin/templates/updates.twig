@@ -23,6 +23,7 @@
         Backups
       </a>
       <form method="post" action="{{ url('admin/updates') }}">
+        {{ csrf_field() }}
         <input type="hidden" name="updates_action" value="check">
         <button type="submit" class="{{ primary_button }}">
           <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v6h6M20 9A8 8 0 006.2 5.3M4 15a8 8 0 0013.8 3.7M20 20v-6h-6"/></svg>

@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>Sign in - FarosCMS</title>
   <script>
     window.tailwind = window.tailwind || {};
@@ -36,6 +37,7 @@
       {% endif %}
 
       <form method="post" class="mt-5 grid gap-4">
+        {{ csrf_field() }}
         <label class="grid gap-1 text-sm font-medium text-slate-700" for="username">
           Username
           <input id="username" type="text" name="username" autocomplete="username" required autofocus class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-500 focus:ring-2 focus:ring-slate-300">

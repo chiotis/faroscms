@@ -1,0 +1,22 @@
+# Uploaded files are data, never code.
+Options -ExecCGI -Indexes
+RemoveHandler .php .phtml .php3 .php4 .php5 .php7 .php8 .phps .pht .phar
+RemoveType .php .phtml .php3 .php4 .php5 .php7 .php8 .phps .pht .phar
+<IfModule mod_php.c>
+  php_flag engine off
+</IfModule>
+<IfModule mod_php7.c>
+  php_flag engine off
+</IfModule>
+<IfModule mod_php8.c>
+  php_flag engine off
+</IfModule>
+<FilesMatch "\.(php\d?|phtml|phps|pht|phar|cgi|pl|py|sh|html?|xhtml|shtml)$">
+  Require all denied
+</FilesMatch>
+<IfModule mod_headers.c>
+  Header set X-Content-Type-Options "nosniff"
+  <FilesMatch "\.svg$">
+    Header set Content-Security-Policy "default-src 'none'; style-src 'unsafe-inline'; img-src data:"
+  </FilesMatch>
+</IfModule>

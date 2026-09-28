@@ -5,8 +5,8 @@
     <div class="flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-600 ring-1 ring-red-100">
       <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M5.07 19h13.86a2 2 0 001.73-3L13.73 4a2 2 0 00-3.46 0L3.34 16a2 2 0 001.73 3z"/></svg>
     </div>
-    <h2 class="mt-4 text-base font-semibold text-slate-900">Access denied</h2>
-    <p class="mt-2 text-sm text-slate-500">Your account does not have permission to open this admin area.</p>
+    <h2 class="mt-4 text-base font-semibold text-slate-900">{{ title|default('Access denied') }}</h2>
+    <p class="mt-2 text-sm text-slate-500">{{ message|default('') ?: 'Your account does not have permission to open this admin area.' }}</p>
     <div class="mt-5 flex flex-wrap justify-center gap-2">
       {% if can('content.manage') %}
         <a href="{{ url('admin') }}" class="rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-700">Back to admin</a>

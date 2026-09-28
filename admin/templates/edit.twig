@@ -26,6 +26,7 @@
   {% endif %}
 
   <form method="post" action="{{ url('admin/save') }}" class="editor space-y-4" enctype="multipart/form-data">
+    {{ csrf_field() }}
     <input type="hidden" name="type" value="{{ type }}">
     <input type="hidden" name="translation_id" value="{{ meta_form.translation_id }}">
     <input type="hidden" name="original_slug" value="{{ slug }}">

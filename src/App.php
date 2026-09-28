@@ -27,6 +27,7 @@ final class App
     private EmailLogRepository $emailLogs;
     private NotificationRepository $notifications;
     private BackupRunRepository $backupRuns;
+    private LoginThrottle $loginThrottle;
     private string $currentLang;
     private array $translations = [];
     private array $formStates = [];
@@ -58,6 +59,7 @@ final class App
         $this->emailLogs = new EmailLogRepository($this->systemDatabase);
         $this->notifications = new NotificationRepository($this->systemDatabase);
         $this->backupRuns = new BackupRunRepository($this->systemDatabase);
+        $this->loginThrottle = new LoginThrottle($this->systemDatabase);
         $this->content = new ContentRepository($this->contentDir, $markdown, $this->settings);
         $this->auth = new Auth($this->contentDir . '/users/users.yaml', $this->users);
 
@@ -69,6 +71,7 @@ final class App
     public function handle(): void
     {
         if (session_status() !== PHP_SESSION_ACTIVE) {
+            $this->configureSession();
             session_start();
         }
 
@@ -76,11 +79,75 @@ final class App
         $path = trim($path, '/');
 
         if (str_starts_with($path, 'admin')) {
+            $this->sendSecurityHeaders(true);
             $this->handleAdmin($path);
             return;
         }
 
+        $this->sendSecurityHeaders(false);
+
         $this->handleFront($path);
+    }
+
+    private function configureSession(): void
+    {
+        if (headers_sent()) {
+            return;
+        }
+        ini_set('session.use_strict_mode', '1');
+        ini_set('session.use_only_cookies', '1');
+        session_set_cookie_params([
+            'lifetime' => 0,
+            'path' => '/',
+            'secure' => $this->isHttpsRequest(),
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ]);
+    }
+
+    private function isHttpsRequest(): bool
+    {
+        $https = strtolower((string)($_SERVER['HTTPS'] ?? ''));
+        if ($https !== '' && $https !== 'off') {
+            return true;
+        }
+        if ((string)($_SERVER['SERVER_PORT'] ?? '') === '443') {
+            return true;
+        }
+        return strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https';
+    }
+
+    private function sendSecurityHeaders(bool $admin): void
+    {
+        if (headers_sent()) {
+            return;
+        }
+        header('X-Content-Type-Options: nosniff');
+        if ($admin) {
+            header('X-Frame-Options: DENY');
+            header('Referrer-Policy: same-origin');
+            header('Cache-Control: no-store, private');
+            return;
+        }
+        header('X-Frame-Options: SAMEORIGIN');
+        header('Referrer-Policy: strict-origin-when-cross-origin');
+    }
+
+    private function csrfToken(): string
+    {
+        $token = $_SESSION['_csrf_token'] ?? '';
+        if (!is_string($token) || strlen($token) !== 64) {
+            $token = bin2hex(random_bytes(32));
+            $_SESSION['_csrf_token'] = $token;
+        }
+        return $token;
+    }
+
+    private function isValidCsrfRequest(): bool
+    {
+        $expected = $_SESSION['_csrf_token'] ?? '';
+        $provided = $_POST['_csrf'] ?? ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? '');
+        return is_string($expected) && $expected !== '' && is_string($provided) && hash_equals($expected, $provided);
     }
 
     private function handleFront(string $path): void
@@ -251,22 +318,18 @@ final class App
             $action = 'content';
         }
 
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && !$this->isValidCsrfRequest()) {
+            $this->rejectInvalidCsrf($action);
+            return;
+        }
+
         if ($action === 'login') {
+            if ($this->auth->check() && ($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+                $this->redirect('/admin');
+                return;
+            }
             if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-                $username = trim((string)($_POST['username'] ?? ''));
-                $password = (string)($_POST['password'] ?? '');
-                if ($this->auth->attempt($username, $password)) {
-                    $this->logActivity('auth.login_success', 'info', 'user', (string)($this->auth->user()['username'] ?? $username), 'User logged in.', [
-                        'method' => 'password',
-                    ]);
-                    $this->redirect('/admin');
-                    return;
-                }
-                $this->logActivity('auth.login_failure', 'warning', 'user', $username, 'Invalid password login attempt.', [
-                    'method' => 'password',
-                    'username' => $username,
-                ], ['username' => $username]);
-                $this->renderLogin('Invalid credentials.');
+                $this->handlePasswordLogin();
                 return;
             }
 
@@ -285,13 +348,18 @@ final class App
         }
 
         if ($action === 'logout') {
+            if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+                // Signing out changes state, so it only happens through the CSRF-protected form.
+                $this->redirect($this->auth->check() ? '/admin' : '/admin/login');
+                return;
+            }
             $this->logActivity('auth.logout', 'info', 'user', (string)($this->auth->user()['username'] ?? ''), 'User signed out.');
             $this->auth->logout();
             $this->redirect('/admin/login');
             return;
         }
 
-        if (!$this->auth->check()) {
+        if (!$this->auth->check() || !$this->auth->refresh()) {
             $this->redirect('/admin/login');
             return;
         }
@@ -437,6 +505,77 @@ final class App
         }
 
         $this->handleAdminList();
+    }
+
+    private function handlePasswordLogin(): void
+    {
+        $username = trim((string)($_POST['username'] ?? ''));
+        $password = (string)($_POST['password'] ?? '');
+        $address = (string)($_SERVER['REMOTE_ADDR'] ?? '');
+
+        $throttle = $this->loginThrottle->check($address, $username);
+        if ($throttle['blocked']) {
+            $minutes = max(1, (int)ceil($throttle['retry_after'] / 60));
+            $this->logActivity('auth.login_throttled', 'warning', 'user', $username, 'Login blocked after repeated failures.', [
+                'username' => $username,
+                'retry_after' => $throttle['retry_after'],
+            ], ['username' => $username]);
+            http_response_code(429);
+            header('Retry-After: ' . $throttle['retry_after']);
+            $this->renderLogin('Too many failed sign-in attempts. Try again in ' . $minutes . ' minute' . ($minutes === 1 ? '' : 's') . '.');
+            return;
+        }
+
+        if ($this->auth->attempt($username, $password)) {
+            $this->loginThrottle->recordSuccess($address, $username);
+            $signedIn = (string)($this->auth->user()['username'] ?? $username);
+            $this->logActivity('auth.login_success', 'info', 'user', $signedIn, 'User logged in.', [
+                'method' => 'password',
+            ]);
+            if ($this->auth->isShippedDefaultPassword($signedIn, $password)) {
+                $_SESSION['security_default_password'] = true;
+                $this->notifyDefaultPassword($signedIn);
+            }
+            $this->redirect('/admin');
+            return;
+        }
+
+        $this->loginThrottle->recordFailure($address, $username);
+        $this->logActivity('auth.login_failure', 'warning', 'user', $username, 'Invalid password login attempt.', [
+            'method' => 'password',
+            'username' => $username,
+        ], ['username' => $username]);
+        $this->renderLogin('Invalid credentials.');
+    }
+
+    private function notifyDefaultPassword(string $username): void
+    {
+        try {
+            $this->notifications->createIfMissing([
+                'type' => 'security.default_password',
+                'title' => 'Default password in use',
+                'body' => $username . ' still signs in with the password shipped in content/users/users.yaml. Change it.',
+                'severity' => 'error',
+                'target_url' => '/admin/users-edit?id=' . (int)($this->auth->user()['id'] ?? 0),
+                'context' => ['username' => $username],
+            ]);
+        } catch (\Throwable) {
+            // Notifications must never block sign-in.
+        }
+    }
+
+    private function rejectInvalidCsrf(string $action): void
+    {
+        $this->logActivity('security.csrf_rejected', 'warning', 'admin_route', $action, 'Rejected a form submission without a valid CSRF token.', [
+            'action' => $action,
+        ]);
+        http_response_code(419);
+        $message = 'This form could not be verified. It may have expired, or the upload was larger than the server allows. Reload the page and try again.';
+        if ($action === 'login' || !$this->auth->check()) {
+            $this->renderLogin($message);
+            return;
+        }
+        $this->renderForbidden($message, 'Form expired');
     }
 
     private function renderLogin(string $error = ''): void
@@ -1074,6 +1213,10 @@ final class App
                 $error = 'Password is required for new users.';
             } elseif ($password !== '' && $password !== $passwordConfirm) {
                 $error = 'Password confirmation does not match.';
+            } elseif ($password !== '' && mb_strlen($password) < 8) {
+                $error = 'Passwords must be at least 8 characters long.';
+            } elseif ($password !== '' && $this->auth->isShippedDefaultPassword($payload['username'], $password)) {
+                $error = 'Choose a password other than the one shipped with FarosCMS.';
             } else {
                 if ($password !== '') {
                     $payload['password_hash'] = $this->users->passwordHash($password);
@@ -1081,6 +1224,9 @@ final class App
                 try {
                     if ($id > 0) {
                         $this->users->update($id, $payload);
+                        if ($id === $currentId && $password !== '') {
+                            unset($_SESSION['security_default_password']);
+                        }
                         $this->logActivity('users.update', 'info', 'user', (string)$id, 'User updated.', [
                             'username' => $payload['username'],
                             'role' => $payload['role'],
@@ -1779,6 +1925,7 @@ final class App
                 'update_changelog_url' => (string)($_POST['update_changelog_url'] ?? ''),
                 'update_package_url' => (string)($_POST['update_package_url'] ?? ''),
                 'update_github_token' => (string)($_POST['update_github_token'] ?? ''),
+                'clear_secrets' => is_array($_POST['clear_secret'] ?? null) ? array_map('strval', $_POST['clear_secret']) : [],
             ];
             if (!$this->saveSettings($raw, $form)) {
                 $this->redirect('/admin/settings?' . http_build_query([
@@ -2248,6 +2395,7 @@ final class App
                 $tagsCsv = trim((string)($_POST['upload_tags'] ?? ''));
                 $uploadedCount = 0;
                 $failedCount = 0;
+                $lastError = '';
                 foreach ($uploads as $upload) {
                     $errorCode = (int)($upload['error'] ?? UPLOAD_ERR_NO_FILE);
                     if ($errorCode === UPLOAD_ERR_NO_FILE) {
@@ -2260,8 +2408,9 @@ final class App
                             'filename' => (string)($uploaded['filename'] ?? ''),
                             'kind' => (string)($uploaded['kind'] ?? ''),
                         ]);
-                    } catch (\Throwable) {
+                    } catch (\Throwable $e) {
                         $failedCount++;
+                        $lastError = $e->getMessage();
                     }
                 }
 
@@ -2276,11 +2425,11 @@ final class App
                     $redirectMedia([
                         'page' => 1,
                         'success' => 'Uploaded ' . $uploadedCount . ' files.',
-                        'error' => $failedCount . ' uploads failed.',
+                        'error' => $failedCount . ' uploads failed' . ($lastError !== '' ? ': ' . $lastError : '.'),
                     ]);
                     return;
                 }
-                $redirectMedia(['error' => 'Upload failed.']);
+                $redirectMedia(['error' => $lastError !== '' ? 'Upload failed: ' . $lastError : 'Upload failed.']);
                 return;
             }
 
@@ -2931,6 +3080,14 @@ final class App
             return $this->permissions->can($this->auth->user(), $capability);
         }));
 
+        $twig->addFunction(new TwigFunction('csrf_token', function (): string {
+            return $this->csrfToken();
+        }));
+
+        $twig->addFunction(new TwigFunction('csrf_field', function (): string {
+            return '<input type="hidden" name="_csrf" value="' . htmlspecialchars($this->csrfToken(), ENT_QUOTES) . '">';
+        }, ['is_safe' => ['html']]));
+
         $twig->addGlobal('site', $this->settings);
         $twig->addGlobal('theme_settings', $this->themeSettings);
         $twig->addGlobal('is_admin', $this->auth->check());
@@ -2945,6 +3102,7 @@ final class App
         ];
         if (str_starts_with($template, '@admin/') && $this->auth->check()) {
             $defaults['admin_version'] = $this->currentVersion();
+            $defaults['admin_default_password'] = ($_SESSION['security_default_password'] ?? false) === true;
             if (!isset($data['admin_storage_summary'])) {
                 $defaults['admin_storage_summary'] = $this->buildStorageSummary();
             }
@@ -2960,11 +3118,14 @@ final class App
         echo $this->twig->render($template, $data);
     }
 
-    private function renderForbidden(): void
+    private function renderForbidden(string $message = '', string $title = 'Access denied'): void
     {
-        http_response_code(403);
+        if (http_response_code() < 400) {
+            http_response_code(403);
+        }
         $this->render('@admin/forbidden.twig', [
-            'title' => 'Access denied',
+            'title' => $title,
+            'message' => $message,
             'types' => $this->content->getTypes(),
             'user' => $this->auth->user(),
             'admin_section' => 'forbidden',
@@ -5260,10 +5421,8 @@ final class App
             'smtp_host' => (string)($merged['forms']['notifications']['smtp']['host'] ?? ''),
             'smtp_port' => (string)($merged['forms']['notifications']['smtp']['port'] ?? ''),
             'smtp_user' => (string)($merged['forms']['notifications']['smtp']['username'] ?? ''),
-            'smtp_pass' => (string)($merged['forms']['notifications']['smtp']['password'] ?? ''),
             'smtp_encryption' => (string)($merged['forms']['notifications']['smtp']['encryption'] ?? ''),
             'ses_key' => (string)($merged['forms']['notifications']['ses']['key'] ?? ''),
-            'ses_secret' => (string)($merged['forms']['notifications']['ses']['secret'] ?? ''),
             'ses_region' => (string)($merged['forms']['notifications']['ses']['region'] ?? ''),
             'menu_location_header' => (string)($menuLocations['header'] ?? 'main'),
             'menu_location_footer' => (string)($menuLocations['footer'] ?? 'footer'),
@@ -5279,21 +5438,57 @@ final class App
             'backup_remote_region' => (string)($merged['backup']['remote']['region'] ?? ''),
             'backup_remote_bucket' => (string)($merged['backup']['remote']['bucket'] ?? ''),
             'backup_remote_access_key' => (string)($merged['backup']['remote']['access_key'] ?? ''),
-            'backup_remote_secret_key' => (string)($merged['backup']['remote']['secret_key'] ?? ''),
             'backup_remote_prefix' => (string)($merged['backup']['remote']['prefix'] ?? ''),
             'backup_remote_keep' => (string)$remoteKeep,
             'backup_remote_path_style' => $this->isTruthy($merged['backup']['remote']['path_style'] ?? false),
             'google_enabled' => $this->isTruthy($merged['auth']['google']['enabled'] ?? false),
             'google_client_id' => (string)($merged['auth']['google']['client_id'] ?? ''),
-            'google_client_secret' => (string)($merged['auth']['google']['client_secret'] ?? ''),
             'google_allowed_domain' => (string)($merged['auth']['google']['allowed_domain'] ?? ''),
             'update_repository' => (string)($merged['updates']['repository'] ?? 'chiotis/faroscms'),
             'update_branch' => (string)($merged['updates']['branch'] ?? 'main'),
             'update_version_url' => (string)($merged['updates']['version_url'] ?? ''),
             'update_changelog_url' => (string)($merged['updates']['changelog_url'] ?? ''),
             'update_package_url' => (string)($merged['updates']['package_url'] ?? ''),
-            'update_github_token' => (string)($merged['updates']['github_token'] ?? ''),
+        ] + $this->maskedSettingsSecrets($merged);
+    }
+
+    /**
+     * Secrets never travel back to the browser; the form only learns whether one is stored.
+     *
+     * @return array<string, string|bool>
+     */
+    private function maskedSettingsSecrets(array $settings): array
+    {
+        $form = [];
+        foreach ($this->settingsSecretPaths() as $field => $path) {
+            $form[$field] = '';
+            $form[$field . '_set'] = trim((string)$this->readArrayPath($settings, $path)) !== '';
+        }
+        return $form;
+    }
+
+    /** @return array<string, array<int, string>> form field => settings path */
+    private function settingsSecretPaths(): array
+    {
+        return [
+            'smtp_pass' => ['forms', 'notifications', 'smtp', 'password'],
+            'ses_secret' => ['forms', 'notifications', 'ses', 'secret'],
+            'google_client_secret' => ['auth', 'google', 'client_secret'],
+            'backup_remote_secret_key' => ['backup', 'remote', 'secret_key'],
+            'update_github_token' => ['updates', 'github_token'],
         ];
+    }
+
+    private function readArrayPath(array $source, array $path): mixed
+    {
+        $node = $source;
+        foreach ($path as $segment) {
+            if (!is_array($node) || !array_key_exists($segment, $node)) {
+                return null;
+            }
+            $node = $node[$segment];
+        }
+        return $node;
     }
 
     private function extractThemeSettingsForm(array $parsed): array
@@ -5348,6 +5543,10 @@ final class App
             }
         }
         $data = $this->parseSettingsYaml($raw);
+        $existingSecrets = [];
+        foreach ($this->settingsSecretPaths() as $field => $path) {
+            $existingSecrets[$field] = (string)($this->readArrayPath($data, $path) ?? '');
+        }
 
         $data['title'] = $form['title'] !== '' ? $form['title'] : ($data['title'] ?? 'FarosCMS');
         $data['tagline'] = $form['tagline'] !== '' ? $form['tagline'] : ($data['tagline'] ?? '');
@@ -5480,10 +5679,6 @@ final class App
         if ($branch === '') {
             $branch = 'main';
         }
-        $githubToken = (string)($form['update_github_token'] ?? '');
-        if ($githubToken === '') {
-            $githubToken = (string)($existingUpdates['github_token'] ?? '');
-        }
         $data['updates'] = [
             'channel' => (string)($existingUpdates['channel'] ?? 'stable'),
             'repository' => $repository,
@@ -5491,9 +5686,23 @@ final class App
             'version_url' => (string)($form['update_version_url'] ?? ''),
             'changelog_url' => (string)($form['update_changelog_url'] ?? ''),
             'package_url' => (string)($form['update_package_url'] ?? ''),
-            'github_token' => $githubToken,
+            'github_token' => '',
             'latest_version' => (string)($existingUpdates['latest_version'] ?? ''),
         ];
+
+        // Blank secret inputs keep the stored value; only an explicit "remove" clears it.
+        $clear = is_array($form['clear_secrets'] ?? null) ? $form['clear_secrets'] : [];
+        foreach ($this->settingsSecretPaths() as $field => $path) {
+            $submitted = (string)($form[$field] ?? '');
+            if (in_array($field, $clear, true)) {
+                $value = '';
+            } elseif ($submitted !== '') {
+                $value = $submitted;
+            } else {
+                $value = $existingSecrets[$field] ?? '';
+            }
+            $this->setArrayPath($data, $path, $value);
+        }
 
         $this->setSystemMeta('site_settings', Yaml::dump($data, 4, 2));
         return true;
@@ -6911,8 +7120,16 @@ final class App
 
         $extension = strtolower((string)pathinfo($originalName, PATHINFO_EXTENSION));
         $extension = preg_replace('/[^a-z0-9]/', '', $extension) ?? '';
-        if (strlen($extension) > 10) {
-            $extension = '';
+        // Uploads land inside the public web root, so only inert file types are accepted.
+        if (!in_array($extension, $this->allowedMediaExtensions(), true)) {
+            throw new \RuntimeException('This file type is not allowed.');
+        }
+        $detectedMime = $this->detectFileMimeType($tmpName, '');
+        if (in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'bmp', 'ico'], true) && !str_starts_with($detectedMime, 'image/')) {
+            throw new \RuntimeException('The uploaded file is not a valid image.');
+        }
+        if ($extension === 'svg' && !$this->isSafeSvg($tmpName)) {
+            throw new \RuntimeException('SVG files with scripts or external content are not allowed.');
         }
 
         do {
@@ -6954,6 +7171,40 @@ final class App
         ];
         $this->saveMediaMeta($meta);
         return $this->findMediaItem($id) ?? $meta;
+    }
+
+    /** @return string[] */
+    private function allowedMediaExtensions(): array
+    {
+        return [
+            'jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'bmp', 'ico', 'svg',
+            'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods', 'odp', 'rtf', 'txt', 'csv', 'md',
+            'zip',
+            'mp3', 'wav', 'ogg', 'm4a', 'mp4', 'webm', 'mov',
+        ];
+    }
+
+    private function isSafeSvg(string $path): bool
+    {
+        $content = (string)file_get_contents($path);
+        if ($content === '') {
+            return false;
+        }
+        $patterns = [
+            '/<script\b/i',
+            '/\son[a-z]+\s*=/i',
+            '/javascript\s*:/i',
+            '/<foreignObject\b/i',
+            '/<!ENTITY/i',
+            '/<(iframe|embed|object)\b/i',
+            '/(xlink:)?href\s*=\s*["\']\s*(data|https?):/i',
+        ];
+        foreach ($patterns as $pattern) {
+            if (preg_match($pattern, $content)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private function updateMediaItemTags(string $id, string $tagsCsv): bool
@@ -7108,7 +7359,6 @@ final class App
             $finfo = finfo_open(FILEINFO_MIME_TYPE);
             if ($finfo !== false) {
                 $value = finfo_file($finfo, $path);
-                finfo_close($finfo);
                 if (is_string($value) && $value !== '') {
                     return $value;
                 }

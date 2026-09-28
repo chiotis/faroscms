@@ -140,6 +140,7 @@
                     </a>
                     {% if not is_home %}
                       <form method="post" action="{{ url('admin/delete') }}" class="inline" onsubmit="return confirm('Delete this item?');">
+                        {{ csrf_field() }}
                         <input type="hidden" name="type" value="{{ current_type }}">
                         <input type="hidden" name="slug" value="{{ item.slug }}">
                         <input type="hidden" name="lang" value="{{ item.lang }}">

@@ -24,6 +24,7 @@
   </div>
 
   <form method="post" class="grid grid-cols-1 gap-4 xl:grid-cols-3">
+    {{ csrf_field() }}
     <input type="hidden" name="id" value="{{ edited_user.id }}">
 
     <div class="space-y-4 xl:col-span-2">
@@ -61,7 +62,7 @@
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label class="block">
             <span class="mb-1 block text-sm font-medium text-slate-700">New password{% if is_new %} <span class="text-red-500">*</span>{% endif %}</span>
-            <input type="password" name="password" class="{{ input_class }}" autocomplete="new-password">
+            <input type="password" name="password" minlength="8" class="{{ input_class }}" autocomplete="new-password">
           </label>
           <label class="block">
             <span class="mb-1 block text-sm font-medium text-slate-700">Confirm password</span>

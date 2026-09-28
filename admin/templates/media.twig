@@ -38,6 +38,7 @@
   {% endif %}
 
   <form id="media-upload-form" method="post" action="{{ url('admin/media') }}" enctype="multipart/form-data" class="mb-4 rounded-lg border-2 border-dashed border-slate-200 bg-white p-6 text-center">
+    {{ csrf_field() }}
     <input type="hidden" name="media_action" value="upload">
     <input type="hidden" name="_state_type" value="{{ type }}">
     <input type="hidden" name="_state_tag" value="{{ tag }}">
@@ -171,6 +172,7 @@
 
         <div class="flex flex-wrap items-end gap-2">
           <form id="media-bulk-tags-form" method="post" action="{{ url('admin/media') }}" class="flex flex-wrap items-end gap-2">
+            {{ csrf_field() }}
             <input type="hidden" name="media_action" value="bulk_tags">
             <input type="hidden" name="apply_all_filtered" value="0" data-apply-all-input>
             <input type="hidden" name="_filter_type" value="{{ type }}">
@@ -191,6 +193,7 @@
           </form>
 
           <form id="media-bulk-delete-form" method="post" action="{{ url('admin/media') }}" onsubmit="return confirm('Delete selected media items?');">
+            {{ csrf_field() }}
             <input type="hidden" name="media_action" value="bulk_delete">
             <input type="hidden" name="apply_all_filtered" value="0" data-apply-all-input>
             <input type="hidden" name="_filter_type" value="{{ type }}">
@@ -269,6 +272,7 @@
                 <td class="px-4 py-2.5 align-top text-slate-600">{{ item.size_human }}</td>
                 <td class="px-4 py-2.5 align-top">
                   <form method="post" action="{{ url('admin/media') }}" class="flex items-center gap-2">
+                    {{ csrf_field() }}
                     <input type="hidden" name="media_action" value="save_tags">
                     <input type="hidden" name="id" value="{{ item.id }}">
                     <input type="hidden" name="_state_type" value="{{ type }}">
@@ -299,6 +303,7 @@
                       </svg>
                     </button>
                     <form method="post" action="{{ url('admin/media') }}" onsubmit="return confirm('Delete this media item?');" class="inline">
+                      {{ csrf_field() }}
                       <input type="hidden" name="media_action" value="delete">
                       <input type="hidden" name="id" value="{{ item.id }}">
                       <input type="hidden" name="_state_type" value="{{ type }}">
@@ -358,6 +363,7 @@
                   <span>{{ item.created_at_display }}</span>
                 </div>
                 <form method="post" action="{{ url('admin/media') }}" class="mt-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-1.5">
+                  {{ csrf_field() }}
                   <input type="hidden" name="media_action" value="save_tags">
                   <input type="hidden" name="id" value="{{ item.id }}">
                   <input type="hidden" name="_state_type" value="{{ type }}">
@@ -374,6 +380,7 @@
                   </button>
                 </form>
                 <form method="post" action="{{ url('admin/media') }}" onsubmit="return confirm('Delete this media item?');" class="mt-2 text-right">
+                  {{ csrf_field() }}
                   <input type="hidden" name="media_action" value="delete">
                   <input type="hidden" name="id" value="{{ item.id }}">
                   <input type="hidden" name="_state_type" value="{{ type }}">
