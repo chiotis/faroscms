@@ -186,6 +186,15 @@
             <dd class="max-w-48 truncate text-right font-medium {{ check_class }}">{{ check.value }}</dd>
           </div>
         {% endfor %}
+        {% if can('updates.manage') %}
+          {% set update_state = admin_update_available|default(false) ? 'Update ' ~ admin_update_latest ~ ' available' : 'v' ~ admin_version|default('base') %}
+          <div class="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
+            <dt class="text-slate-500">FarosCMS</dt>
+            <dd class="max-w-48 truncate text-right font-medium {{ admin_update_available|default(false) ? 'text-blue-700' : 'text-emerald-700' }}">
+              <a href="{{ url('admin/updates') }}" class="hover:underline">{{ update_state }}</a>
+            </dd>
+          </div>
+        {% endif %}
       </dl>
     </div>
   </div>

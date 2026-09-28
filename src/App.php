@@ -21,6 +21,7 @@ final class App
     private ContentRepository $content;
     private Auth $auth;
     private SystemDatabase $systemDatabase;
+    private SystemMetaRepository $systemMeta;
     private UserRepository $users;
     private PermissionService $permissions;
     private ActivityLogRepository $activityLogs;
@@ -42,6 +43,7 @@ final class App
 
         $this->systemDatabase = new SystemDatabase($this->basePath . '/storage');
         $this->systemDatabase->initialize();
+        $this->systemMeta = new SystemMetaRepository($this->systemDatabase);
         $this->settings = $this->loadSettings();
         $this->themeSettings = $this->loadThemeSettings();
         $this->ensureDefaultMenus();
@@ -1106,35 +1108,35 @@ final class App
 
     private function handleUpdates(): void
     {
+        $updates = $this->updates();
         if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $action = trim((string)($_POST['updates_action'] ?? ''));
             if ($action === 'check') {
-                $source = $this->updateSourceConfig();
-                $remoteVersion = $this->fetchRemoteVersion((string)$source['version_url']);
+                $status = $updates->status(true);
+                $this->syncUpdateNotification($status);
                 $this->logActivity('updates.check', 'info', 'updates', 'local', 'Read-only update check completed.', [
-                    'current_version' => $this->currentVersion(),
-                    'remote_version' => $remoteVersion,
-                    'repository' => $source['repository'],
-                    'source' => $source['version_url'],
+                    'current_version' => $status['current_version'],
+                    'remote_version' => $status['remote_version'],
+                    'source_status' => $status['source_status'],
+                    'source' => $status['source'],
                 ]);
                 $this->redirect('/admin/updates?checked=1');
                 return;
             }
         }
 
-        $currentVersion = $this->currentVersion();
-        $source = $this->updateSourceConfig();
-        $remoteVersion = $this->fetchRemoteVersion((string)$source['version_url']);
-        $sourceStatus = (string)$source['version_url'] === '' ? 'not_configured' : ($remoteVersion !== '' ? 'ok' : 'unreachable');
-        $latestVersion = $remoteVersion !== '' ? $remoteVersion : $this->configuredLatestVersion();
-        $hasUpdate = $latestVersion !== '' && version_compare($latestVersion, $currentVersion, '>');
-        $changelog = $this->readChangelogEntries();
-        $remoteChangelog = $this->fetchRemoteChangelogEntries((string)$source['changelog_url']);
+        $source = $updates->sourceConfig();
+        $status = $updates->status();
+        $this->syncUpdateNotification($status);
+        $changelog = $updates->readChangelogEntries();
+        $changelogSource = 'local';
+        $remoteChangelog = $updates->fetchRemoteChangelogEntries((string)$source['changelog_url']);
         if (!empty($remoteChangelog)) {
             $changelog = $remoteChangelog;
+            $changelogSource = 'remote';
         }
         $lastRelease = $changelog[0] ?? null;
-        $latestDisplay = $latestVersion !== '' ? $latestVersion : (string)($lastRelease['version'] ?? $currentVersion);
+        $latestDisplay = $status['latest_version'] !== '' ? $status['latest_version'] : (string)($lastRelease['version'] ?? $status['current_version']);
         $backups = $this->listBackupSnapshots();
 
         $this->render('@admin/updates.twig', [
@@ -1143,25 +1145,52 @@ final class App
             'user' => $this->auth->user(),
             'admin_section' => 'updates',
             'current_type' => 'pages',
-            'current_version' => $currentVersion,
-            'current_commit' => $this->currentGitCommit(),
+            'current_version' => $status['current_version'],
+            'current_commit' => $updates->currentGitCommit(),
             'latest_version' => $latestDisplay,
-            'remote_version' => $remoteVersion,
-            'has_update' => $hasUpdate,
+            'remote_version' => $status['remote_version'],
+            'has_update' => $status['has_update'],
+            'update_checked_at' => $status['checked_at'],
             'update_source' => (string)$source['version_url'],
-            'update_source_status' => $sourceStatus,
+            'update_source_status' => $status['source_status'],
             'update_repository' => (string)$source['repository'],
             'update_branch' => (string)$source['branch'],
             'update_changelog_url' => (string)$source['changelog_url'],
             'update_package_url' => (string)$source['package_url'],
-            'update_channel' => (string)($this->settings['updates']['channel'] ?? 'stable'),
+            'update_channel' => $updates->channel(),
             'checked' => isset($_GET['checked']),
             'changelog_entries' => $changelog,
-            'update_guide' => $this->readUpdateGuideSummary(),
+            'changelog_source' => $changelogSource,
+            'update_guide' => $updates->readUpdateGuideSummary(),
             'latest_backup' => $backups[0] ?? null,
             'backup_total' => count($backups),
             'preflight_checks' => $this->buildUpdatePreflightChecks(),
         ]);
+    }
+
+    /** @param array<string, mixed> $status */
+    private function syncUpdateNotification(array $status): void
+    {
+        if (!($status['has_update'] ?? false)) {
+            return;
+        }
+        try {
+            $latest = (string)($status['latest_version'] ?? '');
+            // Title carries the version, so each release notifies once even after being read.
+            $this->notifications->createIfMissing([
+                'type' => 'update.available',
+                'title' => 'FarosCMS ' . $latest . ' is available',
+                'body' => 'You are running ' . (string)($status['current_version'] ?? '') . '. Review the release notes and create a backup before updating.',
+                'severity' => 'info',
+                'target_url' => '/admin/updates',
+                'context' => [
+                    'current_version' => (string)($status['current_version'] ?? ''),
+                    'latest_version' => $latest,
+                ],
+            ], true);
+        } catch (\Throwable) {
+            // Notifications must never block rendering.
+        }
     }
 
     private function handleUserEdit(): void
@@ -3101,13 +3130,20 @@ final class App
             'is_admin' => $this->auth->check(),
         ];
         if (str_starts_with($template, '@admin/') && $this->auth->check()) {
-            $defaults['admin_version'] = $this->currentVersion();
+            $syncNotifications = !isset($data['admin_notifications']) || !isset($data['admin_notification_unread_count']);
+            if ($syncNotifications) {
+                $this->syncSystemNotifications();
+            }
+            $updates = $this->updates();
+            $cachedUpdate = $updates->cachedStatus();
+            $defaults['admin_version'] = $updates->currentVersion();
+            $defaults['admin_update_available'] = $cachedUpdate !== null && $cachedUpdate['has_update'];
+            $defaults['admin_update_latest'] = $cachedUpdate['latest_version'] ?? '';
             $defaults['admin_default_password'] = ($_SESSION['security_default_password'] ?? false) === true;
             if (!isset($data['admin_storage_summary'])) {
                 $defaults['admin_storage_summary'] = $this->buildStorageSummary();
             }
-            if (!isset($data['admin_notifications']) || !isset($data['admin_notification_unread_count'])) {
-                $this->syncSystemNotifications();
+            if ($syncNotifications) {
                 $defaults['admin_notifications'] = $this->notifications->recent(6);
                 $defaults['admin_notification_unread_count'] = $this->notifications->unreadCount();
                 $defaults['admin_current_url'] = $this->currentRequestPath();
@@ -3239,6 +3275,14 @@ final class App
 
     private function syncSystemNotifications(): void
     {
+        if ($this->permissions->can($this->auth->user(), 'updates.manage')) {
+            try {
+                // Refreshes at most every 12 hours (hourly while the source is unreachable).
+                $this->syncUpdateNotification($this->updates()->status());
+            } catch (\Throwable) {
+                // Update checks must never block rendering.
+            }
+        }
         try {
             $storage = $this->buildStorageSummary();
             foreach ($this->buildDashboardSystemChecks($storage) as $check) {
@@ -3515,30 +3559,18 @@ final class App
 
     private function getSystemMeta(string $key): ?string
     {
-        if (!$this->systemDatabase->isAvailable()) {
-            return null;
-        }
-        $stmt = $this->systemDatabase->connection()->prepare('SELECT value FROM system_meta WHERE key = :key LIMIT 1');
-        $stmt->execute(['key' => $key]);
-        $value = $stmt->fetchColumn();
-        return is_string($value) ? $value : null;
+        return $this->systemMeta->get($key);
     }
 
     private function setSystemMeta(string $key, string $value): void
     {
-        if (!$this->systemDatabase->isAvailable()) {
-            return;
-        }
-        $stmt = $this->systemDatabase->connection()->prepare(
-            'INSERT INTO system_meta (key, value, updated_at)
-             VALUES (:key, :value, :updated_at)
-             ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at'
-        );
-        $stmt->execute([
-            'key' => $key,
-            'value' => $value,
-            'updated_at' => gmdate('c'),
-        ]);
+        $this->systemMeta->set($key, $value);
+    }
+
+    private function updates(): UpdateService
+    {
+        $settings = $this->settings['updates'] ?? [];
+        return new UpdateService($this->basePath, is_array($settings) ? $settings : [], $this->systemMeta);
     }
 
     /** @return array{ok: bool, message?: string} */
@@ -5714,232 +5746,11 @@ final class App
         return ['custom', 'aws_s3', 'backblaze_b2', 'cloudflare_r2', 'wasabi', 'digitalocean_spaces', 'minio'];
     }
 
-    private function currentVersion(): string
-    {
-        $path = $this->basePath . '/VERSION';
-        if (is_file($path)) {
-            $version = trim((string)file_get_contents($path));
-            if ($version !== '') {
-                return $version;
-            }
-        }
-
-        return 'base';
-    }
-
-    private function currentGitCommit(): string
-    {
-        $headPath = $this->basePath . '/.git/HEAD';
-        if (!is_file($headPath)) {
-            return '';
-        }
-        $head = trim((string)file_get_contents($headPath));
-        if ($head === '') {
-            return '';
-        }
-        if (!str_starts_with($head, 'ref: ')) {
-            return substr($head, 0, 12);
-        }
-        $ref = trim(substr($head, 5));
-        if ($ref === '' || str_contains($ref, '..')) {
-            return '';
-        }
-        $refPath = $this->basePath . '/.git/' . $ref;
-        if (is_file($refPath)) {
-            $commit = trim((string)file_get_contents($refPath));
-            return $commit !== '' ? substr($commit, 0, 12) : '';
-        }
-
-        return '';
-    }
-
-    private function updatesManifestUrl(): string
-    {
-        return (string)$this->updateSourceConfig()['version_url'];
-    }
-
-    private function configuredLatestVersion(): string
-    {
-        return trim((string)($this->settings['updates']['latest_version'] ?? ''));
-    }
-
-    /** @return array{repository: string, branch: string, version_url: string, changelog_url: string, package_url: string} */
-    private function updateSourceConfig(): array
-    {
-        $config = $this->settings['updates'] ?? [];
-        if (!is_array($config)) {
-            $config = [];
-        }
-        $repository = trim((string)($config['repository'] ?? 'chiotis/faroscms'));
-        if ($repository === '') {
-            $repository = 'chiotis/faroscms';
-        }
-        $branch = trim((string)($config['branch'] ?? 'main'));
-        if ($branch === '') {
-            $branch = 'main';
-        }
-        $encodedBranch = rawurlencode($branch);
-        $versionUrl = trim((string)($config['version_url'] ?? ''));
-        if ($versionUrl === '') {
-            $versionUrl = 'https://raw.githubusercontent.com/' . $repository . '/' . $encodedBranch . '/VERSION';
-        }
-        $changelogUrl = trim((string)($config['changelog_url'] ?? ''));
-        if ($changelogUrl === '') {
-            $changelogUrl = 'https://raw.githubusercontent.com/' . $repository . '/' . $encodedBranch . '/CHANGELOG.md';
-        }
-        $packageUrl = trim((string)($config['package_url'] ?? ''));
-        if ($packageUrl === '') {
-            $packageUrl = 'https://github.com/' . $repository . '/archive/refs/heads/' . $encodedBranch . '.zip';
-        }
-
-        return [
-            'repository' => $repository,
-            'branch' => $branch,
-            'version_url' => $versionUrl,
-            'changelog_url' => $changelogUrl,
-            'package_url' => $packageUrl,
-        ];
-    }
-
-    private function fetchRemoteVersion(string $url): string
-    {
-        $body = $this->readRemoteText($url);
-        if ($body === '') {
-            return '';
-        }
-        $line = trim(strtok($body, "\r\n") ?: '');
-        if ($line === '' || !preg_match('/^[A-Za-z0-9][A-Za-z0-9._+\\-]*$/', $line)) {
-            return '';
-        }
-
-        return $line;
-    }
-
-    /** @return array<int, array{version: string, items: array<int, string>}> */
-    private function fetchRemoteChangelogEntries(string $url): array
-    {
-        $body = $this->readRemoteText($url);
-        if ($body === '') {
-            return [];
-        }
-
-        return $this->parseChangelogEntries(preg_split('/\R/', $body) ?: []);
-    }
-
-    private function readRemoteText(string $url): string
-    {
-        $url = trim($url);
-        if ($url === '' || !preg_match('#^https?://#i', $url)) {
-            return '';
-        }
-        $headers = ['User-Agent: FarosCMS update checker'];
-        $token = $this->updateGitHubToken();
-        if ($token !== '' && preg_match('#^https?://(raw\.githubusercontent\.com|api\.github\.com)/#i', $url)) {
-            $headers[] = 'Authorization: Bearer ' . $token;
-            $headers[] = 'X-GitHub-Api-Version: 2022-11-28';
-        }
-        $context = stream_context_create([
-            'http' => [
-                'timeout' => 3,
-                'header' => implode("\r\n", $headers),
-            ],
-        ]);
-        $body = @file_get_contents($url, false, $context);
-        if (!is_string($body)) {
-            return '';
-        }
-
-        return trim($body);
-    }
-
-    private function updateGitHubToken(): string
-    {
-        return trim((string)($this->settings['updates']['github_token'] ?? ''));
-    }
-
-    /** @return array<int, array{version: string, items: array<int, string>}> */
-    private function readChangelogEntries(): array
-    {
-        $path = $this->basePath . '/CHANGELOG.md';
-        if (!is_file($path)) {
-            return [];
-        }
-        $lines = file($path, FILE_IGNORE_NEW_LINES);
-        if ($lines === false) {
-            return [];
-        }
-
-        return $this->parseChangelogEntries($lines);
-    }
-
-    /**
-     * @param string[] $lines
-     * @return array<int, array{version: string, items: array<int, string>}>
-     */
-    private function parseChangelogEntries(array $lines): array
-    {
-        $entries = [];
-        $current = null;
-        foreach ($lines as $line) {
-            if (preg_match('/^##\s+(.+)$/', $line, $matches)) {
-                if (is_array($current)) {
-                    $entries[] = $current;
-                }
-                $current = [
-                    'version' => trim((string)$matches[1]),
-                    'items' => [],
-                ];
-                continue;
-            }
-            if (!is_array($current)) {
-                continue;
-            }
-            $trimmed = trim($line);
-            if (str_starts_with($trimmed, '- ')) {
-                $current['items'][] = trim(substr($trimmed, 2));
-            }
-        }
-        if (is_array($current)) {
-            $entries[] = $current;
-        }
-
-        return array_slice(array_map(static function (array $entry): array {
-            $entry['items'] = array_slice($entry['items'], 0, 8);
-            return $entry;
-        }, $entries), 0, 5);
-    }
-
-    /** @return string[] */
-    private function readUpdateGuideSummary(): array
-    {
-        $path = $this->basePath . '/update.md';
-        if (!is_file($path)) {
-            return [];
-        }
-        $lines = file($path, FILE_IGNORE_NEW_LINES);
-        if ($lines === false) {
-            return [];
-        }
-
-        $items = [];
-        foreach ($lines as $line) {
-            $trimmed = trim($line);
-            if (str_starts_with($trimmed, '- ')) {
-                $items[] = trim(substr($trimmed, 2));
-            }
-            if (count($items) >= 6) {
-                break;
-            }
-        }
-
-        return $items;
-    }
-
     /** @return array<int, array{label: string, value: string, status: string}> */
     private function buildUpdatePreflightChecks(): array
     {
         $backupDir = $this->backupDirectory();
-        $source = $this->updateSourceConfig();
+        $source = $this->updates()->sourceConfig();
         return [
             [
                 'label' => 'PHP compatibility',

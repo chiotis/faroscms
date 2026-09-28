@@ -9,6 +9,7 @@
 - Security: CSRF protection on all admin forms, POST-only sign-out, hardened session cookies with id rotation, and immediate effect of user deactivation/role changes
 - Security: failed sign-in throttling, masked settings secrets, upload type allowlist with SVG script checks, and security response headers
 - Security: admin banner and notification while the shipped default password is still in use
+- Updates: remote status is cached in SQLite and refreshed every 12 hours; a notification appears once per new release, and the sidebar version badge and dashboard show when an update is available
 
 ## 2026-03-01
 - Media/files consolidation completed:

@@ -61,7 +61,7 @@ Content remains file-based. SQLite is used for system/admin data, starting with 
 - [x] Add notification dropdown to the admin header.
 - [x] Add mark-as-read and mark-all-read actions.
 - [x] Derive notifications from failed emails, backups, and system checks.
-- [ ] Derive update notifications once the Updates module exists.
+- [x] Derive update notifications once the Updates module exists.
 
 ### 6. Security Hardening
 
@@ -120,7 +120,7 @@ See `docs/security.md`.
 - [ ] Normalize toast placement and behavior.
 - [ ] Use modal/off-canvas patterns for details and confirmations.
 - [x] Replace static storage indicator with real storage usage.
-- [ ] Replace `base` badge with real version/status.
+- [x] Replace `base` badge with real version/status.
 
 ## System Backlog
 

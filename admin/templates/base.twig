@@ -49,7 +49,13 @@
       <div class="flex h-14 shrink-0 items-center gap-2.5 border-b border-slate-200 px-4">
         <div class="flex h-7 w-7 items-center justify-center rounded bg-slate-900 text-xs font-bold text-white">FC</div>
         <span class="text-sm font-semibold tracking-tight text-slate-900">FarosCMS</span>
-        <span class="ml-auto rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">v{{ admin_version|default('base') }}</span>
+        {% if admin_update_available|default(false) and can('updates.manage') %}
+          <a href="{{ url('admin/updates') }}" class="ml-auto inline-flex items-center gap-1 rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 ring-1 ring-inset ring-blue-200 hover:bg-blue-100" title="FarosCMS {{ admin_update_latest }} is available">
+            <span class="h-1.5 w-1.5 rounded-full bg-blue-500"></span>v{{ admin_version|default('base') }}
+          </a>
+        {% else %}
+          <span class="ml-auto rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500" title="Installed FarosCMS version">v{{ admin_version|default('base') }}</span>
+        {% endif %}
         <button type="button" data-sidebar-close class="ml-1 rounded p-1 text-slate-400 hover:bg-slate-100 lg:hidden" aria-label="Close sidebar">
           <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/></svg>
         </button>

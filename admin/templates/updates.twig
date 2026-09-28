@@ -7,7 +7,7 @@
 
   {% if checked %}
     <div data-toast class="pointer-events-auto fixed right-4 top-4 z-[999] flex w-80 max-w-[calc(100vw-2rem)] items-start gap-3 rounded-md border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-sm text-emerald-800 shadow-sm">
-      <span class="mt-px flex-1">Read-only update check completed.</span>
+      <span class="mt-px flex-1">Update status refreshed from {{ update_repository }}.</span>
       <button type="button" data-toast-dismiss class="text-current/60 hover:text-current">&times;</button>
     </div>
   {% endif %}
@@ -89,7 +89,7 @@
       <div class="rounded-lg border border-slate-200 bg-white">
         <div class="flex items-center justify-between border-b border-slate-200 px-4 py-3">
           <h2 class="text-sm font-semibold text-slate-900">Release notes</h2>
-          <span class="text-xs text-slate-400">Local changelog</span>
+          <span class="text-xs text-slate-400">{{ changelog_source == 'remote' ? 'GitHub changelog' : 'Local changelog' }}</span>
         </div>
         {% if changelog_entries is empty %}
           <div class="px-4 py-10 text-center text-sm text-slate-400">No changelog entries found.</div>
@@ -100,7 +100,7 @@
                 <div class="mb-2 flex items-center gap-2">
                   <h3 class="text-sm font-semibold text-slate-900">{{ entry.version }}</h3>
                   {% if loop.first %}
-                    <span class="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 ring-1 ring-inset ring-blue-200">latest local</span>
+                    <span class="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 ring-1 ring-inset ring-blue-200">{{ changelog_source == 'remote' ? 'latest' : 'latest local' }}</span>
                   {% endif %}
                 </div>
                 {% if entry.items is empty %}
@@ -127,6 +127,8 @@
           <div class="flex justify-between gap-3"><dt class="text-slate-500">Repository</dt><dd class="max-w-40 truncate text-right font-medium text-slate-900">{{ update_repository }}</dd></div>
           <div class="flex justify-between gap-3"><dt class="text-slate-500">Branch</dt><dd class="font-medium text-slate-900">{{ update_branch }}</dd></div>
           <div class="flex justify-between gap-3"><dt class="text-slate-500">Remote version</dt><dd class="font-medium text-slate-900">{{ remote_version ?: 'Unavailable' }}</dd></div>
+          <div class="flex justify-between gap-3"><dt class="text-slate-500">Last checked</dt><dd class="max-w-44 truncate text-right font-medium text-slate-900" title="{{ update_checked_at }}">{{ update_checked_at ? update_checked_at|date('Y-m-d H:i') : 'Never' }}</dd></div>
+          <div class="flex justify-between gap-3"><dt class="text-slate-500">Auto check</dt><dd class="font-medium text-slate-900">Every 12 hours</dd></div>
           <div class="flex justify-between gap-3"><dt class="text-slate-500">Install action</dt><dd class="font-medium text-slate-900">Disabled</dd></div>
         </dl>
       </div>

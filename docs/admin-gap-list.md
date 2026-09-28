@@ -20,7 +20,7 @@ Implemented now:
 - Notification storage, topbar dropdown, unread badge, mark-read actions, and derived failed-email/backup/system notifications.
 - Dashboard landing page at `/admin` with content counts, users count, backup status, recent activity, recent email attempts, storage usage, system checks, and quick actions.
 - Dedicated `/admin/backups` module with full/database backup actions, downloads, delete action, policy summary, local archive list, and SQLite run history.
-- Dedicated `/admin/updates` module with local `VERSION`, GitHub raw `VERSION` source, changelog, read-only status check, preflight checks, and disabled install state.
+- Dedicated `/admin/updates` module with local `VERSION`, GitHub raw `VERSION` source, changelog, cached status (auto-refreshed every 12 hours), update-available notifications, preflight checks, and disabled install state.
 - Google Sign-In settings and OAuth login flow for existing active users.
 - Content list, create, edit, save, delete, import, and export.
 - Page/post/project/form content types from Markdown/YAML files.
@@ -38,7 +38,6 @@ Implemented now:
 ### High Priority
 
 - Update install workflow: `/admin/updates` exists in read-only mode, but FarosCMS still has no package download, checksum verification, backup-before-update, install action, or rollback action.
-- Update-derived notifications: the topbar notification center exists, but it does not yet derive notifications from update status.
 
 ### Medium Priority
 
@@ -102,12 +101,11 @@ Implemented now:
 
 ## Suggested Implementation Order
 
-1. Update notifications from the read-only Updates module.
-2. Design backup-before-update, package verification, install, and rollback before enabling update actions.
-3. Forms module: make forms feel like a standalone admin section.
-4. UI consistency pass: filters, toasts, table sorting, badges, modals/off-canvas.
-5. System health/cache/index tools.
-6. Longer-term architecture pass: decide whether FarosCMS should stay Twig/Composer based or move closer to strict phpFlat structure.
+1. Design backup-before-update, package verification, install, and rollback before enabling update actions.
+2. Forms module: make forms feel like a standalone admin section.
+3. UI consistency pass: filters, toasts, table sorting, badges, modals/off-canvas.
+4. System health/cache/index tools.
+5. Longer-term architecture pass: decide whether FarosCMS should stay Twig/Composer based or move closer to strict phpFlat structure.
 
 ## Notes
 
