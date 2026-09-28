@@ -15,6 +15,8 @@
 - Forms: standalone `/admin/forms` module with submission counts, shortcode copy, language versions, filters, and sorting
 - Forms: submissions browser with search, language/date filters, pagination, detail panel, reply-by-email, and single/bulk delete
 - Admin UI: shared macros (`partials/ui.twig`), one toast placement with auto-hide, Filters buttons with an active dot, sortable tables, confirmation modal instead of `confirm()`, and consistent status badges
+- Admin CSS: Tailwind is compiled locally (`npm run build:css`) instead of loading the runtime CDN
+- Removed dead code: unused legacy file-upload, menu-translation, and YAML helper methods, the unreachable `files.twig`, and two unreferenced stylesheets
 - System: `/admin/system` page with health checks, scheduled tasks, PHP extensions, environment, and content index status/rebuild
 - Admin search across all content via the SQLite content index (header search box)
 - Email: SMTP/SES sending moved to `Mailer`; SMTP now checks the server's answer after DATA, MIME-encodes non-ASCII subjects and sender names, strips CR/LF from headers, and uses socket timeouts; SES without cURL no longer reports HTTP errors as success

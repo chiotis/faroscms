@@ -1,0 +1,12 @@
+{
+  "name": "faroscms-admin-assets",
+  "private": true,
+  "description": "Build tooling for the FarosCMS admin CSS. Production servers only need the committed output in public/assets/css/admin.build.css.",
+  "scripts": {
+    "build:css": "tailwindcss -c tailwind.config.js -i resources/admin.tailwind.css -o public/assets/css/admin.build.css --minify",
+    "watch:css": "tailwindcss -c tailwind.config.js -i resources/admin.tailwind.css -o public/assets/css/admin.build.css --watch"
+  },
+  "devDependencies": {
+    "tailwindcss": "3.4.19"
+  }
+}

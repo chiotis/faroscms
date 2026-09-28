@@ -23,7 +23,6 @@
 - Current baseline: unified menu editor with inline multilingual labels and `nav.main.*` / `nav.footer.*` key convention (no translation-screen dependency for menu labels)
 - Current baseline: `nav.*` keys are hidden from Admin Translations to prevent accidental menu-label drift
 - Current baseline: frontend supports nested menus with active item + active parent trail states (desktop + mobile)
-- Remove obsolete menu translation helper code paths from `src/App.php` (legacy `translation_id` menu methods)
 - Drag-and-drop ordering in menu editor (instead of row-order/manual level select)
 - Optional per-item visibility rules (by language/role in future)
 - Optional menu item metadata: icon, badge, and rel attributes (`nofollow`, `noopener`, etc.)
@@ -76,8 +75,8 @@
 - Optional: Google Drive remote target
 
 ## Post-Theme Architecture
-- Refactor `src/App.php` into focused modules/services after theme work is complete
-- Suggested split: FrontController, AdminContentService, FormService, MailService, SettingsService, I18nService, CsvService, ImportExportService, FileStorageService
+- Refactor `src/App.php` into focused modules/services (in progress: BackupService, UpdateService, Mailer, ContentIndex, FormSubmissionRepository, LoginThrottle, SystemMetaRepository are extracted)
+- Next split candidates: media library, menus, taxonomies, CSV import/export, settings, translations (see `docs/architecture.md`)
 - Keep behavior identical during refactor (incremental extraction + regression checks)
 
 ## Later Development

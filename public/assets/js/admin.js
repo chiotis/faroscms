@@ -151,7 +151,7 @@
     close.type = 'button';
     close.setAttribute('data-toast-dismiss', '');
     close.setAttribute('aria-label', 'Dismiss');
-    close.className = 'text-current/60 hover:text-current';
+    close.className = 'opacity-60 hover:opacity-100';
     close.textContent = '\u00d7';
     row.appendChild(text);
     row.appendChild(close);

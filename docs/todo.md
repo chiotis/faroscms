@@ -10,6 +10,7 @@ Reference docs:
 - `docs/security.md` documents admin security behavior and the operator checklist.
 - `docs/backups.md` documents archives, verification, and restore.
 - `docs/update-workflow.md` documents the safe update design.
+- `docs/architecture.md` is the code map.
 
 ## Current Status
 
@@ -133,9 +134,9 @@ See `docs/security.md`.
 - [x] Add content index rebuild action (`/admin/system`), plus automatic rebuild when files change outside the admin.
 - [x] Wire `content_index` for admin search (`/admin/search`, header search box).
 - [ ] Add cache/status tooling if caching is introduced.
-- [ ] Decide later whether to refactor from `src/` into stricter phpFlat `system/` structure.
+- [ ] Decide later whether to refactor from `src/` into stricter phpFlat `system/` structure. Meanwhile `App.php` is split into focused classes (see `docs/architecture.md`).
 - [ ] Decide later whether to remove Twig/Composer or keep them as FarosCMS architecture.
-- [ ] Replace runtime Tailwind CDN with local compiled CSS.
+- [x] Replace runtime Tailwind CDN with local compiled CSS (`npm run build:css` → `public/assets/css/admin.build.css`).
 
 ## Done
 

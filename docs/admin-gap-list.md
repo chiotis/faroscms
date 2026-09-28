@@ -61,9 +61,8 @@ Implemented now:
 - SQLite system layer consumers: users and basic permissions are now wired into application flows; indexing, relationships, activity, search, and email logs are not yet wired.
 - Rebuildable system DB: the database can be recreated, but content indexing/rebuild tooling is not implemented yet.
 - `system/` directory structure: phpFlat expects `system/Controllers`, `system/Models`, `system/Core`, and `system/Views`. FarosCMS currently uses `src/`, `admin/templates/`, and Twig.
-- Controller/model separation: FarosCMS still has most behavior in `src/App.php`, so admin modules are not split into controllers/models.
+- Controller/model separation: request handlers still live in `src/App.php`; storage and services are being extracted into focused classes (see `docs/architecture.md`).
 - No Composer/no framework rule: phpFlat baseline prefers no Composer and no templating engine. FarosCMS currently uses Composer-vendored Twig, Symfony YAML, and League CommonMark inherited from PicolinoCMS.
-- Local compiled Tailwind only: phpFlat says no runtime CDN. FarosCMS still uses the Tailwind CDN in admin templates while also loading local CSS.
 
 ### Auth / Users / Permissions
 
@@ -88,15 +87,13 @@ Implemented now:
 
 - Backups have retention, remote upload/test/pruning, checksum manifests, verification, and a staged, reversible restore of data areas.
 - Update install is still manual (git or ZIP). Remote release manifest, package download/checksum, staged install, and rollback are designed but not built.
-- System health/status checks are partially wired for the dashboard: writable paths, PHP version, upload limit, memory limit, SQLite, mail status, storage usage, and disk free exist; cache/index status and scheduled task checks are still missing.
-- Search/index admin tooling is missing: rebuild index, inspect search index, or index status.
+- System health lives in `/admin/system` (checks, scheduled tasks, extensions, environment, content index with rebuild).
 - Cache management is missing: clear/rebuild cache, cache status, cache size.
 
 ## Suggested Implementation Order
 
 1. Build one-click install following `docs/update-workflow.md` Part 2.
-2. System health/cache/index tools.
-3. Longer-term architecture pass: decide whether FarosCMS should stay Twig/Composer based or move closer to strict phpFlat structure.
+2. Longer-term architecture pass: decide whether FarosCMS should stay Twig/Composer based or move closer to strict phpFlat structure.
 
 ## Notes
 

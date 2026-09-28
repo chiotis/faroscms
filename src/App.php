@@ -3005,73 +3005,6 @@ final class App
         ]);
     }
 
-    private function handleFiles(): void
-    {
-        $uploadDir = $this->basePath . '/public/uploads/files';
-        if (!is_dir($uploadDir)) {
-            mkdir($uploadDir, 0775, true);
-        }
-
-        $this->normalizeFileUploads($uploadDir);
-
-        $saved = isset($_GET['saved']);
-        $deleted = isset($_GET['deleted']);
-        $error = null;
-
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            if (isset($_POST['delete'])) {
-                $filename = (string)($_POST['filename'] ?? '');
-                $filename = $this->sanitizeFilename($filename);
-                if ($filename === '') {
-                    $error = 'Invalid filename.';
-                } else {
-                    $path = $uploadDir . '/' . $filename;
-                    if (is_file($path)) {
-                        unlink($path);
-                        $this->redirect('/admin/files?deleted=1');
-                        return;
-                    }
-                    $error = 'File not found.';
-                }
-            } elseif (!isset($_FILES['asset'])) {
-                $error = 'No file uploaded.';
-            } else {
-                $file = $_FILES['asset'];
-                if (!is_array($file) || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
-                    $error = 'Upload failed.';
-                } else {
-                    $tmpPath = $file['tmp_name'];
-                    $original = (string)($file['name'] ?? '');
-                    $targetName = $this->sanitizeFilename($original);
-                    if (!$this->isAllowedFileUpload($tmpPath, $targetName)) {
-                        $error = 'Invalid file type.';
-                    } else {
-                        $targetPath = $uploadDir . '/' . $targetName;
-                        $targetPath = $this->uniqueFilePath($targetPath);
-                        if (!move_uploaded_file($tmpPath, $targetPath)) {
-                            $error = 'Could not save the uploaded file.';
-                        } else {
-                            $this->redirect('/admin/files?saved=1');
-                            return;
-                        }
-                    }
-                }
-            }
-        }
-
-        $files = $this->listUploads($uploadDir, '/uploads/files');
-
-        $this->render('@admin/files.twig', [
-            'files' => $files,
-            'saved' => $saved,
-            'deleted' => $deleted,
-            'error' => $error,
-            'user' => $this->auth->user(),
-            'types' => $this->content->getTypes(),
-            'admin_section' => 'files',
-        ]);
-    }
-
     private function handleFormsExport(): void
     {
         $slug = $this->slugify((string)($_GET['slug'] ?? ''));
@@ -4736,87 +4669,6 @@ final class App
         return $this->menuDir() . '/' . $key . '.yaml';
     }
 
-    /** @return array{key: string, lang: string} */
-    private function parseMenuFilename(string $filename): array
-    {
-        $defaultLang = (string)($this->settings['languages']['default'] ?? 'el');
-        if (preg_match('/^(.*)\.([a-z]{2})$/', $filename, $match)) {
-            return [
-                'key' => $this->slugify((string)$match[1]),
-                'lang' => $this->slugify((string)$match[2]),
-            ];
-        }
-        return [
-            'key' => $this->slugify($filename),
-            'lang' => $defaultLang,
-        ];
-    }
-
-    /** @return array<int, array{key: string, lang: string, path: string, title: string, items: array<int, array<string, mixed>>, translation_id: string}> */
-    private function listMenuFileEntries(): array
-    {
-        $rows = [];
-        foreach (glob($this->menuDir() . '/*.yaml') ?: [] as $path) {
-            $filename = basename($path, '.yaml');
-            if ($filename === '') {
-                continue;
-            }
-            $meta = $this->parseMenuFilename($filename);
-            $key = $meta['key'];
-            $lang = $meta['lang'];
-            if ($key === '' || $lang === '') {
-                continue;
-            }
-            $data = Yaml::parseFile($path);
-            if (!is_array($data)) {
-                $data = [];
-            }
-            $rows[] = [
-                'key' => $key,
-                'lang' => $lang,
-                'path' => $path,
-                'title' => trim((string)($data['title'] ?? '')),
-                'items' => $this->normalizeMenuItems($data['items'] ?? []),
-                'translation_id' => trim((string)($data['translation_id'] ?? '')),
-            ];
-        }
-        return $rows;
-    }
-
-    private function ensureMenuTranslationIds(): void
-    {
-        $entries = $this->listMenuFileEntries();
-        if (empty($entries)) {
-            return;
-        }
-
-        $idsByKey = [];
-        foreach ($entries as $entry) {
-            if ($entry['translation_id'] !== '' && !isset($idsByKey[$entry['key']])) {
-                $idsByKey[$entry['key']] = $entry['translation_id'];
-            }
-        }
-        foreach ($entries as $entry) {
-            $key = $entry['key'];
-            if (!isset($idsByKey[$key])) {
-                $idsByKey[$key] = $this->generateTranslationId();
-            }
-        }
-
-        foreach ($entries as $entry) {
-            $expected = $idsByKey[$entry['key']] ?? '';
-            if ($expected === '' || $entry['translation_id'] === $expected) {
-                continue;
-            }
-            $payload = [
-                'title' => $entry['title'] !== '' ? $entry['title'] : $this->titleFromSlug($entry['key']),
-                'translation_id' => $expected,
-                'items' => $entry['items'],
-            ];
-            file_put_contents($entry['path'], Yaml::dump($payload, 4, 2));
-        }
-    }
-
     /** @return string[] */
     private function listMenuKeys(): array
     {
@@ -4851,35 +4703,6 @@ final class App
             ];
         }
         return $rows;
-    }
-
-    /** @param array<int, array{key: string, title: string, source_lang: string, updated: string, translation_id: string}> $rows */
-    private function buildMenuTranslationLangMatrix(array $rows): array
-    {
-        $entries = $this->listMenuFileEntries();
-        $langsByGroup = [];
-        foreach ($entries as $entry) {
-            $group = $entry['translation_id'] !== '' ? 'id:' . $entry['translation_id'] : 'key:' . $entry['key'];
-            $langsByGroup[$group] ??= [];
-            if (!in_array($entry['lang'], $langsByGroup[$group], true)) {
-                $langsByGroup[$group][] = $entry['lang'];
-            }
-        }
-
-        $matrix = [];
-        foreach ($rows as $row) {
-            $sourceLang = $this->slugify((string)($row['source_lang'] ?? ''));
-            if ($sourceLang === '') {
-                continue;
-            }
-            $translationId = (string)($row['translation_id'] ?? '');
-            $group = $translationId !== '' ? 'id:' . $translationId : 'key:' . (string)($row['key'] ?? '');
-            $langs = $langsByGroup[$group] ?? [];
-            $other = array_values(array_filter($langs, fn($lang) => $lang !== $sourceLang));
-            $matrix[(string)($row['key'] ?? '') . '|' . $sourceLang] = $other;
-        }
-
-        return $matrix;
     }
 
     /** @return array{path: string, lang: string} */
@@ -5104,55 +4927,6 @@ final class App
             $ref = &$ref['children'][(int)$stack[$d]];
         }
         return $ref;
-    }
-
-    private function findMenuTranslationIdByKey(string $key): string
-    {
-        foreach ($this->listMenuFileEntries() as $entry) {
-            if ($entry['key'] === $key && $entry['translation_id'] !== '') {
-                return $entry['translation_id'];
-            }
-        }
-        return '';
-    }
-
-    /** @return array<int, array{lang: string, exists: bool, key: string, title: string, edit_url: string, create_url: string}> */
-    private function buildMenuTranslationLinks(string $key, string $translationId, string $sourceLang): array
-    {
-        $available = $this->settings['languages']['available'] ?? [];
-        if (!in_array($sourceLang, $available, true)) {
-            $sourceLang = (string)($this->settings['languages']['default'] ?? 'el');
-        }
-        if ($translationId === '') {
-            $translationId = $this->findMenuTranslationIdByKey($key);
-        }
-        $entries = $this->listMenuFileEntries();
-        $byTranslation = [];
-        $byKey = [];
-        foreach ($entries as $entry) {
-            $byKey[$entry['key'] . '|' . $entry['lang']] = $entry;
-            if ($translationId !== '' && $entry['translation_id'] === $translationId) {
-                $byTranslation[$entry['lang']] = $entry;
-            }
-        }
-
-        $rows = [];
-        foreach ($available as $lang) {
-            $entry = $byTranslation[$lang] ?? ($byKey[$key . '|' . $lang] ?? null);
-            $exists = $entry !== null;
-            $targetKey = $exists ? (string)$entry['key'] : $key;
-            $rows[] = [
-                'lang' => $lang,
-                'exists' => $exists,
-                'key' => $targetKey,
-                'title' => $exists ? (string)($entry['title'] ?: $this->titleFromSlug($targetKey)) : '',
-                'edit_url' => $exists ? '/admin/menus-edit?key=' . urlencode($targetKey) . '&lang=' . urlencode($lang) : '',
-                'create_url' => $exists
-                    ? ''
-                    : '/admin/menus-new?lang=' . urlencode($lang) . '&new_key=' . urlencode($key) . '&source_key=' . urlencode($key) . '&source_lang=' . urlencode($sourceLang) . '&translation_id=' . urlencode($translationId),
-            ];
-        }
-        return $rows;
     }
 
     /** @return array<string, array<int, array<string, mixed>>> */
@@ -5381,14 +5155,6 @@ final class App
         }
 
         return 'single.twig';
-    }
-
-    private function resolveTemplate(string $preferred, string $fallback): string
-    {
-        if (file_exists($this->basePath . '/themes/' . $this->settings['theme'] . '/' . $preferred)) {
-            return $preferred;
-        }
-        return $fallback;
     }
 
     private function renderSitemap(): void
@@ -6705,37 +6471,6 @@ final class App
         return trim(ucwords(str_replace(['-', '_'], ' ', $slug)));
     }
 
-    private function escapeYaml(string $value): string
-    {
-        return str_replace('"', '\\"', $value);
-    }
-
-    private function upsertYamlScalar(string $frontmatter, string $key, string $value): string
-    {
-        $lines = preg_split('/\\R/', $frontmatter) ?: [];
-        $found = false;
-        $value = trim($value);
-
-        foreach ($lines as $index => $line) {
-            if (preg_match('/^' . preg_quote($key, '/') . '\\s*:/', $line)) {
-                $found = true;
-                if ($value === '') {
-                    unset($lines[$index]);
-                } else {
-                    $lines[$index] = $key . ': "' . $this->escapeYaml($value) . '"';
-                }
-                break;
-            }
-        }
-
-        if (!$found && $value !== '') {
-            $lines[] = $key . ': "' . $this->escapeYaml($value) . '"';
-        }
-
-        $lines = array_values(array_filter($lines, fn($line) => $line !== null));
-        return trim(implode("\n", $lines));
-    }
-
     private function sanitizeFilename(string $name): string
     {
         $name = $this->transliterateGreek(trim($name));
@@ -6748,66 +6483,6 @@ final class App
             $base = 'file';
         }
         return $base . ($ext !== '' ? '.' . $ext : '');
-    }
-
-    private function uniqueFilePath(string $path): string
-    {
-        if (!file_exists($path)) {
-            return $path;
-        }
-
-        $dir = dirname($path);
-        $ext = pathinfo($path, PATHINFO_EXTENSION);
-        $base = pathinfo($path, PATHINFO_FILENAME);
-        $counter = 1;
-
-        do {
-            $suffix = '-' . $counter;
-            $candidate = $dir . '/' . $base . $suffix . ($ext ? '.' . $ext : '');
-            $counter++;
-        } while (file_exists($candidate));
-
-        return $candidate;
-    }
-
-    private function isAllowedUpload(string $tmpPath, string $name): bool
-    {
-        $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
-        $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
-        if (!in_array($ext, $allowed, true)) {
-            return false;
-        }
-
-        $finfo = new \finfo(FILEINFO_MIME_TYPE);
-        $mime = $finfo->file($tmpPath) ?: '';
-        $allowedMimes = [
-            'image/jpeg',
-            'image/png',
-            'image/gif',
-            'image/webp',
-            'image/svg+xml',
-        ];
-        return in_array($mime, $allowedMimes, true);
-    }
-
-    private function listUploads(string $dir, string $urlPrefix = '/uploads'): array
-    {
-        $items = [];
-        foreach (glob($dir . '/*') ?: [] as $path) {
-            if (!is_file($path)) {
-                continue;
-            }
-            $ext = strtolower((string)pathinfo($path, PATHINFO_EXTENSION));
-            $items[] = [
-                'name' => basename($path),
-                'size' => filesize($path) ?: 0,
-                'mtime' => filemtime($path) ?: 0,
-                'url' => rtrim($urlPrefix, '/') . '/' . basename($path),
-                'ext' => $ext,
-            ];
-        }
-        usort($items, fn($a, $b) => $b['mtime'] <=> $a['mtime']);
-        return $items;
     }
 
     private function sanitizeSettingsTab(string $tab): string
@@ -7119,64 +6794,6 @@ final class App
             $this->setSystemMeta('site_settings', $yaml);
         }
         $this->settings = $this->loadSettings();
-    }
-
-    private function migrateImageUploads(): void
-    {
-        $root = $this->basePath . '/public/uploads';
-        $imagesDir = $root . '/images';
-        if (!is_dir($imagesDir)) {
-            mkdir($imagesDir, 0775, true);
-        }
-
-        foreach (glob($root . '/*') ?: [] as $path) {
-            if (!is_file($path)) {
-                continue;
-            }
-            $ext = strtolower((string)pathinfo($path, PATHINFO_EXTENSION));
-            if (!in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'], true)) {
-                continue;
-            }
-            $target = $imagesDir . '/' . basename($path);
-            $target = $this->uniqueFilePath($target);
-            @rename($path, $target);
-        }
-    }
-
-    private function migrateImageReferences(): void
-    {
-        $pattern = '/\\/uploads\\/(?!images\\/|files\\/)/';
-        $iterator = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($this->contentDir, \FilesystemIterator::SKIP_DOTS)
-        );
-        foreach ($iterator as $file) {
-            if (!$file->isFile() || $file->getExtension() !== 'md') {
-                continue;
-            }
-            $path = $file->getPathname();
-            $raw = (string)file_get_contents($path);
-            $updated = preg_replace($pattern, '/uploads/images/', $raw);
-            if ($updated !== null && $updated !== $raw) {
-                file_put_contents($path, $updated);
-            }
-        }
-    }
-
-    private function normalizeFileUploads(string $dir): void
-    {
-        foreach (glob($dir . '/*') ?: [] as $path) {
-            if (!is_file($path)) {
-                continue;
-            }
-            $name = basename($path);
-            $sanitized = $this->sanitizeFilename($name);
-            if ($sanitized === '' || $sanitized === $name) {
-                continue;
-            }
-            $target = $dir . '/' . $sanitized;
-            $target = $this->uniqueFilePath($target);
-            @rename($path, $target);
-        }
     }
 
     /** @return string[] */
@@ -7829,32 +7446,6 @@ final class App
             return mb_strtolower($value, 'UTF-8');
         }
         return strtolower($value);
-    }
-
-    private function isAllowedFileUpload(string $tmpPath, string $name): bool
-    {
-        $allowed = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'csv', 'zip'];
-        $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
-        if (!in_array($ext, $allowed, true)) {
-            return false;
-        }
-
-        $finfo = new \finfo(FILEINFO_MIME_TYPE);
-        $mime = $finfo->file($tmpPath) ?: '';
-        $allowedMimes = [
-            'application/pdf',
-            'application/msword',
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'application/vnd.ms-excel',
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'application/vnd.ms-powerpoint',
-            'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-            'text/plain',
-            'text/csv',
-            'application/zip',
-            'application/x-zip-compressed',
-        ];
-        return in_array($mime, $allowedMimes, true);
     }
 
     /** @return string[] */

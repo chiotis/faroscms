@@ -4,3 +4,4 @@ storage/db/*.sqlite
 storage/db/*.sqlite-*
 storage/restore/
 storage/updates/
+node_modules/

@@ -17,6 +17,15 @@ Then open:
 - Frontend: `http://127.0.0.1:8087/`
 - Admin: `http://127.0.0.1:8087/admin/login`
 
+The admin CSS is a compiled Tailwind build committed to the repository (`public/assets/css/admin.build.css`), so servers need no Node.js. After changing Tailwind classes in `admin/templates/` or `public/assets/js/admin.js`, rebuild it:
+
+```bash
+npm install
+npm run build:css
+```
+
+See [docs/architecture.md](docs/architecture.md) for the code map.
+
 The imported development admin account is:
 
 ```text

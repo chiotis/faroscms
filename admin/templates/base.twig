@@ -5,23 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>{{ title|default('Admin') }} - FarosCMS</title>
-  <script>
-    window.tailwind = window.tailwind || {};
-    window.tailwind.config = {
-      theme: { extend: { fontFamily: { sans: ['"Inter Tight"', 'ui-sans-serif', 'system-ui', 'sans-serif'] } } },
-      safelist: [
-        'hidden',
-        'block',
-        'bg-slate-200',
-        'bg-white',
-        'border-slate-400',
-        'border-slate-300',
-        'text-slate-900',
-        'text-slate-600'
-      ]
-    };
-  </script>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="{{ url('assets/css/admin.build.css') }}">
   <link rel="stylesheet" href="{{ url('assets/css/app.css') }}">
 </head>
 <body class="h-full bg-slate-100 font-sans text-slate-800 antialiased">

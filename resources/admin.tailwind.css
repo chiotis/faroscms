@@ -1,0 +1,4 @@
+/* Source for public/assets/css/admin.build.css (npm run build:css). Custom admin rules live in public/assets/css/app.css. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
