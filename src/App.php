@@ -29,6 +29,7 @@ final class App
     private NotificationRepository $notifications;
     private BackupRunRepository $backupRuns;
     private LoginThrottle $loginThrottle;
+    private BackupService $backups;
     private string $currentLang;
     private array $translations = [];
     private array $formStates = [];
@@ -62,6 +63,7 @@ final class App
         $this->notifications = new NotificationRepository($this->systemDatabase);
         $this->backupRuns = new BackupRunRepository($this->systemDatabase);
         $this->loginThrottle = new LoginThrottle($this->systemDatabase);
+        $this->backups = new BackupService($this->basePath, $this->systemDatabase);
         $this->content = new ContentRepository($this->contentDir, $markdown, $this->settings);
         $this->auth = new Auth($this->contentDir . '/users/users.yaml', $this->users);
 
@@ -1012,8 +1014,34 @@ final class App
             return;
         }
 
+        $restoreTarget = trim((string)($_GET['restore'] ?? ''));
+        if ($restoreTarget !== '' && ($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+            $this->renderBackupRestore($restoreTarget);
+            return;
+        }
+
         if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $action = trim((string)($_POST['backup_action'] ?? ''));
+            if ($action === 'verify') {
+                $filename = $this->backups->sanitizeFilename((string)($_POST['filename'] ?? ''));
+                $verification = $this->backups->verify($filename, $this->activeThemeName());
+                $this->logActivity($verification['ok'] ? 'backup.verify_success' : 'backup.verify_failure', $verification['ok'] ? 'info' : 'error', 'backup', $filename, $verification['message'], [
+                    'checked' => $verification['checked'],
+                    'has_manifest' => $verification['has_manifest'],
+                    'errors' => $verification['errors'],
+                ]);
+                $this->redirect('/admin/backups?' . http_build_query([
+                    'backup' => $verification['ok'] ? ($verification['has_manifest'] ? 'ok' : 'warn') : 'fail',
+                    'backup_msg' => $filename . ': ' . $verification['message'],
+                ]));
+                return;
+            }
+
+            if ($action === 'restore') {
+                $this->handleBackupRestore();
+                return;
+            }
+
             if ($action === 'create_full') {
                 $result = $this->createBackupSnapshot();
                 if (($result['ok'] ?? false) === true) {
@@ -1048,8 +1076,8 @@ final class App
             }
 
             if ($action === 'delete') {
-                $filename = $this->sanitizeBackupFilename((string)($_POST['filename'] ?? ''));
-                $result = $this->deleteBackupSnapshot($filename);
+                $filename = $this->backups->sanitizeFilename((string)($_POST['filename'] ?? ''));
+                $result = $this->backups->delete($filename);
                 $this->logActivity(($result['ok'] ?? false) ? 'backup.delete_success' : 'backup.delete_failure', ($result['ok'] ?? false) ? 'warning' : 'error', 'backup', $filename, (string)($result['message'] ?? 'Backup delete action completed.'), [
                     'filename' => $filename,
                 ]);
@@ -1106,11 +1134,190 @@ final class App
         ]);
     }
 
+    private function activeThemeName(): string
+    {
+        $theme = preg_replace('/[^a-z0-9_-]/i', '', (string)($this->settings['theme'] ?? 'default'));
+        return $theme !== '' ? $theme : 'default';
+    }
+
+    private function renderBackupRestore(string $filename, string $error = '', array $selected = []): void
+    {
+        if (!$this->permissions->can($this->auth->user(), 'backups.restore')) {
+            $this->renderForbidden('Restoring backups is limited to superadmins.');
+            return;
+        }
+        $filename = $this->backups->sanitizeFilename($filename);
+        if ($this->backups->pathFor($filename) === null) {
+            $this->redirect('/admin/backups?' . http_build_query(['backup' => 'fail', 'backup_msg' => 'Backup file not found.']));
+            return;
+        }
+        $verification = $this->backups->verify($filename, $this->activeThemeName());
+        $scopes = [];
+        foreach ($this->backups->restoreScopes($this->activeThemeName()) as $key => $scope) {
+            $count = (int)($verification['areas'][$key] ?? 0);
+            $scopes[] = $scope + [
+                'key' => $key,
+                'count' => $count,
+                'available' => $count > 0,
+                'checked' => $count > 0 && ($selected === [] || in_array($key, $selected, true)),
+            ];
+        }
+        $snapshot = null;
+        foreach ($this->backups->list() as $item) {
+            if ($item['filename'] === $filename) {
+                $snapshot = $item;
+                break;
+            }
+        }
+
+        $this->render('@admin/backup-restore.twig', [
+            'title' => 'Restore backup',
+            'types' => $this->content->getTypes(),
+            'user' => $this->auth->user(),
+            'admin_section' => 'backups',
+            'current_type' => 'pages',
+            'filename' => $filename,
+            'snapshot' => $snapshot,
+            'verification' => $verification,
+            'scopes' => $scopes,
+            'error' => $error,
+            'current_version' => $this->updates()->currentVersion(),
+        ]);
+    }
+
+    private function handleBackupRestore(): void
+    {
+        if (!$this->permissions->can($this->auth->user(), 'backups.restore')) {
+            $this->renderForbidden('Restoring backups is limited to superadmins.');
+            return;
+        }
+        $filename = $this->backups->sanitizeFilename((string)($_POST['filename'] ?? ''));
+        $theme = $this->activeThemeName();
+        $scopeKeys = array_values(array_intersect(
+            array_map('strval', is_array($_POST['scopes'] ?? null) ? $_POST['scopes'] : []),
+            array_keys($this->backups->restoreScopes($theme))
+        ));
+        if ($filename === '' || $this->backups->pathFor($filename) === null) {
+            $this->redirect('/admin/backups?' . http_build_query(['backup' => 'fail', 'backup_msg' => 'Backup file not found.']));
+            return;
+        }
+        if ($scopeKeys === []) {
+            $this->renderBackupRestore($filename, 'Select at least one area to restore.');
+            return;
+        }
+        if (trim((string)($_POST['confirm_filename'] ?? '')) !== $filename) {
+            $this->renderBackupRestore($filename, 'Type the archive name exactly as shown to confirm the restore.', $scopeKeys);
+            return;
+        }
+
+        $verification = $this->backups->verify($filename, $theme);
+        if (!$verification['ok']) {
+            $this->renderBackupRestore($filename, 'The archive failed verification, so nothing was restored.', $scopeKeys);
+            return;
+        }
+        if (!$verification['has_manifest'] && empty($_POST['ack_unverified'])) {
+            $this->renderBackupRestore($filename, 'This archive has no checksum manifest. Tick the acknowledgement to restore it anyway.', $scopeKeys);
+            return;
+        }
+
+        // A safety snapshot of the current state is mandatory; without it there is no way back.
+        $safety = $this->createBackupSnapshot('pre-restore', false, false);
+        if (($safety['ok'] ?? false) !== true) {
+            $this->recordBackupRun($safety);
+            $this->renderBackupRestore($filename, 'The safety snapshot failed, so the restore was not started: ' . (string)($safety['message'] ?? ''), $scopeKeys);
+            return;
+        }
+
+        $actor = $this->auth->user();
+        $result = $this->backups->restore($filename, $scopeKeys, $theme);
+
+        // The system database may have been swapped: reload settings and write history into the active database.
+        $this->settings = $this->loadSettings();
+        $this->themeSettings = $this->loadThemeSettings();
+        $this->menusCache = [];
+        $this->taxonomiesCache = [];
+        $this->recordBackupRun($safety);
+        $this->logActivity($result['ok'] ? 'backup.restore_success' : 'backup.restore_failure', $result['ok'] ? 'warning' : 'error', 'backup', $filename, $result['message'], [
+            'scopes' => $scopeKeys,
+            'restored' => $result['restored'],
+            'skipped' => $result['skipped'],
+            'safety_snapshot' => (string)($safety['filename'] ?? ''),
+            'previous_dir' => (string)($result['previous_dir'] ?? ''),
+        ], $actor);
+        try {
+            $this->notifications->create([
+                'type' => $result['ok'] ? 'backup.restored' : 'backup.restore_failed',
+                'title' => $result['ok'] ? 'Backup restored' : 'Backup restore failed',
+                'body' => $result['message'] . ' Safety snapshot: ' . (string)($safety['filename'] ?? '') . '.',
+                'severity' => $result['ok'] ? 'warning' : 'error',
+                'target_url' => '/admin/backups',
+            ]);
+        } catch (\Throwable) {
+            // Notifications must never block the restore response.
+        }
+
+        if (!$result['ok']) {
+            $this->renderBackupRestore($filename, $result['message'] . ' Safety snapshot: ' . (string)($safety['filename'] ?? '') . '.', $scopeKeys);
+            return;
+        }
+        $message = $result['message'] . ' Safety snapshot: ' . (string)($safety['filename'] ?? '') . '.';
+        if ($result['skipped'] !== []) {
+            $message .= ' Not in archive: ' . implode(', ', $result['skipped']) . '.';
+        }
+        if (in_array('database', $result['restored'], true)) {
+            $message .= ' If your account does not exist in the restored database you will be signed out.';
+        }
+        $this->redirect('/admin/backups?' . http_build_query(['backup' => 'ok', 'backup_msg' => $message]));
+    }
+
+    /** @return array{filename: string, created_at: string, verified: bool, version: string}|null */
+    private function preUpdateBackupStatus(): ?array
+    {
+        $meta = $this->systemMeta->getJson('pre_update_backup');
+        if (!is_array($meta) || ($meta['filename'] ?? '') === '' || $this->backups->pathFor((string)$meta['filename']) === null) {
+            return null;
+        }
+        return [
+            'filename' => (string)$meta['filename'],
+            'created_at' => (string)($meta['created_at'] ?? ''),
+            'verified' => ($meta['verified'] ?? false) === true,
+            'version' => (string)($meta['version'] ?? ''),
+        ];
+    }
+
     private function handleUpdates(): void
     {
         $updates = $this->updates();
         if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $action = trim((string)($_POST['updates_action'] ?? ''));
+            if ($action === 'pre_update_backup') {
+                if (!$this->permissions->can($this->auth->user(), 'backups.manage')) {
+                    $this->renderForbidden();
+                    return;
+                }
+                $result = $this->createBackupSnapshot('pre-update');
+                $this->recordBackupRun($result);
+                $verification = ($result['ok'] ?? false) === true
+                    ? $this->backups->verify((string)$result['filename'], $this->activeThemeName())
+                    : ['ok' => false, 'message' => (string)($result['message'] ?? 'Backup failed.')];
+                if (($result['ok'] ?? false) === true) {
+                    $this->systemMeta->setJson('pre_update_backup', [
+                        'filename' => (string)$result['filename'],
+                        'created_at' => gmdate('c'),
+                        'verified' => $verification['ok'] === true,
+                        'version' => $updates->currentVersion(),
+                    ]);
+                }
+                $this->logActivity($verification['ok'] ? 'updates.pre_backup_success' : 'updates.pre_backup_failure', $verification['ok'] ? 'info' : 'error', 'backup', (string)($result['filename'] ?? ''), (string)$verification['message'], [
+                    'result' => $result,
+                ]);
+                $this->notifyBackupResult($result, false);
+                $this->redirect('/admin/updates?' . http_build_query([
+                    'pre_backup' => $verification['ok'] ? 'ok' : 'fail',
+                    'pre_backup_msg' => $verification['ok'] ? 'Verified pre-update backup created: ' . (string)$result['filename'] : (string)$verification['message'],
+                ]));
+                return;
+            }
             if ($action === 'check') {
                 $status = $updates->status(true);
                 $this->syncUpdateNotification($status);
@@ -1165,6 +1372,9 @@ final class App
             'latest_backup' => $backups[0] ?? null,
             'backup_total' => count($backups),
             'preflight_checks' => $this->buildUpdatePreflightChecks(),
+            'pre_update_backup' => $this->preUpdateBackupStatus(),
+            'pre_backup_status' => (string)($_GET['pre_backup'] ?? ''),
+            'pre_backup_message' => trim((string)($_GET['pre_backup_msg'] ?? '')),
         ]);
     }
 
@@ -5751,7 +5961,15 @@ final class App
     {
         $backupDir = $this->backupDirectory();
         $source = $this->updates()->sourceConfig();
+        $preBackup = $this->preUpdateBackupStatus();
+        $preBackupAge = $preBackup !== null ? time() - (int)strtotime($preBackup['created_at']) : PHP_INT_MAX;
+        $preBackupReady = $preBackup !== null && $preBackup['verified'] && $preBackupAge < 86400 && $preBackup['version'] === $this->updates()->currentVersion();
         return [
+            [
+                'label' => 'Verified pre-update backup',
+                'value' => $preBackupReady ? 'ready' : ($preBackup === null ? 'missing' : ($preBackup['verified'] ? 'older than 24h' : 'not verified')),
+                'status' => $preBackupReady ? 'ok' : 'warning',
+            ],
             [
                 'label' => 'PHP compatibility',
                 'value' => PHP_VERSION,
@@ -6067,15 +6285,7 @@ final class App
 
     private function backupDirectory(): string
     {
-        return $this->basePath . '/storage/backups';
-    }
-
-    private function ensureBackupDirectory(): void
-    {
-        $dir = $this->backupDirectory();
-        if (!is_dir($dir)) {
-            mkdir($dir, 0775, true);
-        }
+        return $this->backups->directory();
     }
 
     private function maybeRunScheduledBackup(): void
@@ -6102,7 +6312,7 @@ final class App
             return;
         }
 
-        $this->ensureBackupDirectory();
+        $this->backups->ensureDirectory();
         $lockPath = $this->backupDirectory() . '/.auto-backup.lock';
         $lockHandle = @fopen($lockPath, 'c');
         if (!$lockHandle) {
@@ -6113,7 +6323,7 @@ final class App
             return;
         }
 
-        $result = $this->createBackupSnapshot();
+        $result = $this->createBackupSnapshot('scheduled');
         if (($result['ok'] ?? false) === true) {
             $this->updateBackupLastRun(date('c'));
         }
@@ -6138,94 +6348,57 @@ final class App
         return (time() - $lastTimestamp) >= $interval;
     }
 
-    /** @return array{ok: bool, message: string, filename?: string} */
-    private function createBackupSnapshot(): array
+    /**
+     * Full snapshot + local retention + optional remote upload.
+     * Pre-restore safety snapshots skip pruning so the archive being restored is never deleted.
+     *
+     * @return array{ok: bool, message: string, filename?: string, status?: string}
+     */
+    private function createBackupSnapshot(string $reason = 'manual', bool $prune = true, bool $uploadRemote = true): array
     {
-        if (!class_exists(\ZipArchive::class)) {
-            return ['ok' => false, 'message' => 'Zip extension is not available on this server.'];
-        }
-        $this->ensureBackupDirectory();
-        $siteSlug = $this->slugify((string)($this->settings['title'] ?? 'site'));
-        if ($siteSlug === '') {
-            $siteSlug = 'site';
-        }
-        $filename = $siteSlug . '-backup-' . date('Ymd-His') . '-' . bin2hex(random_bytes(3)) . '.zip';
-        $snapshotPath = $this->backupDirectory() . '/' . $filename;
-
-        $zip = new \ZipArchive();
-        if ($zip->open($snapshotPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
-            return ['ok' => false, 'message' => 'Could not create backup archive.'];
-        }
-
-        $basePrefix = rtrim($this->basePath, '/') . '/';
-        $iterator = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($this->basePath, \FilesystemIterator::SKIP_DOTS),
-            \RecursiveIteratorIterator::LEAVES_ONLY
-        );
-        $filesAdded = 0;
-        foreach ($iterator as $fileInfo) {
-            if (!$fileInfo->isFile()) {
-                continue;
-            }
-            $path = $fileInfo->getPathname();
-            if (!str_starts_with($path, $basePrefix)) {
-                continue;
-            }
-            $relative = str_replace('\\', '/', substr($path, strlen($basePrefix)));
-            if ($relative === '' || $this->shouldExcludeBackupPath($relative)) {
-                continue;
-            }
-            if ($zip->addFile($path, $relative)) {
-                $filesAdded++;
-            }
-        }
-        $zip->close();
-
-        if ($filesAdded === 0) {
-            @unlink($snapshotPath);
-            return ['ok' => false, 'message' => 'Backup archive is empty.'];
-        }
-
-        $keep = (int)($this->settings['backup']['local']['keep'] ?? 20);
-        if ($keep < 1) {
-            $keep = 1;
-        }
-        $this->pruneBackupSnapshots($keep);
-        $remote = $this->uploadBackupToRemote($snapshotPath, $filename);
-
-        return $this->buildBackupResult('Snapshot created.', $filename, $remote);
+        $result = $this->backups->createFullSnapshot($this->backupSiteSlug(), $this->backupMeta($reason));
+        return $this->finishBackup($result, $prune, $uploadRemote);
     }
 
-    /** @return array{ok: bool, message: string, filename?: string} */
-    private function createDatabaseBackupSnapshot(): array
+    /** @return array{ok: bool, message: string, filename?: string, status?: string} */
+    private function createDatabaseBackupSnapshot(string $reason = 'manual'): array
     {
-        if (!class_exists(\ZipArchive::class)) {
-            return ['ok' => false, 'message' => 'Zip extension is not available on this server.'];
+        $result = $this->backups->createDatabaseSnapshot($this->backupSiteSlug(), $this->backupMeta($reason));
+        return $this->finishBackup($result, true, true);
+    }
+
+    private function finishBackup(array $result, bool $prune, bool $uploadRemote): array
+    {
+        if (($result['ok'] ?? false) !== true) {
+            return $result;
         }
-
-        $dbPath = $this->basePath . '/storage/db/app.sqlite';
-        if (!is_file($dbPath)) {
-            return ['ok' => false, 'message' => 'System database file was not found.'];
+        if ($prune) {
+            $this->backups->prune($this->localBackupKeep());
         }
+        $remote = $uploadRemote ? $this->uploadBackupToRemote((string)$result['path'], (string)$result['filename']) : null;
+        return $this->buildBackupResult((string)$result['message'], (string)$result['filename'], $remote);
+    }
 
-        $this->ensureBackupDirectory();
-        $siteSlug = $this->slugify((string)($this->settings['title'] ?? 'site'));
-        if ($siteSlug === '') {
-            $siteSlug = 'site';
-        }
-        $filename = $siteSlug . '-database-backup-' . date('Ymd-His') . '-' . bin2hex(random_bytes(3)) . '.zip';
-        $snapshotPath = $this->backupDirectory() . '/' . $filename;
+    private function backupSiteSlug(): string
+    {
+        $slug = $this->slugify((string)($this->settings['title'] ?? 'site'));
+        return $slug !== '' ? $slug : 'site';
+    }
 
-        $zip = new \ZipArchive();
-        if ($zip->open($snapshotPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
-            return ['ok' => false, 'message' => 'Could not create database backup archive.'];
-        }
-        $zip->addFile($dbPath, 'storage/db/app.sqlite');
-        $zip->close();
+    /** @return array{reason: string, version: string, commit: string} */
+    private function backupMeta(string $reason): array
+    {
+        $updates = $this->updates();
+        return [
+            'reason' => $reason,
+            'version' => $updates->currentVersion(),
+            'commit' => $updates->currentGitCommit(),
+        ];
+    }
 
-        $remote = $this->uploadBackupToRemote($snapshotPath, $filename);
-
-        return $this->buildBackupResult('Database backup created.', $filename, $remote);
+    private function localBackupKeep(): int
+    {
+        return max(1, (int)($this->settings['backup']['local']['keep'] ?? 20));
     }
 
     private function recordBackupRun(array $result): void
@@ -6234,8 +6407,8 @@ final class App
             $filename = (string)($result['filename'] ?? '');
             $size = 0;
             if ($filename !== '') {
-                $path = $this->backupDirectory() . '/' . $this->sanitizeBackupFilename($filename);
-                $size = is_file($path) ? (int)(filesize($path) ?: 0) : 0;
+                $path = $this->backups->pathFor($filename);
+                $size = $path !== null ? (int)(filesize($path) ?: 0) : 0;
             }
             $this->backupRuns->record([
                 'filename' => $filename,
@@ -6345,55 +6518,10 @@ final class App
         return (new S3BackupStorage($remoteSettings))->testConnection();
     }
 
-    private function shouldExcludeBackupPath(string $relative): bool
-    {
-        $relative = ltrim(str_replace('\\', '/', $relative), '/');
-        if ($relative === '') {
-            return true;
-        }
-        $basename = basename($relative);
-        if ($basename === '.DS_Store') {
-            return true;
-        }
-        $excludedPrefixes = [
-            '.git/',
-            '.codex/',
-            '.claude/',
-            '_reference/',
-            'node_modules/',
-            'storage/cache/',
-            'storage/backups/',
-        ];
-        foreach ($excludedPrefixes as $prefix) {
-            if (str_starts_with($relative, $prefix)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /** @return array<int, array<string, string|int>> */
+    /** @return array<int, array<string, mixed>> */
     private function listBackupSnapshots(): array
     {
-        $this->ensureBackupDirectory();
-        $items = [];
-        foreach (glob($this->backupDirectory() . '/*.zip') ?: [] as $path) {
-            if (!is_file($path)) {
-                continue;
-            }
-            $name = basename($path);
-            $size = (int)(filesize($path) ?: 0);
-            $mtime = (int)(filemtime($path) ?: 0);
-            $items[] = [
-                'filename' => $name,
-                'size' => $size,
-                'size_human' => $this->formatFileSize($size),
-                'mtime' => $mtime,
-                'created_at' => date('Y-m-d H:i', $mtime),
-            ];
-        }
-        usort($items, fn($a, $b) => ((int)$b['mtime']) <=> ((int)$a['mtime']));
-        return $items;
+        return $this->backups->list();
     }
 
     private function formatFileSize(int $bytes): string
@@ -6432,50 +6560,16 @@ final class App
 
     private function downloadBackupSnapshot(string $filename, string $failureBase = '/admin/settings?tab=backup'): void
     {
-        $filename = $this->sanitizeBackupFilename($filename);
-        if ($filename === '') {
-            $this->redirect($failureBase . (str_contains($failureBase, '?') ? '&' : '?') . 'backup=fail&backup_msg=' . urlencode('Invalid backup file.'));
-            return;
-        }
-        $path = $this->backupDirectory() . '/' . $filename;
-        if (!is_file($path)) {
+        $path = $this->backups->pathFor($filename);
+        if ($path === null) {
             $this->redirect($failureBase . (str_contains($failureBase, '?') ? '&' : '?') . 'backup=fail&backup_msg=' . urlencode('Backup file not found.'));
             return;
         }
         header('Content-Type: application/zip');
-        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Content-Disposition: attachment; filename="' . basename($path) . '"');
         header('Content-Length: ' . (string)(filesize($path) ?: 0));
         readfile($path);
         exit;
-    }
-
-    /** @return array{ok: bool, message: string} */
-    private function deleteBackupSnapshot(string $filename): array
-    {
-        if ($filename === '') {
-            return ['ok' => false, 'message' => 'Invalid backup file.'];
-        }
-        $path = $this->backupDirectory() . '/' . $filename;
-        if (!is_file($path)) {
-            return ['ok' => false, 'message' => 'Backup file not found.'];
-        }
-        if (!@unlink($path)) {
-            return ['ok' => false, 'message' => 'Could not delete backup file.'];
-        }
-        return ['ok' => true, 'message' => 'Backup deleted.'];
-    }
-
-    private function sanitizeBackupFilename(string $value): string
-    {
-        $value = trim($value);
-        if ($value === '') {
-            return '';
-        }
-        $value = basename($value);
-        if (!preg_match('/^[a-z0-9._-]+$/i', $value)) {
-            return '';
-        }
-        return $value;
     }
 
     private function updateBackupLastRun(string $isoDate): void
@@ -6488,28 +6582,6 @@ final class App
             $this->setSystemMeta('site_settings', $yaml);
         }
         $this->settings = $this->loadSettings();
-    }
-
-    private function pruneBackupSnapshots(int $keep): void
-    {
-        $items = $this->listBackupSnapshots();
-        if ($keep < 1) {
-            $keep = 1;
-        }
-        if (count($items) <= $keep) {
-            return;
-        }
-        $remove = array_slice($items, $keep);
-        foreach ($remove as $snapshot) {
-            $filename = $this->sanitizeBackupFilename((string)($snapshot['filename'] ?? ''));
-            if ($filename === '') {
-                continue;
-            }
-            $path = $this->backupDirectory() . '/' . $filename;
-            if (is_file($path)) {
-                @unlink($path);
-            }
-        }
     }
 
     private function migrateImageUploads(): void

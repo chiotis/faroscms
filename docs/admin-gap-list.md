@@ -37,7 +37,7 @@ Implemented now:
 
 ### High Priority
 
-- Update install workflow: `/admin/updates` exists in read-only mode, but FarosCMS still has no package download, checksum verification, backup-before-update, install action, or rollback action.
+- Update install workflow: `/admin/updates` has status, notifications, and a verified pre-update backup gate. One-click install (release manifest, package checksum, staged swap, rollback) is designed in `docs/update-workflow.md` but not built.
 
 ### Medium Priority
 
@@ -93,15 +93,15 @@ Implemented now:
 
 ### Operational Features
 
-- Admin-configurable backup retention, remote storage destination settings, and backup history are present, but remote upload/test/pruning and restore-from-backup are still intentionally missing until the safety flows are designed.
-- Serious update workflow is missing: remote manifest fetch, package download, checksum verification, backup-before-update, install, and rollback.
+- Backups have retention, remote upload/test/pruning, checksum manifests, verification, and a staged, reversible restore of data areas.
+- Update install is still manual (git or ZIP). Remote release manifest, package download/checksum, staged install, and rollback are designed but not built.
 - System health/status checks are partially wired for the dashboard: writable paths, PHP version, upload limit, memory limit, SQLite, mail status, storage usage, and disk free exist; cache/index status and scheduled task checks are still missing.
 - Search/index admin tooling is missing: rebuild index, inspect search index, or index status.
 - Cache management is missing: clear/rebuild cache, cache status, cache size.
 
 ## Suggested Implementation Order
 
-1. Design backup-before-update, package verification, install, and rollback before enabling update actions.
+1. Build one-click install following `docs/update-workflow.md` Part 2.
 2. Forms module: make forms feel like a standalone admin section.
 3. UI consistency pass: filters, toasts, table sorting, badges, modals/off-canvas.
 4. System health/cache/index tools.

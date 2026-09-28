@@ -18,7 +18,7 @@ This document explains a safe update process when new code is available in the m
 
 ### Mandatory backup (recommended order)
 
-1. In Admin: `Settings -> Backup -> Create Snapshot Now`.
+1. In Admin: `Updates -> Pre-update backup -> Create verified backup` (wait until it shows **Ready**).
 2. Also keep a filesystem backup of:
    - `content/`
    - `public/uploads/`
@@ -88,7 +88,7 @@ If you do not use git on the server:
 
 If something breaks:
 
-1. Restore latest backup snapshot from `storage/backups/`.
+1. Restore data from the pre-update backup in Admin `Backups` (restore icon, superadmin only). See `docs/backups.md`.
 2. If using git, return to previous commit/tag and re-run Composer:
 
 ```bash

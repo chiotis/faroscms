@@ -8,6 +8,8 @@ Reference docs:
 - `docs/admin-gap-list.md` compares FarosCMS with the admin template and phpFlat baseline.
 - `docs/system-database.md` documents the SQLite system layer.
 - `docs/security.md` documents admin security behavior and the operator checklist.
+- `docs/backups.md` documents archives, verification, and restore.
+- `docs/update-workflow.md` documents the safe update design.
 
 ## Current Status
 
@@ -87,7 +89,8 @@ See `docs/security.md`.
 - [x] Add backup history from SQLite `backup_runs`.
 - [x] Add S3-compatible remote storage settings, including Backblaze B2.
 - [x] Wire remote backup upload, connection test, and remote pruning.
-- [ ] Add restore flow after careful safety review.
+- [x] Add restore flow after careful safety review (see `docs/backups.md`).
+- [x] Add checksum manifests and a Verify action for archives.
 - [x] Add delete old snapshot action.
 
 ### Updates
@@ -97,7 +100,9 @@ See `docs/security.md`.
 - [x] Add local `VERSION` file and GitHub raw `VERSION` source.
 - [x] Add read-only update check first.
 - [x] Add changelog display.
-- [ ] Design backup-before-update flow before any install action.
+- [x] Design backup-before-update flow before any install action (see `docs/update-workflow.md`).
+- [x] Add verified pre-update backup action and preflight gate.
+- [ ] Build one-click install per `docs/update-workflow.md` Part 2 (release manifest, checksum, staged swap, rollback).
 
 ### Forms
 

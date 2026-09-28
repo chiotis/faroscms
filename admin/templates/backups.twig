@@ -103,11 +103,22 @@
             </thead>
             <tbody class="divide-y divide-slate-50">
               {% for snapshot in backup_snapshots %}
-                {% set is_database = 'database-backup' in snapshot.filename %}
+                {% set is_database = snapshot.type == 'database' %}
                 <tr class="hover:bg-slate-50">
-                  <td class="px-4 py-2.5"><span class="font-mono text-xs text-slate-700">{{ snapshot.filename }}</span></td>
                   <td class="px-4 py-2.5">
-                    <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset {{ is_database ? 'bg-violet-50 text-violet-700 ring-violet-200' : 'bg-blue-50 text-blue-700 ring-blue-200' }}">{{ is_database ? 'Database' : 'Full' }}</span>
+                    <span class="font-mono text-xs text-slate-700">{{ snapshot.filename }}</span>
+                    {% if snapshot.version %}<span class="ml-1 text-[11px] text-slate-400">v{{ snapshot.version }}</span>{% endif %}
+                  </td>
+                  <td class="px-4 py-2.5">
+                    <div class="flex flex-wrap items-center gap-1">
+                      <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset {{ is_database ? 'bg-violet-50 text-violet-700 ring-violet-200' : 'bg-blue-50 text-blue-700 ring-blue-200' }}">{{ is_database ? 'Database' : 'Full' }}</span>
+                      {% if snapshot.reason and snapshot.reason != 'manual' %}
+                        <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">{{ snapshot.reason|replace({'-': ' '})|capitalize }}</span>
+                      {% endif %}
+                      {% if not snapshot.has_manifest %}
+                        <span class="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 ring-1 ring-inset ring-amber-200" title="Created before checksum manifests existed">No checksums</span>
+                      {% endif %}
+                    </div>
                   </td>
                   <td class="px-4 py-2.5 text-slate-600">{{ snapshot.size_human }}</td>
                   <td class="px-4 py-2.5 text-slate-400">{{ snapshot.created_at }}</td>
@@ -116,9 +127,19 @@
                       <a href="{{ url('admin/backups?download=' ~ snapshot.filename) }}" class="{{ icon_button }}" title="Download" aria-label="Download {{ snapshot.filename }}">
                         <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0 0l-4-4m4 4l4-4M4 19h16"/></svg>
                       </a>
-                      <button type="button" class="{{ icon_button }} cursor-not-allowed opacity-50" title="Restore flow pending" aria-label="Restore flow pending" disabled>
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v6h6M20 9a8 8 0 00-14.93-3M4 15a8 8 0 0014.93 3"/></svg>
-                      </button>
+                      <form method="post" action="{{ url('admin/backups') }}">
+                        {{ csrf_field() }}
+                        <input type="hidden" name="backup_action" value="verify">
+                        <input type="hidden" name="filename" value="{{ snapshot.filename }}">
+                        <button type="submit" class="{{ icon_button }}" title="Verify checksums" aria-label="Verify {{ snapshot.filename }}">
+                          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.6-4A11.95 11.95 0 0112 2.9 11.95 11.95 0 013.4 6 12 12 0 003 9c0 5.6 3.8 10.3 9 11.6 5.2-1.3 9-6 9-11.6 0-1-.1-2-.4-3z"/></svg>
+                        </button>
+                      </form>
+                      {% if can('backups.restore') %}
+                        <a href="{{ url('admin/backups?restore=' ~ snapshot.filename) }}" class="{{ icon_button }}" title="Restore" aria-label="Restore {{ snapshot.filename }}">
+                          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v6h6M20 9a8 8 0 00-14.93-3M4 15a8 8 0 0014.93 3"/></svg>
+                        </a>
+                      {% endif %}
                       <form method="post" action="{{ url('admin/backups') }}" onsubmit="return confirm('Delete this backup file?');">
                         {{ csrf_field() }}
                         <input type="hidden" name="backup_action" value="delete">
@@ -182,9 +203,16 @@
         {% endif %}
       </div>
 
-      <div class="rounded-lg border border-amber-200 bg-amber-50 p-4">
-        <h2 class="text-sm font-semibold text-amber-900">Restore guidance</h2>
-        <p class="mt-1 text-xs leading-relaxed text-amber-800">Restore is intentionally disabled until the safety flow is designed: pre-restore snapshot, explicit confirmation, rollback path, and file permission checks.</p>
+      <div class="rounded-lg border border-slate-200 bg-white p-4">
+        <h2 class="text-sm font-semibold text-slate-900">How restore works</h2>
+        <ol class="mt-2 list-decimal space-y-1 pl-4 text-xs leading-relaxed text-slate-600">
+          <li>The archive is verified against its checksum manifest.</li>
+          <li>A full safety snapshot of the current site is taken first.</li>
+          <li>Only data areas are restored (content, uploads, translations, system database). Code is never overwritten.</li>
+          <li>Areas are staged, then swapped in; any failure puts everything back.</li>
+          <li>The replaced data stays in <code class="rounded bg-slate-100 px-1">storage/restore/</code> for manual recovery.</li>
+        </ol>
+        <p class="mt-2 text-xs text-slate-400">{{ can('backups.restore') ? 'Restoring is available to superadmins.' : 'Only superadmins can restore.' }} See docs/backups.md.</p>
       </div>
     </div>
   </div>

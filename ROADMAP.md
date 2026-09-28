@@ -70,9 +70,10 @@
 ## Backups
 - Current baseline: local full-site snapshots in `storage/backups` with manual create/download from `Settings -> Backup`
 - Current baseline: automatic local schedule via checkbox + frequency (`daily` / `weekly` / `monthly`) and local retention count
-- Add optional backup integrity manifest/checksum per snapshot for restore verification
+- Current baseline: SHA-256 manifest per archive, Verify action, and staged/reversible restore of data areas (superadmin)
+- Current baseline: S3-compatible remote upload with retention
 - Add one-click restore-to-staging drill workflow and periodic restore report
-- Revisit remote backup targets later (Google Drive/S3-compatible) with non-shell-safe implementation options
+- Optional: Google Drive remote target
 
 ## Post-Theme Architecture
 - Refactor `src/App.php` into focused modules/services after theme work is complete

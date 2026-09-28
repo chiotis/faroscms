@@ -26,6 +26,7 @@ final class PermissionService
             'imports.manage',
             'exports.manage',
             'backups.manage',
+            'backups.restore',
             'updates.manage',
         ],
         'admin' => [

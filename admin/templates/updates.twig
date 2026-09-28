@@ -12,6 +12,13 @@
     </div>
   {% endif %}
 
+  {% if pre_backup_status %}
+    <div data-toast class="pointer-events-auto fixed right-4 top-4 z-[999] flex w-80 max-w-[calc(100vw-2rem)] items-start gap-3 rounded-md border px-3.5 py-2.5 text-sm shadow-sm {{ pre_backup_status == 'ok' ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-red-200 bg-red-50 text-red-800' }}">
+      <span class="mt-px flex-1">{{ pre_backup_message ?: (pre_backup_status == 'ok' ? 'Pre-update backup created.' : 'Pre-update backup failed.') }}</span>
+      <button type="button" data-toast-dismiss class="text-current/60 hover:text-current">&times;</button>
+    </div>
+  {% endif %}
+
   <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
     <div>
       <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Updates</h1>
@@ -160,9 +167,31 @@
         </ul>
       </div>
 
+      {% set pre_ready = pre_update_backup and pre_update_backup.verified and pre_update_backup.version == current_version and (date().timestamp - pre_update_backup.created_at|date('U')) < 86400 %}
+      <div class="rounded-lg border {{ pre_ready ? 'border-emerald-200' : 'border-slate-200' }} bg-white p-4">
+        <div class="flex items-center justify-between gap-3">
+          <h2 class="text-sm font-semibold text-slate-900">Pre-update backup</h2>
+          <span class="rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset {{ pre_ready ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' : 'bg-amber-50 text-amber-700 ring-amber-200' }}">{{ pre_ready ? 'Ready' : 'Needed' }}</span>
+        </div>
+        {% if pre_update_backup %}
+          <p class="mt-2 truncate font-mono text-xs text-slate-600" title="{{ pre_update_backup.filename }}">{{ pre_update_backup.filename }}</p>
+          <p class="mt-0.5 text-xs text-slate-400">{{ pre_update_backup.created_at|date('Y-m-d H:i') }} · {{ pre_update_backup.verified ? 'checksums verified' : 'not verified' }} · v{{ pre_update_backup.version }}</p>
+        {% else %}
+          <p class="mt-2 text-xs text-slate-500">No verified full backup has been taken for an update yet.</p>
+        {% endif %}
+        <p class="mt-2 text-xs text-slate-500">Take one right before updating. It must be verified, less than 24 hours old, and made on the version you are updating from.</p>
+        {% if can('backups.manage') %}
+          <form method="post" action="{{ url('admin/updates') }}" class="mt-3">
+            {{ csrf_field() }}
+            <input type="hidden" name="updates_action" value="pre_update_backup">
+            <button type="submit" class="{{ secondary_button }} w-full justify-center">Create verified backup</button>
+          </form>
+        {% endif %}
+      </div>
+
       <div class="rounded-lg border border-amber-200 bg-amber-50 p-4">
         <h2 class="text-sm font-semibold text-amber-900">Install flow pending</h2>
-        <p class="mt-1 text-xs leading-relaxed text-amber-800">Applying updates will stay disabled until FarosCMS has package download, checksum verification, mandatory backup, rollback, and post-update checks.</p>
+        <p class="mt-1 text-xs leading-relaxed text-amber-800">One-click install stays disabled until package checksums, staged install, and automatic rollback are built (see docs/update-workflow.md). Until then, update with git or a ZIP deploy after taking the pre-update backup above.</p>
       </div>
 
       <div class="rounded-lg border border-slate-200 bg-white p-4">

@@ -20,6 +20,7 @@ final class SystemDatabase
 
     public function initialize(): void
     {
+        $this->lastError = null;
         try {
             if (!in_array('sqlite', PDO::getAvailableDrivers(), true)) {
                 throw new \RuntimeException('PDO SQLite driver is not available.');
@@ -39,6 +40,19 @@ final class SystemDatabase
             $this->lastError = $e->getMessage();
             $this->pdo = null;
         }
+    }
+
+    /** Flushes the WAL into the main file and drops the connection (used before swapping the file). */
+    public function close(): void
+    {
+        if ($this->pdo instanceof PDO) {
+            try {
+                $this->pdo->exec('PRAGMA wal_checkpoint(TRUNCATE)');
+            } catch (Throwable) {
+                // Closing must not fail because of a busy checkpoint.
+            }
+        }
+        $this->pdo = null;
     }
 
     public function isAvailable(): bool
