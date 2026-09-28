@@ -109,7 +109,7 @@
           <input type="hidden" name="type" value="{{ type }}">
           <input type="hidden" name="apply" value="1">
           <input type="hidden" name="preview_token" value="{{ preview_token }}">
-          <button type="submit" class="{{ primary_btn }}" onclick="return confirm('Apply this import? This will update files in content/{{ type }}.');">
+          <button type="submit" class="{{ primary_btn }}" data-confirm="Apply this import? This will update files in content/{{ type }}." data-confirm-button="Apply import">
             <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
             </svg>

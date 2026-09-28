@@ -192,7 +192,7 @@
             <button type="submit" class="{{ secondary_btn }}">Save tags</button>
           </form>
 
-          <form id="media-bulk-delete-form" method="post" action="{{ url('admin/media') }}" onsubmit="return confirm('Delete selected media items?');">
+          <form id="media-bulk-delete-form" method="post" action="{{ url('admin/media') }}" data-confirm="Delete selected media items?" data-confirm-button="Delete">
             {{ csrf_field() }}
             <input type="hidden" name="media_action" value="bulk_delete">
             <input type="hidden" name="apply_all_filtered" value="0" data-apply-all-input>
@@ -230,17 +230,17 @@
       </div>
     {% elseif view_mode == 'list' %}
       <div class="overflow-x-auto">
-        <table class="w-full text-sm">
+        <table class="w-full text-sm" data-sortable>
           <thead>
             <tr class="border-b border-slate-100 bg-slate-50/50 text-left text-xs font-medium text-slate-400">
               <th class="px-4 py-2 font-medium">
                 <input id="media-select-all" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-400" aria-label="Select all">
               </th>
-              <th class="px-4 py-2 font-medium">File</th>
-              <th class="px-4 py-2 font-medium">Type</th>
-              <th class="px-4 py-2 font-medium">Size</th>
+              <th class="px-4 py-2 font-medium" data-sort="text">File</th>
+              <th class="px-4 py-2 font-medium" data-sort="text">Type</th>
+              <th class="px-4 py-2 font-medium" data-sort="number">Size</th>
               <th class="px-4 py-2 font-medium">Tags</th>
-              <th class="px-4 py-2 font-medium">Created</th>
+              <th class="px-4 py-2 font-medium" data-sort="text">Created</th>
               <th class="px-4 py-2 text-right font-medium">Actions</th>
             </tr>
           </thead>
@@ -269,7 +269,7 @@
                   </div>
                 </td>
                 <td class="px-4 py-2.5 align-top text-slate-600">{{ item.kind|title }}</td>
-                <td class="px-4 py-2.5 align-top text-slate-600">{{ item.size_human }}</td>
+                <td class="px-4 py-2.5 align-top text-slate-600" data-sort-value="{{ item.size_bytes|default(0) }}">{{ item.size_human }}</td>
                 <td class="px-4 py-2.5 align-top">
                   <form method="post" action="{{ url('admin/media') }}" class="flex items-center gap-2">
                     {{ csrf_field() }}
@@ -302,7 +302,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" d="M8 8h10v10H8zM6 16H5a1 1 0 01-1-1V5a1 1 0 011-1h10a1 1 0 011 1v1"/>
                       </svg>
                     </button>
-                    <form method="post" action="{{ url('admin/media') }}" onsubmit="return confirm('Delete this media item?');" class="inline">
+                    <form method="post" action="{{ url('admin/media') }}" data-confirm="Delete this media item?" data-confirm-button="Delete" class="inline">
                       {{ csrf_field() }}
                       <input type="hidden" name="media_action" value="delete">
                       <input type="hidden" name="id" value="{{ item.id }}">
@@ -379,7 +379,7 @@
                     </svg>
                   </button>
                 </form>
-                <form method="post" action="{{ url('admin/media') }}" onsubmit="return confirm('Delete this media item?');" class="mt-2 text-right">
+                <form method="post" action="{{ url('admin/media') }}" data-confirm="Delete this media item?" data-confirm-button="Delete" class="mt-2 text-right">
                   {{ csrf_field() }}
                   <input type="hidden" name="media_action" value="delete">
                   <input type="hidden" name="id" value="{{ item.id }}">
@@ -528,7 +528,8 @@
           const applyAllChecked = applyAll ? applyAll.checked : false;
           if (!applyAllChecked && ids.length === 0) {
             event.preventDefault();
-            alert('Select at least one media item.');
+            event.stopImmediatePropagation();
+            window.adminToast('Select at least one media item.', 'warning');
             return;
           }
           selectedContainers.forEach((container) => {

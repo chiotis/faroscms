@@ -13,16 +13,10 @@
   {% set is_home = slug and type == 'pages' and slug == site.home_page and lang == site.languages.default %}
 
   {% if saved %}
-    <div data-toast class="pointer-events-auto fixed right-4 top-4 z-[999] flex w-80 max-w-[calc(100vw-2rem)] items-start gap-3 rounded-md border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-sm text-emerald-800 shadow-sm">
-      <span class="mt-px flex-1">Saved.</span>
-      <button type="button" data-toast-dismiss class="text-current/60 hover:text-current">&times;</button>
-    </div>
+    <template data-flash data-type="success">Saved.</template>
   {% endif %}
   {% if deleted %}
-    <div data-toast class="pointer-events-auto fixed right-4 top-4 z-[999] flex w-80 max-w-[calc(100vw-2rem)] items-start gap-3 rounded-md border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-sm text-emerald-800 shadow-sm">
-      <span class="mt-px flex-1">Deleted.</span>
-      <button type="button" data-toast-dismiss class="text-current/60 hover:text-current">&times;</button>
-    </div>
+    <template data-flash data-type="success">Deleted.</template>
   {% endif %}
 
   <form method="post" action="{{ url('admin/save') }}" class="editor space-y-4" enctype="multipart/form-data">
@@ -49,7 +43,7 @@
           </a>
         {% endif %}
         {% if slug and not is_home %}
-          <button type="submit" class="{{ danger_button_class }}" formaction="{{ url('admin/delete') }}" formmethod="post" onclick="return confirm('Delete this item?');">Delete</button>
+          <button type="submit" class="{{ danger_button_class }}" formaction="{{ url('admin/delete') }}" formmethod="post" data-confirm="Delete this item?" data-confirm-button="Delete">Delete</button>
         {% endif %}
         <button type="submit" class="{{ primary_button_class }}">
           <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>

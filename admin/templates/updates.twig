@@ -6,17 +6,11 @@
   {% set disabled_button = 'inline-flex cursor-not-allowed items-center gap-1.5 rounded-md bg-slate-200 px-3 py-1.5 text-sm font-medium text-slate-500' %}
 
   {% if checked %}
-    <div data-toast class="pointer-events-auto fixed right-4 top-4 z-[999] flex w-80 max-w-[calc(100vw-2rem)] items-start gap-3 rounded-md border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-sm text-emerald-800 shadow-sm">
-      <span class="mt-px flex-1">Update status refreshed from {{ update_repository }}.</span>
-      <button type="button" data-toast-dismiss class="text-current/60 hover:text-current">&times;</button>
-    </div>
+    <template data-flash data-type="success">Update status refreshed from {{ update_repository }}.</template>
   {% endif %}
 
   {% if pre_backup_status %}
-    <div data-toast class="pointer-events-auto fixed right-4 top-4 z-[999] flex w-80 max-w-[calc(100vw-2rem)] items-start gap-3 rounded-md border px-3.5 py-2.5 text-sm shadow-sm {{ pre_backup_status == 'ok' ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-red-200 bg-red-50 text-red-800' }}">
-      <span class="mt-px flex-1">{{ pre_backup_message ?: (pre_backup_status == 'ok' ? 'Pre-update backup created.' : 'Pre-update backup failed.') }}</span>
-      <button type="button" data-toast-dismiss class="text-current/60 hover:text-current">&times;</button>
-    </div>
+    <template data-flash data-type="error">{{ pre_backup_message ?: (pre_backup_status == 'ok' ? 'Pre-update backup created.' : 'Pre-update backup failed.') }}</template>
   {% endif %}
 
   <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

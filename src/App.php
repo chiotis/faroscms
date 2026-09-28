@@ -395,6 +395,11 @@ final class App
             return;
         }
 
+        if ($action === 'content-bulk') {
+            $this->handleContentBulk();
+            return;
+        }
+
         if ($action === 'activity-logs') {
             $this->handleActivityLogs();
             return;
@@ -1564,6 +1569,21 @@ final class App
         }
         $items = $this->content->getItems($type, $lang, true, false);
         $translationLangs = $this->buildTranslationLangMatrix($type, $items);
+        $statusOptions = array_values(array_unique(array_merge(['published', 'draft'], array_map(
+            static fn(ContentItem $item): string => (string)($item->meta['status'] ?? 'published'),
+            $items
+        ))));
+        $filters = [
+            'q' => trim((string)($_GET['q'] ?? '')),
+            'status' => in_array((string)($_GET['status'] ?? ''), $statusOptions, true) ? (string)$_GET['status'] : '',
+        ];
+        if ($filters['q'] !== '') {
+            $needle = mb_strtolower($filters['q']);
+            $items = array_values(array_filter($items, static fn(ContentItem $item): bool => str_contains(mb_strtolower((string)($item->meta['title'] ?? '') . ' ' . $item->slug), $needle)));
+        }
+        if ($filters['status'] !== '') {
+            $items = array_values(array_filter($items, static fn(ContentItem $item): bool => (string)($item->meta['status'] ?? 'published') === $filters['status']));
+        }
 
         $this->render('@admin/list.twig', [
             'items' => $items,
@@ -1575,7 +1595,86 @@ final class App
             'admin_section' => 'content',
             'deleted' => $deleted,
             'translation_langs' => $translationLangs,
+            'filters' => $filters,
+            'filters_active' => $filters['q'] !== '' || $filters['status'] !== '',
+            'status_options' => $statusOptions,
+            'bulk_status' => (string)($_GET['bulk'] ?? ''),
+            'bulk_message' => trim((string)($_GET['bulk_msg'] ?? '')),
         ]);
+    }
+
+    private function handleContentBulk(): void
+    {
+        $type = $this->sanitizeType((string)($_POST['type'] ?? 'pages'));
+        $lang = $this->slugify((string)($_POST['lang'] ?? ($this->settings['languages']['default'] ?? 'en')));
+        $action = (string)($_POST['bulk_action'] ?? '');
+        $slugs = array_values(array_unique(array_filter(array_map(
+            fn($slug): string => $this->slugify((string)$slug),
+            is_array($_POST['selected'] ?? null) ? $_POST['selected'] : []
+        ))));
+        $back = '/admin/content?type=' . urlencode($type) . '&lang=' . urlencode($lang);
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST' || !in_array($type, $this->content->getTypes(), true) || $type === 'forms') {
+            $this->redirect($back);
+            return;
+        }
+        if (!in_array($action, ['publish', 'draft', 'delete'], true) || $slugs === []) {
+            $this->redirect($back . '&' . http_build_query(['bulk' => 'fail', 'bulk_msg' => 'Choose a bulk action and select at least one item.']));
+            return;
+        }
+
+        $homeSlug = trim((string)($this->settings['home_page'] ?? 'index')) ?: 'index';
+        $defaultLang = (string)($this->settings['languages']['default'] ?? 'en');
+        $changed = 0;
+        $skipped = 0;
+        foreach ($slugs as $slug) {
+            $path = $this->contentDir . '/' . $type . '/' . $this->buildFilename($slug, $lang);
+            if (!is_file($path)) {
+                $skipped++;
+                continue;
+            }
+            if ($action === 'delete') {
+                // The default-language home page is never deletable, same as the single delete.
+                if ($type === 'pages' && $slug === $homeSlug && $lang === $defaultLang) {
+                    $skipped++;
+                    continue;
+                }
+                if (@unlink($path)) {
+                    $changed++;
+                }
+                continue;
+            }
+            [$frontmatter, $body] = $this->splitFrontMatter((string)file_get_contents($path));
+            try {
+                $meta = $frontmatter !== '' ? (Yaml::parse($frontmatter) ?: []) : [];
+            } catch (\Throwable) {
+                $skipped++;
+                continue;
+            }
+            if (!is_array($meta)) {
+                $skipped++;
+                continue;
+            }
+            $meta['status'] = $action === 'publish' ? 'published' : 'draft';
+            // Same layout handleSave writes: front matter, one blank line, body.
+            $body = preg_replace('/\A\R/', '', $body) ?? $body;
+            file_put_contents($path, "---\n" . trim(Yaml::dump($meta, 4, 2)) . "\n---\n\n" . rtrim($body) . "\n");
+            $changed++;
+        }
+
+        $verb = match ($action) {
+            'publish' => 'published',
+            'draft' => 'moved to draft',
+            default => 'deleted',
+        };
+        $this->logActivity('content.bulk_' . $action, $action === 'delete' ? 'warning' : 'info', $type, $lang, 'Bulk ' . $verb . '.', [
+            'type' => $type,
+            'lang' => $lang,
+            'slugs' => $slugs,
+            'changed' => $changed,
+            'skipped' => $skipped,
+        ]);
+        $message = $changed . ' item' . ($changed === 1 ? '' : 's') . ' ' . $verb . '.' . ($skipped > 0 ? ' ' . $skipped . ' skipped.' : '');
+        $this->redirect($back . '&' . http_build_query(['bulk' => $changed > 0 ? 'ok' : 'fail', 'bulk_msg' => $message]));
     }
 
     private function handleEdit(): void

@@ -118,7 +118,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" d="M14 4h6v6M20 4l-9 9M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5"/>
                       </svg>
                     </a>
-                    <form method="post" action="{{ url('admin/files') }}" class="inline" onsubmit="return confirm('Delete this file?');">
+                    <form method="post" action="{{ url('admin/files') }}" class="inline" data-confirm="Delete this file?" data-confirm-button="Delete">
                       {{ csrf_field() }}
                       <input type="hidden" name="delete" value="1">
                       <input type="hidden" name="filename" value="{{ file.name }}">

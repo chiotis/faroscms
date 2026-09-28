@@ -7,10 +7,7 @@
   {% set initials = label|split(' ')|map(part => part|first)|join('')|slice(0, 2)|upper %}
 
   {% if saved %}
-    <div data-toast class="pointer-events-auto fixed right-4 top-4 z-[999] flex w-80 max-w-[calc(100vw-2rem)] items-start gap-3 rounded-md border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-sm text-emerald-800 shadow-sm">
-      <span class="mt-px flex-1">Saved.</span>
-      <button type="button" data-toast-dismiss class="text-current/60 hover:text-current">&times;</button>
-    </div>
+    <template data-flash data-type="success">Saved.</template>
   {% endif %}
 
   <div class="mb-3 flex items-center gap-2 text-sm text-slate-400">

@@ -7,30 +7,15 @@
   {% set danger_icon_button = 'inline-flex h-8 w-8 items-center justify-center rounded-md text-red-500 hover:bg-red-50 hover:text-red-600' %}
 
   {% if backup_status == 'ok' %}
-    <div data-toast class="pointer-events-auto fixed right-4 top-4 z-[999] flex w-80 max-w-[calc(100vw-2rem)] items-start gap-3 rounded-md border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-sm text-emerald-800 shadow-sm">
-      <span class="mt-px flex-1">{{ backup_message ?: 'Backup created.' }}</span>
-      <button type="button" data-toast-dismiss class="text-current/60 hover:text-current">&times;</button>
-    </div>
+    <template data-flash data-type="success">{{ backup_message ?: 'Backup created.' }}</template>
   {% elseif backup_status == 'warn' %}
-    <div data-toast class="pointer-events-auto fixed right-4 top-4 z-[999] flex w-80 max-w-[calc(100vw-2rem)] items-start gap-3 rounded-md border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-sm text-amber-800 shadow-sm">
-      <span class="mt-px flex-1">{{ backup_message ?: 'Backup saved locally, but the remote upload failed.' }}</span>
-      <button type="button" data-toast-dismiss class="text-current/60 hover:text-current">&times;</button>
-    </div>
+    <template data-flash data-type="warning">{{ backup_message ?: 'Backup saved locally, but the remote upload failed.' }}</template>
   {% elseif backup_status == 'fail' %}
-    <div data-toast class="pointer-events-auto fixed right-4 top-4 z-[999] flex w-80 max-w-[calc(100vw-2rem)] items-start gap-3 rounded-md border border-red-200 bg-red-50 px-3.5 py-2.5 text-sm text-red-800 shadow-sm">
-      <span class="mt-px flex-1">{{ backup_message ?: 'Backup action failed.' }}</span>
-      <button type="button" data-toast-dismiss class="text-current/60 hover:text-current">&times;</button>
-    </div>
+    <template data-flash data-type="error">{{ backup_message ?: 'Backup action failed.' }}</template>
   {% elseif delete_status == 'ok' %}
-    <div data-toast class="pointer-events-auto fixed right-4 top-4 z-[999] flex w-80 max-w-[calc(100vw-2rem)] items-start gap-3 rounded-md border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-sm text-emerald-800 shadow-sm">
-      <span class="mt-px flex-1">{{ backup_message ?: 'Backup deleted.' }}</span>
-      <button type="button" data-toast-dismiss class="text-current/60 hover:text-current">&times;</button>
-    </div>
+    <template data-flash data-type="success">{{ backup_message ?: 'Backup deleted.' }}</template>
   {% elseif delete_status == 'fail' %}
-    <div data-toast class="pointer-events-auto fixed right-4 top-4 z-[999] flex w-80 max-w-[calc(100vw-2rem)] items-start gap-3 rounded-md border border-red-200 bg-red-50 px-3.5 py-2.5 text-sm text-red-800 shadow-sm">
-      <span class="mt-px flex-1">{{ backup_message ?: 'Backup delete failed.' }}</span>
-      <button type="button" data-toast-dismiss class="text-current/60 hover:text-current">&times;</button>
-    </div>
+    <template data-flash data-type="error">{{ backup_message ?: 'Backup delete failed.' }}</template>
   {% endif %}
 
   <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -91,13 +76,13 @@
         <div class="px-4 py-12 text-center text-sm text-slate-400">No local backups yet.</div>
       {% else %}
         <div class="overflow-x-auto">
-          <table class="w-full text-sm">
+          <table class="w-full text-sm" data-sortable>
             <thead>
               <tr class="border-b border-slate-100 bg-slate-50/50 text-left text-xs font-medium text-slate-400">
-                <th class="px-4 py-2 font-medium">Filename</th>
-                <th class="px-4 py-2 font-medium">Type</th>
-                <th class="px-4 py-2 font-medium">Size</th>
-                <th class="px-4 py-2 font-medium">Created</th>
+                <th class="px-4 py-2 font-medium" data-sort="text">Filename</th>
+                <th class="px-4 py-2 font-medium" data-sort="text">Type</th>
+                <th class="px-4 py-2 font-medium" data-sort="number">Size</th>
+                <th class="px-4 py-2 font-medium" data-sort="number">Created</th>
                 <th class="px-4 py-2 text-right font-medium">Actions</th>
               </tr>
             </thead>
@@ -120,8 +105,8 @@
                       {% endif %}
                     </div>
                   </td>
-                  <td class="px-4 py-2.5 text-slate-600">{{ snapshot.size_human }}</td>
-                  <td class="px-4 py-2.5 text-slate-400">{{ snapshot.created_at }}</td>
+                  <td class="px-4 py-2.5 text-slate-600" data-sort-value="{{ snapshot.size }}">{{ snapshot.size_human }}</td>
+                  <td class="px-4 py-2.5 text-slate-400" data-sort-value="{{ snapshot.mtime }}">{{ snapshot.created_at }}</td>
                   <td class="px-4 py-2.5">
                     <div class="flex items-center justify-end gap-0.5">
                       <a href="{{ url('admin/backups?download=' ~ snapshot.filename) }}" class="{{ icon_button }}" title="Download" aria-label="Download {{ snapshot.filename }}">
@@ -140,7 +125,7 @@
                           <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v6h6M20 9a8 8 0 00-14.93-3M4 15a8 8 0 0014.93 3"/></svg>
                         </a>
                       {% endif %}
-                      <form method="post" action="{{ url('admin/backups') }}" onsubmit="return confirm('Delete this backup file?');">
+                      <form method="post" action="{{ url('admin/backups') }}" data-confirm="Delete this backup file?" data-confirm-button="Delete">
                         {{ csrf_field() }}
                         <input type="hidden" name="backup_action" value="delete">
                         <input type="hidden" name="filename" value="{{ snapshot.filename }}">

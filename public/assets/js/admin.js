@@ -217,8 +217,8 @@
     });
   }
 
-  /* ---- Confirmation modal (replaces window.confirm for forms with data-confirm) ---- */
-  var pendingConfirmForm = null;
+  /* ---- Confirmation modal (replaces window.confirm for forms and submit buttons with data-confirm) ---- */
+  var pendingConfirm = null;
   function ensureConfirmModal() {
     var modal = document.getElementById('admin-confirm-modal');
     if (modal) return modal;
@@ -238,28 +238,36 @@
       '</div></div>';
     document.body.appendChild(modal);
     modal.querySelector('[data-confirm-accept]').addEventListener('click', function () {
-      var form = pendingConfirmForm;
-      pendingConfirmForm = null;
+      var accept = pendingConfirm;
+      pendingConfirm = null;
       closeModal(modal);
-      if (form) {
-        form.setAttribute('data-confirmed', '1');
-        if (form.requestSubmit) { form.requestSubmit(form._confirmSubmitter || undefined); } else { form.submit(); }
-      }
+      if (accept) accept();
     });
     return modal;
   }
-  document.addEventListener('submit', function (e) {
-    var form = e.target;
-    if (!form || !form.hasAttribute('data-confirm')) return;
-    if (form.getAttribute('data-confirmed') === '1') { form.removeAttribute('data-confirmed'); return; }
-    e.preventDefault();
-    form._confirmSubmitter = e.submitter || null;
-    pendingConfirmForm = form;
+  function askConfirm(source, onAccept) {
+    pendingConfirm = onAccept;
     var modal = ensureConfirmModal();
-    modal.querySelector('[data-confirm-message]').textContent = form.getAttribute('data-confirm') || 'Are you sure?';
-    modal.querySelector('[data-confirm-accept]').textContent = form.getAttribute('data-confirm-button') || 'Confirm';
+    modal.querySelector('[data-confirm-message]').textContent = source.getAttribute('data-confirm') || 'Are you sure?';
+    modal.querySelector('[data-confirm-accept]').textContent = source.getAttribute('data-confirm-button') || 'Confirm';
     openModal('admin-confirm-modal');
     modal.querySelector('[data-confirm-accept]').focus();
+  }
+  function submitConfirmed(form, submitter) {
+    form.setAttribute('data-confirmed', '1');
+    if (submitter) submitter.setAttribute('data-confirmed', '1');
+    if (form.requestSubmit) { form.requestSubmit(submitter || undefined); } else { form.submit(); }
+    form.removeAttribute('data-confirmed');
+    if (submitter) submitter.removeAttribute('data-confirmed');
+  }
+  document.addEventListener('submit', function (e) {
+    var form = e.target;
+    if (!form || form.getAttribute('data-confirmed') === '1') return;
+    var submitter = e.submitter || null;
+    var source = submitter && submitter.hasAttribute('data-confirm') ? submitter : (form.hasAttribute('data-confirm') ? form : null);
+    if (!source) return;
+    e.preventDefault();
+    askConfirm(source, function () { submitConfirmed(form, submitter); });
   });
 
   /* ---- Global delegated click handler ---- */

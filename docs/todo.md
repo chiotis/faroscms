@@ -113,17 +113,16 @@ See `docs/security.md`.
 
 ### Files / Media
 
-- [ ] Decide whether `/admin/files` should be a real route or keep redirecting to `/admin/media?type=document`.
-- [ ] Add true Files navigation identity if needed.
-- [ ] Keep current media library functionality.
+- [x] Decide whether `/admin/files` should be a real route: keep the redirect to `/admin/media?type=document`. The media library stays the single place for images and files.
+- [x] Keep current media library functionality.
 
 ## UI Consistency Backlog
 
-- [ ] Normalize hidden filter panels across all list screens.
-- [ ] Add sortable table controls where useful.
-- [ ] Add bulk actions beyond media where safe.
-- [ ] Normalize toast placement and behavior.
-- [ ] Use modal/off-canvas patterns for details and confirmations.
+- [x] Normalize hidden filter panels across all list screens (Filters button with an active-filter dot; panel stays open while filters apply).
+- [x] Add sortable table controls where useful (`table[data-sortable]`).
+- [x] Add bulk actions beyond media where safe (content publish/draft/delete, form submissions delete).
+- [x] Normalize toast placement and behavior (bottom right, auto-hide with countdown, errors stay).
+- [x] Use modal/off-canvas patterns for details and confirmations (`data-confirm` modal replaces `confirm()`).
 - [x] Replace static storage indicator with real storage usage.
 - [x] Replace `base` badge with real version/status.
 

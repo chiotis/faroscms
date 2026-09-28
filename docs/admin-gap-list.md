@@ -41,11 +41,9 @@ Implemented now:
 
 ### Medium Priority
 
-- Full file manager parity: FarosCMS maps `/admin/files` to the media document list. The core file behavior exists, but the URL/module identity is not a standalone Files section matching the template.
-- Filter toggle parity: the template uses hidden filter panels opened by a Filter button on most list screens. Some FarosCMS screens still show filters inline or vary by module.
-- Sortable table controls: template tables imply structured list workflows. FarosCMS lists are rendered in stable order, but admin-side sortable columns are not implemented broadly.
-- Bulk actions: the media library has bulk selection, but content, users, logs, backups, and other list screens do not yet have template-style bulk actions.
-- Modal/off-canvas detail panels: admin JS supports modals/off-canvas, but FarosCMS does not yet use them for log details, destructive confirmations, profile panels, or quick edits as the template suggests.
+- Files: by decision `/admin/files` stays a redirect to the media document list; the media library is the single file manager.
+- Bulk actions: media, content (publish/draft/delete), and form submissions have bulk actions; users and backups intentionally do not.
+- Off-canvas panels are used for log and submission details, and a shared modal handles destructive confirmations. Quick-edit panels are not built.
 - Profile dropdown parity: the template has a full profile workflow; FarosCMS links to the user editor but does not yet have a separate self-profile screen.
 
 ### Lower Priority / Design-System Parity
@@ -54,7 +52,6 @@ Implemented now:
 - Version badge: the admin shell reads the local `VERSION` file.
 - Notification archive/list page: the topbar center exists, but there is no dedicated notification history screen yet.
 - Empty states consistency: many screens have empty states, but not every admin module follows the same template pattern.
-- Toast placement/timing consistency: FarosCMS has shared toast support, but older modules still contain local toast markup and top-right placement.
 - Strict icon-only action buttons everywhere: most tables use icon actions, but the pattern is not fully normalized across every admin screen.
 
 ## Gaps From The phpFlat Baseline
@@ -83,12 +80,9 @@ Implemented now:
 
 ### UI System
 
-- Hidden-by-default filters across all lists: partially missing.
-- Bottom-left toast pattern with auto-hide countdown: FarosCMS has dismissable toasts, but no visual countdown and placement is not fully unified.
-- Off-canvas panels for log details and compact editing: JS support exists; product usage is missing.
+- Compact off-canvas editing (quick edit) is not built.
 - Tables as the primary layout for all list screens: mostly true, but not uniform across all modules.
-- Sortable columns: missing.
-- Consistent badge color logic by value across all modules: partially implemented, not centralized.
+- Badge colors are centralized in `admin/templates/partials/ui.twig` (`status_badge`); a few older screens still use inline classes.
 
 ### Operational Features
 
@@ -101,9 +95,8 @@ Implemented now:
 ## Suggested Implementation Order
 
 1. Build one-click install following `docs/update-workflow.md` Part 2.
-2. UI consistency pass: filters, toasts, table sorting, badges, modals/off-canvas.
-3. System health/cache/index tools.
-4. Longer-term architecture pass: decide whether FarosCMS should stay Twig/Composer based or move closer to strict phpFlat structure.
+2. System health/cache/index tools.
+3. Longer-term architecture pass: decide whether FarosCMS should stay Twig/Composer based or move closer to strict phpFlat structure.
 
 ## Notes
 

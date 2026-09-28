@@ -9,17 +9,6 @@
   {% set primary_button_class = 'inline-flex shrink-0 items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700' %}
   {% set danger_button_class = 'inline-flex shrink-0 items-center gap-1.5 rounded-md border border-red-200 bg-white px-3 py-1.5 text-sm font-medium text-red-600 shadow-sm transition hover:bg-red-50' %}
 
-  {% macro toast(message, type) %}
-    {% set tone = type == 'error'
-      ? 'border-red-200 bg-red-50 text-red-800'
-      : 'border-emerald-200 bg-emerald-50 text-emerald-800'
-    %}
-    <div data-toast class="pointer-events-auto fixed right-4 top-4 z-[999] flex w-80 max-w-[calc(100vw-2rem)] items-start gap-3 rounded-md border px-3.5 py-2.5 text-sm shadow-sm {{ tone }}">
-      <span class="mt-px flex-1">{{ message }}</span>
-      <button type="button" data-toast-dismiss class="text-current/60 hover:text-current">&times;</button>
-    </div>
-  {% endmacro %}
-
   {% macro secret_input(name, is_set, input_class, empty_placeholder) %}
     <input type="password" name="{{ name }}" value="" autocomplete="new-password" placeholder="{{ is_set ? 'Saved. Leave blank to keep it.' : empty_placeholder }}" class="{{ input_class }}">
     {% if is_set %}
@@ -30,30 +19,31 @@
     {% endif %}
   {% endmacro %}
 
-  {% import _self as ui %}
+  {% import _self as local %}
+  {% import '@admin/partials/ui.twig' as ui %}
 
   {% if saved %}
-    {{ ui.toast('Saved.', 'success') }}
+    {{ ui.flash('Saved.', 'success') }}
   {% endif %}
   {% if test_status == 'ok' %}
-    {{ ui.toast('Test email sent.', 'success') }}
+    {{ ui.flash('Test email sent.', 'success') }}
   {% elseif test_status == 'fail' %}
-    {{ ui.toast('Test email failed. Check your SMTP/SES settings.', 'error') }}
+    {{ ui.flash('Test email failed. Check your SMTP/SES settings.', 'error') }}
   {% elseif test_status == 'missing' %}
-    {{ ui.toast('Please enter a test recipient email.', 'error') }}
+    {{ ui.flash('Please enter a test recipient email.', 'error') }}
   {% endif %}
   {% if backup_status == 'ok' %}
-    {{ ui.toast(backup_message ?: 'Backup action completed.', 'success') }}
+    {{ ui.flash(backup_message ?: 'Backup action completed.', 'success') }}
   {% elseif backup_status == 'warn' %}
-    {{ ui.toast(backup_message ?: 'Backup saved locally, but the remote upload failed.', 'error') }}
+    {{ ui.flash(backup_message ?: 'Backup saved locally, but the remote upload failed.', 'warning') }}
   {% elseif backup_status == 'fail' %}
-    {{ ui.toast(backup_message ?: 'Backup action failed.', 'error') }}
+    {{ ui.flash(backup_message ?: 'Backup action failed.', 'error') }}
   {% endif %}
   {% if theme_status == 'fail' %}
-    {{ ui.toast(theme_message ?: 'Theme settings could not be saved.', 'error') }}
+    {{ ui.flash(theme_message ?: 'Theme settings could not be saved.', 'error') }}
   {% endif %}
   {% if settings_error %}
-    {{ ui.toast(settings_error, 'error') }}
+    {{ ui.flash(settings_error, 'error') }}
   {% endif %}
 
   <form method="post" class="space-y-4">
@@ -368,7 +358,7 @@
             </label>
             <label class="block">
               <span class="mb-1 block text-sm font-medium text-slate-700">Password</span>
-              {{ ui.secret_input('smtp_pass', settings_form.smtp_pass_set, input_class, '') }}
+              {{ local.secret_input('smtp_pass', settings_form.smtp_pass_set, input_class, '') }}
             </label>
             <label class="block">
               <span class="mb-1 block text-sm font-medium text-slate-700">Encryption</span>
@@ -393,7 +383,7 @@
             </label>
             <label class="block">
               <span class="mb-1 block text-sm font-medium text-slate-700">Secret key</span>
-              {{ ui.secret_input('ses_secret', settings_form.ses_secret_set, input_class, '') }}
+              {{ local.secret_input('ses_secret', settings_form.ses_secret_set, input_class, '') }}
             </label>
             <label class="block">
               <span class="mb-1 block text-sm font-medium text-slate-700">Region</span>
@@ -427,7 +417,7 @@
             </label>
             <label class="block sm:col-span-2">
               <span class="mb-1 block text-sm font-medium text-slate-700">Google Client Secret</span>
-              {{ ui.secret_input('google_client_secret', settings_form.google_client_secret_set, input_class, '') }}
+              {{ local.secret_input('google_client_secret', settings_form.google_client_secret_set, input_class, '') }}
             </label>
             <label class="block sm:col-span-2">
               <span class="mb-1 block text-sm font-medium text-slate-700">Allowed domain</span>
@@ -522,7 +512,7 @@
             </label>
             <label class="block">
               <span class="mb-1 block text-sm font-medium text-slate-700">Secret key</span>
-              {{ ui.secret_input('backup_remote_secret_key', settings_form.backup_remote_secret_key_set, input_class, '') }}
+              {{ local.secret_input('backup_remote_secret_key', settings_form.backup_remote_secret_key_set, input_class, '') }}
             </label>
             <label class="block">
               <span class="mb-1 block text-sm font-medium text-slate-700">Path prefix</span>
@@ -575,7 +565,7 @@
             </label>
             <label class="block sm:col-span-2">
               <span class="mb-1 block text-sm font-medium text-slate-700">GitHub token</span>
-              {{ ui.secret_input('update_github_token', settings_form.update_github_token_set, input_class, 'Required only for private repositories') }}
+              {{ local.secret_input('update_github_token', settings_form.update_github_token_set, input_class, 'Required only for private repositories') }}
               <span class="mt-1 block text-xs text-slate-400">Needed when the repository is private. Leave blank to keep the existing token.</span>
             </label>
           </div>

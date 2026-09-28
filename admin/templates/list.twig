@@ -1,4 +1,5 @@
 {% extends '@admin/base.twig' %}
+{% import '@admin/partials/ui.twig' as ui %}
 
 {% block content %}
   {% set singular = current_type ends with 's' ? current_type|slice(0, -1) : current_type %}
@@ -7,6 +8,9 @@
   {% set icon_button = 'rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700' %}
   {% set icon_danger = 'rounded-md p-1.5 text-red-500 hover:bg-red-50 hover:text-red-600' %}
 
+  {{ ui.flash(deleted ? 'Deleted.' : '', 'success') }}
+  {{ ui.flash(bulk_message, bulk_status == 'ok' ? 'success' : 'error') }}
+
   <header class="mb-4 flex flex-col gap-3 border-b border-slate-200 pb-4 lg:flex-row lg:items-center lg:justify-between">
     <div class="min-w-0">
       <h1 class="truncate text-[15px] font-semibold leading-tight text-slate-900">{{ current_type|title }}</h1>
@@ -14,16 +18,15 @@
     </div>
 
     <div class="flex flex-wrap items-center gap-2">
-      {% if current_type != 'forms' %}
-        <a class="{{ btn_secondary }}" href="{{ url('admin/import?type=' ~ current_type) }}">
-          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
-          Import CSV
-        </a>
-        <a class="{{ btn_secondary }}" href="{{ url('admin/export?type=' ~ current_type) }}">
-          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21V9m0 12 4-4m-4 4-4-4M4 7V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2"/></svg>
-          Export CSV
-        </a>
-      {% endif %}
+      {{ ui.filter_button('contentFilter', filters_active) }}
+      <a class="{{ btn_secondary }}" href="{{ url('admin/import?type=' ~ current_type) }}">
+        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+        Import CSV
+      </a>
+      <a class="{{ btn_secondary }}" href="{{ url('admin/export?type=' ~ current_type) }}">
+        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21V9m0 12 4-4m-4 4-4-4M4 7V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2"/></svg>
+        Export CSV
+      </a>
       <a class="{{ btn_primary }}" href="{{ url('admin/new?type=' ~ current_type ~ '&lang=' ~ lang) }}">
         <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
         New {{ singular|title }}
@@ -31,63 +34,85 @@
     </div>
   </header>
 
-  {% if deleted %}
-    <div data-toast class="pointer-events-auto fixed right-4 top-4 z-[999] flex w-80 max-w-[calc(100vw-2rem)] items-start gap-3 rounded-md border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-sm text-emerald-800 shadow-sm">
-      <span class="mt-px flex-1">Deleted.</span>
-      <button type="button" data-toast-dismiss class="text-current/60 hover:text-current">&times;</button>
-    </div>
-  {% endif %}
-
-  <div id="contentFilter" class="mb-4 rounded-lg border border-slate-200 bg-white p-4">
-    <form method="get" class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+  <div id="contentFilter" class="mb-4 rounded-lg border border-slate-200 bg-white p-4 {{ filters_active ? '' : 'hidden' }}">
+    <form method="get" action="{{ url('admin/content') }}" class="grid grid-cols-1 gap-3 sm:grid-cols-3">
       <input type="hidden" name="type" value="{{ current_type }}">
-      <label class="grid gap-1 text-sm font-medium text-slate-700">
-        Language
-        <select name="lang" class="w-full min-w-32 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20">
-          {% for l in languages %}
-            <option value="{{ l }}" {% if l == lang %}selected{% endif %}>{{ l|upper }}</option>
+      <input type="hidden" name="lang" value="{{ lang }}">
+      <label class="block sm:col-span-2">
+        <span class="mb-1 block text-sm font-medium text-slate-700">Search</span>
+        <input type="text" name="q" value="{{ filters.q }}" placeholder="Title or slug" class="{{ input_class }}">
+      </label>
+      <label class="block">
+        <span class="mb-1 block text-sm font-medium text-slate-700">Status</span>
+        <select name="status" class="{{ select_class }}">
+          <option value="">All</option>
+          {% for option in status_options %}
+            <option value="{{ option }}" {% if filters.status == option %}selected{% endif %}>{{ option|title }}</option>
           {% endfor %}
         </select>
       </label>
-      <div class="flex items-center gap-2">
+      <div class="flex justify-end gap-2 sm:col-span-3">
+        <a href="{{ url('admin/content?type=' ~ current_type ~ '&lang=' ~ lang) }}" class="rounded-md px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100">Reset</a>
         <button type="submit" class="{{ btn_primary }}">Apply</button>
       </div>
     </form>
   </div>
 
-  <div class="rounded-lg border border-slate-200 bg-white">
+  <form method="post" action="{{ url('admin/content-bulk') }}" class="rounded-lg border border-slate-200 bg-white" data-bulk-form>
+    {{ csrf_field() }}
+    <input type="hidden" name="type" value="{{ current_type }}">
+    <input type="hidden" name="lang" value="{{ lang }}">
     <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-2.5">
-      <div class="flex items-center gap-2 text-sm">
-        <span class="font-medium text-slate-700">{{ items|length }} entries</span>
+      <div class="flex flex-wrap items-center gap-2 text-sm">
+        <span class="font-medium text-slate-700">{{ items|length }} {{ filters_active ? 'matching' : '' }} entr{{ items|length == 1 ? 'y' : 'ies' }}</span>
         <span class="mx-1 h-4 w-px bg-slate-200"></span>
-        <span class="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">{{ lang|upper }}</span>
+        <nav class="flex items-center gap-1" aria-label="Language">
+          {% for l in languages %}
+            <a href="{{ url('admin/content?' ~ {'type': current_type, 'lang': l}|merge(filters|filter(v => v != ''))|url_encode) }}" class="rounded-md px-2.5 py-1 text-xs font-medium {{ l == lang ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200' }}" {% if l == lang %}aria-current="true"{% endif %}>{{ l|upper }}</a>
+          {% endfor %}
+        </nav>
       </div>
-      <div class="text-xs text-slate-400">Updated order</div>
+      {% if items is not empty %}
+        <div class="flex items-center gap-2">
+          <select name="bulk_action" class="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-700" aria-label="Bulk action">
+            <option value="">Bulk action…</option>
+            <option value="publish">Publish</option>
+            <option value="draft">Move to draft</option>
+            <option value="delete">Delete</option>
+          </select>
+          <button type="submit" class="{{ btn_secondary }}" data-confirm="Apply this action to the selected {{ current_type }}? Deleted items cannot be recovered except from a backup." data-confirm-button="Apply">Apply</button>
+        </div>
+      {% endif %}
     </div>
 
     {% if items is empty %}
-      <div class="flex flex-col items-center justify-center px-6 py-16 text-center">
-        <div class="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
-          <svg class="h-6 w-6 text-slate-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m-7 5h8a2 2 0 0 0 2-2V7l-5-5H7a2 2 0 0 0-2 2v15a2 2 0 0 0 2 2z"/></svg>
+      {% if filters_active %}
+        {{ ui.empty_state('Nothing matches these filters', 'Reset the filters to see every ' ~ singular ~ ' in ' ~ lang|upper ~ '.') }}
+      {% else %}
+        <div class="flex flex-col items-center justify-center px-6 py-16 text-center">
+          <div class="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
+            <svg class="h-6 w-6 text-slate-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m-7 5h8a2 2 0 0 0 2-2V7l-5-5H7a2 2 0 0 0-2 2v15a2 2 0 0 0 2 2z"/></svg>
+          </div>
+          <h3 class="mt-3 text-sm font-semibold text-slate-900">No content yet</h3>
+          <p class="mt-1 max-w-sm text-sm text-slate-400">Create the first {{ singular }} for this language.</p>
+          <div class="mt-4">
+            <a class="{{ btn_primary }}" href="{{ url('admin/new?type=' ~ current_type ~ '&lang=' ~ lang) }}">
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
+              New {{ singular|title }}
+            </a>
+          </div>
         </div>
-        <h3 class="mt-3 text-sm font-semibold text-slate-900">No content yet</h3>
-        <p class="mt-1 max-w-sm text-sm text-slate-400">Create the first {{ singular }} for this language.</p>
-        <div class="mt-4">
-          <a class="{{ btn_primary }}" href="{{ url('admin/new?type=' ~ current_type ~ '&lang=' ~ lang) }}">
-            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
-            New {{ singular|title }}
-          </a>
-        </div>
-      </div>
+      {% endif %}
     {% else %}
       <div class="overflow-x-auto">
-        <table class="w-full text-sm">
+        <table class="w-full text-sm" data-sortable>
           <thead>
             <tr class="border-b border-slate-100 bg-slate-50/50 text-left text-xs font-medium text-slate-400">
-              <th class="px-4 py-2 font-medium">Title</th>
-              <th class="px-4 py-2 font-medium">Status</th>
+              <th class="w-8 px-4 py-2"><input type="checkbox" data-select-all="selected[]" class="h-4 w-4 rounded border-slate-300" aria-label="Select all"></th>
+              <th class="px-4 py-2 font-medium" data-sort="text">Title</th>
+              <th class="px-4 py-2 font-medium" data-sort="text">Status</th>
               <th class="px-4 py-2 font-medium">Language</th>
-              <th class="px-4 py-2 font-medium">Updated</th>
+              <th class="px-4 py-2 font-medium" data-sort="number">Updated</th>
               <th class="px-4 py-2 text-right font-medium">Actions</th>
             </tr>
           </thead>
@@ -97,7 +122,8 @@
               {% set key = item.slug ~ '|' ~ item.lang %}
               {% set is_home = current_type == 'pages' and item.slug == site.home_page and item.lang == site.languages.default %}
               <tr class="group hover:bg-slate-50">
-                <td class="px-4 py-2.5">
+                <td class="px-4 py-2.5"><input type="checkbox" name="selected[]" value="{{ item.slug }}" class="h-4 w-4 rounded border-slate-300" aria-label="Select {{ item.meta.title ?: item.slug }}"></td>
+                <td class="px-4 py-2.5" data-sort-value="{{ item.meta.title ?: item.slug }}">
                   <a href="{{ url('admin/edit?type=' ~ current_type ~ '&slug=' ~ item.slug ~ '&lang=' ~ item.lang) }}" class="font-medium text-slate-900 no-underline hover:text-blue-600">
                     {{ item.meta.title ?: item.slug }}
                   </a>
@@ -113,15 +139,13 @@
                     {% endif %}
                   </div>
                 </td>
-                <td class="px-4 py-2.5">
-                  <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset {% if status == 'published' %}bg-emerald-50 text-emerald-700 ring-emerald-200{% elseif status == 'draft' %}bg-slate-100 text-slate-600 ring-slate-200{% else %}bg-amber-50 text-amber-700 ring-amber-200{% endif %}">
-                    {{ status }}
-                  </span>
+                <td class="px-4 py-2.5" data-sort-value="{{ status }}">
+                  {{ ui.status_badge(status) }}
                   {% if current_type == 'pages' and item.slug == site.home_page %}
-                    <span class="ml-1 inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-medium text-blue-700 ring-1 ring-inset ring-blue-200">Home</span>
+                    {{ ui.badge('Home', 'blue') }}
                   {% endif %}
                   {% if item.meta.seo is defined and item.meta.seo.noindex %}
-                    <span class="ml-1 inline-flex items-center rounded-full bg-pink-50 px-2 py-0.5 text-[11px] font-medium text-pink-700 ring-1 ring-inset ring-pink-200">Noindex</span>
+                    {{ ui.badge('Noindex', 'pink') }}
                   {% endif %}
                 </td>
                 <td class="px-4 py-2.5">
@@ -132,22 +156,16 @@
                     {% endfor %}
                   </div>
                 </td>
-                <td class="px-4 py-2.5 text-slate-400">{{ item.mtime|date('Y-m-d H:i') }}</td>
+                <td class="px-4 py-2.5 text-slate-400" data-sort-value="{{ item.mtime }}">{{ item.mtime|date('Y-m-d H:i') }}</td>
                 <td class="px-4 py-2.5">
                   <div class="flex items-center justify-end gap-0.5">
                     <a class="{{ icon_button }}" href="{{ url('admin/edit?type=' ~ current_type ~ '&slug=' ~ item.slug ~ '&lang=' ~ item.lang) }}" title="Edit {{ item.meta.title ?: item.slug }}" aria-label="Edit {{ item.meta.title ?: item.slug }}">
                       <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
                     </a>
                     {% if not is_home %}
-                      <form method="post" action="{{ url('admin/delete') }}" class="inline" onsubmit="return confirm('Delete this item?');">
-                        {{ csrf_field() }}
-                        <input type="hidden" name="type" value="{{ current_type }}">
-                        <input type="hidden" name="slug" value="{{ item.slug }}">
-                        <input type="hidden" name="lang" value="{{ item.lang }}">
-                        <button type="submit" class="{{ icon_danger }}" title="Delete {{ item.meta.title ?: item.slug }}" aria-label="Delete {{ item.meta.title ?: item.slug }}">
-                          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V6"/></svg>
-                        </button>
-                      </form>
+                      <button type="submit" form="delete-{{ item.slug }}" class="{{ icon_danger }}" title="Delete {{ item.meta.title ?: item.slug }}" aria-label="Delete {{ item.meta.title ?: item.slug }}">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V6"/></svg>
+                      </button>
                     {% endif %}
                   </div>
                 </td>
@@ -157,5 +175,17 @@
         </table>
       </div>
     {% endif %}
-  </div>
+  </form>
+
+  {# Row delete forms sit outside the bulk form because HTML forms cannot nest. #}
+  {% for item in items %}
+    {% if not (current_type == 'pages' and item.slug == site.home_page and item.lang == site.languages.default) %}
+      <form id="delete-{{ item.slug }}" method="post" action="{{ url('admin/delete') }}" data-confirm="Delete “{{ item.meta.title ?: item.slug }}” ({{ item.lang|upper }})?" data-confirm-button="Delete" hidden>
+        {{ csrf_field() }}
+        <input type="hidden" name="type" value="{{ current_type }}">
+        <input type="hidden" name="slug" value="{{ item.slug }}">
+        <input type="hidden" name="lang" value="{{ item.lang }}">
+      </form>
+    {% endif %}
+  {% endfor %}
 {% endblock %}
