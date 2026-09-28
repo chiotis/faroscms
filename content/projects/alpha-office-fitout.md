@@ -5,7 +5,7 @@ visible: true
 date: '2026-02-01'
 translation_id: a1b2c3d4e5f60718
 excerpt: 'Ανασχεδιασμός εταιρικού χώρου με έμφαση στη συνεργασία και την εμπειρία προσωπικού.'
-main_image: /uploads/media/5e6915a67b9ceec5.jpg
+main_image: /uploads/media/faros-demo-editor.svg
 tags:
   - design
   - strategy
