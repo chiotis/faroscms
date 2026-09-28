@@ -1,0 +1,27 @@
+label: Tabs
+description: Content in switchable panels, such as services, plans, or steps. Without JavaScript every panel is shown one after another.
+variants:
+  horizontal: Tabs above the content
+  vertical: Tabs beside the content
+fields:
+  eyebrow:
+    type: text
+    label: Eyebrow
+  heading:
+    type: text
+    label: Heading
+  intro:
+    type: textarea
+    label: Introduction
+  items:
+    type: repeater
+    label: Tabs
+    item_label: Tab
+    max: 8
+    fields:
+      label: { type: text, label: Tab label }
+      title: { type: text, label: Panel heading }
+      text: { type: markdown, label: Text }
+      image: { type: image, label: Image }
+      link_label: { type: text, label: Link text }
+      url: { type: link, label: Link }

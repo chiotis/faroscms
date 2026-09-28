@@ -1,0 +1,32 @@
+{% import 'components/ui.twig' as ui %}
+{% set prefix = lang_prefix|default('') %}
+<div class="container">
+  {{ ui.section_header(block, heading_tag, block_uid, block.variant == 'cards' ? 'center' : 'left') }}
+  <ul class="pricing-list" role="list">
+    {% for plan in block.items|filter(p => p.name or p.price) %}
+      {% set href = link_url(plan.button_url, prefix) %}
+      {% set features = plan.features|split("\n")|map(f => f|trim)|filter(f => f) %}
+      <li class="plan{% if plan.highlight %} is-highlight{% endif %}">
+        <article class="plan-card">
+          <div class="plan-head">
+            {% if plan.badge %}<p class="plan-badge">{{ plan.badge }}</p>{% endif %}
+            {% if plan.name %}<{{ item_heading_tag }} class="plan-name">{{ plan.name }}</{{ item_heading_tag }}>{% endif %}
+            {% if plan.description %}<p class="plan-description">{{ plan.description|nl2br }}</p>{% endif %}
+          </div>
+          {% if plan.price %}
+            <p class="plan-price"><span class="plan-amount">{{ plan.price }}</span>{% if plan.period %} <span class="plan-period">{{ plan.period }}</span>{% endif %}</p>
+          {% endif %}
+          {% if features is not empty %}
+            <ul class="plan-features" role="list">
+              {% for feature in features %}<li>{{ icon('check', 'plan-check') }}<span>{{ feature }}</span></li>{% endfor %}
+            </ul>
+          {% endif %}
+          {% if href and plan.button_label %}
+            <a class="btn {{ plan.highlight ? 'btn-primary' : 'btn-secondary' }} plan-button" href="{{ href }}">{{ plan.button_label }}{{ icon('arrow-right', 'btn-icon') }}</a>
+          {% endif %}
+        </article>
+      </li>
+    {% endfor %}
+  </ul>
+  {% if block.note %}<p class="pricing-note">{{ block.note }}</p>{% endif %}
+</div>

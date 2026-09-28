@@ -1,0 +1,34 @@
+label: Pricing
+description: Plans or price lists, as cards side by side or as clean rows. One plan can be highlighted.
+variants:
+  cards: Plan cards
+  list: Price list
+fields:
+  eyebrow:
+    type: text
+    label: Eyebrow
+  heading:
+    type: text
+    label: Heading
+  intro:
+    type: textarea
+    label: Introduction
+  note:
+    type: text
+    label: Note below the plans
+    placeholder: Prices exclude VAT.
+  items:
+    type: repeater
+    label: Plans
+    item_label: Plan
+    max: 8
+    fields:
+      name: { type: text, label: Name }
+      badge: { type: text, label: Badge, placeholder: Most popular }
+      price: { type: text, label: Price, placeholder: '€490' }
+      period: { type: text, label: Period or unit, placeholder: per month }
+      description: { type: textarea, label: Short description }
+      features: { type: textarea, label: Included, help: One item per line. }
+      button_label: { type: text, label: Button text }
+      button_url: { type: link, label: Button link }
+      highlight: { type: toggle, label: Highlight this plan }

@@ -1,0 +1,32 @@
+{% import 'components/ui.twig' as ui %}
+{% set prefix = lang_prefix|default('') %}
+{% set tabs = block.items|filter(tb => tb.label) %}
+<div class="container">
+  {{ ui.section_header(block, heading_tag, block_uid, 'left') }}
+  <div class="tabs tabs-{{ block.variant }}" data-tabs>
+    <div class="tabs-list" role="tablist" aria-label="{{ block.heading ?: t('tabs.label', 'Tabs') }}" aria-orientation="{{ block.variant == 'vertical' ? 'vertical' : 'horizontal' }}" data-tablist hidden>
+      {% for tab in tabs %}
+        <button type="button" class="tabs-tab" role="tab" id="{{ block_uid }}-tab-{{ loop.index }}" aria-controls="{{ block_uid }}-panel-{{ loop.index }}" aria-selected="{{ loop.first ? 'true' : 'false' }}"{% if not loop.first %} tabindex="-1"{% endif %}>{{ tab.label }}</button>
+      {% endfor %}
+    </div>
+    <div class="tabs-panels">
+      {% for tab in tabs %}
+        {% set href = link_url(tab.url, prefix) %}
+        <div class="tabs-panel" id="{{ block_uid }}-panel-{{ loop.index }}" role="tabpanel" aria-labelledby="{{ block_uid }}-tab-{{ loop.index }}" tabindex="0">
+          <div class="tabs-panel-inner{% if not tab.image %} no-image{% endif %}">
+            <div class="tabs-panel-text">
+              <{{ item_heading_tag }} class="tabs-panel-title{% if not tab.title %} visually-hidden{% endif %}">{{ tab.title ?: tab.label }}</{{ item_heading_tag }}>
+              {% if tab.text_html %}<div class="prose">{{ tab.text_html|raw }}</div>{% endif %}
+              {% if href and tab.link_label %}
+                <a class="btn btn-primary" href="{{ href }}">{{ tab.link_label }}{{ icon('arrow-right', 'btn-icon') }}</a>
+              {% endif %}
+            </div>
+            {% if tab.image %}
+              <div class="tabs-panel-media">{{ image(tab.image, {alt: '', sizes: '(min-width: 900px) 40vw, 92vw', max_width: 1280}) }}</div>
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>

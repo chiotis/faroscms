@@ -232,6 +232,214 @@ blocks:
     heading: Επικοινωνήστε μαζί μας
     intro: Συμπληρώστε τη φόρμα και θα σας απαντήσουμε μέσα σε μία εργάσιμη.
     form: contact
+  - type: banner
+    variant: strip
+    title: Νέο
+    text: Ανοίγουμε νέες θέσεις συνεργασίας για το φθινόπωρο.
+    link_label: Δείτε τις θέσεις
+    url: careers
+    dismissible: true
+  - type: banner
+    variant: callout
+    tone: muted
+    title: Δωρεάν αρχική συμβουλευτική
+    text: Κλείστε μια συνάντηση 30 λεπτών και δείτε πώς μπορούμε να βοηθήσουμε.
+    link_label: Κλείστε ραντεβού
+    url: contact
+    icon: sparkles
+  - type: latest
+    variant: cards
+    anchor: latest
+    eyebrow: 'Latest · cards'
+    heading: Τελευταία άρθρα
+    intro: Ενημερώνεται αυτόματα όταν δημοσιεύετε νέο περιεχόμενο.
+    link_label: Όλα τα άρθρα
+    link_url: posts
+  - type: latest
+    variant: list
+    tone: muted
+    eyebrow: 'Latest · minimal list'
+    heading: Ήσυχη λίστα
+    limit: 4
+  - type: latest
+    variant: compact
+    eyebrow: 'Latest · compact'
+    heading: Συμπαγής λίστα με μικρογραφίες
+    source: projects
+  - type: latest
+    variant: overlay
+    tone: muted
+    eyebrow: 'Latest · overlay'
+    heading: Έργα ως εικόνες με τίτλο
+    source: projects
+  - type: latest
+    variant: strip
+    eyebrow: 'Latest · strip'
+    heading: Οριζόντια λωρίδα
+    source: projects
+    limit: 6
+  - type: latest
+    variant: featured
+    tone: muted
+    eyebrow: 'Latest · featured'
+    heading: Κύριο θέμα και λίστα
+    limit: 4
+  - type: latest
+    variant: magazine
+    eyebrow: 'Latest · magazine'
+    heading: Στυλ περιοδικού
+    source: projects
+    limit: 4
+  - type: latest
+    variant: editorial
+    tone: muted
+    eyebrow: 'Latest · editorial'
+    heading: Εκδοτική παρουσίαση
+    limit: 3
+  - type: video
+    variant: featured
+    anchor: video
+    eyebrow: 'Video · featured'
+    heading: Δείτε πώς δουλεύουμε
+    intro: Το βίντεο ανοίγει σε μεγάλο παράθυρο πάνω από τη σελίδα. Τίποτα δεν φορτώνεται από το YouTube μέχρι να πατήσετε αναπαραγωγή.
+    videos:
+      - url: 'https://www.youtube.com/watch?v=aqz-KE-bpKQ'
+        title: Παρουσίαση της ομάδας
+        caption: Ένα πλάνο από την καθημερινότητα του γραφείου.
+        poster: /uploads/media/faros-demo-lake.jpg
+        duration: '10:34'
+  - type: video
+    variant: grid
+    tone: muted
+    eyebrow: 'Video · grid'
+    heading: Σειρά βίντεο
+    videos:
+      - url: 'https://www.youtube.com/watch?v=aqz-KE-bpKQ'
+        title: Πρώτο επεισόδιο
+        caption: Η ιδέα και οι στόχοι.
+        poster: /uploads/media/faros-demo-path.jpg
+        duration: '10:34'
+      - url: 'https://vimeo.com/76979871'
+        title: Δεύτερο επεισόδιο
+        caption: Από το σχέδιο στην υλοποίηση.
+        poster: /uploads/media/faros-demo-rocks.jpg
+        duration: '2:10'
+      - url: 'https://youtu.be/aqz-KE-bpKQ?t=30'
+        title: Τρίτο επεισόδιο
+        caption: Χωρίς εικόνα προεπισκόπησης.
+  - type: video
+    variant: split
+    eyebrow: 'Video · split'
+    heading: Ιστορία ενός έργου
+    intro: Κείμενο δίπλα στο βίντεο, για πιο εξηγητικές ενότητες.
+    ratio: classic
+    videos:
+      - url: 'https://www.youtube.com/watch?v=aqz-KE-bpKQ'
+        title: Case study
+        poster: /uploads/media/faros-demo-trees.jpg
+  - type: slider
+    variant: full
+    anchor: slider
+    eyebrow: 'Slider · full'
+    heading: Έργα σε μεγάλη προβολή
+    items:
+      - image: /uploads/media/faros-demo-lake.jpg
+        eyebrow: Ξενοδοχεία
+        title: Ανακαίνιση με θέα
+        text: Ένας χώρος που ανοίγει προς το τοπίο.
+        link_label: Δείτε το έργο
+        url: projects
+      - image: /uploads/media/faros-demo-path.jpg
+        eyebrow: Γραφεία
+        title: Χώροι που εμπνέουν
+        text: Φως, υλικά και ροή για την καθημερινότητα της ομάδας.
+        link_label: Δείτε το έργο
+        url: projects
+      - image: /uploads/media/faros-demo-trees.jpg
+        eyebrow: Λιανική
+        title: Εμπειρία καταστήματος
+        text: Από την πρώτη ματιά μέχρι το ταμείο.
+        link_label: Δείτε το έργο
+        url: projects
+  - type: slider
+    variant: multi
+    tone: muted
+    eyebrow: 'Slider · several'
+    heading: Πολλές κάρτες, μία κίνηση
+    items:
+      - { image: /uploads/media/faros-demo-lake.jpg, eyebrow: Μελέτη, title: Στρατηγική χώρου, text: Πώς αποφασίζουμε τι χρειάζεται πραγματικά ένας χώρος. }
+      - { image: /uploads/media/faros-demo-path.jpg, eyebrow: Σχεδιασμός, title: Από το σκίτσο στο έργο, text: Οι τρεις φάσεις που ακολουθούμε σε κάθε πρότζεκτ. }
+      - { image: /uploads/media/faros-demo-rocks.jpg, eyebrow: Υλοποίηση, title: Έλεγχος εργοταξίου, text: Τακτική ενημέρωση και ξεκάθαρος προγραμματισμός. }
+      - { image: /uploads/media/faros-demo-trees.jpg, eyebrow: Παράδοση, title: Παράδοση και υποστήριξη, text: Το έργο δεν τελειώνει με την τελευταία επιθεώρηση. }
+      - { eyebrow: Χωρίς εικόνα, title: Και μια κάρτα μόνο με κείμενο, text: Ένα slide δεν χρειάζεται πάντα φωτογραφία. }
+  - type: pricing
+    variant: cards
+    anchor: pricing
+    eyebrow: 'Pricing · cards'
+    heading: Πακέτα συνεργασίας
+    intro: Ξεκάθαρες τιμές, χωρίς εκπλήξεις.
+    note: Οι τιμές δεν περιλαμβάνουν ΦΠΑ.
+    items:
+      - name: Βασικό
+        price: '€490'
+        period: εφάπαξ
+        description: Για μικρές επιχειρήσεις που ξεκινούν.
+        features: "Έως 5 σελίδες\nΒασικό SEO\nΦόρμα επικοινωνίας"
+        button_label: Ζητήστε προσφορά
+        button_url: contact
+      - name: Επαγγελματικό
+        badge: Δημοφιλές
+        price: '€1.290'
+        period: εφάπαξ
+        description: Για εταιρείες που θέλουν πλήρη παρουσία.
+        features: "Έως 15 σελίδες\nΆρθρα και έργα\nΠολύγλωσσο\nΕκπαίδευση ομάδας"
+        button_label: Ζητήστε προσφορά
+        button_url: contact
+        highlight: true
+      - name: Συνδρομή φροντίδας
+        price: '€60'
+        period: ανά μήνα
+        description: Ενημερώσεις, backups και υποστήριξη.
+        features: "Μηνιαίες ενημερώσεις\nΑντίγραφα ασφαλείας\nΥποστήριξη με email"
+        button_label: Μάθετε περισσότερα
+        button_url: contact
+  - type: pricing
+    variant: list
+    tone: muted
+    eyebrow: 'Pricing · list'
+    heading: Τιμοκατάλογος υπηρεσιών
+    items:
+      - { name: Συμβουλευτική συνάντηση, description: Μία ώρα με έναν σύμβουλο., price: '€80', period: ανά ώρα, button_label: Κράτηση, button_url: contact }
+      - { name: Ανάλυση χώρου, description: Καταγραφή και πρόταση βελτίωσης., price: '€450', period: ανά χώρο, button_label: Κράτηση, button_url: contact, highlight: true }
+      - { name: Πλήρης μελέτη, description: 'Σχέδια, υλικά και προϋπολογισμός.', price: 'Κατόπιν', period: συνεννόησης, button_label: Επικοινωνία, button_url: contact }
+  - type: tabs
+    variant: horizontal
+    anchor: tabs
+    eyebrow: 'Tabs · horizontal'
+    heading: Οι υπηρεσίες μας
+    items:
+      - label: Στρατηγική
+        title: Στρατηγική χώρου
+        text: "Καταγράφουμε πώς χρησιμοποιείται ο χώρος σήμερα και **πώς θα έπρεπε**.\n\n- Έρευνα χρήσης\n- Στόχοι και προτεραιότητες"
+        image: /uploads/media/faros-demo-lake.jpg
+        link_label: Μάθετε περισσότερα
+        url: workplace-strategy
+      - label: Σχεδιασμός
+        title: Σχεδιασμός και μελέτη
+        text: Από την πρώτη ιδέα μέχρι τα τελικά σχέδια εφαρμογής.
+        image: /uploads/media/faros-demo-path.jpg
+      - label: Υλοποίηση
+        title: Υλοποίηση και παράδοση
+        text: Συντονίζουμε τεχνίτες και προμηθευτές, με σαφές πρόγραμμα.
+  - type: tabs
+    variant: vertical
+    tone: muted
+    eyebrow: 'Tabs · vertical'
+    heading: Συχνά θέματα
+    items:
+      - { label: Χρόνοι, title: Πόσο διαρκεί ένα έργο, text: 'Από 6 έως 16 εβδομάδες, ανάλογα με το μέγεθος.' }
+      - { label: Κόστος, title: Πώς διαμορφώνεται η τιμή, text: 'Ξεκινά από την ανάλυση του χώρου και το εύρος του έργου.' }
+      - { label: Υποστήριξη, title: Τι γίνεται μετά την παράδοση, text: 'Παραμένουμε δίπλα σας με υποστήριξη και συντήρηση.' }
   - type: content
 ---
 ## Block «Page content»

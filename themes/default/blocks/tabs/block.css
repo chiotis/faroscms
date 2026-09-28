@@ -1,0 +1,174 @@
+.tabs-list {
+  display: flex;
+  gap: 0.25rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  /* The hairline is a shadow, so the active tab's underline covers it exactly. */
+  box-shadow: inset 0 -1px 0 var(--color-border);
+  scrollbar-width: thin;
+}
+
+.tabs-list[hidden] {
+  display: none;
+}
+
+.tabs-tab {
+  position: relative;
+  flex-shrink: 0;
+  padding: 0.85rem 1.25rem;
+  border: 0;
+  background: transparent;
+  color: var(--color-muted);
+  font: inherit;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.2s var(--ease);
+}
+
+.tabs-tab::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 2px;
+  background: transparent;
+  transition: background-color 0.2s var(--ease);
+}
+
+.tabs-tab:hover {
+  color: var(--color-text);
+}
+
+.tabs-tab[aria-selected="true"] {
+  color: var(--color-text);
+}
+
+.tabs-tab[aria-selected="true"]::after {
+  background: var(--accent);
+}
+
+.tabs-tab:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: -4px;
+  border-radius: var(--radius-s);
+}
+
+.tabs-panels {
+  padding-top: clamp(1.5rem, 1rem + 2vw, 2.5rem);
+}
+
+/* Not enhanced: panels follow one another. */
+.tabs:not(.is-enhanced) .tabs-panel + .tabs-panel {
+  margin-top: var(--space-2xl);
+}
+
+.tabs-panel:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 6px;
+  border-radius: var(--radius-m);
+}
+
+.tabs-panel-inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr);
+  gap: clamp(1.5rem, 1rem + 4vw, 4.5rem);
+  align-items: center;
+}
+
+.tabs-panel-inner.no-image {
+  grid-template-columns: minmax(0, 46rem);
+}
+
+.tabs-panel-text {
+  display: grid;
+  gap: var(--space-s);
+  justify-items: start;
+}
+
+.tabs-panel-title {
+  margin: 0;
+  font-size: var(--step-3);
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+}
+
+.tabs-panel-text .prose > :first-child { margin-top: 0; }
+.tabs-panel-text .prose > :last-child { margin-bottom: 0; }
+
+.tabs-panel-media {
+  overflow: hidden;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--radius-l);
+  background: var(--color-surface-2);
+}
+
+.tabs-panel-media picture,
+.tabs-panel-media img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.tabs-panel-media img {
+  object-fit: cover;
+}
+
+/* Tabs beside the content */
+.tabs-vertical.is-enhanced {
+  display: grid;
+  grid-template-columns: minmax(12rem, 16rem) minmax(0, 1fr);
+  gap: clamp(1.5rem, 1rem + 3vw, 3.5rem);
+  align-items: start;
+}
+
+.tabs-vertical.is-enhanced .tabs-list {
+  flex-direction: column;
+  overflow: visible;
+  box-shadow: inset 1px 0 0 var(--color-border);
+}
+
+.tabs-vertical.is-enhanced .tabs-tab {
+  padding: 0.85rem 1.25rem;
+  text-align: start;
+  white-space: normal;
+}
+
+.tabs-vertical.is-enhanced .tabs-tab::after {
+  inset: 0 auto 0 0;
+  width: 2px;
+  height: auto;
+}
+
+.tabs-vertical.is-enhanced .tabs-panels {
+  padding-top: 0;
+}
+
+@media (max-width: 860px) {
+  .tabs-panel-inner {
+    grid-template-columns: 1fr;
+  }
+
+  .tabs-vertical.is-enhanced {
+    grid-template-columns: 1fr;
+  }
+
+  .tabs-vertical.is-enhanced .tabs-list {
+    flex-direction: row;
+    overflow-x: auto;
+    box-shadow: inset 0 -1px 0 var(--color-border);
+  }
+
+  .tabs-vertical.is-enhanced .tabs-tab {
+    white-space: nowrap;
+  }
+
+  .tabs-vertical.is-enhanced .tabs-tab::after {
+    inset: auto 0 0;
+    width: auto;
+    height: 2px;
+  }
+
+  .tabs-vertical.is-enhanced .tabs-panels {
+    padding-top: clamp(1.5rem, 1rem + 2vw, 2.5rem);
+  }
+}

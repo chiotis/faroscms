@@ -1,0 +1,8 @@
+kind: section
+label: { el: 'Υπηρεσίες σε καρτέλες', en: 'Services in tabs' }
+description: { el: 'Τρεις υπηρεσίες σε καρτέλες, με κείμενο και κουμπί στην καθεμία.', en: 'Three services in tabs, each with text and a button.' }
+blocks:
+  el:
+    - { type: tabs, variant: horizontal, eyebrow: 'Υπηρεσίες', heading: 'Τι κάνουμε', items: [{ label: 'Πρώτη υπηρεσία', title: 'Πρώτη υπηρεσία', text: 'Περιγράψτε εδώ τι περιλαμβάνει, σε δύο-τρεις προτάσεις.', link_label: 'Μάθετε περισσότερα', url: contact }, { label: 'Δεύτερη υπηρεσία', title: 'Δεύτερη υπηρεσία', text: 'Περιγράψτε εδώ τι περιλαμβάνει, σε δύο-τρεις προτάσεις.', link_label: 'Μάθετε περισσότερα', url: contact }, { label: 'Τρίτη υπηρεσία', title: 'Τρίτη υπηρεσία', text: 'Περιγράψτε εδώ τι περιλαμβάνει, σε δύο-τρεις προτάσεις.', link_label: 'Μάθετε περισσότερα', url: contact }] }
+  en:
+    - { type: tabs, variant: horizontal, eyebrow: 'Services', heading: 'What we do', items: [{ label: 'First service', title: 'First service', text: 'Describe what it includes in two or three sentences.', link_label: 'Learn more', url: contact }, { label: 'Second service', title: 'Second service', text: 'Describe what it includes in two or three sentences.', link_label: 'Learn more', url: contact }, { label: 'Third service', title: 'Third service', text: 'Describe what it includes in two or three sentences.', link_label: 'Learn more', url: contact }] }

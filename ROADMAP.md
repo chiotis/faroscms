@@ -6,10 +6,11 @@ Direction: one all-purpose theme (`themes/default`) that grows with blocks and v
 - Phase 2 (done): design system (tokens, palettes, dark mode, fonts, shapes), block engine, first block family (12 blocks), responsive images, accessibility and SEO foundations
 - Phase 3 (done): admin block editor; second block family (gallery, team, timeline, contact, map); header layouts and options; footer layouts
 - Phase 4 (done): page templates (standard, landing, with sidebar); ready-made sections and page layouts; saving sections from the editor
-- Next candidates: pricing and comparison blocks, video block, draft preview links, revision history, editor role
+- Phase 5 (done): third block family (latest content in 8 layouts, video with large viewer, slider, pricing, tabs, banner); five more ready-made sections
+- Next candidates: comparison table and before/after blocks, draft preview links, revision history, editor role
 - Style references from the owner can refine the design system at any point (tokens and block CSS)
-- Phase 5: content types with declared fields and per-type templates/archive settings
-- Phase 6: demo content rebuilt with blocks, accessibility pass, theme developer guide
+- Phase 6: content types with declared fields and per-type templates/archive settings
+- Phase 7: demo content rebuilt with blocks, accessibility pass, theme developer guide
 - Earlier baseline completed:
   - starter bilingual content + contact form seeded
   - responsive header navigation (desktop + mobile off-canvas + nested levels)

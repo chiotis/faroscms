@@ -1,0 +1,128 @@
+.block-banner[hidden] {
+  display: none;
+}
+
+.banner-box {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs) var(--space-m);
+}
+
+.banner-icon {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background: color-mix(in srgb, currentColor 14%, transparent);
+}
+
+.banner-icon svg {
+  width: 1.3rem;
+  height: 1.3rem;
+}
+
+.banner-body {
+  flex: 1 1 18rem;
+  min-width: 0;
+}
+
+.banner-title {
+  margin: 0;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.banner-text {
+  margin: 0;
+}
+
+.banner-title + .banner-text {
+  margin-top: 0.15rem;
+  opacity: 0.9;
+}
+
+.banner-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: inherit;
+  font-weight: 650;
+  text-decoration: underline;
+  text-underline-offset: 0.25em;
+}
+
+.banner-link:hover .btn-icon {
+  transform: translateX(3px);
+}
+
+.banner-link:focus-visible,
+.banner-close:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
+
+.banner-close {
+  display: inline-grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  margin-inline-start: auto;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.banner-close:hover {
+  background: color-mix(in srgb, currentColor 14%, transparent);
+}
+
+/* Slim strip: one tidy line, small type */
+.block-banner.block--strip .banner-box {
+  justify-content: center;
+  gap: var(--space-2xs) var(--space-s);
+  text-align: center;
+}
+
+.block-banner.block--strip .banner-icon {
+  display: none;
+}
+
+.block-banner.block--strip .banner-body {
+  display: flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.25rem 0.75rem;
+  font-size: 0.95rem;
+}
+
+.block-banner.block--strip .banner-title + .banner-text {
+  margin-top: 0;
+}
+
+.block-banner.block--strip .banner-close {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  translate: 0 -50%;
+}
+
+/* Boxed callout */
+.block-banner.block--callout .banner-box {
+  padding: clamp(1.25rem, 1rem + 1.2vw, 2rem);
+  border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+  border-radius: var(--radius-l);
+  background: color-mix(in srgb, currentColor 7%, transparent);
+}
+
+.block-banner.block--callout .banner-title {
+  font-size: var(--step-1);
+}

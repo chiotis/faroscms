@@ -1,0 +1,24 @@
+{# One video: a poster with a play button. Without JavaScript the link opens the video's own page or file. #}
+{% set title = video.title ?: t('video.default_title', 'Video') %}
+<figure class="video-tile ratio-{{ block.ratio }}">
+  <div class="video-media">
+    <a class="video-play" href="{{ video.watch_url }}" target="_blank" rel="noopener"
+       data-video data-provider="{{ video.provider }}" data-embed="{{ video.embed_url }}" data-title="{{ title }}" data-mode="{{ block.play }}"
+       data-label-close="{{ t('video.close', 'Close video') }}">
+      {% if video.poster %}
+        {{ image(video.poster, {alt: '', sizes: sizes, max_width: 1600}) }}
+      {% else %}
+        <span class="video-poster-fallback" aria-hidden="true"></span>
+      {% endif %}
+      <span class="video-button" aria-hidden="true">{{ icon('play') }}</span>
+      {% if video.duration %}<span class="video-duration" aria-hidden="true">{{ video.duration }}</span>{% endif %}
+      <span class="visually-hidden">{{ t('video.play', 'Play video') }}: {{ title }}{% if video.duration %} ({{ video.duration }}){% endif %}</span>
+    </a>
+  </div>
+  {% if video.title or video.caption %}
+    <figcaption>
+      {% if video.title %}<span class="video-title">{{ video.title }}</span>{% endif %}
+      {% if video.caption %}<span class="video-caption">{{ video.caption }}</span>{% endif %}
+    </figcaption>
+  {% endif %}
+</figure>

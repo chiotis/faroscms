@@ -372,11 +372,24 @@ final class App
             $this->theme,
             fn(string $markdown): string => $this->applyShortcodes((string)$this->markdown->convert($markdown), $lang, $path),
             [
-                'items' => function (string $type, string $itemLang, int $limit) use ($includeHidden): array {
+                'items' => function (string $type, string $itemLang, int $limit, string $term = '') use ($includeHidden): array {
                     if ($type === 'forms' || !in_array($type, $this->content->getTypes(), true)) {
                         return [];
                     }
-                    return array_slice($this->content->getItems($type, $itemLang, $includeHidden, false), 0, max(1, min(24, $limit)));
+                    $items = $this->content->getItems($type, $itemLang, $includeHidden, false);
+                    $term = $this->slugify($term);
+                    if ($term !== '') {
+                        // Only items filed under this category or tag.
+                        $items = array_values(array_filter($items, function (ContentItem $item) use ($term): bool {
+                            foreach (['categories', 'tags'] as $taxonomy) {
+                                if (in_array($term, array_map('strval', (array)($item->meta[$taxonomy] ?? [])), true)) {
+                                    return true;
+                                }
+                            }
+                            return false;
+                        }));
+                    }
+                    return array_slice($items, 0, max(1, min(24, $limit)));
                 },
                 'form' => fn(string $slug): string => $slug === '' ? '' : $this->renderFormEmbedBySlug($this->slugify($slug), $lang, $path),
             ],

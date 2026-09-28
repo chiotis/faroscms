@@ -1,0 +1,14 @@
+{% set prefix = lang_prefix|default('') %}
+{% set href = link_url(block.url, prefix) %}
+<div class="container">
+  <div class="banner-box" role="region" aria-label="{{ block.title ?: t('banner.label', 'Announcement') }}"{% if block.dismissible %} data-banner="{{ block.key }}" data-label-dismiss="{{ t('banner.dismiss', 'Dismiss') }}"{% endif %}>
+    {% if block.icon %}<span class="banner-icon" aria-hidden="true">{{ icon(block.icon) }}</span>{% endif %}
+    <div class="banner-body">
+      {% if block.title %}<p class="banner-title">{{ block.title }}</p>{% endif %}
+      {% if block.text %}<p class="banner-text">{{ block.text|nl2br }}</p>{% endif %}
+    </div>
+    {% if href and block.link_label %}
+      <a class="banner-link" href="{{ href }}">{{ block.link_label }}{{ icon('arrow-right', 'btn-icon') }}</a>
+    {% endif %}
+  </div>
+</div>

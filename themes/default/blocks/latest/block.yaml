@@ -1,0 +1,61 @@
+label: Latest content
+description: The newest posts, projects, or any content type, shown from a quiet text list to a magazine layout. Updates by itself when you publish.
+variants:
+  cards: Cards
+  list: Minimal list
+  compact: Compact with thumbnails
+  overlay: Image tiles with text on top
+  strip: Scrolling strip
+  featured: Featured story and a list
+  magazine: Magazine (large lead story, cards below)
+  editorial: Editorial (large alternating rows)
+fields:
+  eyebrow:
+    type: text
+    label: Eyebrow
+  heading:
+    type: text
+    label: Heading
+  intro:
+    type: textarea
+    label: Introduction
+  source:
+    type: select
+    label: Show
+    default: posts
+    options: {}
+    options_from: content_types
+  term:
+    type: text
+    label: Only this category or tag
+    placeholder: news
+    help: Optional. The slug of a category or tag, as in Taxonomies.
+  limit:
+    type: number
+    label: Number of items
+    default: 3
+    min: 1
+    max: 12
+  columns:
+    type: select
+    label: Columns (cards and tiles)
+    default: '3'
+    options: { '2': '2', '3': '3', '4': '4' }
+  show_image:
+    type: toggle
+    label: Show images
+    default: true
+  show_excerpt:
+    type: toggle
+    label: Show the excerpt
+    default: true
+  show_meta:
+    type: toggle
+    label: Show date and category
+    default: true
+  link_label:
+    type: text
+    label: "'View all' text"
+  link_url:
+    type: link
+    label: "'View all' link"

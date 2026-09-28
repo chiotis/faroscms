@@ -58,6 +58,10 @@ final class BlockRenderer
                 $lead = ['type' => $type, 'variant' => (string)$values['variant'], 'tone' => (string)$values['tone']];
             }
             $values = $this->withData($type, $definition, $values, $context);
+            if (($values['_empty'] ?? false) === true) {
+                // A dynamic block with nothing to show (no matching content, no valid video) leaves no empty section behind.
+                continue;
+            }
             if ($firstImage === '' && is_string($values['image'] ?? null) && $values['image'] !== '') {
                 // Share-image fallback for pages without a main image.
                 $firstImage = $values['image'];
@@ -183,6 +187,31 @@ final class BlockRenderer
         if ($type === 'cards' && ($values['source'] ?? 'manual') !== 'manual' && isset($this->providers['items'])) {
             $values['entries'] = ($this->providers['items'])((string)$values['source'], (string)($context['lang'] ?? ''), (int)($values['limit'] ?? 3));
         }
+        if ($type === 'latest') {
+            $values['entries'] = isset($this->providers['items'])
+                ? ($this->providers['items'])((string)$values['source'], (string)($context['lang'] ?? ''), (int)$values['limit'], (string)$values['term'])
+                : [];
+            $values['_empty'] = $values['entries'] === [];
+        }
+        if ($type === 'video') {
+            $videos = [];
+            foreach ($values['videos'] as $video) {
+                $info = self::videoInfo((string)$video['url']);
+                if ($info !== null) {
+                    $videos[] = $info + $video;
+                }
+            }
+            $values['videos'] = $videos;
+            $values['_empty'] = $videos === [];
+        }
+        if ($type === 'banner') {
+            // A changed announcement gets a new key, so a visitor who dismissed the old one sees it again.
+            $values['key'] = substr(sha1($values['title'] . '|' . $values['text'] . '|' . $values['url']), 0, 10);
+        }
+        if ($type === 'slider') {
+            $values['items'] = array_values(array_filter($values['items'], static fn(array $slide): bool => $slide['image'] !== '' || $slide['title'] !== '' || $slide['text'] !== ''));
+            $values['_empty'] = $values['items'] === [];
+        }
         if (($type === 'form' || $type === 'contact') && isset($this->providers['form'])) {
             $values['form_html'] = ($this->providers['form'])((string)($values['form'] ?? ''));
         }
@@ -190,6 +219,64 @@ final class BlockRenderer
             $values += self::mapUrls($values['lat'] ?? '', $values['lng'] ?? '', (int)($values['zoom'] ?? 15));
         }
         return $values;
+    }
+
+    /**
+     * Playback details for a video link, or null when it is not a supported source.
+     *
+     * YouTube and Vimeo are embedded through their privacy-friendly hosts (youtube-nocookie.com,
+     * Vimeo's do-not-track player); a direct .mp4, .webm, .ogv, or .m4v file plays in a plain
+     * <video>. Anything else is refused, so a stored URL can never become an arbitrary iframe.
+     *
+     * @return array{provider: string, embed_url: string, watch_url: string}|null
+     */
+    public static function videoInfo(string $url): ?array
+    {
+        $url = trim($url);
+        if ($url === '' || !FieldSchema::isSafeUrl($url)) {
+            return null;
+        }
+        $parts = parse_url($url);
+        if ($parts === false) {
+            return null;
+        }
+        $host = strtolower((string)($parts['host'] ?? ''));
+        $host = preg_replace('/^(www\.|m\.)/', '', $host) ?? $host;
+        $path = (string)($parts['path'] ?? '');
+        parse_str((string)($parts['query'] ?? ''), $query);
+
+        $youtubeId = '';
+        if (in_array($host, ['youtube.com', 'youtube-nocookie.com'], true)) {
+            if ($path === '/watch') {
+                $youtubeId = (string)($query['v'] ?? '');
+            } elseif (preg_match('#^/(embed|shorts|live|v)/([A-Za-z0-9_-]{11})#', $path, $m)) {
+                $youtubeId = $m[2];
+            }
+        } elseif ($host === 'youtu.be' && preg_match('#^/([A-Za-z0-9_-]{11})#', $path, $m)) {
+            $youtubeId = $m[1];
+        }
+        if (preg_match('/^[A-Za-z0-9_-]{11}$/', $youtubeId)) {
+            $start = isset($query['t']) && preg_match('/^(\d+)s?$/', (string)$query['t'], $t) ? '&start=' . (int)$t[1] : '';
+            return [
+                'provider' => 'youtube',
+                'embed_url' => 'https://www.youtube-nocookie.com/embed/' . $youtubeId . '?rel=0&playsinline=1' . $start,
+                'watch_url' => 'https://www.youtube.com/watch?v=' . $youtubeId,
+            ];
+        }
+
+        if (($host === 'vimeo.com' || $host === 'player.vimeo.com') && preg_match('#^/(?:video/)?(\d{5,12})(?:/([a-f0-9]{6,20}))?#', $path, $m)) {
+            $hash = ($m[2] ?? '') !== '' ? '&h=' . $m[2] : '';
+            return [
+                'provider' => 'vimeo',
+                'embed_url' => 'https://player.vimeo.com/video/' . $m[1] . '?dnt=1' . $hash,
+                'watch_url' => 'https://vimeo.com/' . $m[1] . (($m[2] ?? '') !== '' ? '/' . $m[2] : ''),
+            ];
+        }
+        // A direct video file, on this site or elsewhere.
+        if (preg_match('/\.(mp4|webm|ogv|m4v)$/i', $path)) {
+            return ['provider' => 'file', 'embed_url' => $url, 'watch_url' => $url];
+        }
+        return null;
     }
 
     /**

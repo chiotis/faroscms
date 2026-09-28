@@ -13,7 +13,7 @@ Two rules follow from that:
 |-------|-------|--------|
 | Theme contract | `themes/default/theme.yaml` | Done |
 | Design system: tokens, palettes, dark mode, fonts, corner shapes | `assets/css/site.css` | Done |
-| Content blocks per page or post | `themes/default/blocks/<block>/` + `blocks:` in front matter | 17 blocks in two families; admin block editor |
+| Content blocks per page or post | `themes/default/blocks/<block>/` + `blocks:` in front matter | 23 blocks in three families; admin block editor |
 | Site-level component variants (header, footer) | `components/`, Theme settings | Header: 4 layouts, transparent, sticky modes, top bar, CTA, phone bottom bar. Footer: 3 layouts |
 | Page templates (standard, landing, with sidebar) | `templates/`, `page_templates` in the manifest | Done |
 | Ready-made sections and page layouts | `presets/`, `custom/presets/` | Done |
@@ -138,6 +138,17 @@ First block family:
 | `timeline` | vertical, alternating, steps | Ordered list of dated entries. |
 | `contact` | split, cards | Contact details with icons and links, optionally beside a form. |
 | `map` | contained, full, split | OpenStreetMap embed with marker, no API key. By default it loads only after the visitor clicks "Show map" (no third-party request on page load); links to OpenStreetMap and directions always work. |
+
+Third block family (dynamic and interactive):
+
+| Block | Variants | Notes |
+|-------|----------|-------|
+| `latest` | cards, list, compact, overlay, strip, featured, magazine, editorial | The newest posts, projects, or any content type, from a quiet text list to a magazine layout. Options: content type, an optional category or tag (`term`), number of items, columns, and toggles for images, excerpt, and date/category. It updates by itself, and renders nothing when there is nothing to show. `cards` (above) stays for hand-written cards. |
+| `video` | featured, grid, split | YouTube, Vimeo, or a direct `.mp4`/`.webm` file. By default a video opens in a large viewer (`<dialog>`, Escape or backdrop to close, focus returns to the play button); `play: inline` plays in place. Nothing is requested from YouTube or Vimeo until the visitor plays (YouTube through `youtube-nocookie.com`, Vimeo with do-not-track), and no thumbnail is fetched, so give videos a preview image. Without JavaScript the play button is a link to the video's own page. Only YouTube, Vimeo, and video files are accepted. |
+| `slider` | full, multi | Scroll-snap slides that swipe and scroll without JavaScript; the script adds previous/next buttons, position dots, and arrow keys. Optional automatic movement (off by default) has a pause button, stops on hover and focus, and never runs for visitors who prefer reduced motion. |
+| `pricing` | cards, list | Plans with badge, price, period, an "Included" list (one per line), and a button; one plan can be highlighted. `list` suits price lists. |
+| `tabs` | horizontal, vertical | WAI-ARIA tabs (arrow keys, Home, End). Without JavaScript every panel is shown one after another. |
+| `banner` | strip, callout | An announcement with an icon and a link. It can be dismissible; the choice is remembered in the visitor's browser for 30 days and resets when the text changes. |
 
 The blocks showcase page (`/blocks`, hidden, admins only) shows every block and variant.
 

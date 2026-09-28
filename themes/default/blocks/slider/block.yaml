@@ -1,0 +1,42 @@
+label: Slider
+description: Slides you scroll through, with previous and next buttons. Works by swiping, with the keyboard, and without JavaScript. Never moves by itself unless you turn that on.
+variants:
+  full: One large slide at a time
+  multi: Several slides at once
+tone: default
+fields:
+  eyebrow:
+    type: text
+    label: Eyebrow
+  heading:
+    type: text
+    label: Heading
+  intro:
+    type: textarea
+    label: Introduction
+  per_view:
+    type: select
+    label: Slides visible at once (several)
+    default: '3'
+    options: { '2': '2', '3': '3', '4': '4' }
+  autoplay:
+    type: select
+    label: Move by itself
+    default: 'off'
+    options:
+      'off': No
+      '5': 'Every 5 seconds'
+      '8': 'Every 8 seconds'
+    help: A pause button is shown, and visitors who prefer reduced motion never get automatic movement.
+  items:
+    type: repeater
+    label: Slides
+    item_label: Slide
+    max: 12
+    fields:
+      image: { type: image, label: Image }
+      eyebrow: { type: text, label: Label }
+      title: { type: text, label: Title }
+      text: { type: textarea, label: Text }
+      link_label: { type: text, label: Link text }
+      url: { type: link, label: Link }

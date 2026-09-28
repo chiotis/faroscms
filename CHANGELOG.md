@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-09-28 — Dynamic and interactive blocks (phase 5)
+- New blocks: latest content (8 layouts from a minimal text list to a magazine, optional category or tag filter), video (large viewer by default, YouTube, Vimeo, or a file, nothing loaded until played), slider, pricing, tabs, and banner (dismissible)
+- Ready-made sections: magazine posts, project tiles, video, plans and pricing, services in tabs
+- Icons: play, pause, chevrons, info, megaphone, x
+- Dynamic blocks with nothing to show (no matching content, no valid video) render nothing instead of an empty section
+- Theme version 1.5.0; the showcase page includes every new block and variant
+
 ## 2026-09-28 — Page templates and ready-made sections (phase 4)
 - Page templates: Standard, Landing (no title header, blocks only), and With sidebar ("On this page" contents, related pages from the main menu, contact card from Theme settings > Sidebar template); chosen per page in the editor's Publish panel
 - Ready-made sections: 8 section presets and 5 page layouts (company home, service, about, contact, campaign landing) in Greek and English; page layouts can replace or follow existing blocks and set their suggested template

@@ -1,0 +1,36 @@
+{% import 'components/ui.twig' as ui %}
+{% set prefix = lang_prefix|default('') %}
+{% set all_href = link_url(block.link_url, prefix) %}
+{% set entries = block.entries %}
+{% set view = {show_image: block.show_image, show_excerpt: block.show_excerpt, show_meta: block.show_meta, prefix: prefix, lang: lang|default(''), heading_tag: item_heading_tag, variant: block.variant} %}
+{% set tile_sizes = block.columns == '2' ? '(min-width: 900px) 46vw, 92vw' : (block.columns == '4' ? '(min-width: 1100px) 23vw, (min-width: 700px) 45vw, 92vw' : '(min-width: 1100px) 30vw, (min-width: 700px) 45vw, 92vw') %}
+<div class="container">
+  <div class="latest-head">
+    {{ ui.section_header(block, heading_tag, block_uid, 'left') }}
+    {% if all_href and block.link_label %}
+      <a class="text-link latest-all" href="{{ all_href }}">{{ block.link_label }}{{ icon('arrow-right', 'btn-icon') }}</a>
+    {% endif %}
+  </div>
+
+  {% if block.variant in ['featured', 'magazine'] %}
+    <div class="latest-{{ block.variant }}">
+      <div class="latest-lead">
+        {% include 'blocks/latest/item.twig' with view|merge({item: entries|first, lead: true, sizes: block.variant == 'magazine' ? '(min-width: 1100px) 1100px, 94vw' : '(min-width: 1000px) 640px, 94vw'}) only %}
+      </div>
+      {% if entries|length > 1 %}
+        <ul class="latest-rest" role="list">
+          {% for entry in entries|slice(1) %}
+            <li>{% include 'blocks/latest/item.twig' with view|merge({item: entry, lead: false, sizes: block.variant == 'magazine' ? '(min-width: 1000px) 30vw, (min-width: 700px) 45vw, 92vw' : '160px'}) only %}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+  {% else %}
+    {% set sizes = block.variant == 'editorial' ? '(min-width: 900px) 50vw, 92vw' : (block.variant in ['list', 'compact'] ? '160px' : (block.variant == 'strip' ? '(min-width: 900px) 30vw, 80vw' : tile_sizes)) %}
+    <ul class="latest-list cols-{{ block.columns }}" role="list"{% if block.variant == 'strip' %} tabindex="0" aria-label="{{ block.heading ?: t('latest.label', 'Latest content') }}"{% endif %}>
+      {% for entry in entries %}
+        <li>{% include 'blocks/latest/item.twig' with view|merge({item: entry, lead: false, sizes: sizes, index: loop.index}) only %}</li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+</div>

@@ -1,0 +1,32 @@
+{% import 'components/ui.twig' as ui %}
+{% set videos = block.videos %}
+{% set sizes = block.variant == 'grid' ? (block.columns == '2' ? '(min-width: 800px) 46vw, 92vw' : '(min-width: 1100px) 30vw, (min-width: 700px) 45vw, 92vw') : '(min-width: 1100px) 1100px, 92vw' %}
+{% if block.variant == 'split' %}
+  <div class="container video-split">
+    <div class="video-details">
+      {{ ui.section_header(block, heading_tag, block_uid, 'left') }}
+    </div>
+    <div class="video-list">
+      {% for video in videos|slice(0, 1) %}
+        {% include 'blocks/video/tile.twig' with {video: video, block: block, sizes: sizes} only %}
+      {% endfor %}
+    </div>
+  </div>
+{% else %}
+  <div class="container">
+    {{ ui.section_header(block, heading_tag, block_uid, block.variant == 'featured' ? 'center' : 'left') }}
+    {% if block.variant == 'grid' %}
+      <ul class="video-list video-grid cols-{{ block.columns }}" role="list">
+        {% for video in videos %}
+          <li>{% include 'blocks/video/tile.twig' with {video: video, block: block, sizes: sizes} only %}</li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <div class="video-list video-featured">
+        {% for video in videos|slice(0, 1) %}
+          {% include 'blocks/video/tile.twig' with {video: video, block: block, sizes: sizes} only %}
+        {% endfor %}
+      </div>
+    {% endif %}
+  </div>
+{% endif %}

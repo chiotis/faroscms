@@ -1,0 +1,54 @@
+label: Video
+description: One or several videos from YouTube, Vimeo, or an uploaded file. By default a video opens in a large viewer over the page.
+variants:
+  featured: One large video
+  grid: Grid of videos
+  split: Text beside the video
+fields:
+  eyebrow:
+    type: text
+    label: Eyebrow
+  heading:
+    type: text
+    label: Heading
+  intro:
+    type: textarea
+    label: Introduction
+  play:
+    type: select
+    label: When a video is played
+    default: lightbox
+    options:
+      lightbox: Open in a large viewer
+      inline: Play in place
+  ratio:
+    type: select
+    label: Preview shape
+    default: wide
+    options:
+      wide: 'Widescreen (16:9)'
+      cinema: 'Cinema (21:9)'
+      classic: 'Classic (4:3)'
+  columns:
+    type: select
+    label: Columns (grid)
+    default: '3'
+    options: { '2': '2', '3': '3', '4': '4' }
+  videos:
+    type: repeater
+    label: Videos
+    item_label: Video
+    max: 12
+    fields:
+      url:
+        type: url
+        label: Video link
+        placeholder: https://www.youtube.com/watch?v=…
+        help: A YouTube or Vimeo link, or the address of an uploaded .mp4 or .webm file.
+      title: { type: text, label: Title }
+      caption: { type: text, label: Short description }
+      poster:
+        type: image
+        label: Preview image
+        help: Recommended. Without one no thumbnail is fetched from YouTube or Vimeo, so nothing is loaded from them until the visitor plays the video.
+      duration: { type: text, label: Length, placeholder: '3:45' }

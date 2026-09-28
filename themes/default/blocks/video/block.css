@@ -1,0 +1,226 @@
+.video-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.video-tile {
+  margin: 0;
+}
+
+.video-media {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-l);
+  background: #0b1220;
+  box-shadow: var(--shadow-m);
+}
+
+.video-tile.ratio-cinema .video-media { aspect-ratio: 21 / 9; }
+.video-tile.ratio-classic .video-media { aspect-ratio: 4 / 3; }
+
+.video-play {
+  position: absolute;
+  inset: 0;
+  display: block;
+  color: #ffffff;
+  text-decoration: none;
+}
+
+.video-play picture,
+.video-play img,
+.video-poster-fallback {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.video-play img {
+  object-fit: cover;
+  transition: transform 0.6s var(--ease);
+}
+
+.video-play:hover img {
+  transform: scale(1.03);
+}
+
+/* Darkens the poster a little so the button always stands out. */
+.video-play::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(180deg, rgb(8 12 22 / 0.05), rgb(8 12 22 / 0.4));
+  transition: background-color 0.25s var(--ease);
+}
+
+.video-poster-fallback {
+  background:
+    radial-gradient(60% 90% at 85% 10%, color-mix(in srgb, var(--accent) 55%, transparent), transparent 70%),
+    linear-gradient(135deg, #0b1220, #172033);
+}
+
+.video-button {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: clamp(3.5rem, 2.5rem + 4vw, 5.5rem);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #0b1220;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.35);
+  translate: -50% -50%;
+  transition: transform 0.25s var(--ease);
+}
+
+.video-button svg {
+  width: 42%;
+  height: 42%;
+  margin-left: 6%;
+}
+
+.video-play:hover .video-button {
+  transform: scale(1.08);
+}
+
+.video-play:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: -3px;
+}
+
+.video-duration {
+  position: absolute;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  z-index: 2;
+  padding: 0.15rem 0.55rem;
+  border-radius: var(--radius-s);
+  background: rgb(8 12 22 / 0.78);
+  color: #ffffff;
+  font-size: var(--step--1);
+  font-variant-numeric: tabular-nums;
+}
+
+.video-media.is-playing {
+  background: #000000;
+}
+
+.video-media iframe,
+.video-media video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #000000;
+}
+
+.video-tile figcaption {
+  display: grid;
+  gap: 0.15rem;
+  margin-top: var(--space-xs);
+}
+
+.video-title {
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.video-caption {
+  color: var(--color-muted);
+  font-size: 0.95rem;
+}
+
+.video-featured {
+  max-width: 62rem;
+  margin-inline: auto;
+}
+
+.video-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
+  gap: clamp(1.25rem, 0.8rem + 1.6vw, 2rem) clamp(1rem, 0.6rem + 1.5vw, 1.75rem);
+}
+
+@media (min-width: 900px) {
+  .video-grid.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .video-grid.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .video-grid.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+.video-split {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: clamp(2rem, 1rem + 5vw, 6rem);
+  align-items: center;
+}
+
+@media (max-width: 860px) {
+  .video-split {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* The large viewer: as wide as the screen allows while the whole video still fits in its height. */
+.video-dialog {
+  width: min(96vw, calc(88vh * 16 / 9));
+  max-width: none;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  overflow: visible;
+}
+
+.video-dialog::backdrop {
+  background: rgb(8 12 22 / 0.92);
+}
+
+.video-dialog-stage {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: var(--radius-m);
+  background: #000000;
+  box-shadow: 0 30px 80px rgb(0 0 0 / 0.5);
+}
+
+.video-dialog-stage iframe,
+.video-dialog-stage video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.video-dialog-close {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  display: inline-grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  border: 1px solid rgb(255 255 255 / 0.35);
+  border-radius: 999px;
+  background: rgb(11 18 32 / 0.6);
+  color: #ffffff;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.video-dialog-close:hover {
+  background: rgb(255 255 255 / 0.18);
+}
+
+.video-dialog-close:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}

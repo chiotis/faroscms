@@ -1,0 +1,30 @@
+{#
+  One content entry. The title link is stretched over the whole item, so an item is a single link.
+  Variables: item, lead, sizes, show_image, show_excerpt, show_meta, prefix, lang, heading_tag, variant, index.
+#}
+{% set is_home = item.type == 'pages' and item.slug == site.home_page|default('index') %}
+{% set path = item.type == 'pages' ? (is_home ? prefix : prefix ~ item.slug) : prefix ~ item.type ~ '/' ~ item.slug %}
+{% set summary = (item.meta.excerpt ?? item.markdown)|striptags|trim %}
+{% set limit = lead ? 240 : 150 %}
+{% set image_url = show_image ? (item.meta.main_image|default('')) : '' %}
+{% set term = item.meta.categories is iterable and item.meta.categories|length ? (item.meta.categories|first) : '' %}
+{% set has_date = item.meta.date is defined and item.meta.date %}
+<article class="latest-item{% if lead %} is-lead{% endif %}{% if not image_url %} no-image{% endif %}">
+  {% if variant == 'list' and index|default(0) %}<span class="latest-number" aria-hidden="true">{{ '%02d'|format(index) }}</span>{% endif %}
+  {% if image_url %}
+    <div class="latest-media">{{ image(image_url, {alt: '', sizes: sizes, max_width: lead ? 1600 : 1100}) }}</div>
+  {% endif %}
+  <div class="latest-body">
+    {% if show_meta and (term or has_date) %}
+      <p class="latest-meta">
+        {% if term %}<span class="latest-cat">{{ taxonomy_label('categories', term, lang) }}</span>{% endif %}
+        {% if has_date %}<time datetime="{{ item.meta.date|date('Y-m-d') }}">{{ format_date(item.meta.date) }}</time>{% endif %}
+      </p>
+    {% endif %}
+    <{{ heading_tag }} class="latest-title"><a href="{{ url(path) }}">{{ item.meta.title }}</a></{{ heading_tag }}>
+    {% if show_excerpt and summary %}
+      <p class="latest-excerpt">{{ summary|length > limit ? summary|slice(0, limit)|trim ~ '…' : summary }}</p>
+    {% endif %}
+  </div>
+  <span class="latest-arrow" aria-hidden="true">{{ icon('arrow-right') }}</span>
+</article>
