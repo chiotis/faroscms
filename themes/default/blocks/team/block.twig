@@ -1,0 +1,28 @@
+{% import 'components/ui.twig' as ui %}
+<div class="container">
+  {{ ui.section_header(block, heading_tag, block_uid, 'left') }}
+  <ul class="team-list cols-{{ block.columns }}" role="list">
+    {% for member in block.members|filter(m => m.name) %}
+      <li class="team-member">
+        <div class="team-photo" aria-hidden="true">
+          {% if member.image %}
+            {{ image(member.image, {alt: '', sizes: block.variant == 'compact' ? '64px' : '(min-width: 1100px) 25vw, (min-width: 700px) 45vw, 92vw', max_width: 960}) }}
+          {% else %}
+            <span class="team-initials">{{ ui.initials(member.name) }}</span>
+          {% endif %}
+        </div>
+        <div class="team-body">
+          <{{ item_heading_tag }} class="team-name">{{ member.name }}</{{ item_heading_tag }}>
+          {% if member.role %}<p class="team-role">{{ member.role }}</p>{% endif %}
+          {% if member.bio and block.variant != 'compact' %}<p class="team-bio">{{ member.bio }}</p>{% endif %}
+          {% if member.email or member.linkedin %}
+            <p class="team-links">
+              {% if member.email %}<a href="mailto:{{ member.email }}" aria-label="{{ t('team.email', 'Email') }}: {{ member.name }}">{{ icon('mail') }}</a>{% endif %}
+              {% if member.linkedin %}<a href="{{ member.linkedin }}" rel="noopener" aria-label="LinkedIn: {{ member.name }}"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M6.5 8A1.5 1.5 0 1 1 5 6.5 1.5 1.5 0 0 1 6.5 8zM5 10h3v9H5zm5 0h2.9v1.3h.1A3.2 3.2 0 0 1 15.9 10c3 0 3.6 2 3.6 4.6V19h-3v-3.8c0-.9 0-2.1-1.3-2.1s-1.5 1-1.5 2v3.9h-3z"></path></svg></a>{% endif %}
+            </p>
+          {% endif %}
+        </div>
+      </li>
+    {% endfor %}
+  </ul>
+</div>

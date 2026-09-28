@@ -1,6 +1,50 @@
+{#
+  Site header. Theme settings > Header chooses the layout (classic, centered, minimal, stacked with a
+  navigation bar underneath), transparency over an opening hero, stickiness, a CTA button, a top bar,
+  and a fixed bottom bar on phones. The layout sets transparent_header / transparent_on_dark.
+#}
 {% import 'components/menu-macros.twig' as menu_macros %}
 {% set menu = theme_menus.header ?? [] %}
-<header class="site-header">
+{% set hs = theme_settings.header|default({}) %}
+{% set layout = hs.layout|default('classic') %}
+{% set contact = theme_settings.footer|default({}) %}
+{% set cta_href = link_url(hs.cta_url|default(''), prefix) %}
+{% set has_cta = hs.cta_label|default('') != '' and cta_href != '' %}
+{% set show_topbar_contacts = hs.topbar_contacts|default(false) and (contact.phone|default('') or contact.email|default('')) %}
+{% set brand_logo = theme_settings.brand.logo|default('') %}
+
+{% set nav_markup %}
+  <nav id="site-menu" class="site-nav" aria-label="{{ t('nav.main_label', 'Main') }}">
+    {% if menu is empty %}
+      <ul class="nav-list nav-list-1">
+        <li class="nav-item"><a class="nav-link" href="{{ url(prefix) }}">{{ t('nav.main.home') }}</a></li>
+        <li class="nav-item"><a class="nav-link" href="{{ url(prefix ~ 'about') }}">{{ t('nav.main.about') }}</a></li>
+        <li class="nav-item"><a class="nav-link" href="{{ url(prefix ~ 'services') }}">{{ t('nav.main.services') }}</a></li>
+        <li class="nav-item"><a class="nav-link" href="{{ url(prefix ~ 'projects') }}">{{ t('nav.main.projects') }}</a></li>
+        <li class="nav-item"><a class="nav-link" href="{{ url(prefix ~ 'category/news') }}">{{ t('nav.main.news') }}</a></li>
+        <li class="nav-item"><a class="nav-link" href="{{ url(prefix ~ 'contact') }}">{{ t('nav.main.contact') }}</a></li>
+      </ul>
+    {% else %}
+      {{ menu_macros.header_menu(menu, prefix, 1) }}
+    {% endif %}
+  </nav>
+{% endset %}
+
+{% set contact_links %}
+  {% if contact.phone|default('') %}<a href="tel:{{ contact.phone|replace({' ': ''}) }}">{{ icon('phone') }}<span>{{ contact.phone }}</span></a>{% endif %}
+  {% if contact.email|default('') %}<a href="mailto:{{ contact.email }}">{{ icon('mail') }}<span>{{ contact.email }}</span></a>{% endif %}
+{% endset %}
+
+<header class="site-header header--{{ layout }}{% if transparent_header|default(false) %} is-transparent{% endif %}{% if transparent_on_dark|default(false) %} is-on-dark{% endif %}" data-sticky="{{ hs.sticky|default('on_scroll') }}">
+  {% if hs.topbar_text|default('') or show_topbar_contacts %}
+    <div class="topbar">
+      <div class="site-wrap topbar-row">
+        {% if hs.topbar_text|default('') %}<p class="topbar-text">{{ hs.topbar_text }}</p>{% endif %}
+        {% if show_topbar_contacts %}<p class="topbar-contacts">{{ contact_links }}</p>{% endif %}
+      </div>
+    </div>
+  {% endif %}
+
   <div class="site-wrap header-row">
     <button type="button" class="mobile-menu-button" data-mobile-open aria-controls="mobile-drawer" aria-expanded="false" aria-label="{{ t('nav.open', 'Open menu') }}">
       <span aria-hidden="true"></span>
@@ -8,7 +52,6 @@
       <span aria-hidden="true"></span>
     </button>
 
-    {% set brand_logo = theme_settings.brand.logo|default('') %}
     <a class="site-brand" href="{{ url(prefix) }}"{% if brand_logo %} aria-label="{{ site.title }}"{% endif %}>
       {% if brand_logo %}
         {{ image(brand_logo, {alt: '', class: 'site-brand-logo', loading: 'eager', sizes: '12rem'}) }}
@@ -17,20 +60,11 @@
       {% endif %}
     </a>
 
-    <nav id="site-menu" class="site-nav" aria-label="{{ t('nav.main_label', 'Main') }}">
-      {% if menu is empty %}
-        <ul class="nav-list nav-list-1">
-          <li class="nav-item"><a class="nav-link" href="{{ url(prefix) }}">{{ t('nav.main.home') }}</a></li>
-          <li class="nav-item"><a class="nav-link" href="{{ url(prefix ~ 'about') }}">{{ t('nav.main.about') }}</a></li>
-          <li class="nav-item"><a class="nav-link" href="{{ url(prefix ~ 'services') }}">{{ t('nav.main.services') }}</a></li>
-          <li class="nav-item"><a class="nav-link" href="{{ url(prefix ~ 'projects') }}">{{ t('nav.main.projects') }}</a></li>
-          <li class="nav-item"><a class="nav-link" href="{{ url(prefix ~ 'category/news') }}">{{ t('nav.main.news') }}</a></li>
-          <li class="nav-item"><a class="nav-link" href="{{ url(prefix ~ 'contact') }}">{{ t('nav.main.contact') }}</a></li>
-        </ul>
-      {% else %}
-        {{ menu_macros.header_menu(menu, prefix, 1) }}
-      {% endif %}
-    </nav>
+    {% if layout == 'classic' %}{{ nav_markup }}{% endif %}
+
+    {% if layout == 'stacked' and not show_topbar_contacts and (contact.phone|default('') or contact.email|default('')) %}
+      <p class="header-contacts">{{ contact_links }}</p>
+    {% endif %}
 
     <div class="header-tools">
       <a class="search-link" href="{{ url(prefix ~ 'search') }}" aria-label="{{ t('search.title', 'Search') }}">
@@ -44,8 +78,15 @@
           <span class="mode-switch-thumb"></span>
         </span>
       </button>
+      {% if has_cta %}<a class="btn btn-primary header-cta" href="{{ cta_href }}">{{ hs.cta_label }}</a>{% endif %}
     </div>
   </div>
+
+  {% if layout == 'centered' or layout == 'stacked' %}
+    <div class="header-bar tone-{{ layout == 'stacked' ? hs.bar_tone|default('default') : 'default' }}">
+      <div class="site-wrap">{{ nav_markup }}</div>
+    </div>
+  {% endif %}
 
   <div class="mobile-drawer-overlay" data-mobile-overlay aria-hidden="true"></div>
   <div class="mobile-drawer" id="mobile-drawer" data-mobile-drawer role="dialog" aria-modal="true" aria-label="{{ t('nav.menu', 'Menu') }}" aria-hidden="true" tabindex="-1">
@@ -67,6 +108,7 @@
       {% else %}
         {{ menu_macros.mobile_menu(menu, prefix, 1, 3) }}
       {% endif %}
+      {% if has_cta %}<a class="btn btn-primary drawer-cta" href="{{ cta_href }}">{{ hs.cta_label }}</a>{% endif %}
     </nav>
 
     <div class="drawer-tools">
@@ -79,3 +121,18 @@
     </div>
   </div>
 </header>
+
+{% if hs.mobile_bar|default(false) %}
+  <nav class="mobile-bar" aria-label="{{ t('nav.quick', 'Quick actions') }}">
+    <button type="button" class="mobile-bar-item" data-mobile-open aria-controls="mobile-drawer" aria-expanded="false">{{ icon('menu') }}<span>{{ t('nav.menu', 'Menu') }}</span></button>
+    {% if contact.phone|default('') %}
+      <a class="mobile-bar-item" href="tel:{{ contact.phone|replace({' ': ''}) }}">{{ icon('phone') }}<span>{{ t('nav.call', 'Call') }}</span></a>
+    {% endif %}
+    {% if contact.email|default('') %}
+      <a class="mobile-bar-item" href="mailto:{{ contact.email }}">{{ icon('mail') }}<span>Email</span></a>
+    {% endif %}
+    {% if has_cta %}
+      <a class="mobile-bar-item is-primary" href="{{ cta_href }}">{{ icon('arrow-right') }}<span>{{ hs.cta_label }}</span></a>
+    {% endif %}
+  </nav>
+{% endif %}

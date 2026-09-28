@@ -1,0 +1,39 @@
+label: Gallery
+description: A set of images in a grid, a masonry layout, or a scrolling strip. Images open larger in a viewer.
+variants:
+  grid: Even grid
+  masonry: Masonry
+  strip: Scrolling strip
+fields:
+  eyebrow:
+    type: text
+    label: Eyebrow
+  heading:
+    type: text
+    label: Heading
+  intro:
+    type: textarea
+    label: Introduction
+  columns:
+    type: select
+    label: Columns
+    default: '3'
+    options: { '2': '2', '3': '3', '4': '4' }
+  ratio:
+    type: select
+    label: Image shape (grid)
+    default: landscape
+    options: { landscape: 'Landscape (4:3)', square: Square, portrait: 'Portrait (4:5)', original: Original }
+  lightbox:
+    type: toggle
+    label: Open images in a viewer
+    default: true
+  images:
+    type: repeater
+    label: Images
+    item_label: Image
+    max: 60
+    fields:
+      image: { type: image, label: Image }
+      alt: { type: text, label: Description, help: What the image shows. Leave empty to use the media library text. }
+      caption: { type: text, label: Caption }

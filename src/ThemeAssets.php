@@ -57,8 +57,8 @@ final class ThemeAssets
                 return true;
             }
             $assetPath = substr($rest, $slash + 1);
-            if ($assetPath === '_blocks.css') {
-                self::sendBlockBundle($basePath . '/themes/' . $theme, $basePath . '/custom');
+            if ($assetPath === '_blocks.css' || $assetPath === '_blocks.js') {
+                self::sendBlockBundle($basePath . '/themes/' . $theme, $basePath . '/custom', $assetPath === '_blocks.js' ? 'js' : 'css');
                 return true;
             }
             self::send(self::resolve($basePath . '/themes/' . $theme, $assetPath));
@@ -123,15 +123,15 @@ final class ThemeAssets
         }
     }
 
-    /** Concatenated block stylesheets for `?b=type,type` (see Theme::blockStylesheetUrl()). */
-    private static function sendBlockBundle(string $themePath, string $customPath): void
+    /** Concatenated block stylesheets or scripts for `?b=type,type` (see Theme::blockStylesheetUrl()). */
+    private static function sendBlockBundle(string $themePath, string $customPath, string $kind): void
     {
         if (!is_dir($themePath)) {
             self::notFound();
             return;
         }
         $types = explode(',', (string)($_GET['b'] ?? ''));
-        $files = Theme::blockStyleFiles($themePath, $customPath, $types);
+        $files = Theme::blockAssetFiles($themePath, $customPath, $types, $kind === 'js' ? 'block.js' : 'block.css');
         if ($files === []) {
             self::notFound();
             return;
@@ -139,11 +139,12 @@ final class ThemeAssets
         $css = '';
         $stamp = '';
         foreach ($files as $file) {
-            $css .= '/* ' . basename(dirname($file)) . ' */' . "\n" . (string)file_get_contents($file) . "\n";
+            // Each script is its own statement list; a newline plus ';' keeps concatenation safe.
+            $css .= '/* ' . basename(dirname($file)) . ' */' . "\n" . (string)file_get_contents($file) . "\n" . ($kind === 'js' ? ";\n" : '');
             $stamp .= $file . filemtime($file) . filesize($file);
         }
         $etag = '"' . substr(sha1($stamp), 0, 16) . '"';
-        header('Content-Type: text/css; charset=utf-8');
+        header('Content-Type: ' . ($kind === 'js' ? 'text/javascript' : 'text/css') . '; charset=utf-8');
         header('X-Content-Type-Options: nosniff');
         header('Cache-Control: ' . (isset($_GET['v']) && $_GET['v'] !== '' ? 'public, max-age=31536000, immutable' : 'public, max-age=300'));
         header('ETag: ' . $etag);

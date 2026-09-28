@@ -79,22 +79,24 @@
     });
   }
 
-  /* Mobile drawer: dialog semantics, focus moves in, stays in, and returns. */
+  /* Mobile drawer: dialog semantics, focus moves in, stays in, and returns to the opener. */
 
-  const mobileOpen = document.querySelector('[data-mobile-open]');
+  const openButtons = document.querySelectorAll('[data-mobile-open]');
   const mobileClose = document.querySelector('[data-mobile-close]');
   const mobileOverlay = document.querySelector('[data-mobile-overlay]');
   const mobileDrawer = document.querySelector('[data-mobile-drawer]');
   const mobileToggles = document.querySelectorAll('[data-mobile-toggle]');
   const focusableSelector = 'a[href], button:not([disabled]), input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])';
+  let opener = null;
 
   const drawerIsOpen = () => document.body.classList.contains('mobile-menu-open');
 
-  const openMobileMenu = () => {
+  const openMobileMenu = (event) => {
     if (!mobileDrawer) return;
+    opener = event && event.currentTarget ? event.currentTarget : openButtons[0];
     document.body.classList.add('mobile-menu-open');
     mobileDrawer.setAttribute('aria-hidden', 'false');
-    if (mobileOpen) mobileOpen.setAttribute('aria-expanded', 'true');
+    openButtons.forEach((button) => button.setAttribute('aria-expanded', 'true'));
     window.setTimeout(() => {
       (mobileClose || mobileDrawer).focus();
     }, 30);
@@ -104,13 +106,11 @@
     if (!mobileDrawer || !drawerIsOpen()) return;
     document.body.classList.remove('mobile-menu-open');
     mobileDrawer.setAttribute('aria-hidden', 'true');
-    if (mobileOpen) {
-      mobileOpen.setAttribute('aria-expanded', 'false');
-      if (restoreFocus) mobileOpen.focus();
-    }
+    openButtons.forEach((button) => button.setAttribute('aria-expanded', 'false'));
+    if (restoreFocus && opener) opener.focus();
   };
 
-  if (mobileOpen) mobileOpen.addEventListener('click', openMobileMenu);
+  openButtons.forEach((button) => button.addEventListener('click', openMobileMenu));
   if (mobileClose) mobileClose.addEventListener('click', () => closeMobileMenu());
   if (mobileOverlay) mobileOverlay.addEventListener('click', () => closeMobileMenu());
 
@@ -159,40 +159,47 @@
     menuItems.forEach((item) => item.classList.remove('is-open'));
   });
 
+  // Close the drawer when the screen grows past the point where its opener is shown.
   window.addEventListener('resize', () => {
-    if (window.innerWidth > 860) {
+    if (drawerIsOpen() && opener && opener.offsetParent === null) {
       closeMobileMenu(false);
     }
   });
 
-  /* Sticky header ---------------------------------------------------------- */
+  /* Header: sticky modes (on_scroll: slides in after 200px; always: fixed from the start; off). */
 
   const headerEl = document.querySelector('.site-header');
   const headerSpacer = document.querySelector('[data-header-spacer]');
   if (headerEl && headerSpacer) {
+    const stickyMode = headerEl.dataset.sticky || 'on_scroll';
+    const overlays = document.body.classList.contains('has-transparent-header');
     let sticky = false;
 
     const syncHeaderHeight = () => {
-      const height = headerEl.offsetHeight;
-      root.style.setProperty('--header-height', height + 'px');
-      headerSpacer.style.height = sticky ? height + 'px' : '0px';
+      root.style.setProperty('--header-height', headerEl.offsetHeight + 'px');
     };
 
-    const syncSticky = () => {
+    const syncScroll = () => {
+      // A transparent header turns solid as soon as the page moves under it.
+      document.body.classList.toggle('header-solid', window.scrollY > 8);
+      if (stickyMode !== 'on_scroll') return;
       const shouldStick = window.scrollY > 200;
       if (shouldStick === sticky) return;
       sticky = shouldStick;
       document.body.classList.toggle('header-sticky', sticky);
-      headerSpacer.style.height = sticky ? (headerEl.offsetHeight + 'px') : '0px';
+      // An overlaying header takes no space, so nothing needs to be held open.
+      headerSpacer.style.height = sticky && !overlays ? headerEl.offsetHeight + 'px' : '0px';
     };
 
     syncHeaderHeight();
-    syncSticky();
+    syncScroll();
 
-    window.addEventListener('scroll', syncSticky, { passive: true });
+    window.addEventListener('scroll', syncScroll, { passive: true });
     window.addEventListener('resize', () => {
       syncHeaderHeight();
-      syncSticky();
+      if (sticky && !overlays) {
+        headerSpacer.style.height = headerEl.offsetHeight + 'px';
+      }
     });
   }
 })();

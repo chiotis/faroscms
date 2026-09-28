@@ -4,7 +4,8 @@
 Direction: one all-purpose theme (`themes/default`) that grows with blocks and variants; site changes live in `custom/`. Plan and contract: `docs/theming.md`.
 - Phase 1 (done): theme manifest + schema-driven settings, folder structure, asset serving, `custom/` overrides, update-safe translations
 - Phase 2 (done): design system (tokens, palettes, dark mode, fonts, shapes), block engine, first block family (12 blocks), responsive images, accessibility and SEO foundations
-- Next: admin block editor (add, reorder, schema-driven fields, media picker); then more block families (gallery, team, timeline, contact details, map) and header/footer variants
+- Phase 3 (done): admin block editor; second block family (gallery, team, timeline, contact, map); header layouts and options; footer layouts
+- Next candidates: page templates (landing without title header, sidebar), block presets/sections library, pricing and comparison blocks, self-hosted Greek-capable fonts (needs the owner's approval to add font files)
 - Style references from the owner can refine the design system at any point (tokens and block CSS)
 - Phase 5: content types with declared fields and per-type templates/archive settings
 - Phase 6: demo content rebuilt with blocks, accessibility pass, theme developer guide

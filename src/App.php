@@ -351,6 +351,7 @@ final class App
         return [
             'page_blocks' => $pageBlocks,
             'block_styles' => $pageBlocks['styles'] ?? [],
+            'block_scripts' => $pageBlocks['scripts'] ?? [],
             'structured_data' => array_merge(
                 $this->itemStructuredData($item, $lang, (string)($viewDefaults['canonical_url'] ?? ''), $isHome),
                 $pageBlocks['structured_data'] ?? []
@@ -1987,6 +1988,13 @@ final class App
         if ($frontmatter !== '') {
             $meta = Yaml::parse($frontmatter) ?: [];
         }
+        $pageBlocks = is_array($meta) && is_array($meta['blocks'] ?? null) ? array_values($meta['blocks']) : [];
+        if ($pageBlocks !== [] && $type !== 'forms') {
+            // Blocks are edited in the Blocks tab; the raw YAML keeps everything else.
+            $withoutBlocks = $meta;
+            unset($withoutBlocks['blocks']);
+            $frontmatter = $withoutBlocks === [] ? '' : trim(Yaml::dump($withoutBlocks, 10, 2, Yaml::DUMP_MULTI_LINE_LITERAL_BLOCK));
+        }
         if (is_array($meta)) {
             $mainImage = (string)($meta['main_image'] ?? '');
             $metaForm['title'] = $isNew ? (string)($meta['title'] ?? '') : (string)($meta['title'] ?? $this->titleFromSlug($slug));
@@ -2103,7 +2111,42 @@ final class App
             'form_submissions_total' => $formSubmissionsTotal,
             'form_field_types' => $this->formFieldTypes(),
             'media_picker_images' => $mediaPickerImages,
+            'block_editor_json' => $type === 'forms' ? '' : $this->blockEditorJson($pageBlocks, $mediaPickerImages),
         ]);
+    }
+
+    /** Data for the admin block editor, safe to embed in a <script type="application/json">. */
+    private function blockEditorJson(array $blocks, array $mediaImages): string
+    {
+        $media = [];
+        foreach ($mediaImages as $item) {
+            $media[] = [
+                'url' => (string)($item['direct_url'] ?? ''),
+                'thumb' => (string)(($item['thumbnail_url'] ?? '') ?: ($item['direct_url'] ?? '')),
+                'name' => (string)($item['original_name'] ?? ''),
+                'alt' => (string)($item['alt'] ?? ''),
+            ];
+        }
+        return (string)json_encode([
+            'definitions' => $this->blockRegistry()->editorDefinitions(),
+            'blocks' => $blocks,
+            'media' => $media,
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_INVALID_UTF8_SUBSTITUTE);
+    }
+
+    /** Blocks stored in an existing content file, used when the editor did not submit any. */
+    private function storedBlocks(string $path): ?array
+    {
+        if ($path === '' || !is_file($path)) {
+            return null;
+        }
+        [$frontmatter] = $this->splitFrontMatter((string)file_get_contents($path));
+        try {
+            $meta = $frontmatter !== '' ? Yaml::parse($frontmatter) : [];
+        } catch (\Throwable) {
+            return null;
+        }
+        return is_array($meta) && is_array($meta['blocks'] ?? null) ? $meta['blocks'] : null;
     }
 
     private function handleSave(): void
@@ -2190,6 +2233,26 @@ final class App
             $parsed = Yaml::parse($frontmatter) ?: [];
             if (is_array($parsed)) {
                 $data = $parsed;
+            }
+        }
+
+        if ($type !== 'forms') {
+            $editorBlocks = ($_POST['blocks_editor'] ?? '') === '1'
+                ? json_decode((string)($_POST['blocks_json'] ?? ''), true)
+                : null;
+            if (is_array($editorBlocks)) {
+                $blocks = $this->blockRegistry()->sanitizeForStorage(array_values($editorBlocks));
+                if ($blocks === []) {
+                    unset($data['blocks']);
+                } else {
+                    $data['blocks'] = $blocks;
+                }
+            } elseif (!array_key_exists('blocks', $data)) {
+                // No editor data (script not loaded): keep the blocks the file already has.
+                $existing = $this->storedBlocks($oldPath !== '' && is_file($oldPath) ? $oldPath : $path);
+                if ($existing !== null) {
+                    $data['blocks'] = $existing;
+                }
             }
         }
 

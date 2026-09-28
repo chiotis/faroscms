@@ -146,6 +146,85 @@ blocks:
     heading: 'CTA · split: κείμενο αριστερά, κουμπιά δεξιά'
     actions:
       - { label: Ξεκινήστε, url: contact }
+  - type: gallery
+    variant: grid
+    eyebrow: 'Gallery · grid · lightbox'
+    heading: Εικόνες σε πλέγμα
+    columns: '4'
+    ratio: square
+    images:
+      - { image: /uploads/media/faros-demo-lake.jpg, caption: Η λίμνη }
+      - { image: /uploads/media/faros-demo-rocks.jpg, caption: Οι βράχοι }
+      - { image: /uploads/media/faros-demo-trees.jpg, caption: Τα δέντρα }
+      - { image: /uploads/media/faros-demo-path.jpg, caption: Το μονοπάτι }
+  - type: gallery
+    variant: masonry
+    tone: muted
+    eyebrow: 'Gallery · masonry'
+    heading: Κάθε εικόνα στο δικό της σχήμα
+    columns: '3'
+    images:
+      - { image: /uploads/media/faros-demo-rocks.jpg }
+      - { image: /uploads/media/faros-demo-trees.jpg }
+      - { image: /uploads/media/faros-demo-lake.jpg }
+      - { image: /uploads/media/faros-demo-path.jpg }
+      - { image: /uploads/media/5e6915a67b9ceec5.jpg }
+  - type: gallery
+    variant: strip
+    eyebrow: 'Gallery · strip'
+    heading: Κύλιση οριζόντια
+    images:
+      - { image: /uploads/media/faros-demo-lake.jpg }
+      - { image: /uploads/media/faros-demo-trees.jpg }
+      - { image: /uploads/media/faros-demo-path.jpg }
+      - { image: /uploads/media/5e6915a67b9ceec5.jpg }
+  - type: team
+    variant: compact
+    columns: '3'
+    tone: muted
+    eyebrow: 'Team · compact'
+    heading: Συμπαγής λίστα
+    members:
+      - { name: Άννα Ραφτοπούλου, role: Στρατηγική, email: anna@faroscms.test }
+      - { name: Δημήτρης Λάσκαρης, role: Design, linkedin: 'https://www.linkedin.com/' }
+      - { name: Κατερίνα Βλάχου, role: Ανάπτυξη }
+  - type: timeline
+    variant: vertical
+    eyebrow: 'Timeline · vertical'
+    heading: Κάθετο χρονολόγιο
+    items:
+      - { label: Εβδομάδα 1, title: Γνωριμία, text: Στόχοι και περιεχόμενο. }
+      - { label: Εβδομάδα 3, title: Σχεδιασμός, text: Δομή και εμφάνιση. }
+      - { label: Εβδομάδα 8, title: Παράδοση, text: Το site ανεβαίνει. }
+  - type: timeline
+    variant: steps
+    tone: muted
+    eyebrow: 'Timeline · steps'
+    heading: Βήματα σε σειρά
+    items:
+      - { label: '01', title: Brief, text: Τι χρειάζεστε. }
+      - { label: '02', title: Πρόταση, text: Χρόνος και κόστος. }
+      - { label: '03', title: Υλοποίηση, text: Σχεδιασμός και ανάπτυξη. }
+      - { label: '04', title: Υποστήριξη, text: Βελτιώσεις κάθε μήνα. }
+  - type: contact
+    variant: cards
+    eyebrow: 'Contact · cards'
+    heading: Στοιχεία σε κάρτες
+    items:
+      - { icon: mail, label: Email, value: hello@faroscms.test, url: 'mailto:hello@faroscms.test' }
+      - { icon: phone, label: Τηλέφωνο, value: '+30 210 000 0000', url: 'tel:+302100000000' }
+      - { icon: map-pin, label: Γραφείο, value: Αθήνα }
+  - type: map
+    variant: split
+    tone: muted
+    eyebrow: 'Map · split'
+    heading: Πού θα μας βρείτε
+    intro: Ο χάρτης φορτώνει μόνο όταν το ζητήσει ο επισκέπτης.
+    lat: 37.9755
+    lng: 23.7348
+    zoom: 15
+    place_name: το γραφείο μας
+    address: "Πλατεία Συντάγματος\n105 57 Αθήνα"
   - type: form
     variant: split
     anchor: form

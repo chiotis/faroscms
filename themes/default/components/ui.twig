@@ -32,7 +32,8 @@
   {% endif %}
 {% endmacro %}
 
-{# Initials for a person without a photo, e.g. "Μαρία Παππά" → "ΜΠ". #}
+{# Initials for a person without a photo, e.g. "Άννα Παππά" → "ΑΠ" (Greek capitals drop the accent). #}
 {% macro initials(name) %}
-  {%- for part in name|default('')|trim|split(' ')|slice(0, 2) -%}{{ part|slice(0, 1)|upper }}{%- endfor -%}
+  {%- set unaccent = {'Ά': 'Α', 'Έ': 'Ε', 'Ή': 'Η', 'Ί': 'Ι', 'Ό': 'Ο', 'Ύ': 'Υ', 'Ώ': 'Ω', 'Ϊ': 'Ι', 'Ϋ': 'Υ'} -%}
+  {%- for part in name|default('')|trim|split(' ')|slice(0, 2) -%}{{ part|slice(0, 1)|upper|replace(unaccent) }}{%- endfor -%}
 {% endmacro %}

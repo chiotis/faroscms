@@ -1,48 +1,72 @@
+{#
+  Site footer. Theme settings > Footer: layout (columns, simple, centered), texts, contact details,
+  and background. Social icons come from Theme settings > Social profiles.
+#}
 {% import 'components/menu-macros.twig' as menu_macros %}
 {% set footer_menu = theme_menus.footer ?? [] %}
 {% set footer = theme_settings.footer|default({}) %}
+{% set layout = footer.layout|default('columns') %}
 {% set footer_bg = footer.background ?? '' %}
 {% set footer_bg_image = footer.background_image ?? '' %}
-<footer class="site-footer{% if footer_bg_image %} has-image{% endif %}"{% if footer_bg or footer_bg_image %} style="{% if footer_bg_image %}--footer-image:url('{{ footer_bg_image|e('html_attr') }}');{% endif %}{% if footer_bg %}--footer-bg:{{ footer_bg|e('html_attr') }};{% endif %}"{% endif %}>
+{% set menu_markup %}
+  {% if footer_menu is not empty %}
+    {{ menu_macros.footer_menu(footer_menu, prefix, 1) }}
+  {% else %}
+    <ul class="footer-list footer-list-1">
+      <li><a class="footer-link" href="{{ url(prefix ~ 'about') }}">{{ t('nav.footer.about') }}</a></li>
+      <li><a class="footer-link" href="{{ url(prefix ~ 'contact') }}">{{ t('nav.footer.contact') }}</a></li>
+      <li><a class="footer-link" href="{{ url(prefix ~ 'faq') }}">{{ t('nav.footer.faq') }}</a></li>
+    </ul>
+  {% endif %}
+{% endset %}
+{% set copyright %}<p class="footer-copy">© {{ "now"|date("Y") }} {{ site.title }}. {{ t('footer.rights') }}</p>{% endset %}
+<footer class="site-footer footer--{{ layout }}{% if footer_bg_image %} has-image{% endif %}"{% if footer_bg or footer_bg_image %} style="{% if footer_bg_image %}--footer-image:url('{{ footer_bg_image|e('html_attr') }}');{% endif %}{% if footer_bg %}--footer-bg:{{ footer_bg|e('html_attr') }};{% endif %}"{% endif %}>
   <div class="site-wrap site-footer-inner">
-    <div class="footer-grid">
-      <div>
+    {% if layout == 'columns' %}
+      <div class="footer-grid">
+        <div>
+          <p class="footer-brand">{{ site.title }}</p>
+          <p class="footer-summary">{{ footer.summary ?: site.tagline }}</p>
+        </div>
+
+        <nav aria-labelledby="footer-company-title">
+          <h2 class="footer-title" id="footer-company-title">{{ t('footer.company', 'Company') }}</h2>
+          {{ menu_markup }}
+        </nav>
+
+        <div>
+          <h2 class="footer-title">{{ t('footer.contact', 'Contact') }}</h2>
+          <address class="footer-list">
+            {% if footer.email %}<a class="footer-link" href="mailto:{{ footer.email }}">{{ footer.email }}</a>{% endif %}
+            {% if footer.phone %}<a class="footer-link" href="tel:{{ footer.phone|replace({' ': ''}) }}">{{ footer.phone }}</a>{% endif %}
+            {% if footer.address %}<span>{{ footer.address }}</span>{% endif %}
+          </address>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        {{ copyright }}
+        {% include 'components/social-links.twig' with {list_class: 'footer-icons'} %}
+      </div>
+    {% else %}
+      {# simple: one row; centered: stacked and centred #}
+      <div class="footer-compact">
         <p class="footer-brand">{{ site.title }}</p>
-        <p class="footer-summary">{{ footer.summary ?: site.tagline }}</p>
-      </div>
-
-      <nav aria-labelledby="footer-company-title">
-        <h2 class="footer-title" id="footer-company-title">{{ t('footer.company', 'Company') }}</h2>
-        {% if footer_menu is not empty %}
-          {{ menu_macros.footer_menu(footer_menu, prefix, 1) }}
-        {% else %}
-          <ul class="footer-list">
-            <li><a class="footer-link" href="{{ url(prefix ~ 'about') }}">{{ t('nav.footer.about') }}</a></li>
-            <li><a class="footer-link" href="{{ url(prefix ~ 'contact') }}">{{ t('nav.footer.contact') }}</a></li>
-            <li><a class="footer-link" href="{{ url(prefix ~ 'faq') }}">{{ t('nav.footer.faq') }}</a></li>
-          </ul>
+        {% if layout == 'centered' and (footer.summary ?: site.tagline) %}
+          <p class="footer-summary">{{ footer.summary ?: site.tagline }}</p>
         {% endif %}
-      </nav>
-
-      <div>
-        <h2 class="footer-title">{{ t('footer.contact', 'Contact') }}</h2>
-        <address class="footer-list">
-          {% if footer.email %}
-            <a class="footer-link" href="mailto:{{ footer.email }}">{{ footer.email }}</a>
-          {% endif %}
-          {% if footer.phone %}
-            <a class="footer-link" href="tel:{{ footer.phone|replace({' ': ''}) }}">{{ footer.phone }}</a>
-          {% endif %}
-          {% if footer.address %}
-            <span>{{ footer.address }}</span>
-          {% endif %}
-        </address>
+        <nav class="footer-inline-nav" aria-label="{{ t('footer.company', 'Company') }}">{{ menu_markup }}</nav>
+        {% include 'components/social-links.twig' with {list_class: 'footer-icons'} %}
       </div>
-    </div>
-
-    <div class="footer-bottom">
-      <p class="footer-copy">© {{ "now"|date("Y") }} {{ site.title }}. {{ t('footer.rights') }}</p>
-      {% include 'components/social-links.twig' with {list_class: 'footer-icons'} %}
-    </div>
+      <div class="footer-bottom">
+        {{ copyright }}
+        {% if footer.email or footer.phone %}
+          <p class="footer-inline-contacts">
+            {% if footer.email %}<a class="footer-link" href="mailto:{{ footer.email }}">{{ footer.email }}</a>{% endif %}
+            {% if footer.phone %}<a class="footer-link" href="tel:{{ footer.phone|replace({' ': ''}) }}">{{ footer.phone }}</a>{% endif %}
+          </p>
+        {% endif %}
+      </div>
+    {% endif %}
   </div>
 </footer>

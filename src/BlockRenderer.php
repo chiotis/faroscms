@@ -36,7 +36,7 @@ final class BlockRenderer
     /**
      * @param array<int, mixed> $rawBlocks
      * @param array<string, mixed> $context template variables shared with every block (item, lang, lang_prefix, body_html, …)
-     * @return array{html: string, types: string[], styles: string[], structured_data: array<int, array<string, mixed>>, leads_with_hero: bool, count: int, image: string}
+     * @return array{html: string, types: string[], styles: string[], scripts: string[], structured_data: array<int, array<string, mixed>>, leads_with_hero: bool, lead: array{type: string, variant: string, tone: string}|null, count: int, image: string}
      */
     public function render(array $rawBlocks, array $context): array
     {
@@ -46,12 +46,16 @@ final class BlockRenderer
         $faq = [];
         $leadsWithHero = false;
         $firstImage = '';
+        $lead = null;
 
         foreach ($blocks as $index => $entry) {
             [$type, $definition, $values] = $entry;
             $isFirst = $index === 0;
             if ($isFirst && $type === 'hero') {
                 $leadsWithHero = true;
+            }
+            if ($isFirst) {
+                $lead = ['type' => $type, 'variant' => (string)$values['variant'], 'tone' => (string)$values['tone']];
             }
             $values = $this->withData($type, $definition, $values, $context);
             if ($firstImage === '' && is_string($values['image'] ?? null) && $values['image'] !== '') {
@@ -90,6 +94,7 @@ final class BlockRenderer
 
         $stylesheet = $this->theme->blockStylesheetUrl($this->baseUrl, array_keys($types));
         $styles = $stylesheet !== '' ? [$stylesheet] : [];
+        $script = $this->theme->blockScriptUrl($this->baseUrl, array_keys($types));
         $structuredData = [];
         if ($faq !== []) {
             $structuredData[] = ['@type' => 'FAQPage', 'mainEntity' => $faq];
@@ -99,8 +104,10 @@ final class BlockRenderer
             'html' => $html,
             'types' => array_keys($types),
             'styles' => $styles,
+            'scripts' => $script !== '' ? [$script] : [],
             'structured_data' => $structuredData,
             'leads_with_hero' => $leadsWithHero,
+            'lead' => $lead,
             'count' => count($blocks),
             'image' => $firstImage,
         ];
@@ -176,10 +183,39 @@ final class BlockRenderer
         if ($type === 'cards' && ($values['source'] ?? 'manual') !== 'manual' && isset($this->providers['items'])) {
             $values['entries'] = ($this->providers['items'])((string)$values['source'], (string)($context['lang'] ?? ''), (int)($values['limit'] ?? 3));
         }
-        if ($type === 'form' && isset($this->providers['form'])) {
+        if (($type === 'form' || $type === 'contact') && isset($this->providers['form'])) {
             $values['form_html'] = ($this->providers['form'])((string)($values['form'] ?? ''));
         }
+        if ($type === 'map') {
+            $values += self::mapUrls($values['lat'] ?? '', $values['lng'] ?? '', (int)($values['zoom'] ?? 15));
+        }
         return $values;
+    }
+
+    /**
+     * OpenStreetMap embed and link URLs for a point. No API key; the embed shows a marker.
+     *
+     * @return array{embed_url: string, link_url: string, directions_url: string}
+     */
+    public static function mapUrls(mixed $lat, mixed $lng, int $zoom): array
+    {
+        if (!is_numeric($lat) || !is_numeric($lng)) {
+            return ['embed_url' => '', 'link_url' => '', 'directions_url' => ''];
+        }
+        $lat = max(-85.0, min(85.0, (float)$lat));
+        $lng = max(-180.0, min(180.0, (float)$lng));
+        $zoom = max(3, min(19, $zoom));
+        // About 1150 × 520 px of 256 px tiles around the point.
+        $lonSpan = 360 / (2 ** $zoom) * 4.5;
+        $latSpan = $lonSpan * cos(deg2rad($lat)) * 0.45;
+        $format = static fn(float $n): string => rtrim(rtrim(sprintf('%.6F', $n), '0'), '.');
+        $bbox = implode(',', array_map($format, [$lng - $lonSpan / 2, $lat - $latSpan / 2, $lng + $lonSpan / 2, $lat + $latSpan / 2]));
+        $point = $format($lat) . ',' . $format($lng);
+        return [
+            'embed_url' => 'https://www.openstreetmap.org/export/embed.html?bbox=' . $bbox . '&layer=mapnik&marker=' . $point,
+            'link_url' => 'https://www.openstreetmap.org/?mlat=' . $format($lat) . '&mlon=' . $format($lng) . '#map=' . $zoom . '/' . $format($lat) . '/' . $format($lng),
+            'directions_url' => 'https://www.openstreetmap.org/directions?route=%3B' . rawurlencode($point),
+        ];
     }
 
     private function markdownHtml(string $markdown): string

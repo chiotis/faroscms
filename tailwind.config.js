@@ -3,6 +3,7 @@ module.exports = {
   content: [
     './admin/templates/**/*.twig',
     './public/assets/js/admin.js',
+    './public/assets/js/admin-blocks.js',
     './src/**/*.php',
   ],
   theme: {

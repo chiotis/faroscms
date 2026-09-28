@@ -59,6 +59,97 @@ final class BlockRegistry
         return $this->all()[$type] ?? null;
     }
 
+    /**
+     * Definitions for the admin block editor: fields with defaults, and select options as ordered
+     * [value, label] pairs so JSON keeps their order and string values.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function editorDefinitions(): array
+    {
+        $prepare = static function (array $fields) use (&$prepare): array {
+            $list = [];
+            foreach ($fields as $field) {
+                if (isset($field['options'])) {
+                    $pairs = [];
+                    foreach ($field['options'] as $value => $label) {
+                        $pairs[] = [(string)$value, (string)$label];
+                    }
+                    $field['options'] = $pairs;
+                }
+                if (isset($field['fields'])) {
+                    $field['fields'] = $prepare($field['fields']);
+                }
+                $list[] = $field;
+            }
+            return $list;
+        };
+        $definitions = [];
+        foreach ($this->all() as $definition) {
+            $definitions[] = [
+                'type' => $definition['type'],
+                'label' => $definition['label'],
+                'description' => $definition['description'],
+                'origin' => $definition['origin'],
+                'common' => $prepare($definition['common']),
+                'fields' => $prepare($definition['fields']),
+            ];
+        }
+        return $definitions;
+    }
+
+    /**
+     * Blocks as they should be written to front matter: known blocks keep only defined fields,
+     * checked, with values that equal the field default left out; unknown block types (for
+     * example from a removed custom block) are kept unchanged so no content is lost.
+     *
+     * @param array<int, mixed> $rawBlocks
+     * @return array<int, array<string, mixed>>
+     */
+    public function sanitizeForStorage(array $rawBlocks): array
+    {
+        $blocks = [];
+        foreach ($rawBlocks as $raw) {
+            if (!is_array($raw) || !is_string($raw['type'] ?? null) || !preg_match('/^[a-z][a-z0-9-]*$/', $raw['type'])) {
+                continue;
+            }
+            $definition = $this->get($raw['type']);
+            if ($definition === null) {
+                $blocks[] = $raw;
+                continue;
+            }
+            $block = ['type' => $raw['type']];
+            foreach ([$definition['common'], $definition['fields']] as $fields) {
+                foreach ($fields as $key => $field) {
+                    if (!array_key_exists($key, $raw)) {
+                        continue;
+                    }
+                    $value = FieldSchema::clean($field, $raw[$key]);
+                    if ($field['type'] === 'repeater') {
+                        $rows = [];
+                        foreach ($value as $row) {
+                            foreach ($field['fields'] as $subKey => $subField) {
+                                if (($row[$subKey] ?? null) === $subField['default']) {
+                                    unset($row[$subKey]);
+                                }
+                            }
+                            if ($row !== []) {
+                                $rows[] = $row;
+                            }
+                        }
+                        $value = $rows;
+                    }
+                    if ($value === $field['default'] || $value === []) {
+                        continue;
+                    }
+                    $block[$key] = $value;
+                }
+            }
+            $blocks[] = $block;
+        }
+        return $blocks;
+    }
+
     /** @return array<string, mixed>|null */
     private function load(string $type, string $file, string $origin): ?array
     {

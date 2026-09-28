@@ -1,0 +1,25 @@
+label: Timeline
+description: Milestones or process steps in order, each with a date or label, a title, and text.
+variants:
+  vertical: Vertical line
+  alternating: Alternating sides
+  steps: Horizontal steps
+fields:
+  eyebrow:
+    type: text
+    label: Eyebrow
+  heading:
+    type: text
+    label: Heading
+  intro:
+    type: textarea
+    label: Introduction
+  items:
+    type: repeater
+    label: Entries
+    item_label: Entry
+    max: 30
+    fields:
+      label: { type: text, label: Date or label, placeholder: '2024' }
+      title: { type: text, label: Title }
+      text: { type: textarea, label: Text }

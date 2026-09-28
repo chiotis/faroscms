@@ -1,0 +1,26 @@
+{% import 'components/ui.twig' as ui %}
+{% set images = block.images|filter(i => i.image) %}
+{% set sizes = block.variant == 'strip' ? '(min-width: 900px) 40vw, 80vw' : (block.columns == '2' ? '(min-width: 800px) 46vw, 92vw' : '(min-width: 1100px) 30vw, (min-width: 700px) 45vw, 92vw') %}
+<div class="container">
+  {{ ui.section_header(block, heading_tag, block_uid, 'left') }}
+  <ul class="gallery-list cols-{{ block.columns }} ratio-{{ block.ratio }}" role="list"
+    {%- if block.lightbox %} data-gallery data-gallery-label="{{ block.heading ?: t('gallery.viewer', 'Image viewer') }}" data-label-close="{{ t('gallery.close', 'Close') }}" data-label-prev="{{ t('gallery.previous', 'Previous image') }}" data-label-next="{{ t('gallery.next', 'Next image') }}"{% endif %}
+    {%- if block.variant == 'strip' %} tabindex="0" aria-label="{{ block.heading ?: t('gallery.viewer', 'Image viewer') }}"{% endif %}>
+    {% for item in images %}
+      {% set picture %}{{ image(item.image, {alt: item.alt ?: null, sizes: sizes, max_width: 1600}) }}{% endset %}
+      <li class="gallery-item">
+        <figure>
+          {% if block.lightbox %}
+            <a class="gallery-link" href="{{ item.image }}" data-gallery-item data-caption="{{ item.caption }}">
+              {{ picture }}
+              <span class="visually-hidden">{{ t('gallery.open', 'Open larger image') }}</span>
+            </a>
+          {% else %}
+            <div class="gallery-frame">{{ picture }}</div>
+          {% endif %}
+          {% if item.caption %}<figcaption>{{ item.caption }}</figcaption>{% endif %}
+        </figure>
+      </li>
+    {% endfor %}
+  </ul>
+</div>

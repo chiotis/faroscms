@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-09-28 — Block editor, second block family, header and footer options (phase 3)
+- Admin: Blocks tab in the editor with a block picker, move, duplicate, hide, remove with undo, schema-generated fields (including repeaters, Markdown, and image fields with a media library picker); the server re-checks values and stores only non-default ones; existing blocks are kept when the editor cannot load
+- Blocks: gallery (grid, masonry, strip, accessible viewer), team, timeline, contact (details with an optional form), and map (OpenStreetMap, loaded on request by default); demo About and Contact pages use them
+- Blocks: optional `block.js` per block, bundled and deferred like block CSS; new `decimal` field type
+- Header: classic, centered, minimal, and stacked layouts; transparent over an opening hero; sticky modes; CTA button; top bar; bottom action bar on phones
+- Footer: columns, one-row, and centered layouts
+- Fixes: Greek initials drop the accent (ΑΡ, not ΆΡ); timeline steps wrap instead of scrolling
+
 ## 2026-09-28 — Design system and first block family (phase 2)
 - Blocks: pages and posts can list `blocks:` in front matter; 12 blocks (hero, content, text, text-image, features, stats, testimonials, logos, faq, cta, cards, form) with variants, background tones, and spacing; values are checked against each block's `block.yaml`
 - Blocks: an opening hero becomes the page title; block CSS loads only where used, bundled into one request per page; a hidden `/blocks` showcase page shows every block and variant

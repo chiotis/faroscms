@@ -1,0 +1,196 @@
+.gallery-list {
+  --cols: 3;
+  display: grid;
+  grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+  gap: clamp(0.75rem, 0.5rem + 1vw, 1.25rem);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gallery-list.cols-2 { --cols: 2; }
+.gallery-list.cols-4 { --cols: 4; }
+
+.gallery-item figure {
+  margin: 0;
+}
+
+.gallery-link,
+.gallery-frame {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  border-radius: var(--radius-m);
+  background: var(--color-surface-2);
+}
+
+.gallery-link:focus-visible {
+  outline-offset: 3px;
+}
+
+.gallery-list img,
+.gallery-list picture {
+  width: 100%;
+  height: 100%;
+}
+
+.gallery-list img {
+  object-fit: cover;
+  transition: transform 0.5s var(--ease);
+}
+
+.gallery-link:hover img {
+  transform: scale(1.04);
+}
+
+.gallery-link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgb(11 18 32 / 0);
+  transition: background-color 0.25s var(--ease);
+}
+
+.gallery-link:hover::after {
+  background: rgb(11 18 32 / 0.12);
+}
+
+.ratio-landscape .gallery-link,
+.ratio-landscape .gallery-frame { aspect-ratio: 4 / 3; }
+.ratio-square .gallery-link,
+.ratio-square .gallery-frame { aspect-ratio: 1; }
+.ratio-portrait .gallery-link,
+.ratio-portrait .gallery-frame { aspect-ratio: 4 / 5; }
+.ratio-original img { height: auto; }
+
+.gallery-item figcaption {
+  margin-top: 0.55rem;
+  color: var(--color-muted);
+  font-size: var(--step--1);
+}
+
+/* Masonry: columns keep each image's own shape. */
+.block-gallery.block--masonry .gallery-list {
+  display: block;
+  columns: var(--cols);
+  column-gap: clamp(0.75rem, 0.5rem + 1vw, 1.25rem);
+}
+
+.block-gallery.block--masonry .gallery-item {
+  break-inside: avoid;
+  margin-bottom: clamp(0.75rem, 0.5rem + 1vw, 1.25rem);
+}
+
+.block-gallery.block--masonry .gallery-link,
+.block-gallery.block--masonry .gallery-frame {
+  aspect-ratio: auto;
+}
+
+.block-gallery.block--masonry img {
+  height: auto;
+}
+
+/* Strip: horizontal scroll with snap points; keyboard-scrollable. */
+.block-gallery.block--strip .gallery-list {
+  display: grid;
+  grid-auto-columns: min(80%, 32rem);
+  grid-auto-flow: column;
+  grid-template-columns: none;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding-bottom: var(--space-s);
+  scroll-snap-type: x mandatory;
+  scrollbar-width: thin;
+}
+
+.block-gallery.block--strip .gallery-item {
+  scroll-snap-align: start;
+}
+
+.block-gallery.block--strip .gallery-list:focus-visible {
+  outline-offset: 6px;
+}
+
+/* Viewer */
+.gallery-dialog {
+  width: min(96vw, 80rem);
+  max-width: none;
+  max-height: 96vh;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #ffffff;
+  overflow: visible;
+}
+
+.gallery-dialog::backdrop {
+  background: rgb(8 12 22 / 0.92);
+}
+
+.gallery-dialog-figure {
+  display: grid;
+  justify-items: center;
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.gallery-dialog-figure img {
+  width: auto;
+  max-width: 100%;
+  max-height: 84vh;
+  border-radius: var(--radius-s);
+  object-fit: contain;
+}
+
+.gallery-dialog-figure figcaption {
+  color: rgb(255 255 255 / 0.9);
+  font-size: var(--step--1);
+  text-align: center;
+}
+
+.gallery-dialog-btn {
+  position: fixed;
+  display: inline-grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  border: 1px solid rgb(255 255 255 / 0.35);
+  border-radius: 999px;
+  background: rgb(11 18 32 / 0.6);
+  color: #ffffff;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.gallery-dialog-btn:hover {
+  background: rgb(255 255 255 / 0.18);
+}
+
+.gallery-dialog-btn:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
+.gallery-dialog-btn.is-close { top: 1rem; right: 1rem; }
+.gallery-dialog-btn.is-prev { top: 50%; left: 1rem; translate: 0 -50%; }
+.gallery-dialog-btn.is-next { top: 50%; right: 1rem; translate: 0 -50%; }
+
+.gallery-dialog-count {
+  position: fixed;
+  top: 1.6rem;
+  left: 1.25rem;
+  color: rgb(255 255 255 / 0.85);
+  font-size: var(--step--1);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 860px) {
+  .gallery-list.cols-3,
+  .gallery-list.cols-4 { --cols: 2; }
+}
+
+@media (max-width: 520px) {
+  .gallery-list:not(.cols-2) { --cols: 1; }
+  .block-gallery.block--masonry .gallery-list { --cols: 2; }
+}

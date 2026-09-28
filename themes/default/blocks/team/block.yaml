@@ -1,0 +1,32 @@
+label: Team
+description: People with photo, role, a short bio, and contact links. Initials are shown when there is no photo.
+variants:
+  grid: Photo cards
+  compact: Compact list
+fields:
+  eyebrow:
+    type: text
+    label: Eyebrow
+  heading:
+    type: text
+    label: Heading
+  intro:
+    type: textarea
+    label: Introduction
+  columns:
+    type: select
+    label: Columns
+    default: '3'
+    options: { '2': '2', '3': '3', '4': '4' }
+  members:
+    type: repeater
+    label: People
+    item_label: Person
+    max: 40
+    fields:
+      name: { type: text, label: Name }
+      role: { type: text, label: Role }
+      image: { type: image, label: Photo }
+      bio: { type: textarea, label: Short bio }
+      email: { type: email, label: Email }
+      linkedin: { type: url, label: LinkedIn }

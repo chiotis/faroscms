@@ -13,8 +13,9 @@ Two rules follow from that:
 |-------|-------|--------|
 | Theme contract | `themes/default/theme.yaml` | Done |
 | Design system: tokens, palettes, dark mode, fonts, corner shapes | `assets/css/site.css` | Done |
-| Content blocks per page or post | `themes/default/blocks/<block>/` + `blocks:` in front matter | Engine and first family done; admin block editor next |
-| Site-level component variants (header, footer, page templates) | `components/`, `templates/` | Header/footer restyled; variants later |
+| Content blocks per page or post | `themes/default/blocks/<block>/` + `blocks:` in front matter | 17 blocks in two families; admin block editor |
+| Site-level component variants (header, footer) | `components/`, Theme settings | Header: 4 layouts, transparent, sticky modes, top bar, CTA, phone bottom bar. Footer: 3 layouts |
+| Page templates beyond the hierarchy (landing, sidebar) | `templates/` | Later |
 | Field definitions per content type | content type config | Later |
 
 ## Folder layout
@@ -131,6 +132,11 @@ First block family:
 | `cta` | band, card, split | Default tone: accent. |
 | `cards` | grid, list | Latest items of a content type, or hand-written cards. |
 | `form` | split, stacked | Any form from Admin > Forms. |
+| `gallery` | grid, masonry, strip | Opens images in an accessible viewer (`<dialog>`, arrow keys, Escape); without JavaScript the images are plain links. |
+| `team` | grid, compact | Photo or initials, role, bio, email and LinkedIn links. |
+| `timeline` | vertical, alternating, steps | Ordered list of dated entries. |
+| `contact` | split, cards | Contact details with icons and links, optionally beside a form. |
+| `map` | contained, full, split | OpenStreetMap embed with marker, no API key. By default it loads only after the visitor clicks "Show map" (no third-party request on page load); links to OpenStreetMap and directions always work. |
 
 The blocks showcase page (`/blocks`, hidden, admins only) shows every block and variant.
 
@@ -141,6 +147,24 @@ Create `blocks/<type>/` with three files:
 - `block.yaml`: `label`, `description`, `variants`, optional default `tone` and `spacing`, and `fields` (FieldSchema types plus `markdown`, `link`, `repeater` with `fields`/`max`, `icon`, and `options_from: content_types | forms`).
 - `block.twig`: receives `block` (checked values; Markdown fields also as `<key>_html`), `heading_tag`, `item_heading_tag`, `block_uid` (use `{{ block_uid }}-title` as the heading id), `block_first`, and the page context. Import `components/ui.twig` for `section_header`, `actions`, and `initials`.
 - `block.css`: styles scoped to `.block-<type>`, using the tokens from `site.css`. It is loaded only on pages that use the block, bundled with the other blocks of the page into one request.
+- `block.js` (optional): progressive enhancement only; the block must work without it. Loaded deferred and bundled the same way (`/_themes/default/_blocks.js?b=…`).
+
+### Editing blocks
+
+Admin > Edit > **Blocks** lists the page's blocks: add (from a picker with each block's description), move, duplicate, hide, remove (with undo), and edit the fields generated from `block.yaml`, including repeaters and image fields with the media library. On save the server checks every value again (`BlockRegistry::sanitizeForStorage`) and stores only values that differ from the defaults. Unknown block types are kept unchanged. Without JavaScript the page's existing blocks are kept when it is saved.
+
+## Header and footer
+
+Theme settings > Header:
+
+- **Layout**: classic (logo left, menu right), centered (logo in the middle, menu below), minimal (logo and a menu button on all screens), stacked (menu in a full-width bar underneath, with a background of its own).
+- **Transparent over an opening hero**: on pages that start with a Hero block the header overlays it (light text over a cover image or dark hero) and turns solid when the page scrolls.
+- **Sticky**: slides in after scrolling, always at the top, or scrolls away.
+- **Button**: a CTA in the header and the mobile menu.
+- **Top bar**: a short message and/or phone and email (from the Footer section).
+- **Bottom bar on phones**: menu, call, email, and the CTA fixed at the bottom of small screens.
+
+Theme settings > Footer > Layout: columns, one row, or centered.
 
 A site-specific block goes in `custom/blocks/<type>/` with the same files.
 

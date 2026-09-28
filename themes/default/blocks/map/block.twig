@@ -1,0 +1,39 @@
+{% import 'components/ui.twig' as ui %}
+{% set title = t('map.title', 'Map') ~ (block.place_name ? ': ' ~ block.place_name : '') %}
+{% set has_map = block.embed_url|default('') != '' %}
+{% set map %}
+  {% if has_map %}
+    <div class="map-frame map-{{ block.height }}" data-map data-map-src="{{ block.embed_url }}" data-map-title="{{ title }}">
+      {% if block.load == 'auto' %}
+        <iframe src="{{ block.embed_url }}" title="{{ title }}" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+      {% else %}
+        <div class="map-placeholder">
+          {{ icon('map-pin', 'map-placeholder-icon') }}
+          {% if block.address %}<p class="map-placeholder-address">{{ block.address|nl2br }}</p>{% endif %}
+          <button type="button" class="btn btn-primary" data-map-load>{{ t('map.show', 'Show map') }}</button>
+          <p class="map-placeholder-note">{{ t('map.consent', 'The map is loaded from OpenStreetMap.') }}</p>
+        </div>
+      {% endif %}
+    </div>
+    <p class="map-links">
+      <a class="text-link" href="{{ block.link_url }}" rel="noopener">{{ t('map.open', 'Open in OpenStreetMap') }}{{ icon('arrow-up-right', 'btn-icon') }}</a>
+      <a class="text-link" href="{{ block.directions_url }}" rel="noopener">{{ t('map.directions', 'Directions') }}{{ icon('arrow-up-right', 'btn-icon') }}</a>
+    </p>
+  {% endif %}
+{% endset %}
+{% if block.variant == 'split' %}
+  <div class="container map-split">
+    <div class="map-details">
+      {{ ui.section_header(block, heading_tag, block_uid, 'left') }}
+      {% if block.address %}
+        <address class="map-address">{{ icon('map-pin', 'map-address-icon') }}<span>{{ block.address|nl2br }}</span></address>
+      {% endif %}
+    </div>
+    <div class="map-area">{{ map }}</div>
+  </div>
+{% else %}
+  <div class="container">
+    {{ ui.section_header(block, heading_tag, block_uid, 'left') }}
+  </div>
+  <div class="{{ block.variant == 'full' ? 'map-full' : 'container' }}">{{ map }}</div>
+{% endif %}

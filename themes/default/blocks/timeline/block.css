@@ -1,0 +1,124 @@
+.timeline-list {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.timeline-entry {
+  position: relative;
+}
+
+.timeline-marker {
+  position: absolute;
+  width: 0.9rem;
+  height: 0.9rem;
+  border: 3px solid var(--section-bg, var(--color-bg));
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.timeline-label {
+  margin: 0 0 0.35rem;
+  color: var(--accent);
+  font-size: var(--step--1);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+.timeline-title {
+  margin: 0;
+  font-size: var(--step-1);
+  letter-spacing: -0.015em;
+}
+
+.timeline-text {
+  margin: var(--space-2xs) 0 0;
+  color: var(--color-muted);
+}
+
+/* Vertical */
+.block-timeline.block--vertical .timeline-list,
+.block-timeline.block--alternating .timeline-list {
+  display: grid;
+  gap: clamp(1.75rem, 1.25rem + 2vw, 2.75rem);
+  max-width: 48rem;
+}
+
+.block-timeline.block--vertical .timeline-list::before,
+.block-timeline.block--alternating .timeline-list::before {
+  content: "";
+  position: absolute;
+  top: 0.4rem;
+  bottom: 0.4rem;
+  left: 0.4rem;
+  width: 2px;
+  background: var(--color-border);
+}
+
+.block-timeline.block--vertical .timeline-entry,
+.block-timeline.block--alternating .timeline-entry {
+  padding-left: 2.5rem;
+}
+
+.block-timeline.block--vertical .timeline-marker,
+.block-timeline.block--alternating .timeline-marker {
+  top: 0.2rem;
+  left: 0;
+}
+
+/* Alternating: the line in the middle on wide screens. */
+@media (min-width: 861px) {
+  .block-timeline.block--alternating .timeline-list {
+    max-width: none;
+  }
+
+  .block-timeline.block--alternating .timeline-list::before {
+    left: 50%;
+    translate: -1px 0;
+  }
+
+  .block-timeline.block--alternating .timeline-entry {
+    width: 50%;
+    padding-left: 0;
+    padding-right: 2.75rem;
+    text-align: right;
+  }
+
+  .block-timeline.block--alternating .timeline-entry:nth-child(even) {
+    margin-left: 50%;
+    padding-right: 0;
+    padding-left: 2.75rem;
+    text-align: left;
+  }
+
+  .block-timeline.block--alternating .timeline-marker {
+    left: auto;
+    right: calc(-0.45rem - 1px);
+  }
+
+  .block-timeline.block--alternating .timeline-entry:nth-child(even) .timeline-marker {
+    right: auto;
+    left: calc(-0.45rem + 1px);
+  }
+}
+
+/* Steps: a horizontal row with the line on top. */
+/* Steps wrap onto new rows instead of scrolling sideways. */
+.block-timeline.block--steps .timeline-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: var(--space-xl) var(--space-l);
+}
+
+.block-timeline.block--steps .timeline-entry {
+  padding-top: 2rem;
+  border-top: 2px solid var(--color-border);
+}
+
+.block-timeline.block--steps .timeline-marker {
+  top: calc(-0.45rem - 1px);
+  left: 0;
+}

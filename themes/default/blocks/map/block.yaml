@@ -1,0 +1,52 @@
+label: Map
+description: An OpenStreetMap map with a marker. By default the map loads only after the visitor asks for it, so no third-party request is made on page load.
+variants:
+  contained: Inside the page width
+  full: Full width
+  split: Details beside the map
+fields:
+  eyebrow:
+    type: text
+    label: Eyebrow
+  heading:
+    type: text
+    label: Heading
+  intro:
+    type: textarea
+    label: Text
+  lat:
+    type: decimal
+    label: Latitude
+    min: -85
+    max: 85
+    placeholder: '37.9838'
+    help: 'Right-click the place on openstreetmap.org and choose "Show address" to copy the coordinates.'
+  lng:
+    type: decimal
+    label: Longitude
+    min: -180
+    max: 180
+    placeholder: '23.7275'
+  zoom:
+    type: number
+    label: Zoom
+    default: 15
+    min: 3
+    max: 19
+  address:
+    type: textarea
+    label: Address
+  place_name:
+    type: text
+    label: Place name
+    help: Used in the map's title for screen readers, e.g. our office.
+  height:
+    type: select
+    label: Height
+    default: medium
+    options: { small: Small, medium: Medium, large: Large }
+  load:
+    type: select
+    label: Loading
+    default: click
+    options: { click: 'After the visitor clicks (privacy friendly)', auto: 'Immediately' }

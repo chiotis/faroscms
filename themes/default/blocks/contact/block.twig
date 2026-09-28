@@ -1,0 +1,26 @@
+{% import 'components/ui.twig' as ui %}
+{% set prefix = lang_prefix|default('') %}
+{% set details = block.items|filter(i => i.value) %}
+{% set has_form = block.form_html|default('') != '' %}
+<div class="container contact-layout{% if has_form %} has-form{% endif %}">
+  <div class="contact-info">
+    {{ ui.section_header(block, heading_tag, block_uid, block.variant == 'cards' and not has_form ? 'center' : 'left') }}
+    {% if details is not empty %}
+      <dl class="contact-list">
+        {% for detail in details %}
+          {% set href = link_url(detail.url, prefix) %}
+          <div class="contact-item">
+            {% if detail.icon %}<span class="icon-badge contact-icon">{{ icon(detail.icon) }}</span>{% endif %}
+            <div>
+              {% if detail.label %}<dt class="contact-label">{{ detail.label }}</dt>{% endif %}
+              <dd class="contact-value">{% if href %}<a href="{{ href }}">{{ detail.value|nl2br }}</a>{% else %}{{ detail.value|nl2br }}{% endif %}</dd>
+            </div>
+          </div>
+        {% endfor %}
+      </dl>
+    {% endif %}
+  </div>
+  {% if has_form %}
+    <div class="form-block-card contact-form">{{ block.form_html|raw }}</div>
+  {% endif %}
+</div>

@@ -8,7 +8,7 @@
 #   - retire a field by marking it `hidden: true` (it keeps its stored value), not by deleting it.
 name: default
 label: FarosCMS Default
-version: 1.1.0
+version: 1.2.0
 description: All-purpose FarosCMS theme.
 
 menu_locations:
@@ -60,6 +60,69 @@ settings:
           soft: Soft
           rounded: Rounded
           sharp: Sharp
+
+  header:
+    label: Header
+    description: Layout and behaviour of the site header.
+    columns: 3
+    fields:
+      layout:
+        type: select
+        label: Layout
+        default: classic
+        options:
+          classic: 'Classic: logo left, menu right'
+          centered: 'Centered: logo in the middle, menu below'
+          minimal: 'Minimal: logo and a menu button'
+          stacked: 'Stacked: menu in a bar underneath'
+      sticky:
+        type: select
+        label: Sticky
+        default: on_scroll
+        options:
+          on_scroll: Slides in after scrolling
+          always: Always at the top
+          'off': Scrolls away
+      bar_tone:
+        type: select
+        label: Menu bar background (stacked)
+        default: default
+        options:
+          default: Page background
+          muted: Muted
+          contrast: Dark
+          accent: Palette colour
+      transparent:
+        type: toggle
+        label: Transparent over an opening hero
+        help: On pages that start with a Hero block the header sits over it and turns solid on scroll.
+        default: false
+      mobile_bar:
+        type: toggle
+        label: Bottom bar on phones
+        help: Menu, call, email, and the header button, fixed at the bottom of small screens.
+        default: false
+      topbar_contacts:
+        type: toggle
+        label: Phone and email in a top bar
+        help: Uses the phone and email from the Footer section.
+        default: false
+      cta_label:
+        type: text
+        label: Button text
+        default: ''
+        placeholder: Get a quote
+      cta_url:
+        type: link
+        label: Button link
+        default: ''
+        placeholder: contact
+      topbar_text:
+        type: text
+        label: Top bar message
+        default: ''
+        placeholder: Free consultation for new projects this month
+        span: full
 
   brand:
     label: Brand
@@ -176,6 +239,14 @@ settings:
     description: Footer copy, contact details, and optional background styling.
     columns: 2
     fields:
+      layout:
+        type: select
+        label: Layout
+        default: columns
+        options:
+          columns: Columns
+          simple: One row
+          centered: Centered
       summary:
         type: textarea
         label: Summary

@@ -228,6 +228,22 @@ final class Theme
         return $baseUrl . '/_themes/' . $this->name . '/_blocks.css?b=' . implode(',', $names) . '&v=' . substr(sha1($stamp), 0, 10);
     }
 
+    /** One script URL for the block types on a page that ship a block.js, or ''. @param string[] $types */
+    public function blockScriptUrl(string $baseUrl, array $types): string
+    {
+        $files = self::blockAssetFiles($this->path(), $this->customPath(), $types, 'block.js');
+        if ($files === []) {
+            return '';
+        }
+        $stamp = '';
+        $names = [];
+        foreach ($files as $file) {
+            $stamp .= $file . ':' . self::fileVersion($file) . ';';
+            $names[basename(dirname($file))] = true;
+        }
+        return $baseUrl . '/_themes/' . $this->name . '/_blocks.js?b=' . implode(',', array_keys($names)) . '&v=' . substr(sha1($stamp), 0, 10);
+    }
+
     /**
      * Existing block stylesheets for the given types, in order (theme file, then custom file).
      *
@@ -236,13 +252,22 @@ final class Theme
      */
     public static function blockStyleFiles(string $themePath, string $customPath, array $types): array
     {
+        return self::blockAssetFiles($themePath, $customPath, $types, 'block.css');
+    }
+
+    /**
+     * @param string[] $types
+     * @return string[]
+     */
+    public static function blockAssetFiles(string $themePath, string $customPath, array $types, string $filename): array
+    {
         $files = [];
         foreach (array_slice(array_values(array_unique($types)), 0, 40) as $type) {
             if (!is_string($type) || !preg_match('/^[a-z][a-z0-9-]*$/', $type)) {
                 continue;
             }
             foreach ([$themePath . '/blocks', $customPath . '/blocks'] as $root) {
-                $file = self::assetFile($root, $type . '/block.css');
+                $file = self::assetFile($root, $type . '/' . $filename);
                 if ($file !== null) {
                     $files[] = $file;
                 }

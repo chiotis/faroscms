@@ -13,7 +13,7 @@ namespace FarosCMS;
  */
 final class FieldSchema
 {
-    public const TYPES = ['text', 'textarea', 'markdown', 'email', 'url', 'link', 'image', 'color', 'number', 'select', 'toggle', 'repeater'];
+    public const TYPES = ['text', 'textarea', 'markdown', 'email', 'url', 'link', 'image', 'color', 'number', 'decimal', 'select', 'toggle', 'repeater'];
 
     /**
      * @param array<string, mixed> $definitions raw map of key => definition
@@ -43,6 +43,10 @@ final class FieldSchema
             ];
             if ($type === 'select') {
                 $field['options'] = self::normalizeOptions($definition['options'] ?? []);
+            }
+            if ($type === 'decimal') {
+                $field['min'] = isset($definition['min']) && is_numeric($definition['min']) ? (float)$definition['min'] : null;
+                $field['max'] = isset($definition['max']) && is_numeric($definition['max']) ? (float)$definition['max'] : null;
             }
             if ($type === 'number' || $type === 'repeater') {
                 $field['min'] = isset($definition['min']) && is_numeric($definition['min']) ? (int)$definition['min'] : null;
@@ -161,6 +165,20 @@ final class FieldSchema
                     $number = min($field['max'], $number);
                 }
                 return $number;
+
+            case 'decimal':
+                // Empty means "not set" (e.g. no coordinates yet).
+                if ($value === '' || !is_numeric($value)) {
+                    return $value === '' ? '' : $fallback;
+                }
+                $decimal = round((float)$value, 7);
+                if ($field['min'] !== null && $decimal < $field['min']) {
+                    return $fallback;
+                }
+                if ($field['max'] !== null && $decimal > $field['max']) {
+                    return $fallback;
+                }
+                return $decimal;
 
             case 'select':
                 $value = is_scalar($value) ? (string)$value : '';

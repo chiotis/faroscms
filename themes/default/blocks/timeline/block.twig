@@ -1,0 +1,16 @@
+{% import 'components/ui.twig' as ui %}
+<div class="container">
+  {{ ui.section_header(block, heading_tag, block_uid, block.variant == 'alternating' ? 'center' : 'left') }}
+  <ol class="timeline-list" role="list">
+    {% for entry in block.items|filter(e => e.title or e.text) %}
+      <li class="timeline-entry">
+        <span class="timeline-marker" aria-hidden="true"></span>
+        <div class="timeline-content">
+          {% if entry.label %}<p class="timeline-label">{{ entry.label }}</p>{% endif %}
+          {% if entry.title %}<{{ item_heading_tag }} class="timeline-title">{{ entry.title }}</{{ item_heading_tag }}>{% endif %}
+          {% if entry.text %}<p class="timeline-text">{{ entry.text|nl2br }}</p>{% endif %}
+        </div>
+      </li>
+    {% endfor %}
+  </ol>
+</div>
