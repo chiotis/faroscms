@@ -1,4 +1,4 @@
-{% extends 'base.twig' %}
+{% extends 'layouts/base.twig' %}
 
 {% block content %}
   {% set prefix = lang_prefix|default('') %}
@@ -26,7 +26,7 @@
         <p><a href="{{ url(prefix ~ 'projects') }}">{{ t('home.view_all_projects', 'View all projects') }}</a></p>
         <div class="content-grid">
           {% for project_item in latest_projects %}
-            {% include 'parts/loop.twig' with { item: project_item } %}
+            {% include 'components/card.twig' with { item: project_item } %}
           {% endfor %}
         </div>
       </section>
@@ -38,7 +38,7 @@
         <p><a href="{{ url(prefix ~ 'posts') }}">{{ t('home.view_all_news', 'View all news') }}</a></p>
         <div class="content-grid">
           {% for post_item in latest_posts %}
-            {% include 'parts/loop.twig' with { item: post_item } %}
+            {% include 'components/card.twig' with { item: post_item } %}
           {% endfor %}
         </div>
       </section>

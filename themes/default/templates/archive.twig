@@ -1,4 +1,4 @@
-{% extends 'base.twig' %}
+{% extends 'layouts/base.twig' %}
 
 {% block content %}
   {% set prefix = lang_prefix|default('') %}
@@ -19,7 +19,7 @@
     {% else %}
       <div class="content-grid">
         {% for item in items %}
-          {% include 'parts/loop.twig' %}
+          {% include 'components/card.twig' %}
         {% endfor %}
       </div>
     {% endif %}

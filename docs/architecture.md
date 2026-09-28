@@ -6,7 +6,9 @@ FarosCMS is a single-entry PHP application (`public/index.php` → `FarosCMS\App
 
 1. `App::handle()` configures the session, sends security headers, and routes `/admin/*` to `handleAdmin()` and everything else to `handleFront()`.
 2. `handleAdmin()` checks the CSRF token on every POST, handles sign-in/out, re-reads the signed-in user, checks the route capability (`PermissionService::canAccessAction()`), runs a due scheduled backup, and dispatches to a `handle*()` method.
-3. Handlers render Twig templates from `admin/templates/` (namespace `@admin`) or the active theme in `themes/<theme>/`.
+3. Handlers render Twig templates from `admin/templates/` (namespace `@admin`) or the frontend theme: `custom/` first, then `themes/default/` (see `theming.md`).
+
+Before the application boots, `public/index.php` hands `/_themes/…` and `/_custom/…` requests to `ThemeAssets`.
 
 ## Classes in `src/`
 
@@ -29,6 +31,9 @@ FarosCMS is a single-entry PHP application (`public/index.php` → `FarosCMS\App
 | `Mailer` | SMTP and Amazon SES sending. |
 | `MediaLibrary` | Media uploads (type allowlist, SVG checks), YAML metadata, tags, listing, legacy adoption. |
 | `Format` | Shared display formatters (byte sizes). |
+| `Theme` | Frontend theme manifest (`theme.yaml`), settings schema and resolution, template lookup across `custom/` and the theme, asset URLs, layered translations and `custom/lang` overrides. |
+| `ThemeAssets` | Serves theme and `custom/` assets from outside `public/` with type allowlist, path checks, and caching. |
+| `FieldSchema` | Declarative field definitions: defaults, validation of stored values, and form input handling. Used by theme settings; blocks and content types will reuse it. |
 
 ## Admin front end
 
@@ -39,7 +44,7 @@ FarosCMS is a single-entry PHP application (`public/index.php` → `FarosCMS\App
 
 ## Where data lives
 
-See `system-database.md` for SQLite and `backups.md` for what backups contain. Content, uploads, and theme translations are files; settings, users, logs, and indexes are in SQLite.
+See `system-database.md` for SQLite and `backups.md` for what backups contain. Content, uploads, and `custom/` (site overrides) are files; settings (including theme settings), users, logs, and indexes are in SQLite.
 
 ## Refactoring direction
 

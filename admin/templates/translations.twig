@@ -8,12 +8,15 @@
   <header class="mb-4 flex flex-col gap-3 border-b border-slate-200 pb-4 lg:flex-row lg:items-center lg:justify-between">
     <div class="min-w-0">
       <h1 class="truncate text-[15px] font-semibold leading-tight text-slate-900">Translations</h1>
-      <p class="truncate text-xs text-slate-400">Edit theme string translations for {{ lang|upper }}.</p>
+      <p class="truncate text-xs text-slate-400">Theme strings for {{ lang|upper }}. Changes are saved as site overrides in <code>{{ custom_file }}</code> and survive updates.</p>
     </div>
   </header>
 
   {% if saved %}
     <template data-flash data-type="success">Saved.</template>
+  {% endif %}
+  {% if write_error %}
+    <template data-flash data-type="error">Could not write {{ custom_file }}. Check that the custom/ folder is writable.</template>
   {% endif %}
 
   <div class="mb-4 rounded-lg border border-slate-200 bg-white p-4">
@@ -41,6 +44,9 @@
           <span class="h-4 w-px bg-slate-200"></span>
           <span class="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">{{ lang|upper }}</span>
           <span class="text-xs text-slate-400">Source: {{ default_lang|upper }}</span>
+          {% if customized is not empty %}
+            <span class="text-xs text-slate-400">{{ customized|length }} customized</span>
+          {% endif %}
         </div>
         <button type="submit" class="{{ btn_primary }}">
           <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
@@ -63,6 +69,7 @@
               {% set default_value = defaults[key] ?? '' %}
               {% set is_missing = value is same as('') %}
               {% set is_source = lang != default_lang and value == default_value %}
+              {% set is_custom = key in customized %}
               <tr class="align-top hover:bg-slate-50">
                 <td class="px-4 py-2.5">
                   <input type="hidden" name="keys[]" value="{{ key }}">
@@ -75,7 +82,13 @@
                   <input type="text" name="values[]" value="{{ value }}" placeholder="Add translation..." class="{{ input_soft }} {% if is_missing %}border-red-200 bg-red-50/30{% elseif is_source %}border-amber-200 bg-amber-50/30{% endif %}">
                 </td>
                 <td class="px-4 py-2.5">
-                  {% if is_missing %}
+                  {% if is_custom %}
+                    <span class="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 ring-1 ring-inset ring-blue-200">customized</span>
+                    <label class="mt-1.5 flex items-center gap-1.5 text-[11px] text-slate-400">
+                      <input type="checkbox" name="reset[]" value="{{ key }}" class="h-3.5 w-3.5 rounded border-slate-300">
+                      Reset to theme text
+                    </label>
+                  {% elseif is_missing %}
                     <span class="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-700 ring-1 ring-inset ring-red-200">missing</span>
                   {% elseif is_source %}
                     <span class="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 ring-1 ring-inset ring-amber-200">source</span>

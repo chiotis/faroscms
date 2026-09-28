@@ -1,0 +1,71 @@
+<!doctype html>
+{% set meta = item is defined ? item.meta : {} %}
+{% set page_title = meta.seo.title ?? meta.title ?? site.title %}
+{% set page_description = meta.seo.description ?? meta.excerpt ?? site.tagline %}
+{% set og_title = meta.seo.og_title ?? meta.seo.title ?? meta.title ?? site.title %}
+{% set og_description = meta.seo.og_description ?? meta.seo.description ?? meta.excerpt ?? site.tagline %}
+{% set og_image = meta.seo.og_image ?? meta.main_image ?? '' %}
+{% set appearance = theme_settings.appearance|default({}) %}
+{% set palette = appearance.palette|default('slate') %}
+{% set mode = appearance.mode|default('system') %}
+{% set font = appearance.font|default('sans') %}
+<html lang="{{ lang|default(site.languages.default) }}" data-theme="{{ palette }}" data-mode="{{ mode }}"
+  data-font="{{ font }}">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ page_title }}</title>
+  <meta name="description" content="{{ page_description }}">
+  {% if meta.seo.noindex ?? false %}
+  <meta name="robots" content="noindex">
+  {% endif %}
+  {% if alternate_urls is defined and alternate_urls %}
+  {% for code, link in alternate_urls %}
+  <link rel="alternate" hreflang="{{ code }}" href="{{ link }}">
+  {% endfor %}
+  {% if alternate_default is defined and alternate_default %}
+  <link rel="alternate" hreflang="x-default" href="{{ alternate_default }}">
+  {% endif %}
+  {% endif %}
+  <meta property="og:title" content="{{ og_title }}">
+  <meta property="og:description" content="{{ og_description }}">
+  {% if canonical_url is defined and canonical_url %}
+  <meta property="og:url" content="{{ canonical_url }}">
+  <link rel="canonical" href="{{ canonical_url }}">
+  {% endif %}
+  {% if og_image %}
+  {% set og_image_url = og_image starts with 'http' ? og_image : url(og_image) %}
+  <meta property="og:image" content="{{ og_image_url }}">
+  {% endif %}
+  <link rel="stylesheet" href="{{ theme_asset('css/site.css') }}">
+  {% set custom_css = custom_asset('css/custom.css') %}
+  {% if custom_css %}
+  <link rel="stylesheet" href="{{ custom_css }}">
+  {% endif %}
+  {% block head %}{% endblock %}
+</head>
+
+<body class="theme-body">
+  {% set prefix = lang_prefix|default('') %}
+  <div class="app-shell">
+    {% block header %}{% include 'components/header.twig' %}{% endblock %}
+    <div class="header-spacer" data-header-spacer aria-hidden="true"></div>
+
+    <main class="main-shell">
+      {% block content %}{% endblock %}
+    </main>
+
+    {% block footer %}{% include 'components/footer.twig' %}{% endblock %}
+  </div>
+
+  {% block scripts %}
+  <script src="{{ theme_asset('js/site.js') }}"></script>
+  {% set custom_js = custom_asset('js/custom.js') %}
+  {% if custom_js %}
+  <script src="{{ custom_js }}"></script>
+  {% endif %}
+  {% endblock %}
+</body>
+
+</html>

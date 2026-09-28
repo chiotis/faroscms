@@ -1,0 +1,360 @@
+<?php
+
+declare(strict_types=1);
+
+namespace FarosCMS;
+
+use Symfony\Component\Yaml\Yaml;
+
+/**
+ * The active frontend theme plus the site's update-safe `custom/` layer.
+ *
+ * Lookup order is always custom/ first, then themes/<name>/, using the same relative paths
+ * (templates/…, components/…, layouts/…). Theme files are replaced by updates; custom/ is not.
+ * See docs/theming.md.
+ */
+final class Theme
+{
+    public const DEFAULT_NAME = 'default';
+
+    private string $name;
+    /** @var array<string, mixed>|null */
+    private ?array $manifest = null;
+    /** @var array<string, array<string, mixed>>|null */
+    private ?array $settingsSchema = null;
+
+    public function __construct(private string $basePath, string $name = self::DEFAULT_NAME)
+    {
+        $name = preg_replace('/[^a-z0-9_-]/i', '', $name) ?: self::DEFAULT_NAME;
+        if (!is_dir($basePath . '/themes/' . $name)) {
+            $name = self::DEFAULT_NAME;
+        }
+        $this->name = $name;
+    }
+
+    public function name(): string
+    {
+        return $this->name;
+    }
+
+    public function path(): string
+    {
+        return $this->basePath . '/themes/' . $this->name;
+    }
+
+    public function customPath(): string
+    {
+        return $this->basePath . '/custom';
+    }
+
+    public function label(): string
+    {
+        return (string)($this->manifest()['label'] ?? $this->name);
+    }
+
+    public function version(): string
+    {
+        return (string)($this->manifest()['version'] ?? '');
+    }
+
+    /** @return array<string, mixed> */
+    public function manifest(): array
+    {
+        if ($this->manifest !== null) {
+            return $this->manifest;
+        }
+        $this->manifest = [];
+        $path = $this->path() . '/theme.yaml';
+        if (is_file($path)) {
+            try {
+                $data = Yaml::parseFile($path);
+                $this->manifest = is_array($data) ? $data : [];
+            } catch (\Throwable) {
+                $this->manifest = [];
+            }
+        }
+        return $this->manifest;
+    }
+
+    /**
+     * Settings sections declared by the theme, with normalized field definitions.
+     *
+     * @return array<string, array{key: string, label: string, description: string, columns: int, fields: array<string, array<string, mixed>>}>
+     */
+    public function settingsSchema(): array
+    {
+        if ($this->settingsSchema !== null) {
+            return $this->settingsSchema;
+        }
+        $sections = [];
+        $raw = $this->manifest()['settings'] ?? [];
+        foreach (is_array($raw) ? $raw : [] as $key => $section) {
+            $key = (string)$key;
+            if (!preg_match('/^[a-z][a-z0-9_]*$/', $key) || !is_array($section)) {
+                continue;
+            }
+            $sections[$key] = [
+                'key' => $key,
+                'label' => (string)($section['label'] ?? ucfirst(str_replace('_', ' ', $key))),
+                'description' => (string)($section['description'] ?? ''),
+                'columns' => max(1, min(5, (int)($section['columns'] ?? 2))),
+                'fields' => FieldSchema::normalize(is_array($section['fields'] ?? null) ? $section['fields'] : []),
+            ];
+        }
+        return $this->settingsSchema = $sections;
+    }
+
+    /** @return array<string, array<string, mixed>> */
+    public function defaultSettings(): array
+    {
+        $values = [];
+        foreach ($this->settingsSchema() as $key => $section) {
+            $values[$key] = FieldSchema::defaults($section['fields']);
+        }
+        return $values;
+    }
+
+    /**
+     * Stored settings checked against the schema. Declared fields always hold a valid value;
+     * keys the schema does not know are kept for templates that read them directly.
+     *
+     * @param array<string, mixed> $stored
+     * @return array<string, mixed>
+     */
+    public function resolveSettings(array $stored): array
+    {
+        foreach ($this->settingsSchema() as $key => $section) {
+            $current = is_array($stored[$key] ?? null) ? $stored[$key] : [];
+            $stored[$key] = FieldSchema::resolve($section['fields'], $current);
+        }
+        return $stored;
+    }
+
+    /**
+     * @param array<string, mixed> $input submitted `theme[section][field]` values
+     * @param array<string, mixed> $current resolved current settings
+     * @return array<string, mixed>
+     */
+    public function settingsFromInput(array $input, array $current): array
+    {
+        foreach ($this->settingsSchema() as $key => $section) {
+            $sectionInput = is_array($input[$key] ?? null) ? $input[$key] : [];
+            $sectionCurrent = is_array($current[$key] ?? null) ? $current[$key] : [];
+            $current[$key] = FieldSchema::fromInput($section['fields'], $sectionInput, $sectionCurrent);
+        }
+        return $current;
+    }
+
+    /** @return array<string, array{label: string, default: string}> */
+    public function menuLocations(): array
+    {
+        $locations = [];
+        $raw = $this->manifest()['menu_locations'] ?? [];
+        foreach (is_array($raw) ? $raw : [] as $key => $location) {
+            $key = (string)$key;
+            if (!preg_match('/^[a-z0-9_-]+$/', $key)) {
+                continue;
+            }
+            $location = is_array($location) ? $location : [];
+            $locations[$key] = [
+                'label' => (string)($location['label'] ?? ucfirst($key)),
+                'default' => (string)($location['default'] ?? $key),
+            ];
+        }
+        return $locations;
+    }
+
+    /** Twig search paths, highest priority first. @return string[] */
+    public function templateRoots(): array
+    {
+        $roots = [];
+        if (is_dir($this->customPath())) {
+            $roots[] = $this->customPath();
+        }
+        $roots[] = $this->path();
+        return $roots;
+    }
+
+    /** First candidate (relative path such as `templates/single.twig`) that exists, or null. */
+    public function findTemplate(array $candidates): ?string
+    {
+        foreach ($candidates as $candidate) {
+            $candidate = (string)$candidate;
+            if ($this->hasTemplate($candidate)) {
+                return $candidate;
+            }
+        }
+        return null;
+    }
+
+    public function hasTemplate(string $relative): bool
+    {
+        if (!self::isSafeRelativePath($relative) || !str_ends_with($relative, '.twig')) {
+            return false;
+        }
+        foreach ($this->templateRoots() as $root) {
+            if (is_file($root . '/' . $relative)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public function assetUrl(string $baseUrl, string $path): string
+    {
+        $file = self::assetFile($this->path() . '/assets', $path);
+        $url = $baseUrl . '/_themes/' . $this->name . '/' . ltrim($path, '/');
+        return $file !== null ? $url . '?v=' . self::fileVersion($file) : $url;
+    }
+
+    /** URL of a file in custom/assets, or '' when the site has no such file. */
+    public function customAssetUrl(string $baseUrl, string $path): string
+    {
+        $file = self::assetFile($this->customPath() . '/assets', $path);
+        if ($file === null) {
+            return '';
+        }
+        return $baseUrl . '/_custom/' . ltrim($path, '/') . '?v=' . self::fileVersion($file);
+    }
+
+    /**
+     * Frontend strings: the theme's default-language file, the site's overrides for it, then the
+     * same pair for the requested language. A string the theme translates wins over a default-
+     * language override, so overriding Greek never forces Greek onto the English site.
+     *
+     * @return array<string, string>
+     */
+    public function translations(string $lang, string $defaultLang): array
+    {
+        $strings = array_replace($this->themeTranslations($defaultLang), $this->customTranslations($defaultLang));
+        if ($lang !== $defaultLang) {
+            $strings = array_replace($strings, $this->themeTranslations($lang), $this->customTranslations($lang));
+        }
+        return $strings;
+    }
+
+    /** Strings a language inherits when the site has not overridden them. @return array<string, string> */
+    public function inheritedTranslations(string $lang, string $defaultLang): array
+    {
+        $strings = $this->themeTranslations($defaultLang);
+        if ($lang !== $defaultLang) {
+            $strings = array_replace($strings, $this->customTranslations($defaultLang), $this->themeTranslations($lang));
+        }
+        return $strings;
+    }
+
+    /** @return array<string, string> */
+    public function themeTranslations(string $lang): array
+    {
+        $lang = self::safeLang($lang);
+        $path = $this->path() . '/lang/' . $lang . '.php';
+        if ($lang === '' || !is_file($path)) {
+            return [];
+        }
+        $data = require $path;
+        return is_array($data) ? self::stringMap($data) : [];
+    }
+
+    /** @return array<string, string> */
+    public function customTranslations(string $lang): array
+    {
+        $path = $this->customTranslationPath($lang);
+        if ($path === '' || !is_file($path)) {
+            return [];
+        }
+        try {
+            $data = Yaml::parseFile($path);
+        } catch (\Throwable) {
+            return [];
+        }
+        return is_array($data) ? self::stringMap($data) : [];
+    }
+
+    /** @param array<string, string> $strings */
+    public function writeCustomTranslations(string $lang, array $strings): bool
+    {
+        $path = $this->customTranslationPath($lang);
+        if ($path === '') {
+            return false;
+        }
+        $dir = dirname($path);
+        if (!is_dir($dir) && !@mkdir($dir, 0775, true)) {
+            return false;
+        }
+        if ($strings === []) {
+            return !is_file($path) || @unlink($path);
+        }
+        ksort($strings);
+        $payload = "# Site overrides for theme strings (Admin > Translations). Kept across updates.\n"
+            . Yaml::dump($strings, 1, 2);
+        $temp = $path . '.' . bin2hex(random_bytes(4)) . '.tmp';
+        if (@file_put_contents($temp, $payload) === false) {
+            return false;
+        }
+        if (!@rename($temp, $path)) {
+            @unlink($temp);
+            return false;
+        }
+        return true;
+    }
+
+    public function customTranslationPath(string $lang): string
+    {
+        $lang = self::safeLang($lang);
+        return $lang === '' ? '' : $this->customPath() . '/lang/' . $lang . '.yaml';
+    }
+
+    /** Resolves a requested asset inside $root, or null when it is missing or not allowed. */
+    public static function assetFile(string $root, string $path): ?string
+    {
+        $path = ltrim($path, '/');
+        if (!self::isSafeRelativePath($path) || ThemeAssets::contentType($path) === null) {
+            return null;
+        }
+        $file = $root . '/' . $path;
+        if (!is_file($file)) {
+            return null;
+        }
+        $realRoot = realpath($root);
+        $realFile = realpath($file);
+        if ($realRoot === false || $realFile === false || !str_starts_with($realFile, $realRoot . DIRECTORY_SEPARATOR)) {
+            return null;
+        }
+        return $realFile;
+    }
+
+    public static function isSafeRelativePath(string $path): bool
+    {
+        if ($path === '' || str_contains($path, "\0") || str_contains($path, '\\') || str_starts_with($path, '/')) {
+            return false;
+        }
+        foreach (explode('/', $path) as $segment) {
+            if ($segment === '' || $segment === '.' || $segment === '..' || str_starts_with($segment, '.')) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static function fileVersion(string $file): string
+    {
+        return base_convert((string)((int)@filemtime($file)), 10, 36) . base_convert((string)((int)@filesize($file)), 10, 36);
+    }
+
+    private static function safeLang(string $lang): string
+    {
+        return preg_match('/^[a-z]{2,3}([_-][a-z0-9]{2,8})?$/i', $lang) ? $lang : '';
+    }
+
+    /** @return array<string, string> */
+    private static function stringMap(array $data): array
+    {
+        $strings = [];
+        foreach ($data as $key => $value) {
+            if (is_scalar($value) || $value === null) {
+                $strings[(string)$key] = (string)$value;
+            }
+        }
+        return $strings;
+    }
+}

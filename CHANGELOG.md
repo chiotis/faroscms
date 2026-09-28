@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-09-28 — Theme foundation (phase 1)
+- Theme: `themes/default` is reorganised into `layouts/`, `templates/`, `components/`, and `assets/`, with a `theme.yaml` manifest; rendered pages are unchanged
+- Theme: the admin Theme tab is generated from the manifest, and stored theme settings are checked against it on every request (new fields get defaults, invalid values fall back)
+- Theme: theme CSS/JS are served from outside `public/` at `/_themes/default/…` with versioned, long-lived caching; the inline theme script moved to `assets/js/site.js`
+- Update safety: new `custom/` folder for site-specific CSS/JS, template overrides (by path or by extending `@theme/…`), and string overrides; updates never touch it
+- Update safety: Admin > Translations stores only changed strings in `custom/lang/<lang>.yaml` instead of rewriting the theme's language files, with a per-string reset
+- Backups: `custom/` is a restore area ("Site customizations") replacing "Theme translations"; restoring an area that did not exist before can now be rolled back cleanly
+- Docs: `docs/theming.md` describes the theme contract and the compatibility rules for theme changes
+
 ## 2026-09-28
 - Remote backups: S3-compatible upload (streamed, not loaded into memory), connection test, and retention pruning limited to FarosCMS backup archives
 - A failed remote upload no longer marks the local snapshot as failed; scheduled backups advance and the run is recorded as a warning

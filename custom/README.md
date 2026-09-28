@@ -1,0 +1,35 @@
+# custom/ — site-specific customizations
+
+Everything in this folder belongs to this site. FarosCMS updates replace `src/`, `admin/`, `themes/`, `vendor/`, and `public/assets/`, but never touch `custom/`. Backups include it, and a restore can bring it back ("Site customizations").
+
+Files here mirror the theme's layout (`themes/default/`). The same relative path in `custom/` wins:
+
+```text
+custom/
+├── assets/
+│   ├── css/custom.css      loaded automatically after the theme stylesheet
+│   ├── js/custom.js        loaded automatically after the theme script
+│   └── ...                 any other file, served at /_custom/<path>
+├── lang/
+│   └── <lang>.yaml         string overrides, written by Admin > Translations
+├── templates/              page templates, e.g. templates/single-project.twig
+├── components/             header, footer, card, ...
+└── layouts/                base.twig
+```
+
+Prefer small, additive changes:
+
+- Style changes go in `assets/css/custom.css`. They keep receiving theme fixes.
+- To change part of a template, extend the theme's version and override one block:
+
+  ```twig
+  {% extends '@theme/templates/single-post.twig' %}
+  {% block content %}
+    {{ parent() }}
+    <p>Extra line under every post.</p>
+  {% endblock %}
+  ```
+
+- Copying a whole theme file here freezes it: later theme updates to that file will not reach this site.
+
+See `docs/theming.md` for the full theme contract.

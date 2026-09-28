@@ -5,3 +5,6 @@ storage/db/*.sqlite-*
 storage/restore/
 storage/updates/
 node_modules/
+# Site-specific customizations are not part of the FarosCMS codebase.
+custom/*
+!custom/README.md

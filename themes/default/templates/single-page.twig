@@ -1,4 +1,4 @@
-{% extends 'base.twig' %}
+{% extends 'layouts/base.twig' %}
 
 {% block content %}
   {% set hero_layouts = theme_settings.hero_layouts|default({}) %}
@@ -30,7 +30,6 @@
       </div>
     </section>
   {% endif %}
-
   <article class="site-wrap section-stack single-body">
     <section class="prose-block">
       {{ item.html|raw }}

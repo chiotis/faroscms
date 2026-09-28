@@ -57,9 +57,8 @@ final class BackupService
      *
      * @return array<string, array{label: string, description: string, prefix: string}>
      */
-    public function restoreScopes(string $theme): array
+    public function restoreScopes(): array
     {
-        $theme = preg_replace('/[^a-z0-9_-]/i', '', $theme) ?: 'default';
         return [
             'content' => [
                 'label' => 'Content',
@@ -71,10 +70,10 @@ final class BackupService
                 'description' => 'Images and files in public/uploads.',
                 'prefix' => 'public/uploads/',
             ],
-            'translations' => [
-                'label' => 'Theme translations',
-                'description' => 'Strings edited in Admin > Translations (themes/' . $theme . '/lang).',
-                'prefix' => 'themes/' . $theme . '/lang/',
+            'custom' => [
+                'label' => 'Site customizations',
+                'description' => 'The custom/ folder: translation overrides from Admin > Translations, custom CSS/JS, and template overrides.',
+                'prefix' => 'custom/',
             ],
             'database' => [
                 'label' => 'System database',
@@ -173,7 +172,7 @@ final class BackupService
      *
      * @return array{ok: bool, message: string, has_manifest: bool, manifest: array<string, mixed>|null, checked: int, errors: string[], areas: array<string, int>, uncompressed_bytes: int}
      */
-    public function verify(string $filename, string $theme = 'default'): array
+    public function verify(string $filename): array
     {
         $result = [
             'ok' => false,
@@ -215,7 +214,7 @@ final class BackupService
             $result['uncompressed_bytes'] += (int)$stat['size'];
         }
 
-        foreach ($this->restoreScopes($theme) as $key => $scope) {
+        foreach ($this->restoreScopes() as $key => $scope) {
             $result['areas'][$key] = count(array_filter(
                 array_keys($entries),
                 fn(string $name): bool => $this->entryBelongsToScope($name, $key, $scope['prefix'])
@@ -271,14 +270,14 @@ final class BackupService
      * @param string[] $scopeKeys
      * @return array{ok: bool, message: string, restored: string[], skipped: string[], previous_dir?: string}
      */
-    public function restore(string $filename, array $scopeKeys, string $theme): array
+    public function restore(string $filename, array $scopeKeys): array
     {
         $fail = static fn(string $message): array => ['ok' => false, 'message' => $message, 'restored' => [], 'skipped' => []];
         $path = $this->pathFor($filename);
         if ($path === null) {
             return $fail('Backup file not found.');
         }
-        $scopes = array_intersect_key($this->restoreScopes($theme), array_flip($scopeKeys));
+        $scopes = array_intersect_key($this->restoreScopes(), array_flip($scopeKeys));
         if ($scopes === []) {
             return $fail('Select at least one area to restore.');
         }
@@ -562,7 +561,12 @@ final class BackupService
         if (!is_dir(dirname($aside)) && !@mkdir(dirname($aside), 0775, true)) {
             return false;
         }
-        if (is_dir($live) && !@rename($live, $aside)) {
+        if (is_dir($live)) {
+            if (!@rename($live, $aside)) {
+                return false;
+            }
+        } elseif (!@mkdir($aside, 0775, true)) {
+            // An empty stand-in lets a rollback remove an area that did not exist before.
             return false;
         }
         if (!is_dir(dirname($live))) {

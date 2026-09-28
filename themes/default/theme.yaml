@@ -1,0 +1,149 @@
+# FarosCMS default theme manifest.
+#
+# The admin Theme tab is generated from `settings`, and stored values are checked against it on
+# every request: a missing value takes its default and an invalid one falls back to the default.
+# Update-safety rules (see docs/theming.md):
+#   - add fields and options freely, always with a default;
+#   - never rename or remove a field or an option value that sites may have stored;
+#   - retire a field by marking it `hidden: true` (it keeps its stored value), not by deleting it.
+name: default
+label: FarosCMS Default
+version: 1.0.0
+description: All-purpose FarosCMS theme.
+
+menu_locations:
+  header:
+    label: Header
+    default: main
+  footer:
+    label: Footer
+    default: footer
+
+settings:
+  appearance:
+    label: Appearance
+    description: Global visual preferences.
+    columns: 3
+    fields:
+      mode:
+        type: select
+        label: Mode
+        default: system
+        options:
+          system: System
+          light: Light
+          dark: Dark
+      palette:
+        type: select
+        label: Palette
+        default: slate
+        options:
+          slate: Slate
+          indigo: Indigo
+          emerald: Emerald
+          teal: Teal
+          rose: Rose
+          amber: Amber
+      font:
+        type: select
+        label: Font
+        default: sans
+        options:
+          sans: Sans
+          serif: Serif
+          display: Display
+
+  hero_layouts:
+    label: Hero Layouts
+    description: Default hero presentation per content type.
+    columns: 5
+    fields:
+      default:
+        type: select
+        label: Default
+        default: default
+        options: &hero_layouts
+          default: Default
+          centered: Centered
+      pages:
+        type: select
+        label: Pages
+        default: default
+        options: *hero_layouts
+      posts:
+        type: select
+        label: Posts
+        default: default
+        options: *hero_layouts
+      projects:
+        type: select
+        label: Projects
+        default: default
+        options: *hero_layouts
+      forms:
+        type: select
+        label: Forms
+        default: default
+        options: *hero_layouts
+
+  home:
+    label: Home Sections
+    description: Latest content on the homepage.
+    columns: 2
+    fields:
+      show_latest_projects:
+        type: toggle
+        label: Show latest projects
+        help: Display recent project cards on the homepage.
+        default: true
+      projects_limit:
+        type: number
+        label: Projects limit
+        default: 3
+        min: 1
+        max: 12
+      show_latest_posts:
+        type: toggle
+        label: Show latest posts
+        help: Display recent post cards on the homepage.
+        default: true
+      posts_limit:
+        type: number
+        label: Posts limit
+        default: 3
+        min: 1
+        max: 12
+
+  footer:
+    label: Footer
+    description: Footer copy, contact details, and optional background styling.
+    columns: 2
+    fields:
+      summary:
+        type: textarea
+        label: Summary
+        default: ''
+        span: full
+      email:
+        type: email
+        label: Email
+        default: ''
+      phone:
+        type: text
+        label: Phone
+        default: ''
+      address:
+        type: text
+        label: Address
+        default: ''
+        span: full
+      background:
+        type: color
+        label: Background color
+        default: ''
+        placeholder: '#0f172a'
+      background_image:
+        type: image
+        label: Background image
+        default: ''
+        placeholder: /uploads/media/footer.jpg

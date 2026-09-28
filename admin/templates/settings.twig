@@ -21,6 +21,7 @@
 
   {% import _self as local %}
   {% import '@admin/partials/ui.twig' as ui %}
+  {% import '@admin/partials/fields.twig' as fields %}
 
   {% if saved %}
     {{ ui.flash('Saved.', 'success') }}
@@ -89,10 +90,6 @@
               <span class="mb-1 block text-sm font-medium text-slate-700">Site name</span>
               <input type="text" name="title" value="{{ settings_form.title }}" class="{{ input_class }}">
             </label>
-            <label class="block">
-              <span class="mb-1 block text-sm font-medium text-slate-700">Theme</span>
-              <input type="text" name="theme" value="{{ settings_form.theme }}" class="{{ input_class }}">
-            </label>
             <label class="block sm:col-span-2">
               <span class="mb-1 block text-sm font-medium text-slate-700">Tagline</span>
               <input type="text" name="tagline" value="{{ settings_form.tagline }}" class="{{ input_class }}">
@@ -131,129 +128,29 @@
       </div>
 
       <div class="{{ panel_class }}{% if active_tab != 'theme' %} hidden{% else %} active{% endif %}" data-panel="theme">
-        <div class="{{ section_class }}">
-          <div class="{{ section_header_class }}">
-            <h3 class="text-sm font-semibold text-slate-900">Appearance</h3>
-            <p class="mt-0.5 text-xs text-slate-400">Global visual preferences stored in SQLite theme settings.</p>
-          </div>
-          <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <label class="block">
-              <span class="mb-1 block text-sm font-medium text-slate-700">Mode</span>
-              <select name="theme_mode" class="{{ select_class }}">
-                <option value="system" {% if theme_form.mode == 'system' %}selected{% endif %}>System</option>
-                <option value="light" {% if theme_form.mode == 'light' %}selected{% endif %}>Light</option>
-                <option value="dark" {% if theme_form.mode == 'dark' %}selected{% endif %}>Dark</option>
-              </select>
-            </label>
-            <label class="block">
-              <span class="mb-1 block text-sm font-medium text-slate-700">Palette</span>
-              <select name="theme_palette" class="{{ select_class }}">
-                {% for value in theme_options.palettes %}
-                  <option value="{{ value }}" {% if theme_form.palette == value %}selected{% endif %}>{{ value|title }}</option>
+        <div class="flex flex-col gap-1 rounded-lg border border-slate-200 bg-white px-4 py-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+          <span><span class="font-semibold text-slate-800">{{ theme_info.label }}</span>{% if theme_info.version %} <span class="text-slate-400">v{{ theme_info.version }}</span>{% endif %} · options declared in <code class="rounded bg-slate-100 px-1 py-0.5 text-[11px]">themes/{{ theme_info.name }}/theme.yaml</code></span>
+          <span>Site overrides: <code class="rounded bg-slate-100 px-1 py-0.5 text-[11px]">custom/</code> {{ theme_info.custom_dir ? 'in use' : 'not created yet' }}</span>
+        </div>
+        {% set grid_columns = {1: '', 2: 'sm:grid-cols-2', 3: 'sm:grid-cols-3', 4: 'sm:grid-cols-2 lg:grid-cols-4', 5: 'sm:grid-cols-2 lg:grid-cols-5'} %}
+        {% for section in theme_schema %}
+          {% set visible_fields = section.fields|filter(field => not field.hidden) %}
+          {% if visible_fields is not empty %}
+            <div class="{{ section_class }}">
+              <div class="{{ section_header_class }}">
+                <h3 class="text-sm font-semibold text-slate-900">{{ section.label }}</h3>
+                {% if section.description %}
+                  <p class="mt-0.5 text-xs text-slate-400">{{ section.description }}</p>
+                {% endif %}
+              </div>
+              <div class="grid grid-cols-1 gap-3 {{ grid_columns[section.columns] ?? 'sm:grid-cols-2' }}">
+                {% for field in visible_fields %}
+                  {{ fields.field(field, 'theme_settings[' ~ section.key ~ '][' ~ field.key ~ ']', theme_values[section.key][field.key] ?? field.default) }}
                 {% endfor %}
-              </select>
-            </label>
-            <label class="block">
-              <span class="mb-1 block text-sm font-medium text-slate-700">Font</span>
-              <select name="theme_font" class="{{ select_class }}">
-                {% for value in theme_options.fonts %}
-                  <option value="{{ value }}" {% if theme_form.font == value %}selected{% endif %}>{{ value|title }}</option>
-                {% endfor %}
-              </select>
-            </label>
-          </div>
-        </div>
-
-        <div class="{{ section_class }}">
-          <div class="{{ section_header_class }}">
-            <h3 class="text-sm font-semibold text-slate-900">Hero Layouts</h3>
-            <p class="mt-0.5 text-xs text-slate-400">Default hero presentation per content type.</p>
-          </div>
-          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            {% set hero_options = theme_options.hero_layouts %}
-            {% set hero_fields = {
-              'theme_hero_default': ['Default', theme_form.hero_default],
-              'theme_hero_pages': ['Pages', theme_form.hero_pages],
-              'theme_hero_posts': ['Posts', theme_form.hero_posts],
-              'theme_hero_projects': ['Projects', theme_form.hero_projects],
-              'theme_hero_forms': ['Forms', theme_form.hero_forms]
-            } %}
-            {% for field, item in hero_fields %}
-              <label class="block">
-                <span class="mb-1 block text-sm font-medium text-slate-700">{{ item[0] }}</span>
-                <select name="{{ field }}" class="{{ select_class }}">
-                  {% for value in hero_options %}
-                    <option value="{{ value }}" {% if item[1] == value %}selected{% endif %}>{{ value|title }}</option>
-                  {% endfor %}
-                </select>
-              </label>
-            {% endfor %}
-          </div>
-        </div>
-
-        <div class="{{ section_class }}">
-          <div class="{{ section_header_class }}">
-            <h3 class="text-sm font-semibold text-slate-900">Home Sections</h3>
-            <p class="mt-0.5 text-xs text-slate-400">Latest content blocks on the homepage.</p>
-          </div>
-          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <label class="flex items-start justify-between gap-4 rounded-md border border-slate-100 px-3 py-2.5">
-              <span>
-                <span class="block text-sm font-medium text-slate-800">Show latest projects</span>
-                <span class="block text-xs text-slate-400">Display recent project cards on the homepage.</span>
-              </span>
-              <input type="checkbox" name="theme_show_latest_projects" value="1" {% if theme_form.show_latest_projects %}checked{% endif %} class="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
-            </label>
-            <label class="block">
-              <span class="mb-1 block text-sm font-medium text-slate-700">Projects limit</span>
-              <input type="number" min="1" max="12" name="theme_projects_limit" value="{{ theme_form.projects_limit }}" class="{{ input_class }}">
-            </label>
-            <label class="flex items-start justify-between gap-4 rounded-md border border-slate-100 px-3 py-2.5">
-              <span>
-                <span class="block text-sm font-medium text-slate-800">Show latest posts</span>
-                <span class="block text-xs text-slate-400">Display recent post cards on the homepage.</span>
-              </span>
-              <input type="checkbox" name="theme_show_latest_posts" value="1" {% if theme_form.show_latest_posts %}checked{% endif %} class="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
-            </label>
-            <label class="block">
-              <span class="mb-1 block text-sm font-medium text-slate-700">Posts limit</span>
-              <input type="number" min="1" max="12" name="theme_posts_limit" value="{{ theme_form.posts_limit }}" class="{{ input_class }}">
-            </label>
-          </div>
-        </div>
-
-        <div class="{{ section_class }}">
-          <div class="{{ section_header_class }}">
-            <h3 class="text-sm font-semibold text-slate-900">Footer</h3>
-            <p class="mt-0.5 text-xs text-slate-400">Footer copy, contact details, and optional background styling.</p>
-          </div>
-          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <label class="block sm:col-span-2">
-              <span class="mb-1 block text-sm font-medium text-slate-700">Summary</span>
-              <textarea name="theme_footer_summary" rows="3" class="{{ textarea_class }}">{{ theme_form.footer_summary }}</textarea>
-            </label>
-            <label class="block">
-              <span class="mb-1 block text-sm font-medium text-slate-700">Email</span>
-              <input type="email" name="theme_footer_email" value="{{ theme_form.footer_email }}" class="{{ input_class }}">
-            </label>
-            <label class="block">
-              <span class="mb-1 block text-sm font-medium text-slate-700">Phone</span>
-              <input type="text" name="theme_footer_phone" value="{{ theme_form.footer_phone }}" class="{{ input_class }}">
-            </label>
-            <label class="block sm:col-span-2">
-              <span class="mb-1 block text-sm font-medium text-slate-700">Address</span>
-              <input type="text" name="theme_footer_address" value="{{ theme_form.footer_address }}" class="{{ input_class }}">
-            </label>
-            <label class="block">
-              <span class="mb-1 block text-sm font-medium text-slate-700">Background color</span>
-              <input type="text" name="theme_footer_background" value="{{ theme_form.footer_background }}" placeholder="#0f172a" class="{{ input_class }}">
-            </label>
-            <label class="block">
-              <span class="mb-1 block text-sm font-medium text-slate-700">Background image</span>
-              <input type="text" name="theme_footer_background_image" value="{{ theme_form.footer_background_image }}" placeholder="/uploads/media/footer.jpg" class="{{ input_class }}">
-            </label>
-          </div>
-        </div>
+              </div>
+            </div>
+          {% endif %}
+        {% endfor %}
       </div>
 
       <div class="{{ panel_class }}{% if active_tab != 'menus' %} hidden{% else %} active{% endif %}" data-panel="menus">

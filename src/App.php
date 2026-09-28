@@ -33,6 +33,7 @@ final class App
     private FormSubmissionRepository $formSubmissions;
     private ContentIndex $contentIndex;
     private MediaLibrary $media;
+    private Theme $theme;
     private string $currentLang;
     private array $translations = [];
     private array $formStates = [];
@@ -49,6 +50,7 @@ final class App
         $this->systemDatabase->initialize();
         $this->systemMeta = new SystemMetaRepository($this->systemDatabase);
         $this->settings = $this->loadSettings();
+        $this->theme = new Theme($this->basePath, (string)($this->settings['theme'] ?? Theme::DEFAULT_NAME));
         $this->themeSettings = $this->loadThemeSettings();
         $this->ensureDefaultMenus();
         $this->ensureDefaultTaxonomies();
@@ -224,7 +226,7 @@ final class App
         if (($segments[0] ?? '') === 'search') {
             $query = (string)($_GET['q'] ?? '');
             $results = $this->content->search($query, $lang, $includeHidden);
-            $this->render('search.twig', [
+            $this->render('templates/search.twig', [
                 'query' => $query,
                 'results' => $results,
             ] + $viewDefaults);
@@ -304,9 +306,9 @@ final class App
         );
         $alternates = $this->buildAlternateUrlsForItem('pages', $page->slug);
         $languageLinks = $this->buildLanguageLinksForItem('pages', $page);
-        $template = $slug === $homeSlug ? 'home.twig' : $this->resolveItemTemplate($page);
+        $template = $slug === $homeSlug ? 'templates/home.twig' : $this->resolveItemTemplate($page);
         $homeData = [];
-        if ($template === 'home.twig') {
+        if ($template === 'templates/home.twig') {
             $home = $this->themeSettings['home'] ?? [];
             $showProjects = $this->isTruthy($home['show_latest_projects'] ?? true);
             $showPosts = $this->isTruthy($home['show_latest_posts'] ?? true);
@@ -1109,7 +1111,7 @@ final class App
             $action = trim((string)($_POST['backup_action'] ?? ''));
             if ($action === 'verify') {
                 $filename = $this->backups->sanitizeFilename((string)($_POST['filename'] ?? ''));
-                $verification = $this->backups->verify($filename, $this->activeThemeName());
+                $verification = $this->backups->verify($filename);
                 $this->logActivity($verification['ok'] ? 'backup.verify_success' : 'backup.verify_failure', $verification['ok'] ? 'info' : 'error', 'backup', $filename, $verification['message'], [
                     'checked' => $verification['checked'],
                     'has_manifest' => $verification['has_manifest'],
@@ -1219,12 +1221,6 @@ final class App
         ]);
     }
 
-    private function activeThemeName(): string
-    {
-        $theme = preg_replace('/[^a-z0-9_-]/i', '', (string)($this->settings['theme'] ?? 'default'));
-        return $theme !== '' ? $theme : 'default';
-    }
-
     private function renderBackupRestore(string $filename, string $error = '', array $selected = []): void
     {
         if (!$this->permissions->can($this->auth->user(), 'backups.restore')) {
@@ -1236,9 +1232,9 @@ final class App
             $this->redirect('/admin/backups?' . http_build_query(['backup' => 'fail', 'backup_msg' => 'Backup file not found.']));
             return;
         }
-        $verification = $this->backups->verify($filename, $this->activeThemeName());
+        $verification = $this->backups->verify($filename);
         $scopes = [];
-        foreach ($this->backups->restoreScopes($this->activeThemeName()) as $key => $scope) {
+        foreach ($this->backups->restoreScopes() as $key => $scope) {
             $count = (int)($verification['areas'][$key] ?? 0);
             $scopes[] = $scope + [
                 'key' => $key,
@@ -1277,10 +1273,9 @@ final class App
             return;
         }
         $filename = $this->backups->sanitizeFilename((string)($_POST['filename'] ?? ''));
-        $theme = $this->activeThemeName();
         $scopeKeys = array_values(array_intersect(
             array_map('strval', is_array($_POST['scopes'] ?? null) ? $_POST['scopes'] : []),
-            array_keys($this->backups->restoreScopes($theme))
+            array_keys($this->backups->restoreScopes())
         ));
         if ($filename === '' || $this->backups->pathFor($filename) === null) {
             $this->redirect('/admin/backups?' . http_build_query(['backup' => 'fail', 'backup_msg' => 'Backup file not found.']));
@@ -1314,7 +1309,7 @@ final class App
         }
 
         $actor = $this->auth->user();
-        $result = $this->backups->restore($filename, $scopeKeys, $theme);
+        $result = $this->backups->restore($filename, $scopeKeys);
 
         // The system database may have been swapped: reload settings and write history into the active database.
         $this->settings = $this->loadSettings();
@@ -1386,7 +1381,7 @@ final class App
                 $result = $this->createBackupSnapshot('pre-update');
                 $this->recordBackupRun($result);
                 $verification = ($result['ok'] ?? false) === true
-                    ? $this->backups->verify((string)$result['filename'], $this->activeThemeName())
+                    ? $this->backups->verify((string)$result['filename'])
                     : ['ok' => false, 'message' => (string)($result['message'] ?? 'Backup failed.')];
                 if (($result['ok'] ?? false) === true) {
                     $this->systemMeta->setJson('pre_update_backup', [
@@ -2369,27 +2364,7 @@ final class App
                 return;
             }
             $this->settings = $this->loadSettings();
-            $themeForm = [
-                'theme_mode' => (string)($_POST['theme_mode'] ?? ''),
-                'theme_palette' => (string)($_POST['theme_palette'] ?? ''),
-                'theme_font' => (string)($_POST['theme_font'] ?? ''),
-                'theme_hero_default' => (string)($_POST['theme_hero_default'] ?? ''),
-                'theme_hero_pages' => (string)($_POST['theme_hero_pages'] ?? ''),
-                'theme_hero_posts' => (string)($_POST['theme_hero_posts'] ?? ''),
-                'theme_hero_projects' => (string)($_POST['theme_hero_projects'] ?? ''),
-                'theme_hero_forms' => (string)($_POST['theme_hero_forms'] ?? ''),
-                'theme_show_latest_projects' => isset($_POST['theme_show_latest_projects']) ? '1' : '0',
-                'theme_projects_limit' => (string)($_POST['theme_projects_limit'] ?? ''),
-                'theme_show_latest_posts' => isset($_POST['theme_show_latest_posts']) ? '1' : '0',
-                'theme_posts_limit' => (string)($_POST['theme_posts_limit'] ?? ''),
-                'theme_footer_summary' => (string)($_POST['theme_footer_summary'] ?? ''),
-                'theme_footer_email' => (string)($_POST['theme_footer_email'] ?? ''),
-                'theme_footer_phone' => (string)($_POST['theme_footer_phone'] ?? ''),
-                'theme_footer_address' => (string)($_POST['theme_footer_address'] ?? ''),
-                'theme_footer_background' => (string)($_POST['theme_footer_background'] ?? ''),
-                'theme_footer_background_image' => (string)($_POST['theme_footer_background_image'] ?? ''),
-            ];
-            $themeSave = $this->saveThemeSettings($themeForm);
+            $themeSave = $this->saveThemeSettings(is_array($_POST['theme_settings'] ?? null) ? $_POST['theme_settings'] : []);
             $this->themeSettings = $this->loadThemeSettings();
             if (($themeSave['ok'] ?? false) !== true) {
                 $msg = urlencode((string)($themeSave['message'] ?? 'Theme settings could not be saved.'));
@@ -2464,9 +2439,7 @@ final class App
         }
 
         $raw = $this->loadSettingsRaw('site_settings', $this->defaultSettings());
-        $themeRaw = $this->loadSettingsRaw('theme_settings', $this->defaultThemeSettings());
         $parsed = $this->parseSettingsYaml($raw);
-        $themeParsed = $this->parseSettingsYaml($themeRaw);
         $this->render('@admin/settings.twig', [
             'user' => $this->auth->user(),
             'saved' => $saved,
@@ -2474,11 +2447,13 @@ final class App
             'types' => $this->content->getTypes(),
             'admin_section' => 'settings',
             'settings_form' => $this->extractSettingsForm($parsed),
-            'theme_form' => $this->extractThemeSettingsForm(is_array($themeParsed) ? $themeParsed : []),
-            'theme_options' => [
-                'palettes' => $this->themePaletteOptions(),
-                'fonts' => $this->themeFontOptions(),
-                'hero_layouts' => $this->themeHeroLayoutOptions(),
+            'theme_schema' => $this->theme->settingsSchema(),
+            'theme_values' => $this->themeSettings,
+            'theme_info' => [
+                'name' => $this->theme->name(),
+                'label' => $this->theme->label(),
+                'version' => $this->theme->version(),
+                'custom_dir' => is_dir($this->theme->customPath()),
             ],
             'backup_snapshots' => $this->listBackupSnapshots(),
             'backup_status' => $backupStatus,
@@ -3659,7 +3634,6 @@ final class App
 
     private function handleTranslations(): void
     {
-        $theme = $this->settings['theme'] ?? 'default';
         $available = $this->settings['languages']['available'] ?? [];
         $defaultLang = $this->settings['languages']['default'] ?? 'en';
         if (empty($available)) {
@@ -3671,65 +3645,55 @@ final class App
             $lang = $defaultLang;
         }
 
-        $langDir = $this->basePath . '/themes/' . $theme . '/lang';
-        $filePath = $langDir . '/' . $lang . '.php';
-        $saved = isset($_GET['saved']);
-        $defaults = $this->loadTranslationFile($langDir, $defaultLang);
-        $visibleDefaults = $this->filterVisibleTranslationKeys($defaults);
-        $existing = $this->loadTranslationFile($langDir, $lang);
-        $hiddenExisting = $this->extractHiddenTranslationKeys($existing);
+        // Theme strings ship with the theme and are replaced by updates; edits made here are
+        // stored as overrides in custom/lang/<lang>.yaml, which updates never touch.
+        $inherited = $this->theme->inheritedTranslations($lang, $defaultLang);
+        $overrides = $this->theme->customTranslations($lang);
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $keys = $_POST['keys'] ?? [];
-            $values = $_POST['values'] ?? [];
-            $translations = $existing;
+            $keys = is_array($_POST['keys'] ?? null) ? $_POST['keys'] : [];
+            $values = is_array($_POST['values'] ?? null) ? $_POST['values'] : [];
+            $reset = array_map('strval', is_array($_POST['reset'] ?? null) ? $_POST['reset'] : []);
+            $next = $overrides;
 
             foreach ($keys as $index => $key) {
                 $key = trim((string)$key);
-                if ($key === '') {
-                    continue;
-                }
-                if ($this->isHiddenTranslationKey($key)) {
+                if ($key === '' || $this->isHiddenTranslationKey($key)) {
                     continue;
                 }
                 $value = (string)($values[$index] ?? '');
-                $translations[$key] = $value;
-            }
-
-            if ($lang !== $defaultLang) {
-                foreach ($visibleDefaults as $key => $value) {
-                    if (!array_key_exists($key, $translations)) {
-                        $translations[$key] = $value;
-                    }
+                if (in_array($key, $reset, true) || (array_key_exists($key, $inherited) && $inherited[$key] === $value)) {
+                    unset($next[$key]);
+                    continue;
                 }
+                $next[$key] = $value;
             }
 
-            // Keep hidden/system keys (e.g. nav.*) untouched by this screen.
-            foreach ($hiddenExisting as $key => $value) {
-                $translations[$key] = $value;
+            if (!$this->theme->writeCustomTranslations($lang, $next)) {
+                $this->redirect('/admin/translations?lang=' . urlencode($lang) . '&error=write');
+                return;
             }
-
-            ksort($translations);
-            $this->writeTranslationFile($filePath, $translations);
             $this->logActivity('translations.update', 'info', 'translation', $lang, 'Translations updated.', [
                 'lang' => $lang,
-                'keys' => count($translations),
+                'overrides' => count($next),
             ]);
             $this->redirect('/admin/translations?lang=' . urlencode($lang) . '&saved=1');
             return;
         }
 
-        $visibleTranslations = $this->filterVisibleTranslationKeys($existing);
-        $merged = $lang === $defaultLang ? $visibleDefaults : array_replace($visibleDefaults, $visibleTranslations);
-        ksort($merged);
-        ksort($visibleDefaults);
+        $visible = $this->filterVisibleTranslationKeys(array_replace($inherited, $overrides));
+        $defaults = $this->filterVisibleTranslationKeys($this->theme->themeTranslations($defaultLang));
+        ksort($visible);
 
         $this->render('@admin/translations.twig', [
             'lang' => $lang,
             'languages' => $available,
-            'translations' => $merged,
-            'defaults' => $visibleDefaults,
-            'saved' => $saved,
+            'translations' => $visible,
+            'defaults' => $defaults,
+            'customized' => array_keys($this->filterVisibleTranslationKeys($overrides)),
+            'custom_file' => 'custom/lang/' . $lang . '.yaml',
+            'saved' => isset($_GET['saved']),
+            'write_error' => ($_GET['error'] ?? '') === 'write',
             'user' => $this->auth->user(),
             'types' => $this->content->getTypes(),
             'default_lang' => $defaultLang,
@@ -3740,12 +3704,14 @@ final class App
 
     private function initTwig(): TwigEnvironment
     {
-        $theme = $this->settings['theme'] ?? 'default';
-        $themeDir = $this->basePath . '/themes/' . $theme;
         $adminDir = $this->basePath . '/admin/templates';
 
         $loader = new FilesystemLoader();
-        $loader->addPath($themeDir);
+        foreach ($this->theme->templateRoots() as $root) {
+            $loader->addPath($root);
+        }
+        // `{% extends '@theme/templates/single.twig' %}` lets a custom/ override change one block only.
+        $loader->addPath($this->theme->path(), 'theme');
         $loader->addPath($adminDir, 'admin');
 
         $twig = new TwigEnvironment($loader, [
@@ -3756,6 +3722,14 @@ final class App
         $baseUrl = rtrim((string)($this->settings['base_url'] ?? ''), '/');
         $twig->addFunction(new TwigFunction('asset', function (string $path) use ($baseUrl): string {
             return $baseUrl . '/assets/' . ltrim($path, '/');
+        }));
+
+        $twig->addFunction(new TwigFunction('theme_asset', function (string $path) use ($baseUrl): string {
+            return $this->theme->assetUrl($baseUrl, $path);
+        }));
+
+        $twig->addFunction(new TwigFunction('custom_asset', function (string $path) use ($baseUrl): string {
+            return $this->theme->customAssetUrl($baseUrl, $path);
         }));
 
         $twig->addFunction(new TwigFunction('admin_asset', function (string $path) use ($baseUrl): string {
@@ -3801,6 +3775,7 @@ final class App
 
         $twig->addGlobal('site', $this->settings);
         $twig->addGlobal('theme_settings', $this->themeSettings);
+        $twig->addGlobal('theme', ['name' => $this->theme->name(), 'version' => $this->theme->version()]);
         $twig->addGlobal('is_admin', $this->auth->check());
 
         return $twig;
@@ -4026,9 +4001,8 @@ final class App
     {
         http_response_code(404);
         $lang = $this->currentLang ?: ($this->settings['languages']['default'] ?? 'en');
-        $themeRoot = $this->basePath . '/themes/' . ($this->settings['theme'] ?? 'default') . '/';
-        if (file_exists($themeRoot . '404.twig')) {
-            $this->render('404.twig', [
+        if ($this->theme->hasTemplate('templates/404.twig')) {
+            $this->render('templates/404.twig', [
                 'lang' => $lang,
                 'lang_prefix' => $this->langPrefix($lang),
                 'current_lang' => $lang,
@@ -4148,52 +4122,23 @@ final class App
 
     private function loadThemeSettings(): array
     {
-        $defaults = $this->defaultThemeSettings();
-        $raw = $this->loadSettingsRaw('theme_settings', $defaults);
-        if ($raw === '') {
-            return $defaults;
+        $raw = $this->loadSettingsRaw('theme_settings', $this->defaultThemeSettings());
+        $data = [];
+        if (trim($raw) !== '') {
+            try {
+                $parsed = Yaml::parse($raw);
+                $data = is_array($parsed) ? $parsed : [];
+            } catch (\Throwable) {
+                $data = [];
+            }
         }
-        try {
-            $data = Yaml::parse($raw);
-        } catch (\Throwable) {
-            return $defaults;
-        }
-        if (!is_array($data)) {
-            return $defaults;
-        }
-        return array_replace_recursive($defaults, $data);
+        // The theme manifest decides what is valid: new fields get defaults, retired values fall back.
+        return $this->theme->resolveSettings($data);
     }
 
     private function defaultThemeSettings(): array
     {
-        return [
-            'appearance' => [
-                'mode' => 'system',
-                'palette' => 'slate',
-                'font' => 'sans',
-            ],
-            'hero_layouts' => [
-                'default' => 'default',
-                'pages' => 'default',
-                'posts' => 'default',
-                'projects' => 'default',
-                'forms' => 'default',
-            ],
-            'home' => [
-                'show_latest_projects' => true,
-                'projects_limit' => 3,
-                'show_latest_posts' => true,
-                'posts_limit' => 3,
-            ],
-            'footer' => [
-                'summary' => '',
-                'email' => '',
-                'phone' => '',
-                'address' => '',
-                'background' => '',
-                'background_image' => '',
-            ],
-        ];
+        return $this->theme->defaultSettings();
     }
 
     private function loadSettingsRaw(string $key, array $defaults): string
@@ -4255,95 +4200,20 @@ final class App
         return new UpdateService($this->basePath, is_array($settings) ? $settings : [], $this->systemMeta);
     }
 
-    /** @return array{ok: bool, message?: string} */
-    private function saveThemeSettings(array $form): array
+    /**
+     * @param array<string, mixed> $input submitted `theme_settings[section][field]` values
+     * @return array{ok: bool, message?: string}
+     */
+    private function saveThemeSettings(array $input): array
     {
-        foreach ($form as $key => $value) {
-            $form[$key] = trim((string)$value);
-        }
-
         if (!$this->systemDatabase->isAvailable()) {
             return ['ok' => false, 'message' => 'Theme settings could not be saved because the SQLite system database is unavailable.'];
         }
 
-        $projectsLimit = max(1, min(12, (int)($form['theme_projects_limit'] ?? 3)));
-        $postsLimit = max(1, min(12, (int)($form['theme_posts_limit'] ?? 3)));
-        $data = [
-            'appearance' => [
-                'mode' => $this->normalizeThemeMode((string)($form['theme_mode'] ?? 'system')),
-                'palette' => $this->normalizeThemePalette((string)($form['theme_palette'] ?? 'slate')),
-                'font' => $this->normalizeThemeFont((string)($form['theme_font'] ?? 'sans')),
-            ],
-            'hero_layouts' => [
-                'default' => $this->normalizeThemeLayout((string)($form['theme_hero_default'] ?? 'default')),
-                'pages' => $this->normalizeThemeLayout((string)($form['theme_hero_pages'] ?? 'default')),
-                'posts' => $this->normalizeThemeLayout((string)($form['theme_hero_posts'] ?? 'default')),
-                'projects' => $this->normalizeThemeLayout((string)($form['theme_hero_projects'] ?? 'default')),
-                'forms' => $this->normalizeThemeLayout((string)($form['theme_hero_forms'] ?? 'default')),
-            ],
-            'home' => [
-                'show_latest_projects' => $this->isTruthy($form['theme_show_latest_projects'] ?? false),
-                'projects_limit' => $projectsLimit,
-                'show_latest_posts' => $this->isTruthy($form['theme_show_latest_posts'] ?? false),
-                'posts_limit' => $postsLimit,
-            ],
-            'footer' => [
-                'summary' => (string)($form['theme_footer_summary'] ?? ''),
-                'email' => (string)($form['theme_footer_email'] ?? ''),
-                'phone' => (string)($form['theme_footer_phone'] ?? ''),
-                'address' => (string)($form['theme_footer_address'] ?? ''),
-                'background' => (string)($form['theme_footer_background'] ?? ''),
-                'background_image' => (string)($form['theme_footer_background_image'] ?? ''),
-            ],
-        ];
-
-        // Keep keys the form does not manage (custom theme options) instead of dropping them.
-        $existing = $this->loadThemeSettings();
-        $merged = array_replace_recursive($existing, $data);
-        $this->setSystemMeta('theme_settings', Yaml::dump($merged, 4, 2));
+        // Keys the theme does not declare (hand-added options) are kept, not dropped.
+        $data = $this->theme->settingsFromInput($input, $this->loadThemeSettings());
+        $this->setSystemMeta('theme_settings', Yaml::dump($data, 4, 2));
         return ['ok' => true];
-    }
-
-    private function normalizeThemeMode(string $value): string
-    {
-        $value = strtolower(trim($value));
-        return in_array($value, ['system', 'light', 'dark'], true) ? $value : 'system';
-    }
-
-    private function normalizeThemePalette(string $value): string
-    {
-        $value = strtolower(trim($value));
-        return in_array($value, $this->themePaletteOptions(), true) ? $value : 'slate';
-    }
-
-    /** @return string[] */
-    private function themePaletteOptions(): array
-    {
-        return ['slate', 'indigo', 'emerald', 'teal', 'rose', 'amber'];
-    }
-
-    private function normalizeThemeFont(string $value): string
-    {
-        $value = strtolower(trim($value));
-        return in_array($value, $this->themeFontOptions(), true) ? $value : 'sans';
-    }
-
-    /** @return string[] */
-    private function themeFontOptions(): array
-    {
-        return ['sans', 'serif', 'display'];
-    }
-
-    private function normalizeThemeLayout(string $value): string
-    {
-        $value = strtolower(trim($value));
-        return in_array($value, $this->themeHeroLayoutOptions(), true) ? $value : 'default';
-    }
-
-    /** @return string[] */
-    private function themeHeroLayoutOptions(): array
-    {
-        return ['default', 'centered'];
     }
 
     private function ensureDefaultMenus(): void
@@ -4938,11 +4808,10 @@ final class App
         if (!is_array($locations)) {
             $locations = [];
         }
-        if (!isset($locations['header']) || trim((string)$locations['header']) === '') {
-            $locations['header'] = 'main';
-        }
-        if (!isset($locations['footer']) || trim((string)$locations['footer']) === '') {
-            $locations['footer'] = 'footer';
+        foreach ($this->theme->menuLocations() + ['header' => ['default' => 'main'], 'footer' => ['default' => 'footer']] as $location => $definition) {
+            if (!isset($locations[$location]) || trim((string)$locations[$location]) === '') {
+                $locations[$location] = $definition['default'];
+            }
         }
 
         $resolved = [];
@@ -5130,33 +4999,40 @@ final class App
 
     private function resolveItemTemplate(ContentItem $item): string
     {
-        $custom = $item->meta['template'] ?? null;
-        if ($custom && file_exists($this->basePath . '/themes/' . $this->settings['theme'] . '/' . $custom)) {
+        $custom = $this->normalizeTemplateName((string)($item->meta['template'] ?? ''));
+        if ($custom !== '' && $this->theme->hasTemplate($custom)) {
             return $custom;
         }
 
-        $themeRoot = $this->basePath . '/themes/' . $this->settings['theme'] . '/';
         $singular = $this->singularizeType($item->type);
-
         $candidates = [
-            'single-' . $singular . '.twig',
-            'single.twig',
-            $item->type . '.twig',
+            'templates/single-' . $singular . '.twig',
+            'templates/single.twig',
+            'templates/' . $item->type . '.twig',
         ];
-
         if ($item->type === 'pages') {
-            $candidates[] = 'page.twig';
+            $candidates[] = 'templates/page.twig';
         } elseif ($item->type === 'posts') {
-            $candidates[] = 'post.twig';
+            $candidates[] = 'templates/post.twig';
         }
 
-        foreach ($candidates as $template) {
-            if (file_exists($themeRoot . $template)) {
-                return $template;
-            }
-        }
+        return $this->theme->findTemplate($candidates) ?? 'templates/single.twig';
+    }
 
-        return 'single.twig';
+    /** Front matter `template:` accepts `landing`, `landing.twig`, or `templates/landing.twig`. */
+    private function normalizeTemplateName(string $name): string
+    {
+        $name = trim($name);
+        if ($name === '') {
+            return '';
+        }
+        if (!str_ends_with($name, '.twig')) {
+            $name .= '.twig';
+        }
+        if (!str_starts_with($name, 'templates/')) {
+            $name = 'templates/' . $name;
+        }
+        return Theme::isSafeRelativePath($name) ? $name : '';
     }
 
     private function renderSitemap(): void
@@ -5426,21 +5302,12 @@ final class App
 
     private function resolveTaxonomyTemplate(string $kind, string $slug): string
     {
-        $themeRoot = $this->basePath . '/themes/' . $this->settings['theme'] . '/';
         $safeSlug = $this->slugify($slug);
-        $candidates = [
-            'archive-' . $kind . '-' . $safeSlug . '.twig',
-            'archive-' . $kind . '.twig',
-            'archive.twig',
-        ];
-
-        foreach ($candidates as $template) {
-            if (file_exists($themeRoot . $template)) {
-                return $template;
-            }
-        }
-
-        return 'archive.twig';
+        return $this->theme->findTemplate([
+            'templates/archive-' . $kind . '-' . $safeSlug . '.twig',
+            'templates/archive-' . $kind . '.twig',
+            'templates/archive.twig',
+        ]) ?? 'templates/archive.twig';
     }
 
     private function formatDateValue(mixed $value): string
@@ -5831,26 +5698,7 @@ final class App
 
     private function loadTranslations(string $lang): array
     {
-        $theme = $this->settings['theme'] ?? 'default';
-        $themeDir = $this->basePath . '/themes/' . $theme . '/lang';
-        $defaultLang = $this->settings['languages']['default'] ?? 'en';
-
-        $translations = $this->loadTranslationFile($themeDir, $defaultLang);
-        if ($lang !== $defaultLang) {
-            $translations = array_replace($translations, $this->loadTranslationFile($themeDir, $lang));
-        }
-
-        return $translations;
-    }
-
-    private function loadTranslationFile(string $dir, string $lang): array
-    {
-        $path = $dir . '/' . $lang . '.php';
-        if (!file_exists($path)) {
-            return [];
-        }
-        $data = require $path;
-        return is_array($data) ? $data : [];
+        return $this->theme->translations($lang, (string)($this->settings['languages']['default'] ?? 'en'));
     }
 
     private function isHiddenTranslationKey(string $key): bool
@@ -5869,39 +5717,6 @@ final class App
             $rows[$key] = (string)$value;
         }
         return $rows;
-    }
-
-    private function extractHiddenTranslationKeys(array $translations): array
-    {
-        $rows = [];
-        foreach ($translations as $key => $value) {
-            $key = (string)$key;
-            if (!$this->isHiddenTranslationKey($key)) {
-                continue;
-            }
-            $rows[$key] = (string)$value;
-        }
-        return $rows;
-    }
-
-    private function writeTranslationFile(string $path, array $translations): void
-    {
-        $lines = ["<?php", "", "return ["];
-        foreach ($translations as $key => $value) {
-            $lines[] = "    '" . $this->escapePhpString($key) . "' => '" . $this->escapePhpString($value) . "',";
-        }
-        $lines[] = "];";
-        $payload = implode("\n", $lines) . "\n";
-        if (!is_dir(dirname($path))) {
-            mkdir(dirname($path), 0775, true);
-        }
-        file_put_contents($path, $payload);
-    }
-
-    private function escapePhpString(string $value): string
-    {
-        $value = str_replace("\\", "\\\\", $value);
-        return str_replace("'", "\\'", $value);
     }
 
     private function extractSettingsForm(array $parsed): array
@@ -6036,44 +5851,6 @@ final class App
             $node = $node[$segment];
         }
         return $node;
-    }
-
-    private function extractThemeSettingsForm(array $parsed): array
-    {
-        $merged = array_replace_recursive($this->defaultThemeSettings(), $parsed);
-        $mode = (string)($merged['appearance']['mode'] ?? 'system');
-        if (!in_array($mode, ['system', 'light', 'dark'], true)) {
-            $mode = 'system';
-        }
-        $palette = (string)($merged['appearance']['palette'] ?? 'slate');
-        if (!in_array($palette, $this->themePaletteOptions(), true)) {
-            $palette = 'slate';
-        }
-        $font = (string)($merged['appearance']['font'] ?? 'sans');
-        if (!in_array($font, $this->themeFontOptions(), true)) {
-            $font = 'sans';
-        }
-
-        return [
-            'mode' => $mode,
-            'palette' => $palette,
-            'font' => $font,
-            'hero_default' => $this->normalizeThemeLayout((string)($merged['hero_layouts']['default'] ?? 'default')),
-            'hero_pages' => $this->normalizeThemeLayout((string)($merged['hero_layouts']['pages'] ?? 'default')),
-            'hero_posts' => $this->normalizeThemeLayout((string)($merged['hero_layouts']['posts'] ?? 'default')),
-            'hero_projects' => $this->normalizeThemeLayout((string)($merged['hero_layouts']['projects'] ?? 'default')),
-            'hero_forms' => $this->normalizeThemeLayout((string)($merged['hero_layouts']['forms'] ?? 'default')),
-            'show_latest_projects' => $this->isTruthy($merged['home']['show_latest_projects'] ?? true),
-            'projects_limit' => (string)max(1, (int)($merged['home']['projects_limit'] ?? 3)),
-            'show_latest_posts' => $this->isTruthy($merged['home']['show_latest_posts'] ?? true),
-            'posts_limit' => (string)max(1, (int)($merged['home']['posts_limit'] ?? 3)),
-            'footer_summary' => (string)($merged['footer']['summary'] ?? ''),
-            'footer_email' => (string)($merged['footer']['email'] ?? ''),
-            'footer_phone' => (string)($merged['footer']['phone'] ?? ''),
-            'footer_address' => (string)($merged['footer']['address'] ?? ''),
-            'footer_background' => (string)($merged['footer']['background'] ?? ''),
-            'footer_background_image' => (string)($merged['footer']['background_image'] ?? ''),
-        ];
     }
 
     private function saveSettings(string $raw, array $form): bool
@@ -6383,23 +6160,13 @@ final class App
 
     private function resolveArchiveTemplate(string $type): string
     {
-        $themeRoot = $this->basePath . '/themes/' . $this->settings['theme'] . '/';
         $singular = $this->singularizeType($type);
-
-        $candidates = [
-            'archive-' . $type . '.twig',
-            'archive-' . $singular . '.twig',
-            $type . '_archive.twig',
-            'archive.twig',
-        ];
-
-        foreach ($candidates as $template) {
-            if (file_exists($themeRoot . $template)) {
-                return $template;
-            }
-        }
-
-        return 'archive.twig';
+        return $this->theme->findTemplate([
+            'templates/archive-' . $type . '.twig',
+            'templates/archive-' . $singular . '.twig',
+            'templates/' . $type . '_archive.twig',
+            'templates/archive.twig',
+        ]) ?? 'templates/archive.twig';
     }
 
     private function singularizeType(string $type): string
@@ -8183,7 +7950,7 @@ final class App
         if ($redirect === '') {
             $redirect = '/' . ltrim($currentPath, '/');
         }
-        return $this->twig->render('parts/form.twig', [
+        return $this->twig->render('components/form.twig', [
             'form' => $form,
             'form_fields' => $fields,
             'form_values' => $values,

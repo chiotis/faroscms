@@ -1,7 +1,14 @@
 # Roadmap
 
 ## Theme
-- Current baseline completed:
+Direction: one all-purpose theme (`themes/default`) that grows with blocks and variants; site changes live in `custom/`. Plan and contract: `docs/theming.md`.
+- Phase 1 (done): theme manifest + schema-driven settings, folder structure, asset serving, `custom/` overrides, update-safe translations
+- Phase 2: design system (tokens, typography, spacing) and site components with variants (header, footer, hero, cards, pagination); archive pagination. Style references from the owner are needed at the start of this phase.
+- Phase 3: block engine (`blocks:` in front matter, block registry and renderer, per-block CSS) and the first block set
+- Phase 4: block editor in the admin (add, reorder, schema-driven fields, media picker)
+- Phase 5: content types with declared fields and per-type templates/archive settings
+- Phase 6: demo content rebuilt with blocks, accessibility pass, theme developer guide
+- Earlier baseline completed:
   - starter bilingual content + contact form seeded
   - responsive header navigation (desktop + mobile off-canvas + nested levels)
   - sticky header reveal and interaction polish

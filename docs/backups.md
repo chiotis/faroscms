@@ -36,7 +36,7 @@ Restore is limited to superadmins (`backups.restore` capability).
 2. Choose the areas:
    - **Content**: `content/` (pages, posts, projects, forms and submissions, menus, taxonomies, media metadata)
    - **Uploads**: `public/uploads/`
-   - **Theme translations**: `themes/<active theme>/lang/`
+   - **Site customizations**: `custom/` (translation overrides, custom CSS/JS, template overrides)
    - **System database**: `storage/db/app.sqlite` (settings, users, logs, notifications, backup history)
 3. Type the archive name to confirm.
 
@@ -48,7 +48,7 @@ What happens next:
 4. Each live area is renamed into `storage/restore/<run>/previous/` and the staged area is renamed into place. If any rename fails, every area already swapped is moved back and the half-restored copy is kept in `storage/restore/<run>/failed/`.
 5. Pending migrations run on the restored database. The restore is logged there and a notification is created.
 
-Code (`src/`, `vendor/`, `admin/`, `public/assets/`) is never restored from a backup. Use git or a release package for code.
+Code (`src/`, `vendor/`, `admin/`, `themes/`, `public/assets/`) is never restored from a backup. Archives made before `custom/` existed kept edited strings in `themes/default/lang/`; those files are not restored automatically, so copy any strings you need into Admin > Translations. Use git or a release package for code.
 
 If the restored database does not contain your user, or your user is inactive there, you are signed out on the next request.
 
@@ -60,5 +60,5 @@ If the admin itself is unusable:
 
 1. Stop the web server or put the site in maintenance.
 2. Unzip the archive somewhere else and compare `faroscms-backup.json` checksums if needed (`shasum -a 256 <file>`).
-3. Copy `content/`, `public/uploads/`, `themes/<theme>/lang/`, and `storage/db/app.sqlite` into place. Remove any stale `storage/db/app.sqlite-wal` and `app.sqlite-shm` first.
+3. Copy `content/`, `public/uploads/`, `custom/`, and `storage/db/app.sqlite` into place. Remove any stale `storage/db/app.sqlite-wal` and `app.sqlite-shm` first.
 4. Start the server and sign in.

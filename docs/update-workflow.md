@@ -4,7 +4,7 @@ This is the design for updating a live FarosCMS site safely. Part 1 is built. Pa
 
 ## Principles
 
-1. **Data and code are separate.** Data lives in `content/`, `public/uploads/`, `themes/<theme>/lang/`, and `storage/db/app.sqlite`. Everything else is code. An update replaces code only. A restore replaces data only.
+1. **Data and code are separate.** Data lives in `content/`, `public/uploads/`, `custom/`, and `storage/db/app.sqlite`. Everything else is code, including the whole `themes/default/` folder. An update replaces code only. A restore replaces data only.
 2. **No update without a verified way back.** A full backup that passed checksum verification, is under 24 hours old, and was taken on the version being replaced must exist before anything changes.
 3. **Stage, then swap.** New code is fully downloaded, verified, and unpacked beside the live tree before a single live file moves. The swap is a sequence of renames that can be undone in reverse.
 4. **Every step is logged** to the activity log and ends with a notification, whether it succeeds or not.
@@ -30,7 +30,7 @@ See [backups.md](backups.md). Every archive now carries a SHA-256 manifest, the 
 
 1. Admin `Updates`: **Check status**, read the release notes.
 2. **Create verified backup** and wait for "Ready".
-3. Update the code with git (`git pull --ff-only`) or a ZIP deploy, as described in `update.md`. Never overwrite `content/`, `public/uploads/`, `storage/`.
+3. Update the code with git (`git pull --ff-only`) or a ZIP deploy, as described in `update.md`. Never overwrite `content/`, `public/uploads/`, `custom/`, `storage/`.
 4. Open `/admin`. Pending SQLite migrations run automatically on the first request.
 5. Check the homepage, one content page, `/admin`, and `/sitemap.xml`.
 6. If something is wrong: restore code with git (`git checkout <previous-commit>`), and if data changed, restore the pre-update backup from `Backups`.
@@ -64,14 +64,14 @@ The `sha256` is what makes download verification meaningful. A branch archive (`
 | 4 | Verify SHA-256 against `release.json`. | Delete, stop. |
 | 5 | Extract to `storage/updates/<version>/staged/` with the same entry validation restore uses (no absolute paths, no `..`). The package must contain `VERSION` equal to the manifest version, plus `src/App.php` and `public/index.php`. | Delete staging, stop. |
 | 6 | Maintenance mode: write `storage/maintenance.flag`. The frontend answers 503 with `Retry-After`; the admin stays available to the updating user. | Remove the flag, stop. |
-| 7 | Swap code paths one by one (`src/`, `admin/`, `vendor/`, `public/assets/`, `public/admin-assets/`, `public/index.php`, `VERSION`, `CHANGELOG.md`, `update.md`, `themes/default/` except `lang/`). Each live path moves to `storage/updates/<version>/previous/`. | Reverse every completed rename, remove the flag, stop. |
+| 7 | Swap code paths one by one (`src/`, `admin/`, `vendor/`, `public/assets/`, `public/admin-assets/`, `public/index.php`, `VERSION`, `CHANGELOG.md`, `update.md`, `themes/default/`). `custom/` is never touched. Each live path moves to `storage/updates/<version>/previous/`. | Reverse every completed rename, remove the flag, stop. |
 | 8 | Clear OPcache (`opcache_reset()` when available). | Continue; report a warning. |
 | 9 | Post-update checks in a fresh request: `/admin` returns 200, `/` returns 200, SQLite migrations applied, `VERSION` reports the new version. | Automatic rollback: reverse step 7, restore the database from the pre-update backup if migrations ran, remove the flag. |
 | 10 | Remove the maintenance flag, log `updates.install_success`, notify, and keep `previous/` for one release as a manual rollback source. | — |
 
 ### Explicitly out of scope
 
-- Updating customised themes other than `default`. Custom themes are the owner's code.
+- Updating `custom/`. It is the site owner's code; the theme's compatibility rules (`docs/theming.md`) keep it working across updates.
 - Rolling back database migrations. The pre-update backup is the rollback path for data.
 - Auto-updates without a human clicking **Install**.
 

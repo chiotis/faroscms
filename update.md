@@ -22,6 +22,7 @@ This document explains a safe update process when new code is available in the m
 2. Also keep a filesystem backup of:
    - `content/`
    - `public/uploads/`
+   - `custom/`
    - `storage/`
    - `.env` (if used in your server setup)
 
@@ -29,9 +30,10 @@ This document explains a safe update process when new code is available in the m
 
 These paths usually contain live data and must be protected:
 
-- `content/` (pages, posts, settings, menus, users, form submissions, media metadata)
+- `content/` (pages, posts, menus, form submissions, media metadata)
 - `public/uploads/` (images/files)
-- `storage/` (backups/cache/runtime artifacts)
+- `custom/` (site-specific CSS/JS, template overrides, translation overrides)
+- `storage/` (system database with settings and users, backups, runtime artifacts)
 
 If you do a clean deploy from ZIP, restore these paths from backup afterwards.
 
@@ -66,7 +68,9 @@ If you do not use git on the server:
 3. Do **not** overwrite live data paths unintentionally:
    - keep/restore `content/`
    - keep/restore `public/uploads/`
+   - keep/restore `custom/`
    - keep/restore `storage/`
+   - `themes/default/` is code: replace it completely. Site changes belong in `custom/`.
 4. Ensure `vendor/` is updated (or run `composer install` on server).
 
 ## 5) Post-Update Checklist
@@ -75,6 +79,7 @@ If you do not use git on the server:
 - Verify permissions for writable paths:
   - `content/`
   - `public/uploads/`
+  - `custom/`
   - `storage/`
 - Open and check:
   - homepage
@@ -105,6 +110,6 @@ composer install --no-dev --prefer-dist --optimize-autoloader
 
 For production stability:
 
-- Keep customizations in separate commits/branch.
+- Keep site customizations in `custom/` (see `docs/theming.md`), never in `themes/`, `src/`, or `admin/`.
 - Update via staging first, then production.
 - Treat updates as: **backup -> update -> verify -> keep snapshot**.
