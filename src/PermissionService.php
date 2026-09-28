@@ -72,7 +72,7 @@ final class PermissionService
     public function canAccessAction(?array $user, string $action): bool
     {
         $capability = match ($action) {
-            'settings' => 'settings.manage',
+            'settings', 'system' => 'settings.manage',
             'dashboard', 'index' => 'dashboard.view',
             'content' => 'content.manage',
             'menus', 'menus-new', 'menus-edit' => 'menus.manage',

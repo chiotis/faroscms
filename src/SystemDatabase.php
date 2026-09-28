@@ -97,6 +97,21 @@ final class SystemDatabase
         $this->applyMigration($pdo, '202607060001_system_foundation', fn(PDO $db) => $this->createFoundationSchema($db));
         $this->applyMigration($pdo, '202607060002_users_google_auth', fn(PDO $db) => $this->addGoogleAuthColumns($db));
         $this->applyMigration($pdo, '202609280001_login_attempts', fn(PDO $db) => $this->createLoginAttemptsTable($db));
+        $this->applyMigration($pdo, '202609280002_content_index_search', fn(PDO $db) => $this->addContentIndexSearchColumns($db));
+    }
+
+    private function addContentIndexSearchColumns(PDO $pdo): void
+    {
+        $columns = [];
+        foreach ($pdo->query('PRAGMA table_info(content_index)') as $row) {
+            $columns[] = (string)$row['name'];
+        }
+        if (!in_array('mtime', $columns, true)) {
+            $pdo->exec('ALTER TABLE content_index ADD COLUMN mtime INTEGER NOT NULL DEFAULT 0');
+        }
+        if (!in_array('search_text', $columns, true)) {
+            $pdo->exec('ALTER TABLE content_index ADD COLUMN search_text TEXT');
+        }
     }
 
     private function createLoginAttemptsTable(PDO $pdo): void

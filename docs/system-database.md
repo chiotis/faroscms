@@ -22,7 +22,14 @@ The initial foundation migration creates:
 - `content_index`
 - `backup_runs`
 
-The users, settings metadata, activity logs, email logs, notifications, and backup runs tables are now wired into admin flows. The remaining tables are intentionally not fully wired into admin flows yet; they exist so the next features can build on stable storage.
+All tables are wired into admin flows. `login_attempts` (sign-in throttling) and the `content_index.mtime` / `search_text` columns were added by later migrations.
+
+## Content Index
+
+- `content_index` mirrors every Markdown file (type, slug, language, title, status, visibility, path, checksum, mtime, and lowercased search text).
+- It is updated on save, delete, bulk actions, CSV imports, and restores, and rebuilt automatically when files change outside the admin (for example after `git pull`).
+- Admin search (`/admin/search`) reads it; `/admin/system` shows its status and has a manual rebuild button.
+- It can always be rebuilt from the files, so deleting it loses nothing.
 
 ## Boundaries
 

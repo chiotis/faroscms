@@ -1,0 +1,125 @@
+{% extends '@admin/base.twig' %}
+{% import '@admin/partials/ui.twig' as ui %}
+
+{% block content %}
+  {% set btn_secondary = 'inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50' %}
+
+  {{ ui.flash(rebuilt_message, rebuilt == 'ok' ? 'success' : 'error') }}
+
+  <header class="mb-4 flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+      <h1 class="text-[15px] font-semibold leading-tight text-slate-900">System</h1>
+      <p class="text-xs text-slate-400">Health checks, scheduled tasks, content index, and server environment.</p>
+    </div>
+    {{ ui.status_badge(system_status.status == 'ok' ? 'ok' : system_status.status) }}
+  </header>
+
+  <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
+    <div class="space-y-4 xl:col-span-2">
+      <div class="rounded-lg border border-slate-200 bg-white">
+        <div class="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+          <h2 class="text-sm font-semibold text-slate-900">Health checks</h2>
+          <span class="text-xs text-slate-400">{{ system_status.label }} · {{ system_status.detail }}</span>
+        </div>
+        <dl class="divide-y divide-slate-50">
+          {% for check in checks %}
+            <div class="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
+              <dt class="text-slate-600">{{ check.label }}</dt>
+              <dd class="flex items-center gap-2">
+                <span class="max-w-64 truncate text-right text-slate-500">{{ check.value }}</span>
+                {{ ui.status_badge(check.status) }}
+              </dd>
+            </div>
+          {% endfor %}
+        </dl>
+      </div>
+
+      <div class="rounded-lg border border-slate-200 bg-white">
+        <div class="border-b border-slate-200 px-4 py-3">
+          <h2 class="text-sm font-semibold text-slate-900">Scheduled tasks</h2>
+          <p class="mt-0.5 text-xs text-slate-400">FarosCMS has no cron requirement: tasks run during normal admin requests when they are due.</p>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-slate-100 bg-slate-50/50 text-left text-xs font-medium text-slate-400">
+                <th class="px-4 py-2 font-medium">Task</th>
+                <th class="px-4 py-2 font-medium">Schedule</th>
+                <th class="px-4 py-2 font-medium">Last run</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-50">
+              {% for task in tasks %}
+                <tr>
+                  <td class="px-4 py-2.5">
+                    <div class="font-medium text-slate-800">{{ task.name }}</div>
+                    <div class="text-xs text-slate-400">{{ task.how }}</div>
+                  </td>
+                  <td class="px-4 py-2.5 text-slate-600">{{ task.schedule }}</td>
+                  <td class="whitespace-nowrap px-4 py-2.5 text-slate-500">{{ task.last ? task.last|date('Y-m-d H:i') : '—' }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="rounded-lg border border-slate-200 bg-white">
+        <div class="border-b border-slate-200 px-4 py-3">
+          <h2 class="text-sm font-semibold text-slate-900">PHP extensions</h2>
+        </div>
+        <dl class="grid grid-cols-1 divide-y divide-slate-50 sm:grid-cols-2 sm:divide-y-0">
+          {% for extension in extensions %}
+            <div class="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
+              <dt>
+                <span class="font-mono text-xs text-slate-700">{{ extension.name }}</span>
+                <span class="block text-xs text-slate-400">{{ extension.purpose }}</span>
+              </dt>
+              <dd>{{ ui.badge(extension.loaded ? 'loaded' : 'missing', extension.loaded ? 'green' : (extension.status == 'warning' ? 'amber' : 'red')) }}</dd>
+            </div>
+          {% endfor %}
+        </dl>
+      </div>
+    </div>
+
+    <div class="space-y-4">
+      <div class="rounded-lg border border-slate-200 bg-white p-4">
+        <div class="flex items-center justify-between gap-3">
+          <h2 class="text-sm font-semibold text-slate-900">Content index</h2>
+          {{ ui.badge(not index.available ? 'unavailable' : (index.stale ? 'out of date' : 'up to date'), not index.available ? 'red' : (index.stale ? 'amber' : 'green')) }}
+        </div>
+        <dl class="mt-3 space-y-2 text-sm">
+          <div class="flex justify-between gap-3"><dt class="text-slate-500">Indexed entries</dt><dd class="font-medium text-slate-900">{{ index.rows }}</dd></div>
+          <div class="flex justify-between gap-3"><dt class="text-slate-500">Content files</dt><dd class="font-medium text-slate-900">{{ index.files }}</dd></div>
+          {% if index.stale %}
+            <div class="flex justify-between gap-3"><dt class="text-slate-500">Missing / changed / orphaned</dt><dd class="font-medium text-amber-700">{{ index.missing }} / {{ index.changed }} / {{ index.orphaned }}</dd></div>
+          {% endif %}
+          <div class="flex justify-between gap-3"><dt class="text-slate-500">Last indexed</dt><dd class="max-w-40 truncate text-right font-medium text-slate-900">{{ index.last_indexed_at ? index.last_indexed_at|date('Y-m-d H:i') : 'Never' }}</dd></div>
+        </dl>
+        <p class="mt-3 text-xs text-slate-400">Markdown files stay the source of truth. The index powers admin search and can be rebuilt at any time.</p>
+        <form method="post" action="{{ url('admin/system') }}" class="mt-3">
+          {{ csrf_field() }}
+          <input type="hidden" name="system_action" value="rebuild_index">
+          <button type="submit" class="{{ btn_secondary }} w-full justify-center">Rebuild content index</button>
+        </form>
+      </div>
+
+      <div class="rounded-lg border border-slate-200 bg-white p-4">
+        <h2 class="text-sm font-semibold text-slate-900">Environment</h2>
+        <dl class="mt-3 space-y-2 text-sm">
+          {% for label, value in environment %}
+            <div class="flex justify-between gap-3"><dt class="text-slate-500">{{ label }}</dt><dd class="max-w-48 truncate text-right font-medium text-slate-900" title="{{ value }}">{{ value }}</dd></div>
+          {% endfor %}
+        </dl>
+      </div>
+
+      <div class="rounded-lg border border-slate-200 bg-white p-4">
+        <h2 class="text-sm font-semibold text-slate-900">Storage</h2>
+        <dl class="mt-3 space-y-2 text-sm">
+          <div class="flex justify-between gap-3"><dt class="text-slate-500">Site data</dt><dd class="font-medium text-slate-900">{{ storage.used_human }}</dd></div>
+          <div class="flex justify-between gap-3"><dt class="text-slate-500">Disk free</dt><dd class="font-medium text-slate-900">{{ storage.disk_free_human }}</dd></div>
+        </dl>
+      </div>
+    </div>
+  </div>
+{% endblock %}

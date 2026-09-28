@@ -150,6 +150,12 @@
             Settings
           </a>
         {% endif %}
+        {% if can('settings.manage') %}
+          <a href="{{ url('admin/system') }}" class="{{ nav_base }} {{ section == 'system' ? nav_active : nav_idle }}">
+            <svg class="h-4 w-4 {{ section == 'system' ? 'text-white/80' : 'text-slate-400 group-hover:text-slate-600' }}" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 3v2m6-2v2M9 19v2m6-2v2M3 9h2m-2 6h2m14-6h2m-2 6h2M7 5h10a2 2 0 012 2v10a2 2 0 01-2 2H7a2 2 0 01-2-2V7a2 2 0 012-2zm3 5h4v4h-4z"/></svg>
+            System
+          </a>
+        {% endif %}
         {% if can('translations.manage') %}
           <a href="{{ url('admin/translations') }}" class="{{ nav_base }} {{ section == 'translations' ? nav_active : nav_idle }}">
             <svg class="h-4 w-4 {{ section == 'translations' ? 'text-white/80' : 'text-slate-400 group-hover:text-slate-600' }}" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5h12M9 3v2c0 4.418-2.686 8-6 8m4-3c0 2.21 2.91 4 6.5 4M14 21l4.5-9 4.5 9m-7.65-2h6.3"/></svg>
@@ -183,6 +189,15 @@
         </div>
 
         <div class="ml-auto flex items-center gap-2">
+          {% if can('content.manage') %}
+            <form method="get" action="{{ url('admin/search') }}" class="hidden md:block" role="search">
+              <label class="relative block">
+                <span class="sr-only">Search content</span>
+                <svg class="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z"/></svg>
+                <input type="search" name="q" value="{{ section == 'search' ? query|default('') : '' }}" placeholder="Search content…" class="w-48 rounded-md border border-slate-200 bg-slate-50 py-1.5 pl-8 pr-2 text-sm text-slate-700 placeholder:text-slate-400 focus:w-64 focus:border-slate-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/5">
+              </label>
+            </form>
+          {% endif %}
           {% if (is_content_section or section == 'dashboard') and can('content.manage') %}
             <a href="{{ url('admin/new?type=' ~ current_type ~ '&lang=' ~ (lang|default(site.languages.default|default('en')))) }}" class="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-2.5 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-blue-700 sm:px-3" aria-label="New {{ current_type|title }}">
               <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>

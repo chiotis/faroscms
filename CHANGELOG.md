@@ -15,6 +15,9 @@
 - Forms: standalone `/admin/forms` module with submission counts, shortcode copy, language versions, filters, and sorting
 - Forms: submissions browser with search, language/date filters, pagination, detail panel, reply-by-email, and single/bulk delete
 - Admin UI: shared macros (`partials/ui.twig`), one toast placement with auto-hide, Filters buttons with an active dot, sortable tables, confirmation modal instead of `confirm()`, and consistent status badges
+- System: `/admin/system` page with health checks, scheduled tasks, PHP extensions, environment, and content index status/rebuild
+- Admin search across all content via the SQLite content index (header search box)
+- Email: SMTP/SES sending moved to `Mailer`; SMTP now checks the server's answer after DATA, MIME-encodes non-ASCII subjects and sender names, strips CR/LF from headers, and uses socket timeouts; SES without cURL no longer reports HTTP errors as success
 - Content list: search and status filters, language pills, and bulk publish/draft/delete (the home page stays protected)
 - Fix: CSV export/import no longer emits PHP 8.4+ `fputcsv`/`fgetcsv` deprecation output into the file
 - Updates: remote status is cached in SQLite and refreshed every 12 hours; a notification appears once per new release, and the sidebar version badge and dashboard show when an update is available

@@ -129,9 +129,9 @@ See `docs/security.md`.
 ## System Backlog
 
 - [x] Add first-pass system health checks: PHP version, upload limit, memory limit, writable dirs, SQLite status, mail status, and disk free.
-- [ ] Add deeper system health checks: cache/index status and scheduled tasks.
-- [ ] Add content index rebuild command/action.
-- [ ] Wire `content_index` for faster admin filtering/search.
+- [x] Add deeper system health checks: content index status, scheduled backups, PHP extensions (`/admin/system`).
+- [x] Add content index rebuild action (`/admin/system`), plus automatic rebuild when files change outside the admin.
+- [x] Wire `content_index` for admin search (`/admin/search`, header search box).
 - [ ] Add cache/status tooling if caching is introduced.
 - [ ] Decide later whether to refactor from `src/` into stricter phpFlat `system/` structure.
 - [ ] Decide later whether to remove Twig/Composer or keep them as FarosCMS architecture.

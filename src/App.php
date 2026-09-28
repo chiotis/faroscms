@@ -31,6 +31,7 @@ final class App
     private LoginThrottle $loginThrottle;
     private BackupService $backups;
     private FormSubmissionRepository $formSubmissions;
+    private ContentIndex $contentIndex;
     private string $currentLang;
     private array $translations = [];
     private array $formStates = [];
@@ -51,9 +52,7 @@ final class App
         $this->ensureDefaultMenus();
         $this->ensureDefaultTaxonomies();
 
-        $environment = new Environment(['renderer' => ['soft_break' => "<br />\n"]]);
-        $environment->addExtension(new CommonMarkCoreExtension());
-        $markdown = new MarkdownConverter($environment);
+        $markdown = $this->markdownConverter();
 
         $this->users = new UserRepository($this->systemDatabase, $this->contentDir . '/users/users.yaml');
         $this->users->importYamlUsersIfEmpty();
@@ -66,6 +65,7 @@ final class App
         $this->loginThrottle = new LoginThrottle($this->systemDatabase);
         $this->backups = new BackupService($this->basePath, $this->systemDatabase);
         $this->formSubmissions = new FormSubmissionRepository($this->contentDir);
+        $this->contentIndex = new ContentIndex($this->systemDatabase, $this->contentDir);
         $this->content = new ContentRepository($this->contentDir, $markdown, $this->settings);
         $this->auth = new Auth($this->contentDir . '/users/users.yaml', $this->users);
 
@@ -93,6 +93,13 @@ final class App
         $this->sendSecurityHeaders(false);
 
         $this->handleFront($path);
+    }
+
+    private function markdownConverter(): MarkdownConverter
+    {
+        $environment = new Environment(['renderer' => ['soft_break' => "<br />\n"]]);
+        $environment->addExtension(new CommonMarkCoreExtension());
+        return new MarkdownConverter($environment);
     }
 
     private function configureSession(): void
@@ -397,6 +404,16 @@ final class App
 
         if ($action === 'content-bulk') {
             $this->handleContentBulk();
+            return;
+        }
+
+        if ($action === 'search') {
+            $this->handleAdminSearch();
+            return;
+        }
+
+        if ($action === 'system') {
+            $this->handleSystem();
             return;
         }
 
@@ -815,7 +832,7 @@ final class App
 
     private function buildDashboardSystemChecks(array $storage): array
     {
-        $mailProvider = $this->resolveEmailProvider((string)($this->settings['forms']['notifications']['driver'] ?? ''));
+        $mailProvider = $this->mailer()->provider();
 
         return [
             [
@@ -863,6 +880,55 @@ final class App
                 'value' => $storage['disk_free_human'],
                 'status' => ((int)$storage['percent']) > 90 ? 'warning' : 'ok',
             ],
+            $this->contentIndexCheck(),
+            $this->scheduledBackupCheck(),
+        ];
+    }
+
+    /** @return array{label: string, value: string, status: string} */
+    private function contentIndexCheck(): array
+    {
+        try {
+            $index = $this->ensureContentIndexFresh();
+        } catch (\Throwable) {
+            return ['label' => 'Content index', 'value' => 'unavailable', 'status' => 'warning'];
+        }
+        if (!$index['available']) {
+            return ['label' => 'Content index', 'value' => 'SQLite unavailable', 'status' => 'warning'];
+        }
+        return [
+            'label' => 'Content index',
+            'value' => $index['stale'] ? 'out of date' : $index['rows'] . ' entries',
+            'status' => $index['stale'] ? 'warning' : 'ok',
+        ];
+    }
+
+    /** @return array{label: string, value: string, status: string} */
+    private function scheduledBackupCheck(): array
+    {
+        $auto = is_array($this->settings['backup']['auto'] ?? null) ? $this->settings['backup']['auto'] : [];
+        $latest = $this->backups->list()[0] ?? null;
+        $latestAge = $latest !== null ? time() - (int)$latest['mtime'] : PHP_INT_MAX;
+        if (!$this->isTruthy($auto['enabled'] ?? false)) {
+            // Without a schedule, only warn when nobody has taken a backup for a month.
+            return [
+                'label' => 'Scheduled backups',
+                'value' => $latest === null ? 'off, no backups yet' : 'off',
+                'status' => $latestAge > 30 * 86400 ? 'warning' : 'ok',
+            ];
+        }
+        $schedule = (string)($auto['schedule'] ?? 'daily');
+        $lastRun = (int)strtotime((string)($auto['last_run'] ?? ''));
+        $interval = match ($schedule) {
+            'weekly' => 604800,
+            'monthly' => 2592000,
+            default => 86400,
+        };
+        $overdue = $lastRun > 0 && time() - $lastRun > $interval + 86400;
+        return [
+            'label' => 'Scheduled backups',
+            'value' => $overdue ? 'overdue (' . $schedule . ')' : $schedule . ($lastRun > 0 ? ', last ' . date('Y-m-d', $lastRun) : ''),
+            'status' => $overdue ? 'warning' : 'ok',
         ];
     }
 
@@ -1254,6 +1320,9 @@ final class App
         $this->menusCache = [];
         $this->taxonomiesCache = [];
         $this->recordBackupRun($safety);
+        if ($result['ok']) {
+            $this->rebuildContentIndex();
+        }
         $this->logActivity($result['ok'] ? 'backup.restore_success' : 'backup.restore_failure', $result['ok'] ? 'warning' : 'error', 'backup', $filename, $result['message'], [
             'scopes' => $scopeKeys,
             'restored' => $result['restored'],
@@ -1639,6 +1708,7 @@ final class App
                     continue;
                 }
                 if (@unlink($path)) {
+                    $this->unindexContent($type, $slug, $lang);
                     $changed++;
                 }
                 continue;
@@ -1658,6 +1728,7 @@ final class App
             // Same layout handleSave writes: front matter, one blank line, body.
             $body = preg_replace('/\A\R/', '', $body) ?? $body;
             file_put_contents($path, "---\n" . trim(Yaml::dump($meta, 4, 2)) . "\n---\n\n" . rtrim($body) . "\n");
+            $this->indexContentFile($type, $path);
             $changed++;
         }
 
@@ -2152,9 +2223,11 @@ final class App
         $frontmatter = trim(Yaml::dump($data, 4, 2));
         $payload = "---\n" . $frontmatter . "\n---\n\n" . $body . "\n";
         file_put_contents($path, $payload);
+        $this->indexContentFile($type, $path);
 
         if ($oldPath !== '' && $oldPath !== $path && file_exists($oldPath)) {
             unlink($oldPath);
+            $this->unindexContent($type, $originalSlug, $originalLang);
         }
 
         $this->logActivity($wasExisting ? 'content.update' : 'content.create', 'info', $type, $slug . ':' . $lang, ($wasExisting ? 'Content updated.' : 'Content created.'), [
@@ -2197,6 +2270,7 @@ final class App
         $path = $this->contentDir . '/' . $type . '/' . $this->buildFilename($slug, $lang);
         if (file_exists($path)) {
             unlink($path);
+            $this->unindexContent($type, $slug, $lang);
             $this->logActivity('content.delete', 'warning', $type, $slug . ':' . $lang, 'Content deleted.', [
                 'type' => $type,
                 'slug' => $slug,
@@ -3075,6 +3149,138 @@ final class App
         exit;
     }
 
+    /** Index writes must never block content editing. */
+    private function indexContentFile(string $type, string $path): void
+    {
+        try {
+            if (is_file($path)) {
+                $this->contentIndex->upsert($this->content->parseFile($type, $path));
+            }
+        } catch (\Throwable) {
+            // The index is rebuildable; a failed write only makes it stale.
+        }
+    }
+
+    private function unindexContent(string $type, string $slug, string $lang): void
+    {
+        try {
+            $this->contentIndex->remove($type, $slug, $lang);
+        } catch (\Throwable) {
+            // The index is rebuildable; a failed delete only makes it stale.
+        }
+    }
+
+    /** @return array{ok: bool, indexed: int, removed: int, took_ms: int} */
+    private function rebuildContentIndex(): array
+    {
+        try {
+            // A fresh repository avoids this request's cached listings.
+            $repository = new ContentRepository($this->contentDir, $this->markdownConverter(), $this->settings);
+            return $this->contentIndex->rebuild($repository, $repository->getTypes());
+        } catch (\Throwable) {
+            return ['ok' => false, 'indexed' => 0, 'removed' => 0, 'took_ms' => 0];
+        }
+    }
+
+    /** Rebuilds automatically when files changed outside the admin (git pull, FTP) on reasonably small sites. */
+    private function ensureContentIndexFresh(): array
+    {
+        $status = $this->contentIndex->status($this->content->getTypes());
+        if ($status['available'] && $status['stale'] && $status['files'] <= 3000) {
+            $this->rebuildContentIndex();
+            $status = $this->contentIndex->status($this->content->getTypes());
+            $status['auto_rebuilt'] = true;
+        }
+        return $status;
+    }
+
+    private function handleAdminSearch(): void
+    {
+        $query = trim((string)($_GET['q'] ?? ''));
+        $results = [];
+        if ($query !== '') {
+            $this->ensureContentIndexFresh();
+            foreach ($this->contentIndex->search($query, 100) as $row) {
+                $row['edit_url'] = '/admin/edit?' . http_build_query(['type' => $row['type'], 'slug' => $row['slug'], 'lang' => $row['lang']]);
+                $results[] = $row;
+            }
+        }
+        $this->render('@admin/admin-search.twig', [
+            'title' => 'Search',
+            'query' => $query,
+            'results' => $results,
+            'types' => $this->content->getTypes(),
+            'user' => $this->auth->user(),
+            'admin_section' => 'search',
+            'current_type' => 'pages',
+        ]);
+    }
+
+    private function handleSystem(): void
+    {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && (string)($_POST['system_action'] ?? '') === 'rebuild_index') {
+            $result = $this->rebuildContentIndex();
+            $this->logActivity($result['ok'] ? 'system.index_rebuild' : 'system.index_rebuild_failure', $result['ok'] ? 'info' : 'error', 'system', 'content_index', $result['ok'] ? 'Content index rebuilt.' : 'Content index rebuild failed.', $result);
+            $this->redirect('/admin/system?' . http_build_query([
+                'rebuilt' => $result['ok'] ? 'ok' : 'fail',
+                'msg' => $result['ok'] ? 'Indexed ' . $result['indexed'] . ' entries in ' . $result['took_ms'] . ' ms' . ($result['removed'] > 0 ? ', removed ' . $result['removed'] . ' stale' : '') . '.' : 'The content index could not be rebuilt.',
+            ]));
+            return;
+        }
+
+        $storage = $this->buildStorageSummary();
+        $checks = $this->buildDashboardSystemChecks($storage);
+        $extensions = [];
+        foreach (['pdo_sqlite' => 'System database', 'zip' => 'Backups', 'curl' => 'Remote backups, Google sign-in, SES', 'mbstring' => 'Text handling', 'fileinfo' => 'Upload type detection', 'openssl' => 'SMTP TLS, HTTPS', 'simplexml' => 'S3 listings', 'intl' => 'Optional'] as $extension => $purpose) {
+            $loaded = extension_loaded($extension);
+            $extensions[] = [
+                'name' => $extension,
+                'purpose' => $purpose,
+                'loaded' => $loaded,
+                'status' => $loaded ? 'ok' : ($extension === 'intl' ? 'warning' : 'error'),
+            ];
+        }
+        $sqliteVersion = '';
+        try {
+            $sqliteVersion = $this->systemDatabase->isAvailable() ? (string)$this->systemDatabase->connection()->query('SELECT sqlite_version()')->fetchColumn() : '';
+        } catch (\Throwable) {
+        }
+        $auto = is_array($this->settings['backup']['auto'] ?? null) ? $this->settings['backup']['auto'] : [];
+        $update = $this->updates()->cachedStatus();
+
+        $this->render('@admin/system.twig', [
+            'title' => 'System',
+            'checks' => $checks,
+            'system_status' => $this->summarizeSystemStatus($checks),
+            'index' => $this->contentIndex->status($this->content->getTypes()),
+            'extensions' => $extensions,
+            'environment' => [
+                'PHP' => PHP_VERSION . ' (' . PHP_SAPI . ')',
+                'SQLite' => $sqliteVersion ?: 'unavailable',
+                'FarosCMS' => $this->updates()->currentVersion() . ($this->updates()->currentGitCommit() !== '' ? ' @ ' . $this->updates()->currentGitCommit() : ''),
+                'Memory limit' => (string)ini_get('memory_limit'),
+                'Upload max / post max' => ini_get('upload_max_filesize') . ' / ' . ini_get('post_max_size'),
+                'Max execution time' => (string)ini_get('max_execution_time') . 's',
+                'Timezone' => date_default_timezone_get(),
+                'OPcache' => function_exists('opcache_get_status') && is_array(@opcache_get_status(false)) ? 'enabled' : 'disabled',
+                'HTTPS' => $this->isHttpsRequest() ? 'yes' : 'no',
+            ],
+            'tasks' => [
+                ['name' => 'Automatic backups', 'schedule' => $this->isTruthy($auto['enabled'] ?? false) ? (string)($auto['schedule'] ?? 'daily') : 'off', 'last' => (string)($auto['last_run'] ?? ''), 'how' => 'Runs on the first admin page view after it is due.'],
+                ['name' => 'Update check', 'schedule' => 'every 12 hours', 'last' => (string)($update['checked_at'] ?? ''), 'how' => 'Runs on an admin page view for users who manage updates.'],
+                ['name' => 'Content index', 'schedule' => 'on change', 'last' => (string)($this->contentIndex->status($this->content->getTypes())['last_indexed_at'] ?? ''), 'how' => 'Updated on save, delete, bulk actions, imports, and restores; rebuilt automatically when files change outside the admin.'],
+                ['name' => 'Sign-in attempt cleanup', 'schedule' => 'continuous', 'last' => '', 'how' => 'Entries older than a day are removed while new attempts are recorded.'],
+            ],
+            'storage' => $storage,
+            'rebuilt' => (string)($_GET['rebuilt'] ?? ''),
+            'rebuilt_message' => trim((string)($_GET['msg'] ?? '')),
+            'types' => $this->content->getTypes(),
+            'user' => $this->auth->user(),
+            'admin_section' => 'system',
+            'current_type' => 'pages',
+        ]);
+    }
+
     private function handleFormsList(): void
     {
         $defaultLang = (string)($this->settings['languages']['default'] ?? 'en');
@@ -3438,6 +3644,7 @@ final class App
                     if (($applyResult['ok'] ?? false) === true) {
                         unset($_SESSION['content_import_preview'][$token]);
                         $summary = is_array($cache['summary'] ?? null) ? $cache['summary'] : [];
+                        $this->rebuildContentIndex();
                         $this->logActivity('content.import_apply', 'info', $type, 'csv', 'Content import applied.', [
                             'type' => $type,
                             'filename' => (string)($cache['filename'] ?? ''),
@@ -8963,372 +9170,23 @@ final class App
         return '';
     }
 
+    private function mailer(): Mailer
+    {
+        $config = $this->settings['forms']['notifications'] ?? [];
+        return new Mailer(is_array($config) ? $config : []);
+    }
+
     private function sendEmailMessage(string $to, string $subject, string $body, array $headers): bool
     {
-        $driver = (string)($this->settings['forms']['notifications']['driver'] ?? '');
-        $provider = $this->resolveEmailProvider($driver);
-        $ok = false;
-        $error = '';
-
-        try {
-            if ($provider === 'ses') {
-                if (!$this->shouldUseSes()) {
-                    $error = 'SES is not configured.';
-                } else {
-                    $ok = $this->sendViaSes($to, $subject, $body, $headers);
-                }
-            } elseif ($provider === 'smtp') {
-                if (!$this->shouldUseSmtp()) {
-                    $error = 'SMTP is not configured.';
-                } else {
-                    $ok = $this->sendViaSmtp($to, $subject, $body, $headers);
-                }
-            } else {
-                $error = 'No email provider is configured.';
-            }
-        } catch (\Throwable $e) {
-            $ok = false;
-            $error = $e->getMessage();
-        }
-
-        if (!$ok && $error === '') {
-            $error = strtoupper($provider) . ' send failed.';
-        }
-
-        $this->logEmailAttempt($to, $subject, $provider, $ok, $error, [
-            'driver_setting' => $driver,
+        $result = $this->mailer()->send($to, $subject, $body, $headers);
+        $this->logEmailAttempt($to, $subject, $result['provider'], $result['ok'], $result['error'], [
+            'driver_setting' => (string)($this->settings['forms']['notifications']['driver'] ?? ''),
             'from' => (string)($headers['From'] ?? ''),
             'reply_to' => (string)($headers['Reply-To'] ?? ''),
             'cc' => (string)($headers['Cc'] ?? ''),
             'bcc' => (string)($headers['Bcc'] ?? ''),
         ]);
-
-        return $ok;
-    }
-
-    private function resolveEmailProvider(string $driver): string
-    {
-        $driver = strtolower(trim($driver));
-        if ($driver === 'ses' || $driver === 'smtp') {
-            return $driver;
-        }
-        if ($this->shouldUseSes()) {
-            return 'ses';
-        }
-        if ($this->shouldUseSmtp()) {
-            return 'smtp';
-        }
-        return 'none';
-    }
-
-    private function sendViaMail(string $to, string $subject, string $body, array $headers): bool
-    {
-        $lines = [];
-        foreach ($headers as $key => $value) {
-            $lines[] = $key . ': ' . $value;
-        }
-        $lines[] = 'Content-Type: text/plain; charset=UTF-8';
-        return @mail($to, $subject, $body, implode("\r\n", $lines));
-    }
-
-    private function shouldUseSmtp(): bool
-    {
-        $smtp = $this->settings['forms']['notifications']['smtp'] ?? [];
-        if (!is_array($smtp)) {
-            return false;
-        }
-        $host = trim((string)($smtp['host'] ?? ''));
-        $port = (int)($smtp['port'] ?? 0);
-        return $host !== '' && $port > 0;
-    }
-
-    private function shouldUseSes(): bool
-    {
-        $ses = $this->settings['forms']['notifications']['ses'] ?? [];
-        if (!is_array($ses)) {
-            return false;
-        }
-        $key = trim((string)($ses['key'] ?? ''));
-        $secret = trim((string)($ses['secret'] ?? ''));
-        $region = trim((string)($ses['region'] ?? ''));
-        return $key !== '' && $secret !== '' && $region !== '';
-    }
-
-    private function sendViaSmtp(string $to, string $subject, string $body, array $headers): bool
-    {
-        $smtp = $this->settings['forms']['notifications']['smtp'] ?? [];
-        if (!is_array($smtp)) {
-            $smtp = [];
-        }
-        $host = trim((string)($smtp['host'] ?? ''));
-        $port = (int)($smtp['port'] ?? 0);
-        if ($host === '' || $port === 0) {
-            return false;
-        }
-
-        $username = (string)($smtp['username'] ?? '');
-        $password = (string)($smtp['password'] ?? '');
-        $encryption = (string)($smtp['encryption'] ?? '');
-        $remote = ($encryption === 'ssl') ? 'ssl://' . $host : $host;
-        $fp = @fsockopen($remote, $port, $errno, $errstr, 10);
-        if (!$fp) {
-            return false;
-        }
-
-        $this->smtpRead($fp);
-        $hostname = gethostname() ?: 'localhost';
-        if (!$this->smtpCommand($fp, 'EHLO ' . $hostname, 250)) {
-            fclose($fp);
-            return false;
-        }
-
-        if ($encryption === 'tls') {
-            if (!$this->smtpCommand($fp, 'STARTTLS', 220)) {
-                fclose($fp);
-                return false;
-            }
-            if (!stream_socket_enable_crypto($fp, true, STREAM_CRYPTO_METHOD_TLS_CLIENT)) {
-                fclose($fp);
-                return false;
-            }
-            if (!$this->smtpCommand($fp, 'EHLO ' . $hostname, 250)) {
-                fclose($fp);
-                return false;
-            }
-        }
-
-        if ($username !== '') {
-            if (!$this->smtpCommand($fp, 'AUTH LOGIN', 334)) {
-                fclose($fp);
-                return false;
-            }
-            if (!$this->smtpCommand($fp, base64_encode($username), 334)) {
-                fclose($fp);
-                return false;
-            }
-            if (!$this->smtpCommand($fp, base64_encode($password), 235)) {
-                fclose($fp);
-                return false;
-            }
-        }
-
-        $from = $headers['From'] ?? '';
-        $fromEmail = $this->extractEmailAddress($from);
-        if ($fromEmail === '') {
-            fclose($fp);
-            return false;
-        }
-        if (!$this->smtpCommand($fp, 'MAIL FROM:<' . $fromEmail . '>', 250)) {
-            fclose($fp);
-            return false;
-        }
-
-        $recipients = $this->parseEmailList($to);
-        $recipients = array_merge($recipients, $this->parseEmailList((string)($headers['Cc'] ?? '')), $this->parseEmailList((string)($headers['Bcc'] ?? '')));
-        foreach ($recipients as $recipient) {
-            if (!$this->smtpCommand($fp, 'RCPT TO:<' . $recipient . '>', 250)) {
-                fclose($fp);
-                return false;
-            }
-        }
-
-        if (!$this->smtpCommand($fp, 'DATA', 354)) {
-            fclose($fp);
-            return false;
-        }
-
-        $lines = [];
-        $lines[] = 'To: ' . $to;
-        $lines[] = 'Subject: ' . $subject;
-        foreach ($headers as $key => $value) {
-            if (in_array($key, ['Cc', 'From', 'Reply-To'], true)) {
-                $lines[] = $key . ': ' . $value;
-            }
-        }
-        $lines[] = 'MIME-Version: 1.0';
-        $lines[] = 'Content-Type: text/plain; charset=UTF-8';
-        $lines[] = '';
-        $lines[] = $body;
-        $data = implode("\r\n", $lines);
-        $data = str_replace("\n.", "\n..", $data);
-        fwrite($fp, $data . "\r\n.\r\n");
-        $this->smtpRead($fp);
-        $this->smtpCommand($fp, 'QUIT', 221);
-        fclose($fp);
-        return true;
-    }
-
-    private function smtpCommand($fp, string $command, int $expectCode): bool
-    {
-        fwrite($fp, $command . "\r\n");
-        $response = $this->smtpRead($fp);
-        if ($response === '') {
-            return false;
-        }
-        $code = (int)substr($response, 0, 3);
-        return $code === $expectCode || ($expectCode === 250 && $code >= 250 && $code < 260);
-    }
-
-    private function smtpRead($fp): string
-    {
-        $data = '';
-        while (!feof($fp)) {
-            $line = fgets($fp, 515);
-            if ($line === false) {
-                break;
-            }
-            $data .= $line;
-            if (isset($line[3]) && $line[3] === ' ') {
-                break;
-            }
-        }
-        return $data;
-    }
-
-    private function sendViaSes(string $to, string $subject, string $body, array $headers): bool
-    {
-        $ses = $this->settings['forms']['notifications']['ses'] ?? [];
-        if (!is_array($ses)) {
-            $ses = [];
-        }
-        $accessKey = trim((string)($ses['key'] ?? ''));
-        $secretKey = trim((string)($ses['secret'] ?? ''));
-        $region = trim((string)($ses['region'] ?? ''));
-        if ($accessKey === '' || $secretKey === '' || $region === '') {
-            return false;
-        }
-
-        $from = $headers['From'] ?? '';
-        $fromEmail = $this->extractEmailAddress($from);
-        if ($fromEmail === '') {
-            return false;
-        }
-
-        $payload = [
-            'FromEmailAddress' => $fromEmail,
-            'Destination' => [
-                'ToAddresses' => $this->parseEmailList($to),
-            ],
-            'Content' => [
-                'Simple' => [
-                    'Subject' => [
-                        'Data' => $subject,
-                        'Charset' => 'UTF-8',
-                    ],
-                    'Body' => [
-                        'Text' => [
-                            'Data' => $body,
-                            'Charset' => 'UTF-8',
-                        ],
-                    ],
-                ],
-            ],
-        ];
-        $replyTo = $headers['Reply-To'] ?? '';
-        if ($replyTo !== '') {
-            $payload['ReplyToAddresses'] = $this->parseEmailList($replyTo);
-        }
-        $cc = $headers['Cc'] ?? '';
-        if ($cc !== '') {
-            $payload['Destination']['CcAddresses'] = $this->parseEmailList($cc);
-        }
-        $bcc = $headers['Bcc'] ?? '';
-        if ($bcc !== '') {
-            $payload['Destination']['BccAddresses'] = $this->parseEmailList($bcc);
-        }
-
-        $payloadJson = json_encode($payload);
-        if ($payloadJson === false) {
-            return false;
-        }
-
-        $service = 'ses';
-        $host = 'email.' . $region . '.amazonaws.com';
-        $uri = '/v2/email/outbound-emails';
-        $method = 'POST';
-        $amzDate = gmdate('Ymd\THis\Z');
-        $date = gmdate('Ymd');
-        $payloadHash = hash('sha256', $payloadJson);
-
-        $canonicalHeaders = 'content-type:application/json' . "\n" . 'host:' . $host . "\n" . 'x-amz-date:' . $amzDate . "\n";
-        $signedHeaders = 'content-type;host;x-amz-date';
-        $canonicalRequest = $method . "\n" . $uri . "\n\n" . $canonicalHeaders . "\n" . $signedHeaders . "\n" . $payloadHash;
-        $credentialScope = $date . '/' . $region . '/' . $service . '/aws4_request';
-        $stringToSign = 'AWS4-HMAC-SHA256' . "\n" . $amzDate . "\n" . $credentialScope . "\n" . hash('sha256', $canonicalRequest);
-
-        $signingKey = $this->awsSign('AWS4' . $secretKey, $date);
-        $signingKey = $this->awsSign($signingKey, $region);
-        $signingKey = $this->awsSign($signingKey, $service);
-        $signingKey = $this->awsSign($signingKey, 'aws4_request');
-        $signature = hash_hmac('sha256', $stringToSign, $signingKey);
-
-        $authorization = 'AWS4-HMAC-SHA256 Credential=' . $accessKey . '/' . $credentialScope . ', SignedHeaders=' . $signedHeaders . ', Signature=' . $signature;
-        $headersOut = [
-            'Content-Type: application/json',
-            'Host: ' . $host,
-            'X-Amz-Date: ' . $amzDate,
-            'Authorization: ' . $authorization,
-        ];
-
-        $url = 'https://' . $host . $uri;
-        if (function_exists('curl_init')) {
-            $ch = curl_init($url);
-            curl_setopt($ch, CURLOPT_POST, true);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $payloadJson);
-            curl_setopt($ch, CURLOPT_HTTPHEADER, $headersOut);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            $response = curl_exec($ch);
-            $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            return $status >= 200 && $status < 300;
-        }
-
-        $context = stream_context_create([
-            'http' => [
-                'method' => 'POST',
-                'header' => implode("\r\n", $headersOut),
-                'content' => $payloadJson,
-                'ignore_errors' => true,
-            ],
-        ]);
-        $response = @file_get_contents($url, false, $context);
-        if ($response === false) {
-            return false;
-        }
-        return true;
-    }
-
-    private function awsSign(string $key, string $msg): string
-    {
-        return hash_hmac('sha256', $msg, $key, true);
-    }
-
-    /** @return string[] */
-    private function parseEmailList(string $value): array
-    {
-        $list = [];
-        foreach (preg_split('/[,;]+/', $value) ?: [] as $item) {
-            $item = trim($item);
-            if ($item === '') {
-                continue;
-            }
-            $email = $this->extractEmailAddress($item);
-            if ($email !== '') {
-                $list[] = $email;
-            }
-        }
-        return array_values(array_unique($list));
-    }
-
-    private function extractEmailAddress(string $value): string
-    {
-        if (preg_match('/<([^>]+)>/', $value, $matches)) {
-            $value = $matches[1];
-        }
-        $value = trim($value);
-        if (filter_var($value, FILTER_VALIDATE_EMAIL)) {
-            return $value;
-        }
-        return '';
+        return $result['ok'];
     }
 
     private function applyShortcodes(string $html, string $lang, string $currentPath): string
