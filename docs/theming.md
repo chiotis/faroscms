@@ -174,10 +174,14 @@ A site-specific block goes in `custom/blocks/<type>/` with the same files.
 
 - `data-theme`: palette (slate, indigo, emerald, teal, rose, amber), with light and dark variants of each accent;
 - `data-mode` and the `.dark` class: colour mode, following the system until the visitor chooses;
-- `data-font`: sans, serif, or display (serif headings);
+- `data-font`: sans (Inter), display (serif headings with Inter text), serif, or system (no font download);
 - `data-shape`: soft, rounded, or sharp corners.
 
 Block tones re-scope the same tokens, so every component works on every background. Text and accent pairs meet WCAG AA contrast in all palettes, in light and dark mode.
+
+## Fonts
+
+Inter ships with the theme (`assets/fonts/inter/`, SIL Open Font License) as a variable font (weights 300–800) split into Latin, Latin Extended, Greek, and Greek Extended files. `unicode-range` makes a page download only the files its text needs, and the layout preloads Latin (and Greek on Greek pages). Nothing is loaded from Google or another third party. A site that wants no web font chooses "System fonts" in Theme settings.
 
 ## Images
 

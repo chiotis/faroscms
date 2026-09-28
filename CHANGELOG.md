@@ -6,6 +6,7 @@
 - Blocks: optional `block.js` per block, bundled and deferred like block CSS; new `decimal` field type
 - Header: classic, centered, minimal, and stacked layouts; transparent over an opening hero; sticky modes; CTA button; top bar; bottom action bar on phones
 - Footer: columns, one-row, and centered layouts
+- Fonts: Inter is self-hosted with the theme (Latin and Greek subsets, preloaded per language, no third-party requests); new "System fonts" option
 - Fixes: Greek initials drop the accent (ΑΡ, not ΆΡ); timeline steps wrap instead of scrolling
 
 ## 2026-09-28 — Design system and first block family (phase 2)

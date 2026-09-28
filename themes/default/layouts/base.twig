@@ -80,6 +80,13 @@
       } catch (e) {}
     })();
   </script>
+  {% if font in ['sans', 'display'] %}
+  {# Preload the Inter subsets the page language needs (Greek text also uses the Latin subset for digits and punctuation). #}
+  <link rel="preload" href="{{ theme_asset('fonts/inter/inter-latin.woff2')|split('?')|first }}?v=4.1" as="font" type="font/woff2" crossorigin>
+  {% if current_language == 'el' %}
+  <link rel="preload" href="{{ theme_asset('fonts/inter/inter-greek.woff2')|split('?')|first }}?v=4.1" as="font" type="font/woff2" crossorigin>
+  {% endif %}
+  {% endif %}
   <link rel="stylesheet" href="{{ theme_asset('css/site.css') }}">
   {% for href in block_styles|default([]) %}
   <link rel="stylesheet" href="{{ href }}">

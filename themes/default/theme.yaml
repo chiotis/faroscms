@@ -8,7 +8,7 @@
 #   - retire a field by marking it `hidden: true` (it keeps its stored value), not by deleting it.
 name: default
 label: FarosCMS Default
-version: 1.2.0
+version: 1.3.0
 description: All-purpose FarosCMS theme.
 
 menu_locations:
@@ -49,9 +49,10 @@ settings:
         label: Font
         default: sans
         options:
-          sans: Sans
+          sans: 'Inter'
+          display: 'Serif headings, Inter text'
           serif: Serif
-          display: Display
+          system: 'System fonts (no download)'
       shape:
         type: select
         label: Corners
