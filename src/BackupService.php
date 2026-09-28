@@ -112,7 +112,7 @@ final class BackupService
             $items[] = [
                 'filename' => $name,
                 'size' => $size,
-                'size_human' => self::formatBytes($size),
+                'size_human' => Format::bytes($size),
                 'mtime' => $mtime,
                 'created_at' => date('Y-m-d H:i', $mtime),
                 'type' => (string)($manifest['type'] ?? (str_contains($name, '-database-backup-') ? 'database' : 'full')),
@@ -395,21 +395,6 @@ final class BackupService
             'skipped' => $skipped,
             'previous_dir' => 'storage/restore/' . $runId . '/previous',
         ];
-    }
-
-    public static function formatBytes(int $bytes): string
-    {
-        if ($bytes < 1024) {
-            return $bytes . ' B';
-        }
-        $units = ['KB', 'MB', 'GB', 'TB'];
-        $value = $bytes / 1024;
-        $unitIndex = 0;
-        while ($value >= 1024 && $unitIndex < count($units) - 1) {
-            $value /= 1024;
-            $unitIndex++;
-        }
-        return number_format($value, 1) . ' ' . $units[$unitIndex];
     }
 
     /** @return array{ok: bool, message: string, filename?: string, path?: string} */

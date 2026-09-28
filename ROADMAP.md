@@ -75,8 +75,8 @@
 - Optional: Google Drive remote target
 
 ## Post-Theme Architecture
-- Refactor `src/App.php` into focused modules/services (in progress: BackupService, UpdateService, Mailer, ContentIndex, FormSubmissionRepository, LoginThrottle, SystemMetaRepository are extracted)
-- Next split candidates: media library, menus, taxonomies, CSV import/export, settings, translations (see `docs/architecture.md`)
+- Refactor `src/App.php` into focused modules/services (in progress: BackupService, UpdateService, Mailer, MediaLibrary, ContentIndex, FormSubmissionRepository, LoginThrottle, SystemMetaRepository are extracted)
+- Next split candidates: menus, taxonomies, CSV import/export, settings, translations (see `docs/architecture.md`)
 - Keep behavior identical during refactor (incremental extraction + regression checks)
 
 ## Later Development

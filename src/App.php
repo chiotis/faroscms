@@ -32,6 +32,7 @@ final class App
     private BackupService $backups;
     private FormSubmissionRepository $formSubmissions;
     private ContentIndex $contentIndex;
+    private MediaLibrary $media;
     private string $currentLang;
     private array $translations = [];
     private array $formStates = [];
@@ -66,6 +67,7 @@ final class App
         $this->backups = new BackupService($this->basePath, $this->systemDatabase);
         $this->formSubmissions = new FormSubmissionRepository($this->contentDir);
         $this->contentIndex = new ContentIndex($this->systemDatabase, $this->contentDir);
+        $this->media = new MediaLibrary($this->contentDir, $this->basePath . '/public/uploads');
         $this->content = new ContentRepository($this->contentDir, $markdown, $this->settings);
         $this->auth = new Auth($this->contentDir . '/users/users.yaml', $this->users);
 
@@ -1891,9 +1893,9 @@ final class App
             $formSubmissions = array_slice($formSubmissions, 0, 10);
         }
         if ($type !== 'forms') {
-            $this->ensureMediaLibraryDirectories();
-            $this->migrateLegacyMediaLibraryItems();
-            $mediaPickerImages = array_slice($this->listMediaItems([
+            $this->media->ensureDirectories();
+            $this->media->migrateLegacyItems();
+            $mediaPickerImages = array_slice($this->media->list([
                 'type' => 'image',
             ]), 0, 120);
         }
@@ -1971,20 +1973,20 @@ final class App
         $originalLang = $this->slugify((string)($_POST['original_lang'] ?? ''));
 
         $mainImageUploadRaw = $_FILES['main_image_upload'] ?? null;
-        $mainImageUploads = $this->normalizeMediaUploads($mainImageUploadRaw);
+        $mainImageUploads = $this->media->normalizeUploads($mainImageUploadRaw);
         if ($mainImageUploads !== []) {
             $upload = $mainImageUploads[0];
             $uploadError = (int)($upload['error'] ?? UPLOAD_ERR_NO_FILE);
             if ($uploadError === UPLOAD_ERR_OK) {
                 try {
-                    $this->ensureMediaLibraryDirectories();
-                    $uploaded = $this->uploadMediaItem($upload);
+                    $this->media->ensureDirectories();
+                    $uploaded = $this->media->upload($upload, '', $this->currentUsername(), $this->maxUploadBytes());
                     if ((string)($uploaded['kind'] ?? '') === 'image') {
                         $mainImage = (string)($uploaded['direct_url'] ?? $mainImage);
                     } else {
                         $uploadedId = (string)($uploaded['id'] ?? '');
                         if ($uploadedId !== '') {
-                            $this->deleteMediaItem($uploadedId);
+                            $this->media->delete($uploadedId);
                         }
                     }
                 } catch (\Throwable) {
@@ -2729,10 +2731,10 @@ final class App
 
     private function handleMedia(): void
     {
-        $this->ensureMediaLibraryDirectories();
-        $this->migrateLegacyMediaLibraryItems();
+        $this->media->ensureDirectories();
+        $this->media->migrateLegacyItems();
 
-        $typeOptions = $this->mediaTypeOptions();
+        $typeOptions = $this->media->typeOptions();
         $viewOptions = ['list', 'thumbs'];
         $perPageOptions = [20, 50, 100];
 
@@ -2740,7 +2742,7 @@ final class App
         if (!in_array($type, $typeOptions, true)) {
             $type = 'all';
         }
-        $tag = $this->sanitizeMediaTag((string)($_GET['tag'] ?? ''));
+        $tag = $this->media->sanitizeTag((string)($_GET['tag'] ?? ''));
         $q = trim((string)($_GET['q'] ?? ''));
         $page = max(1, (int)($_GET['page'] ?? 1));
         $perPage = (int)($_GET['per_page'] ?? 20);
@@ -2768,7 +2770,7 @@ final class App
             if (!in_array($stateView, $viewOptions, true)) {
                 $stateView = 'list';
             }
-            $stateTag = $this->sanitizeMediaTag((string)($source['_state_tag'] ?? $tag));
+            $stateTag = $this->media->sanitizeTag((string)($source['_state_tag'] ?? $tag));
             $stateQ = trim((string)($source['_state_q'] ?? $q));
             $statePerPage = (int)($source['_state_per_page'] ?? $perPage);
             if (!in_array($statePerPage, $perPageOptions, true)) {
@@ -2819,7 +2821,7 @@ final class App
 
             if ($action === 'upload') {
                 $rawUpload = $_FILES['upload_file'] ?? ($_FILES['asset'] ?? null);
-                $uploads = $this->normalizeMediaUploads($rawUpload);
+                $uploads = $this->media->normalizeUploads($rawUpload);
                 if ($uploads === []) {
                     $redirectMedia(['error' => 'No file uploaded.']);
                     return;
@@ -2834,7 +2836,7 @@ final class App
                         continue;
                     }
                     try {
-                        $uploaded = $this->uploadMediaItem($upload, $tagsCsv);
+                        $uploaded = $this->media->upload($upload, $tagsCsv, $this->currentUsername(), $this->maxUploadBytes());
                         $uploadedCount++;
                         $this->logActivity('media.upload', 'info', 'media', (string)($uploaded['id'] ?? ''), 'Media uploaded.', [
                             'filename' => (string)($uploaded['filename'] ?? ''),
@@ -2866,12 +2868,12 @@ final class App
             }
 
             if ($action === 'save_tags') {
-                $id = $this->sanitizeMediaId((string)($_POST['id'] ?? ''));
+                $id = $this->media->sanitizeId((string)($_POST['id'] ?? ''));
                 if ($id === '') {
                     $redirectMedia(['error' => 'Invalid media item.']);
                     return;
                 }
-                if (!$this->updateMediaItemTags($id, (string)($_POST['tags'] ?? ''))) {
+                if (!$this->media->updateTags($id, (string)($_POST['tags'] ?? ''))) {
                     $redirectMedia(['error' => 'Media item not found.']);
                     return;
                 }
@@ -2881,11 +2883,11 @@ final class App
             }
 
             if ($action === 'delete') {
-                $id = $this->sanitizeMediaId((string)($_POST['id'] ?? ''));
+                $id = $this->media->sanitizeId((string)($_POST['id'] ?? ''));
                 if ($id === '') {
                     $legacyFilename = $this->sanitizeFilename((string)($_POST['filename'] ?? ''));
                     if ($legacyFilename !== '') {
-                        $legacy = $this->findMediaItemByFilename($legacyFilename);
+                        $legacy = $this->media->findByFilename($legacyFilename);
                         $id = $legacy['id'] ?? '';
                     }
                 }
@@ -2893,7 +2895,7 @@ final class App
                     $redirectMedia(['error' => 'Invalid media item.']);
                     return;
                 }
-                if (!$this->deleteMediaItem($id)) {
+                if (!$this->media->delete($id)) {
                     $redirectMedia(['error' => 'Media item not found.']);
                     return;
                 }
@@ -2903,16 +2905,16 @@ final class App
             }
 
             if ($action === 'bulk_tags' || $action === 'bulk_delete') {
-                $selectedIds = $this->collectMediaIdsFromRequest($_POST['selected_ids'] ?? []);
+                $selectedIds = $this->media->collectIds($_POST['selected_ids'] ?? []);
                 $applyAllFiltered = ((string)($_POST['apply_all_filtered'] ?? '0')) === '1';
                 if ($applyAllFiltered) {
                     $filterType = strtolower(trim((string)($_POST['_filter_type'] ?? 'all')));
                     if (!in_array($filterType, $typeOptions, true)) {
                         $filterType = 'all';
                     }
-                    $filterTag = $this->sanitizeMediaTag((string)($_POST['_filter_tag'] ?? ''));
+                    $filterTag = $this->media->sanitizeTag((string)($_POST['_filter_tag'] ?? ''));
                     $filterQ = trim((string)($_POST['_filter_q'] ?? ''));
-                    $filtered = $this->listMediaItems([
+                    $filtered = $this->media->list([
                         'type' => $filterType,
                         'tag' => $filterTag,
                         'q' => $filterQ,
@@ -2933,13 +2935,13 @@ final class App
                     $bulkTags = trim((string)($_POST['tags'] ?? ''));
                     $updated = 0;
                     foreach ($selectedIds as $id) {
-                        $item = $this->findMediaItem($id);
+                        $item = $this->media->find($id);
                         if ($item === null) {
                             continue;
                         }
                         $existing = implode(',', is_array($item['tags'] ?? null) ? $item['tags'] : []);
                         $merged = trim($existing . ',' . $bulkTags, ', ');
-                        if ($this->updateMediaItemTags($id, $merged)) {
+                        if ($this->media->updateTags($id, $merged)) {
                             $updated++;
                         }
                     }
@@ -2956,7 +2958,7 @@ final class App
 
                 $deletedCount = 0;
                 foreach ($selectedIds as $id) {
-                    if ($this->deleteMediaItem($id)) {
+                    if ($this->media->delete($id)) {
                         $deletedCount++;
                     }
                 }
@@ -2972,7 +2974,7 @@ final class App
             }
         }
 
-        $allItems = $this->listMediaItems([
+        $allItems = $this->media->list([
             'type' => $type,
             'tag' => $tag,
             'q' => $q,
@@ -2995,7 +2997,7 @@ final class App
             'tag' => $tag,
             'q' => $q,
             'view_mode' => $view,
-            'available_tags' => $this->mediaAvailableTags(),
+            'available_tags' => $this->media->availableTags(),
             'max_upload_mb' => max(1, (int)($this->settings['media']['max_upload_mb'] ?? 20)),
             'success' => trim((string)($_GET['success'] ?? '')),
             'error' => trim((string)($_GET['error'] ?? '')),
@@ -6736,19 +6738,19 @@ final class App
         return $this->backups->list();
     }
 
+    private function currentUsername(): string
+    {
+        return (string)($this->auth->user()['username'] ?? '');
+    }
+
+    private function maxUploadBytes(): int
+    {
+        return max(0, (int)($this->settings['media']['max_upload_mb'] ?? 20)) * 1024 * 1024;
+    }
+
     private function formatFileSize(int $bytes): string
     {
-        if ($bytes < 1024) {
-            return $bytes . ' B';
-        }
-        $units = ['KB', 'MB', 'GB', 'TB'];
-        $value = $bytes / 1024;
-        $unitIndex = 0;
-        while ($value >= 1024 && $unitIndex < count($units) - 1) {
-            $value /= 1024;
-            $unitIndex++;
-        }
-        return number_format($value, 1) . ' ' . $units[$unitIndex];
+        return Format::bytes($bytes);
     }
 
     private function directorySize(string $path): int
@@ -6794,658 +6796,6 @@ final class App
             $this->setSystemMeta('site_settings', $yaml);
         }
         $this->settings = $this->loadSettings();
-    }
-
-    /** @return string[] */
-    private function mediaTypeOptions(): array
-    {
-        return ['all', 'image', 'video', 'audio', 'document', 'archive', 'other'];
-    }
-
-    private function mediaMetaDir(): string
-    {
-        return $this->contentDir . '/media';
-    }
-
-    private function mediaUploadsRootDir(): string
-    {
-        return $this->basePath . '/public/uploads';
-    }
-
-    private function mediaLibraryDir(): string
-    {
-        return $this->mediaUploadsRootDir() . '/media';
-    }
-
-    private function ensureMediaLibraryDirectories(): void
-    {
-        foreach ([$this->mediaMetaDir(), $this->mediaUploadsRootDir(), $this->mediaLibraryDir()] as $dir) {
-            if (!is_dir($dir)) {
-                mkdir($dir, 0775, true);
-            }
-        }
-    }
-
-    private function mediaMetaPath(string $id): string
-    {
-        return $this->mediaMetaDir() . '/' . $id . '.yaml';
-    }
-
-    private function sanitizeMediaId(string $id): string
-    {
-        $id = strtolower(trim($id));
-        return preg_match('/^[a-f0-9]{16}$/', $id) === 1 ? $id : '';
-    }
-
-    private function sanitizeMediaTag(string $tag): string
-    {
-        $tags = $this->normalizeMediaTags($tag);
-        return $tags[0] ?? '';
-    }
-
-    /** @return array<int, string> */
-    private function normalizeMediaTags(mixed $tags): array
-    {
-        if (is_array($tags)) {
-            $raw = [];
-            foreach ($tags as $value) {
-                if (!is_string($value)) {
-                    continue;
-                }
-                $raw[] = $value;
-            }
-            $tags = implode(',', $raw);
-        }
-
-        $csv = trim((string)$tags);
-        if ($csv === '') {
-            return [];
-        }
-
-        $parts = preg_split('/[,;]+/', $csv) ?: [];
-        $normalized = [];
-        foreach ($parts as $part) {
-            $part = trim($part);
-            if ($part === '') {
-                continue;
-            }
-            $part = $this->mbLower($part);
-            $part = preg_replace('/[^\p{L}\p{N}_\- ]/u', '', $part) ?? '';
-            $part = trim(preg_replace('/\s+/', ' ', $part) ?? '');
-            if ($part === '') {
-                continue;
-            }
-            $normalized[$part] = true;
-        }
-        $result = array_keys($normalized);
-        sort($result);
-        return $result;
-    }
-
-    private function sanitizeMediaRelativePath(string $path): string
-    {
-        $path = str_replace('\\', '/', trim($path));
-        $path = ltrim($path, '/');
-        if (str_starts_with($path, 'uploads/')) {
-            $path = substr($path, strlen('uploads/'));
-        }
-        $path = preg_replace('#/+#', '/', $path) ?? '';
-        if ($path === '' || str_contains($path, '..')) {
-            return '';
-        }
-        if (preg_match('#^(images|media|files)/[^/]+$#u', $path) !== 1) {
-            return '';
-        }
-        return $path;
-    }
-
-    /** @param array<string, mixed> $meta @return array<string, mixed>|null */
-    private function normalizeMediaMeta(array $meta, ?string $fallbackId = null): ?array
-    {
-        $id = $this->sanitizeMediaId((string)($meta['id'] ?? ($fallbackId ?? '')));
-        if ($id === '' && $fallbackId !== null) {
-            $id = $this->sanitizeMediaId($fallbackId);
-        }
-        if ($id === '') {
-            return null;
-        }
-
-        $path = $this->sanitizeMediaRelativePath((string)($meta['path'] ?? ''));
-        if ($path === '') {
-            $storedName = basename((string)($meta['stored_name'] ?? ''));
-            if ($storedName !== '') {
-                $path = $this->sanitizeMediaRelativePath('media/' . $storedName);
-            }
-        }
-        if ($path === '') {
-            return null;
-        }
-
-        $absolutePath = $this->mediaUploadsRootDir() . '/' . $path;
-        $exists = is_file($absolutePath);
-        $extension = strtolower((string)($meta['extension'] ?? pathinfo($path, PATHINFO_EXTENSION)));
-        $extension = preg_replace('/[^a-z0-9]/', '', $extension) ?? '';
-        $mimeType = trim((string)($meta['mime_type'] ?? ''));
-        if ($mimeType === '') {
-            $mimeType = $this->detectFileMimeType($absolutePath, 'application/octet-stream');
-        }
-        $kind = trim((string)($meta['kind'] ?? ''));
-        if ($kind === '') {
-            $kind = $this->mediaKindFromMimeAndExtension($mimeType, $extension);
-        }
-
-        $sizeBytes = (int)($meta['size_bytes'] ?? 0);
-        if ($sizeBytes <= 0 && $exists) {
-            $sizeBytes = (int)(filesize($absolutePath) ?: 0);
-        }
-
-        $fallbackTimestamp = $exists ? (int)(filemtime($absolutePath) ?: time()) : time();
-        $createdAt = trim((string)($meta['created_at'] ?? ''));
-        if ($createdAt === '') {
-            $createdAt = gmdate('c', $fallbackTimestamp);
-        }
-        $updatedAt = trim((string)($meta['updated_at'] ?? ''));
-        if ($updatedAt === '') {
-            $updatedAt = $createdAt;
-        }
-        $createdTimestamp = strtotime($createdAt) ?: $fallbackTimestamp;
-        $updatedTimestamp = strtotime($updatedAt) ?: $fallbackTimestamp;
-
-        $tags = $this->normalizeMediaTags($meta['tags'] ?? '');
-        $originalName = trim((string)($meta['original_name'] ?? ''));
-        if ($originalName === '') {
-            $originalName = basename($path);
-        }
-
-        $url = '/uploads/' . $path;
-
-        return [
-            'id' => $id,
-            'path' => $path,
-            'stored_name' => basename($path),
-            'original_name' => $originalName,
-            'extension' => $extension,
-            'mime_type' => $mimeType,
-            'kind' => $kind,
-            'size_bytes' => max(0, $sizeBytes),
-            'size_human' => $this->formatFileSize(max(0, $sizeBytes)),
-            'tags' => $tags,
-            'tags_csv' => implode(', ', $tags),
-            'uploaded_by' => trim((string)($meta['uploaded_by'] ?? '')),
-            'created_at' => $createdAt,
-            'updated_at' => $updatedAt,
-            'created_ts' => (int)$createdTimestamp,
-            'updated_ts' => (int)$updatedTimestamp,
-            'created_at_display' => date('Y-m-d H:i', (int)$createdTimestamp),
-            'updated_at_display' => date('Y-m-d H:i', (int)$updatedTimestamp),
-            'direct_url' => $url,
-            'thumbnail_url' => $kind === 'image' ? $url : '',
-            'exists' => $exists,
-        ];
-    }
-
-    /** @return array<int, array<string, mixed>> */
-    private function listMediaItems(array $filters = []): array
-    {
-        $this->ensureMediaLibraryDirectories();
-        $items = [];
-        foreach (glob($this->mediaMetaDir() . '/*.yaml') ?: [] as $path) {
-            if (!is_file($path)) {
-                continue;
-            }
-            $id = basename($path, '.yaml');
-            $parsed = Yaml::parseFile($path) ?: [];
-            if (!is_array($parsed)) {
-                continue;
-            }
-            $item = $this->normalizeMediaMeta($parsed, $id);
-            if ($item === null) {
-                continue;
-            }
-            $items[] = $item;
-        }
-
-        $type = strtolower(trim((string)($filters['type'] ?? 'all')));
-        if (!in_array($type, $this->mediaTypeOptions(), true)) {
-            $type = 'all';
-        }
-        $tag = $this->sanitizeMediaTag((string)($filters['tag'] ?? ''));
-        $query = $this->mbLower(trim((string)($filters['q'] ?? '')));
-
-        $items = array_values(array_filter($items, function (array $item) use ($type, $tag, $query): bool {
-            if ($type !== 'all' && (string)($item['kind'] ?? 'other') !== $type) {
-                return false;
-            }
-            if ($tag !== '') {
-                $tags = is_array($item['tags'] ?? null) ? $item['tags'] : [];
-                if (!in_array($tag, $tags, true)) {
-                    return false;
-                }
-            }
-            if ($query !== '') {
-                $haystack = $this->mbLower(
-                    (string)($item['original_name'] ?? '') . ' ' .
-                    (string)($item['mime_type'] ?? '') . ' ' .
-                    (string)($item['tags_csv'] ?? '')
-                );
-                if (!str_contains($haystack, $query)) {
-                    return false;
-                }
-            }
-            return true;
-        }));
-
-        usort($items, function (array $a, array $b): int {
-            $aTs = (int)($a['created_ts'] ?? 0);
-            $bTs = (int)($b['created_ts'] ?? 0);
-            if ($aTs === $bTs) {
-                return strcmp((string)($a['original_name'] ?? ''), (string)($b['original_name'] ?? ''));
-            }
-            return $bTs <=> $aTs;
-        });
-
-        return $items;
-    }
-
-    /** @return array<string, mixed>|null */
-    private function findMediaItem(string $id): ?array
-    {
-        $id = $this->sanitizeMediaId($id);
-        if ($id === '') {
-            return null;
-        }
-        $path = $this->mediaMetaPath($id);
-        if (!is_file($path)) {
-            return null;
-        }
-        $parsed = Yaml::parseFile($path) ?: [];
-        if (!is_array($parsed)) {
-            return null;
-        }
-        return $this->normalizeMediaMeta($parsed, $id);
-    }
-
-    /** @param array<string, mixed> $meta */
-    private function saveMediaMeta(array $meta): void
-    {
-        $id = $this->sanitizeMediaId((string)($meta['id'] ?? ''));
-        if ($id === '') {
-            return;
-        }
-        $path = $this->sanitizeMediaRelativePath((string)($meta['path'] ?? ''));
-        if ($path === '') {
-            return;
-        }
-        $tags = $this->normalizeMediaTags($meta['tags'] ?? '');
-        $payload = [
-            'id' => $id,
-            'path' => $path,
-            'stored_name' => basename($path),
-            'original_name' => trim((string)($meta['original_name'] ?? basename($path))),
-            'extension' => strtolower((string)($meta['extension'] ?? pathinfo($path, PATHINFO_EXTENSION))),
-            'mime_type' => trim((string)($meta['mime_type'] ?? 'application/octet-stream')),
-            'kind' => trim((string)($meta['kind'] ?? 'other')),
-            'size_bytes' => max(0, (int)($meta['size_bytes'] ?? 0)),
-            'tags' => implode(',', $tags),
-            'uploaded_by' => trim((string)($meta['uploaded_by'] ?? '')),
-            'created_at' => trim((string)($meta['created_at'] ?? gmdate('c'))),
-            'updated_at' => trim((string)($meta['updated_at'] ?? gmdate('c'))),
-        ];
-        file_put_contents($this->mediaMetaPath($id), Yaml::dump($payload, 4, 2));
-    }
-
-    /** @return array<int, array<string, mixed>> */
-    private function normalizeMediaUploads(mixed $rawUpload): array
-    {
-        if (!is_array($rawUpload) || !array_key_exists('name', $rawUpload)) {
-            return [];
-        }
-
-        if (is_array($rawUpload['name'] ?? null)) {
-            $files = [];
-            $count = count($rawUpload['name']);
-            for ($i = 0; $i < $count; $i++) {
-                $files[] = [
-                    'name' => (string)($rawUpload['name'][$i] ?? ''),
-                    'type' => (string)($rawUpload['type'][$i] ?? ''),
-                    'tmp_name' => (string)($rawUpload['tmp_name'][$i] ?? ''),
-                    'error' => (int)($rawUpload['error'][$i] ?? UPLOAD_ERR_NO_FILE),
-                    'size' => (int)($rawUpload['size'][$i] ?? 0),
-                ];
-            }
-            return $files;
-        }
-
-        return [[
-            'name' => (string)($rawUpload['name'] ?? ''),
-            'type' => (string)($rawUpload['type'] ?? ''),
-            'tmp_name' => (string)($rawUpload['tmp_name'] ?? ''),
-            'error' => (int)($rawUpload['error'] ?? UPLOAD_ERR_NO_FILE),
-            'size' => (int)($rawUpload['size'] ?? 0),
-        ]];
-    }
-
-    /** @param array<string, mixed> $upload @return array<string, mixed> */
-    private function uploadMediaItem(array $upload, string $tagsCsv = ''): array
-    {
-        $error = (int)($upload['error'] ?? UPLOAD_ERR_NO_FILE);
-        if ($error !== UPLOAD_ERR_OK) {
-            throw new \RuntimeException($this->mediaUploadErrorMessage($error));
-        }
-
-        $tmpName = (string)($upload['tmp_name'] ?? '');
-        $originalName = trim((string)($upload['name'] ?? ''));
-        $sizeBytes = (int)($upload['size'] ?? 0);
-
-        if ($tmpName === '' || !is_file($tmpName)) {
-            throw new \RuntimeException('Uploaded file data is missing.');
-        }
-        if ($originalName === '') {
-            throw new \RuntimeException('Uploaded file name is missing.');
-        }
-        if ($sizeBytes <= 0) {
-            $sizeBytes = (int)(filesize($tmpName) ?: 0);
-        }
-        if ($sizeBytes <= 0) {
-            throw new \RuntimeException('Uploaded file is empty.');
-        }
-
-        $maxBytes = (int)(max(0, (int)($this->settings['media']['max_upload_mb'] ?? 20)) * 1024 * 1024);
-        if ($maxBytes > 0 && $sizeBytes > $maxBytes) {
-            throw new \RuntimeException('Uploaded file exceeds the maximum allowed size.');
-        }
-
-        $extension = strtolower((string)pathinfo($originalName, PATHINFO_EXTENSION));
-        $extension = preg_replace('/[^a-z0-9]/', '', $extension) ?? '';
-        // Uploads land inside the public web root, so only inert file types are accepted.
-        if (!in_array($extension, $this->allowedMediaExtensions(), true)) {
-            throw new \RuntimeException('This file type is not allowed.');
-        }
-        $detectedMime = $this->detectFileMimeType($tmpName, '');
-        if (in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'bmp', 'ico'], true) && !str_starts_with($detectedMime, 'image/')) {
-            throw new \RuntimeException('The uploaded file is not a valid image.');
-        }
-        if ($extension === 'svg' && !$this->isSafeSvg($tmpName)) {
-            throw new \RuntimeException('SVG files with scripts or external content are not allowed.');
-        }
-
-        do {
-            $id = bin2hex(random_bytes(8));
-            $id = $this->sanitizeMediaId($id);
-        } while ($id === '' || is_file($this->mediaMetaPath($id)));
-
-        $storedName = $id . ($extension !== '' ? '.' . $extension : '');
-        $relativePath = 'media/' . $storedName;
-        $absolutePath = $this->mediaUploadsRootDir() . '/' . $relativePath;
-        if (is_file($absolutePath)) {
-            throw new \RuntimeException('Upload conflict.');
-        }
-
-        $moved = is_uploaded_file($tmpName)
-            ? move_uploaded_file($tmpName, $absolutePath)
-            : rename($tmpName, $absolutePath);
-        if (!$moved) {
-            throw new \RuntimeException('Could not save the uploaded file.');
-        }
-
-        $mimeType = $this->detectFileMimeType($absolutePath, (string)($upload['type'] ?? 'application/octet-stream'));
-        $kind = $this->mediaKindFromMimeAndExtension($mimeType, $extension);
-        $now = gmdate('c');
-
-        $meta = [
-            'id' => $id,
-            'path' => $relativePath,
-            'stored_name' => $storedName,
-            'original_name' => $originalName,
-            'extension' => $extension,
-            'mime_type' => $mimeType,
-            'kind' => $kind,
-            'size_bytes' => (int)(filesize($absolutePath) ?: $sizeBytes),
-            'tags' => $this->normalizeMediaTags($tagsCsv),
-            'uploaded_by' => (string)($this->auth->user()['username'] ?? ''),
-            'created_at' => $now,
-            'updated_at' => $now,
-        ];
-        $this->saveMediaMeta($meta);
-        return $this->findMediaItem($id) ?? $meta;
-    }
-
-    /** @return string[] */
-    private function allowedMediaExtensions(): array
-    {
-        return [
-            'jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'bmp', 'ico', 'svg',
-            'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods', 'odp', 'rtf', 'txt', 'csv', 'md',
-            'zip',
-            'mp3', 'wav', 'ogg', 'm4a', 'mp4', 'webm', 'mov',
-        ];
-    }
-
-    private function isSafeSvg(string $path): bool
-    {
-        $content = (string)file_get_contents($path);
-        if ($content === '') {
-            return false;
-        }
-        $patterns = [
-            '/<script\b/i',
-            '/\son[a-z]+\s*=/i',
-            '/javascript\s*:/i',
-            '/<foreignObject\b/i',
-            '/<!ENTITY/i',
-            '/<(iframe|embed|object)\b/i',
-            '/(xlink:)?href\s*=\s*["\']\s*(data|https?):/i',
-        ];
-        foreach ($patterns as $pattern) {
-            if (preg_match($pattern, $content)) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private function updateMediaItemTags(string $id, string $tagsCsv): bool
-    {
-        $item = $this->findMediaItem($id);
-        if ($item === null) {
-            return false;
-        }
-        $item['tags'] = $this->normalizeMediaTags($tagsCsv);
-        $item['updated_at'] = gmdate('c');
-        $this->saveMediaMeta($item);
-        return true;
-    }
-
-    private function deleteMediaItem(string $id): bool
-    {
-        $item = $this->findMediaItem($id);
-        if ($item === null) {
-            return false;
-        }
-        $relativePath = $this->sanitizeMediaRelativePath((string)($item['path'] ?? ''));
-        if ($relativePath !== '') {
-            $absolutePath = $this->mediaUploadsRootDir() . '/' . $relativePath;
-            if (is_file($absolutePath)) {
-                @unlink($absolutePath);
-            }
-        }
-        $metaPath = $this->mediaMetaPath($id);
-        if (is_file($metaPath)) {
-            @unlink($metaPath);
-        }
-        return true;
-    }
-
-    /** @return array<string, mixed>|null */
-    private function findMediaItemByFilename(string $filename): ?array
-    {
-        $filename = $this->sanitizeFilename($filename);
-        if ($filename === '') {
-            return null;
-        }
-        foreach ($this->listMediaItems() as $item) {
-            $base = basename((string)($item['path'] ?? ''));
-            if ($base === $filename) {
-                return $item;
-            }
-        }
-        return null;
-    }
-
-    /** @return string[] */
-    private function collectMediaIdsFromRequest(mixed $raw): array
-    {
-        if (!is_array($raw)) {
-            return [];
-        }
-        $ids = [];
-        foreach ($raw as $value) {
-            if (!is_string($value)) {
-                continue;
-            }
-            $id = $this->sanitizeMediaId($value);
-            if ($id === '') {
-                continue;
-            }
-            $ids[$id] = true;
-        }
-        return array_keys($ids);
-    }
-
-    /** @return string[] */
-    private function mediaAvailableTags(): array
-    {
-        $tags = [];
-        foreach ($this->listMediaItems() as $item) {
-            foreach ((array)($item['tags'] ?? []) as $tag) {
-                if (!is_string($tag) || $tag === '') {
-                    continue;
-                }
-                $tags[$tag] = true;
-            }
-        }
-        $result = array_keys($tags);
-        sort($result);
-        return $result;
-    }
-
-    private function migrateLegacyMediaLibraryItems(): void
-    {
-        $this->ensureMediaLibraryDirectories();
-        $existing = [];
-        foreach ($this->listMediaItems() as $item) {
-            $path = (string)($item['path'] ?? '');
-            if ($path !== '') {
-                $existing[$path] = true;
-            }
-        }
-
-        $scanDirs = [
-            'images' => $this->mediaUploadsRootDir() . '/images',
-            'media' => $this->mediaUploadsRootDir() . '/media',
-            'files' => $this->mediaUploadsRootDir() . '/files',
-        ];
-        foreach ($scanDirs as $prefix => $dir) {
-            if (!is_dir($dir)) {
-                continue;
-            }
-            foreach (glob($dir . '/*') ?: [] as $path) {
-                if (!is_file($path)) {
-                    continue;
-                }
-                $relativePath = $this->sanitizeMediaRelativePath($prefix . '/' . basename($path));
-                if ($relativePath === '' || isset($existing[$relativePath])) {
-                    continue;
-                }
-                do {
-                    $id = $this->sanitizeMediaId(bin2hex(random_bytes(8)));
-                } while ($id === '' || is_file($this->mediaMetaPath($id)));
-
-                $mimeType = $this->detectFileMimeType($path, 'application/octet-stream');
-                $extension = strtolower((string)pathinfo($path, PATHINFO_EXTENSION));
-                $extension = preg_replace('/[^a-z0-9]/', '', $extension) ?? '';
-                $kind = $prefix === 'images' ? 'image' : $this->mediaKindFromMimeAndExtension($mimeType, $extension);
-                $timestamp = (int)(filemtime($path) ?: time());
-                $now = gmdate('c', $timestamp);
-                $meta = [
-                    'id' => $id,
-                    'path' => $relativePath,
-                    'stored_name' => basename($relativePath),
-                    'original_name' => basename($relativePath),
-                    'extension' => $extension,
-                    'mime_type' => $mimeType,
-                    'kind' => $kind,
-                    'size_bytes' => (int)(filesize($path) ?: 0),
-                    'tags' => '',
-                    'uploaded_by' => '',
-                    'created_at' => $now,
-                    'updated_at' => $now,
-                ];
-                $this->saveMediaMeta($meta);
-                $existing[$relativePath] = true;
-            }
-        }
-    }
-
-    private function detectFileMimeType(string $path, string $fallback = 'application/octet-stream'): string
-    {
-        if (!is_file($path)) {
-            return $fallback;
-        }
-        if (function_exists('finfo_open')) {
-            $finfo = finfo_open(FILEINFO_MIME_TYPE);
-            if ($finfo !== false) {
-                $value = finfo_file($finfo, $path);
-                if (is_string($value) && $value !== '') {
-                    return $value;
-                }
-            }
-        }
-        return $fallback;
-    }
-
-    private function mediaKindFromMimeAndExtension(string $mimeType, string $extension): string
-    {
-        $mime = strtolower($mimeType);
-        if (str_starts_with($mime, 'image/')) {
-            return 'image';
-        }
-        if (str_starts_with($mime, 'video/')) {
-            return 'video';
-        }
-        if (str_starts_with($mime, 'audio/')) {
-            return 'audio';
-        }
-        $documentExtensions = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'csv', 'md', 'rtf'];
-        $archiveExtensions = ['zip', 'rar', '7z', 'tar', 'gz', 'bz2'];
-        if (in_array($extension, $archiveExtensions, true)) {
-            return 'archive';
-        }
-        if (str_starts_with($mime, 'text/') || in_array($extension, $documentExtensions, true)) {
-            return 'document';
-        }
-        return 'other';
-    }
-
-    private function mediaUploadErrorMessage(int $error): string
-    {
-        return match ($error) {
-            UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE => 'Uploaded file exceeds allowed size.',
-            UPLOAD_ERR_PARTIAL => 'Uploaded file was only partially received.',
-            UPLOAD_ERR_NO_FILE => 'No file was uploaded.',
-            UPLOAD_ERR_NO_TMP_DIR => 'Temporary upload directory is missing.',
-            UPLOAD_ERR_CANT_WRITE => 'Failed to write uploaded file to disk.',
-            UPLOAD_ERR_EXTENSION => 'File upload stopped by a PHP extension.',
-            default => 'Unknown upload error.',
-        };
-    }
-
-    private function mbLower(string $value): string
-    {
-        if (function_exists('mb_strtolower')) {
-            return mb_strtolower($value, 'UTF-8');
-        }
-        return strtolower($value);
     }
 
     /** @return string[] */

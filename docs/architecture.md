@@ -12,7 +12,7 @@ FarosCMS is a single-entry PHP application (`public/index.php` → `FarosCMS\App
 
 | Class | Responsibility |
 |-------|----------------|
-| `App` | Routing, request handlers, settings, menus, taxonomies, media library, forms, CSV import/export, template rendering. Still the largest file; new behaviour should go into a focused class. |
+| `App` | Routing, request handlers, settings, menus, taxonomies, forms, CSV import/export, template rendering. Still the largest file; new behaviour should go into a focused class. |
 | `ContentRepository` / `ContentItem` | Reads Markdown files with YAML front matter; listing, lookup, and frontend search. |
 | `ContentIndex` | SQLite `content_index` kept in sync with the files; admin search and staleness checks. |
 | `Auth` | Session sign-in (SQLite users, YAML fallback), session rotation, per-request user refresh, shipped-password detection. |
@@ -27,6 +27,8 @@ FarosCMS is a single-entry PHP application (`public/index.php` → `FarosCMS\App
 | `UpdateService` | Local version, GitHub `VERSION`/`CHANGELOG` source, cached update status. |
 | `FormSubmissionRepository` | JSON form submissions per form slug: listing, filtering, storing, deleting. |
 | `Mailer` | SMTP and Amazon SES sending. |
+| `MediaLibrary` | Media uploads (type allowlist, SVG checks), YAML metadata, tags, listing, legacy adoption. |
+| `Format` | Shared display formatters (byte sizes). |
 
 ## Admin front end
 
@@ -41,4 +43,4 @@ See `system-database.md` for SQLite and `backups.md` for what backups contain. C
 
 ## Refactoring direction
 
-`App.php` is being split incrementally, keeping behaviour identical: extract a cohesive group of private methods into a class, delegate from `App`, and run the admin regression checks. Candidates, in order of size and independence: media library, menus, taxonomies, CSV import/export, settings (defaults, load/save, form mapping), translations.
+`App.php` is being split incrementally, keeping behaviour identical: extract a cohesive group of private methods into a class, delegate from `App`, and run the admin regression checks. Candidates, in order of size and independence: menus, taxonomies, CSV import/export, settings (defaults, load/save, form mapping), translations.
