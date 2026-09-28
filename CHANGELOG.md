@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-09-28
+- Remote backups: S3-compatible upload (streamed, not loaded into memory), connection test, and retention pruning limited to FarosCMS backup archives
+- A failed remote upload no longer marks the local snapshot as failed; scheduled backups advance and the run is recorded as a warning
+- Theme settings are edited through a form (palette, font, hero layouts, home sections, footer) that matches the default theme options
+- Site/theme settings live in SQLite; legacy `content/settings/*.yaml` files are still imported once on upgrade
+- Development-only folders (`_reference/`, `node_modules/`) are excluded from full snapshots
+
 ## 2026-03-01
 - Media/files consolidation completed:
   - `Files` is now unified into `Media Library` (single source of truth)

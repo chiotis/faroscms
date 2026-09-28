@@ -70,7 +70,7 @@ Content remains file-based. SQLite is used for system/admin data, starting with 
 - [x] Keep schedule/retention settings in Settings.
 - [x] Add backup history from SQLite `backup_runs`.
 - [x] Add S3-compatible remote storage settings, including Backblaze B2.
-- [ ] Wire remote backup upload, connection test, and remote pruning.
+- [x] Wire remote backup upload, connection test, and remote pruning.
 - [ ] Add restore flow after careful safety review.
 - [x] Add delete old snapshot action.
 

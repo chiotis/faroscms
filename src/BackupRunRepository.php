@@ -67,7 +67,7 @@ final class BackupRunRepository
     private function normalizeStatus(string $value): string
     {
         $value = strtolower(trim($value));
-        return in_array($value, ['success', 'failed'], true) ? $value : 'failed';
+        return in_array($value, ['success', 'warning', 'failed'], true) ? $value : 'failed';
     }
 
     private function nullableString(mixed $value): ?string

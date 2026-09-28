@@ -40,4 +40,12 @@ SQLite should be used for:
 - backup/update history
 - rate-limit and operational state
 
-If `storage/db/app.sqlite` is deleted, content remains available from Markdown files, but admin/system settings and historical system data such as logs are lost unless restored from backup. Legacy `content/settings/*.yaml` files are imported into SQLite only when the matching SQLite settings key does not exist.
+If `storage/db/app.sqlite` is deleted, content remains available from Markdown files, but admin/system settings and historical system data such as logs are lost unless restored from backup.
+
+## Settings Storage
+
+- `system_meta.site_settings` and `system_meta.theme_settings` hold YAML documents managed from Admin `Settings`.
+- The repository no longer ships `content/settings/site.yaml` or `content/settings/theme.yaml`. A fresh install starts from the code defaults.
+- Installs upgraded from the YAML settings era keep their values: if a legacy `content/settings/*.yaml` file exists and the matching SQLite key does not, the file is imported once on first load.
+- Settings saves fail loudly when SQLite is unavailable instead of silently discarding the change.
+- Theme settings saved from the form keep any extra keys a custom theme stores in `theme_settings`.

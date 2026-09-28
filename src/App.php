@@ -879,13 +879,13 @@ final class App
                     $this->updateBackupLastRun(date('c'));
                 }
                 $this->recordBackupRun($result);
-                $this->logActivity(($result['ok'] ?? false) ? 'backup.create_success' : 'backup.create_failure', ($result['ok'] ?? false) ? 'info' : 'error', 'backup', (string)($result['filename'] ?? ''), (string)($result['message'] ?? 'Backup action completed.'), [
+                $this->logActivity(($result['ok'] ?? false) ? 'backup.create_success' : 'backup.create_failure', $this->backupLogLevel($result), 'backup', (string)($result['filename'] ?? ''), (string)($result['message'] ?? 'Backup action completed.'), [
                     'result' => $result,
                     'source' => 'backups_module',
                 ]);
                 $this->notifyBackupResult($result, false);
                 $this->redirect('/admin/backups?' . http_build_query([
-                    'backup' => (($result['ok'] ?? false) ? 'ok' : 'fail'),
+                    'backup' => $this->backupResultQueryStatus($result),
                     'backup_msg' => (string)($result['message'] ?? ''),
                 ]));
                 return;
@@ -894,13 +894,13 @@ final class App
             if ($action === 'create_database') {
                 $result = $this->createDatabaseBackupSnapshot();
                 $this->recordBackupRun($result);
-                $this->logActivity(($result['ok'] ?? false) ? 'backup.database_success' : 'backup.database_failure', ($result['ok'] ?? false) ? 'info' : 'error', 'backup', (string)($result['filename'] ?? ''), (string)($result['message'] ?? 'Database backup action completed.'), [
+                $this->logActivity(($result['ok'] ?? false) ? 'backup.database_success' : 'backup.database_failure', $this->backupLogLevel($result), 'backup', (string)($result['filename'] ?? ''), (string)($result['message'] ?? 'Database backup action completed.'), [
                     'result' => $result,
                     'source' => 'backups_module',
                 ]);
                 $this->notifyBackupResult($result, false);
                 $this->redirect('/admin/backups?' . http_build_query([
-                    'backup' => (($result['ok'] ?? false) ? 'ok' : 'fail'),
+                    'backup' => $this->backupResultQueryStatus($result),
                     'backup_msg' => (string)($result['message'] ?? ''),
                 ]));
                 return;
@@ -926,6 +926,10 @@ final class App
         if (!is_array($schedule)) {
             $schedule = [];
         }
+        $remote = $this->settings['backup']['remote'] ?? [];
+        if (!is_array($remote)) {
+            $remote = [];
+        }
         $keep = (int)($this->settings['backup']['local']['keep'] ?? 20);
         if ($keep < 1) {
             $keep = 1;
@@ -950,6 +954,13 @@ final class App
                 'frequency' => (string)($schedule['schedule'] ?? 'daily'),
                 'last_run' => (string)($schedule['last_run'] ?? ''),
                 'keep' => $keep,
+            ],
+            'backup_remote' => [
+                'enabled' => $this->isTruthy($remote['enabled'] ?? false),
+                'provider' => (string)($remote['provider'] ?? 'custom'),
+                'bucket' => (string)($remote['bucket'] ?? ''),
+                'prefix' => (string)($remote['prefix'] ?? ''),
+                'keep' => (int)($remote['keep'] ?? 20),
             ],
         ]);
     }
@@ -1703,14 +1714,13 @@ final class App
 
     private function handleSettings(): void
     {
-        $settingsPath = $this->contentDir . '/settings/site.yaml';
-        $themePath = $this->contentDir . '/settings/theme.yaml';
         $saved = isset($_GET['saved']);
         $testStatus = (string)($_GET['test'] ?? '');
         $backupStatus = (string)($_GET['backup'] ?? '');
         $backupMessage = trim((string)($_GET['backup_msg'] ?? ''));
         $themeStatus = (string)($_GET['theme'] ?? '');
         $themeMessage = trim((string)($_GET['theme_msg'] ?? ''));
+        $settingsError = trim((string)($_GET['settings_error'] ?? ''));
         $activeTab = $this->sanitizeSettingsTab((string)($_GET['tab'] ?? 'basics'));
 
         $downloadBackup = trim((string)($_GET['download_backup'] ?? ''));
@@ -1721,7 +1731,7 @@ final class App
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $activeTab = $this->sanitizeSettingsTab((string)($_POST['active_tab'] ?? $activeTab));
-            $raw = (string)($_POST['settings'] ?? '');
+            $raw = $this->loadSettingsRaw('site_settings', $this->defaultSettings());
             $form = [
                 'title' => (string)($_POST['title'] ?? ''),
                 'tagline' => (string)($_POST['tagline'] ?? ''),
@@ -1770,13 +1780,38 @@ final class App
                 'update_package_url' => (string)($_POST['update_package_url'] ?? ''),
                 'update_github_token' => (string)($_POST['update_github_token'] ?? ''),
             ];
-            $this->saveSettings($settingsPath, $raw, $form);
+            if (!$this->saveSettings($raw, $form)) {
+                $this->redirect('/admin/settings?' . http_build_query([
+                    'tab' => $activeTab,
+                    'settings_error' => 'Settings could not be saved because the SQLite system database is unavailable.',
+                ]));
+                return;
+            }
             $this->settings = $this->loadSettings();
-            $themeRaw = (string)($_POST['theme_settings'] ?? '');
-            $themeSave = $this->saveThemeSettingsRaw($themePath, $themeRaw);
+            $themeForm = [
+                'theme_mode' => (string)($_POST['theme_mode'] ?? ''),
+                'theme_palette' => (string)($_POST['theme_palette'] ?? ''),
+                'theme_font' => (string)($_POST['theme_font'] ?? ''),
+                'theme_hero_default' => (string)($_POST['theme_hero_default'] ?? ''),
+                'theme_hero_pages' => (string)($_POST['theme_hero_pages'] ?? ''),
+                'theme_hero_posts' => (string)($_POST['theme_hero_posts'] ?? ''),
+                'theme_hero_projects' => (string)($_POST['theme_hero_projects'] ?? ''),
+                'theme_hero_forms' => (string)($_POST['theme_hero_forms'] ?? ''),
+                'theme_show_latest_projects' => isset($_POST['theme_show_latest_projects']) ? '1' : '0',
+                'theme_projects_limit' => (string)($_POST['theme_projects_limit'] ?? ''),
+                'theme_show_latest_posts' => isset($_POST['theme_show_latest_posts']) ? '1' : '0',
+                'theme_posts_limit' => (string)($_POST['theme_posts_limit'] ?? ''),
+                'theme_footer_summary' => (string)($_POST['theme_footer_summary'] ?? ''),
+                'theme_footer_email' => (string)($_POST['theme_footer_email'] ?? ''),
+                'theme_footer_phone' => (string)($_POST['theme_footer_phone'] ?? ''),
+                'theme_footer_address' => (string)($_POST['theme_footer_address'] ?? ''),
+                'theme_footer_background' => (string)($_POST['theme_footer_background'] ?? ''),
+                'theme_footer_background_image' => (string)($_POST['theme_footer_background_image'] ?? ''),
+            ];
+            $themeSave = $this->saveThemeSettings($themeForm);
             $this->themeSettings = $this->loadThemeSettings();
             if (($themeSave['ok'] ?? false) !== true) {
-                $msg = urlencode((string)($themeSave['message'] ?? 'Invalid theme YAML.'));
+                $msg = urlencode((string)($themeSave['message'] ?? 'Theme settings could not be saved.'));
                 $this->redirect('/admin/settings?saved=1&tab=theme&theme=fail&theme_msg=' . $msg);
                 return;
             }
@@ -1809,16 +1844,12 @@ final class App
                 $this->redirect('/admin/settings?saved=1&tab=smtp&test=' . ($ok ? 'ok' : 'fail'));
                 return;
             }
-            if (isset($_POST['create_backup'])) {
-                $result = $this->createBackupSnapshot();
-                if (($result['ok'] ?? false) === true) {
-                    $this->updateBackupLastRun(date('c'));
-                }
-                $this->recordBackupRun($result);
-                $this->logActivity(($result['ok'] ?? false) ? 'backup.create_success' : 'backup.create_failure', ($result['ok'] ?? false) ? 'info' : 'error', 'backup', (string)($result['filename'] ?? ''), (string)($result['message'] ?? 'Backup action completed.'), [
-                    'result' => $result,
+            if (isset($_POST['test_remote_backup'])) {
+                $result = $this->testRemoteBackupStorage();
+                $this->logActivity(($result['ok'] ?? false) ? 'backup.remote_test_success' : 'backup.remote_test_failure', ($result['ok'] ?? false) ? 'info' : 'error', 'backup', 'remote_storage', (string)($result['message'] ?? 'Remote backup test completed.'), [
+                    'provider' => (string)($this->settings['backup']['remote']['provider'] ?? 'custom'),
+                    'bucket' => (string)($this->settings['backup']['remote']['bucket'] ?? ''),
                 ]);
-                $this->notifyBackupResult($result, false);
                 $query = [
                     'saved' => '1',
                     'tab' => 'backup',
@@ -1828,30 +1859,52 @@ final class App
                 $this->redirect('/admin/settings?' . http_build_query($query));
                 return;
             }
+            if (isset($_POST['create_backup'])) {
+                $result = $this->createBackupSnapshot();
+                if (($result['ok'] ?? false) === true) {
+                    $this->updateBackupLastRun(date('c'));
+                }
+                $this->recordBackupRun($result);
+                $this->logActivity(($result['ok'] ?? false) ? 'backup.create_success' : 'backup.create_failure', $this->backupLogLevel($result), 'backup', (string)($result['filename'] ?? ''), (string)($result['message'] ?? 'Backup action completed.'), [
+                    'result' => $result,
+                ]);
+                $this->notifyBackupResult($result, false);
+                $query = [
+                    'saved' => '1',
+                    'tab' => 'backup',
+                    'backup' => $this->backupResultQueryStatus($result),
+                    'backup_msg' => (string)($result['message'] ?? ''),
+                ];
+                $this->redirect('/admin/settings?' . http_build_query($query));
+                return;
+            }
             $this->redirect('/admin/settings?saved=1&tab=' . urlencode($activeTab));
             return;
         }
 
-        $raw = $this->loadSettingsRaw('site_settings', $settingsPath, $this->defaultSettings());
-        $themeRaw = $this->loadSettingsRaw('theme_settings', $themePath, $this->defaultThemeSettings());
-        $parsed = [];
-        if ($raw !== '') {
-            $parsed = Yaml::parse($raw) ?: [];
-        }
+        $raw = $this->loadSettingsRaw('site_settings', $this->defaultSettings());
+        $themeRaw = $this->loadSettingsRaw('theme_settings', $this->defaultThemeSettings());
+        $parsed = $this->parseSettingsYaml($raw);
+        $themeParsed = $this->parseSettingsYaml($themeRaw);
         $this->render('@admin/settings.twig', [
-            'settings' => $raw,
-            'theme_settings_raw' => $themeRaw,
             'user' => $this->auth->user(),
             'saved' => $saved,
             'test_status' => $testStatus,
             'types' => $this->content->getTypes(),
             'admin_section' => 'settings',
             'settings_form' => $this->extractSettingsForm($parsed),
+            'theme_form' => $this->extractThemeSettingsForm(is_array($themeParsed) ? $themeParsed : []),
+            'theme_options' => [
+                'palettes' => $this->themePaletteOptions(),
+                'fonts' => $this->themeFontOptions(),
+                'hero_layouts' => $this->themeHeroLayoutOptions(),
+            ],
             'backup_snapshots' => $this->listBackupSnapshots(),
             'backup_status' => $backupStatus,
             'backup_message' => $backupMessage,
             'theme_status' => $themeStatus,
             'theme_message' => $themeMessage,
+            'settings_error' => $settingsError,
             'active_tab' => $activeTab,
         ]);
     }
@@ -2992,12 +3045,25 @@ final class App
     private function notifyBackupResult(array $result, bool $scheduled): void
     {
         try {
-            $ok = ($result['ok'] ?? false) === true;
+            $status = $this->backupResultStatus($result);
+            $ok = $status !== 'failed';
             $this->notifications->createIfMissing([
-                'type' => $ok ? 'backup.success' : 'backup.failed',
-                'title' => $ok ? 'Backup completed' : 'Backup failed',
+                'type' => match ($status) {
+                    'warning' => 'backup.remote_failed',
+                    'success' => 'backup.success',
+                    default => 'backup.failed',
+                },
+                'title' => match ($status) {
+                    'warning' => 'Backup saved locally, remote upload failed',
+                    'success' => 'Backup completed',
+                    default => 'Backup failed',
+                },
                 'body' => (string)($result['message'] ?? ($ok ? 'Backup completed.' : 'Backup failed.')),
-                'severity' => $ok ? 'success' : 'error',
+                'severity' => match ($status) {
+                    'warning' => 'warning',
+                    'success' => 'success',
+                    default => 'error',
+                },
                 'target_url' => '/admin/backups',
                 'context' => [
                     'scheduled' => $scheduled,
@@ -3099,7 +3165,7 @@ final class App
     private function loadSettings(): array
     {
         $defaults = $this->defaultSettings();
-        $raw = $this->loadSettingsRaw('site_settings', $this->contentDir . '/settings/site.yaml', $defaults);
+        $raw = $this->loadSettingsRaw('site_settings', $defaults);
         if ($raw === '') {
             return $defaults;
         }
@@ -3196,7 +3262,7 @@ final class App
     private function loadThemeSettings(): array
     {
         $defaults = $this->defaultThemeSettings();
-        $raw = $this->loadSettingsRaw('theme_settings', $this->contentDir . '/settings/theme.yaml', $defaults);
+        $raw = $this->loadSettingsRaw('theme_settings', $defaults);
         if ($raw === '') {
             return $defaults;
         }
@@ -3237,24 +3303,53 @@ final class App
                 'email' => '',
                 'phone' => '',
                 'address' => '',
+                'background' => '',
+                'background_image' => '',
             ],
         ];
     }
 
-    private function loadSettingsRaw(string $key, string $legacyPath, array $defaults): string
+    private function loadSettingsRaw(string $key, array $defaults): string
     {
+        $legacyPath = $this->legacySettingsPath($key);
+        $legacyRaw = $legacyPath !== '' && is_file($legacyPath) ? (string)file_get_contents($legacyPath) : '';
+
         if ($this->systemDatabase->isAvailable()) {
             $raw = $this->getSystemMeta($key);
             if ($raw !== null) {
                 return $raw;
             }
 
-            $raw = is_file($legacyPath) ? (string)file_get_contents($legacyPath) : Yaml::dump($defaults, 4, 2);
+            // Installs upgraded from the YAML settings era keep their values on first load.
+            $raw = trim($legacyRaw) !== '' ? $legacyRaw : Yaml::dump($defaults, 4, 2);
             $this->setSystemMeta($key, $raw);
             return $raw;
         }
 
-        return is_file($legacyPath) ? (string)file_get_contents($legacyPath) : Yaml::dump($defaults, 4, 2);
+        return trim($legacyRaw) !== '' ? $legacyRaw : Yaml::dump($defaults, 4, 2);
+    }
+
+    /** @return array<string, mixed> */
+    private function parseSettingsYaml(string $raw): array
+    {
+        if (trim($raw) === '') {
+            return [];
+        }
+        try {
+            $data = Yaml::parse($raw);
+        } catch (\Throwable) {
+            return [];
+        }
+        return is_array($data) ? $data : [];
+    }
+
+    private function legacySettingsPath(string $key): string
+    {
+        return match ($key) {
+            'site_settings' => $this->contentDir . '/settings/site.yaml',
+            'theme_settings' => $this->contentDir . '/settings/theme.yaml',
+            default => '',
+        };
     }
 
     private function getSystemMeta(string $key): ?string
@@ -3286,32 +3381,94 @@ final class App
     }
 
     /** @return array{ok: bool, message?: string} */
-    private function saveThemeSettingsRaw(string $path, string $raw): array
+    private function saveThemeSettings(array $form): array
     {
-        $raw = trim($raw);
-        if ($raw === '') {
-            $raw = Yaml::dump($this->loadThemeSettings(), 4, 2);
-            if ($this->systemDatabase->isAvailable()) {
-                $this->setSystemMeta('theme_settings', $raw);
-            } else {
-                file_put_contents($path, $raw);
-            }
-            return ['ok' => true];
+        foreach ($form as $key => $value) {
+            $form[$key] = trim((string)$value);
         }
-        try {
-            $parsed = Yaml::parse($raw);
-        } catch (\Throwable $e) {
-            return ['ok' => false, 'message' => 'Theme YAML parse error: ' . $e->getMessage()];
+
+        if (!$this->systemDatabase->isAvailable()) {
+            return ['ok' => false, 'message' => 'Theme settings could not be saved because the SQLite system database is unavailable.'];
         }
-        if (!is_array($parsed)) {
-            return ['ok' => false, 'message' => 'Theme YAML must contain a top-level mapping.'];
-        }
-        if ($this->systemDatabase->isAvailable()) {
-            $this->setSystemMeta('theme_settings', $raw . "\n");
-        } else {
-            file_put_contents($path, $raw . "\n");
-        }
+
+        $projectsLimit = max(1, min(12, (int)($form['theme_projects_limit'] ?? 3)));
+        $postsLimit = max(1, min(12, (int)($form['theme_posts_limit'] ?? 3)));
+        $data = [
+            'appearance' => [
+                'mode' => $this->normalizeThemeMode((string)($form['theme_mode'] ?? 'system')),
+                'palette' => $this->normalizeThemePalette((string)($form['theme_palette'] ?? 'slate')),
+                'font' => $this->normalizeThemeFont((string)($form['theme_font'] ?? 'sans')),
+            ],
+            'hero_layouts' => [
+                'default' => $this->normalizeThemeLayout((string)($form['theme_hero_default'] ?? 'default')),
+                'pages' => $this->normalizeThemeLayout((string)($form['theme_hero_pages'] ?? 'default')),
+                'posts' => $this->normalizeThemeLayout((string)($form['theme_hero_posts'] ?? 'default')),
+                'projects' => $this->normalizeThemeLayout((string)($form['theme_hero_projects'] ?? 'default')),
+                'forms' => $this->normalizeThemeLayout((string)($form['theme_hero_forms'] ?? 'default')),
+            ],
+            'home' => [
+                'show_latest_projects' => $this->isTruthy($form['theme_show_latest_projects'] ?? false),
+                'projects_limit' => $projectsLimit,
+                'show_latest_posts' => $this->isTruthy($form['theme_show_latest_posts'] ?? false),
+                'posts_limit' => $postsLimit,
+            ],
+            'footer' => [
+                'summary' => (string)($form['theme_footer_summary'] ?? ''),
+                'email' => (string)($form['theme_footer_email'] ?? ''),
+                'phone' => (string)($form['theme_footer_phone'] ?? ''),
+                'address' => (string)($form['theme_footer_address'] ?? ''),
+                'background' => (string)($form['theme_footer_background'] ?? ''),
+                'background_image' => (string)($form['theme_footer_background_image'] ?? ''),
+            ],
+        ];
+
+        // Keep keys the form does not manage (custom theme options) instead of dropping them.
+        $existing = $this->loadThemeSettings();
+        $merged = array_replace_recursive($existing, $data);
+        $this->setSystemMeta('theme_settings', Yaml::dump($merged, 4, 2));
         return ['ok' => true];
+    }
+
+    private function normalizeThemeMode(string $value): string
+    {
+        $value = strtolower(trim($value));
+        return in_array($value, ['system', 'light', 'dark'], true) ? $value : 'system';
+    }
+
+    private function normalizeThemePalette(string $value): string
+    {
+        $value = strtolower(trim($value));
+        return in_array($value, $this->themePaletteOptions(), true) ? $value : 'slate';
+    }
+
+    /** @return string[] */
+    private function themePaletteOptions(): array
+    {
+        return ['slate', 'indigo', 'emerald', 'teal', 'rose', 'amber'];
+    }
+
+    private function normalizeThemeFont(string $value): string
+    {
+        $value = strtolower(trim($value));
+        return in_array($value, $this->themeFontOptions(), true) ? $value : 'sans';
+    }
+
+    /** @return string[] */
+    private function themeFontOptions(): array
+    {
+        return ['sans', 'serif', 'display'];
+    }
+
+    private function normalizeThemeLayout(string $value): string
+    {
+        $value = strtolower(trim($value));
+        return in_array($value, $this->themeHeroLayoutOptions(), true) ? $value : 'default';
+    }
+
+    /** @return string[] */
+    private function themeHeroLayoutOptions(): array
+    {
+        return ['default', 'centered'];
     }
 
     private function ensureDefaultMenus(): void
@@ -5139,8 +5296,50 @@ final class App
         ];
     }
 
-    private function saveSettings(string $path, string $raw, array $form): void
+    private function extractThemeSettingsForm(array $parsed): array
     {
+        $merged = array_replace_recursive($this->defaultThemeSettings(), $parsed);
+        $mode = (string)($merged['appearance']['mode'] ?? 'system');
+        if (!in_array($mode, ['system', 'light', 'dark'], true)) {
+            $mode = 'system';
+        }
+        $palette = (string)($merged['appearance']['palette'] ?? 'slate');
+        if (!in_array($palette, $this->themePaletteOptions(), true)) {
+            $palette = 'slate';
+        }
+        $font = (string)($merged['appearance']['font'] ?? 'sans');
+        if (!in_array($font, $this->themeFontOptions(), true)) {
+            $font = 'sans';
+        }
+
+        return [
+            'mode' => $mode,
+            'palette' => $palette,
+            'font' => $font,
+            'hero_default' => $this->normalizeThemeLayout((string)($merged['hero_layouts']['default'] ?? 'default')),
+            'hero_pages' => $this->normalizeThemeLayout((string)($merged['hero_layouts']['pages'] ?? 'default')),
+            'hero_posts' => $this->normalizeThemeLayout((string)($merged['hero_layouts']['posts'] ?? 'default')),
+            'hero_projects' => $this->normalizeThemeLayout((string)($merged['hero_layouts']['projects'] ?? 'default')),
+            'hero_forms' => $this->normalizeThemeLayout((string)($merged['hero_layouts']['forms'] ?? 'default')),
+            'show_latest_projects' => $this->isTruthy($merged['home']['show_latest_projects'] ?? true),
+            'projects_limit' => (string)max(1, (int)($merged['home']['projects_limit'] ?? 3)),
+            'show_latest_posts' => $this->isTruthy($merged['home']['show_latest_posts'] ?? true),
+            'posts_limit' => (string)max(1, (int)($merged['home']['posts_limit'] ?? 3)),
+            'footer_summary' => (string)($merged['footer']['summary'] ?? ''),
+            'footer_email' => (string)($merged['footer']['email'] ?? ''),
+            'footer_phone' => (string)($merged['footer']['phone'] ?? ''),
+            'footer_address' => (string)($merged['footer']['address'] ?? ''),
+            'footer_background' => (string)($merged['footer']['background'] ?? ''),
+            'footer_background_image' => (string)($merged['footer']['background_image'] ?? ''),
+        ];
+    }
+
+    private function saveSettings(string $raw, array $form): bool
+    {
+        if (!$this->systemDatabase->isAvailable()) {
+            return false;
+        }
+
         foreach ($form as $key => $value) {
             if (is_array($value)) {
                 $form[$key] = array_map(fn($item) => trim((string)$item), $value);
@@ -5148,13 +5347,7 @@ final class App
                 $form[$key] = trim((string)$value);
             }
         }
-        $data = [];
-        if ($raw !== '') {
-            $data = Yaml::parse($raw) ?: [];
-        }
-        if (!is_array($data)) {
-            $data = [];
-        }
+        $data = $this->parseSettingsYaml($raw);
 
         $data['title'] = $form['title'] !== '' ? $form['title'] : ($data['title'] ?? 'FarosCMS');
         $data['tagline'] = $form['tagline'] !== '' ? $form['tagline'] : ($data['tagline'] ?? '');
@@ -5302,12 +5495,8 @@ final class App
             'latest_version' => (string)($existingUpdates['latest_version'] ?? ''),
         ];
 
-        $yaml = Yaml::dump($data, 4, 2);
-        if ($this->systemDatabase->isAvailable()) {
-            $this->setSystemMeta('site_settings', $yaml);
-        } else {
-            file_put_contents($path, $yaml);
-        }
+        $this->setSystemMeta('site_settings', Yaml::dump($data, 4, 2));
+        return true;
     }
 
     /** @return string[] */
@@ -5615,7 +5804,6 @@ final class App
         $body = curl_exec($ch);
         $status = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
         $error = curl_error($ch);
-        curl_close($ch);
         if (!is_string($body) || $body === '' || $status < 200 || $status >= 300) {
             return ['ok' => false, 'message' => 'Google token exchange failed.' . ($error !== '' ? ' ' . $error : '')];
         }
@@ -5639,7 +5827,6 @@ final class App
         ]);
         $body = curl_exec($ch);
         $status = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
-        curl_close($ch);
         if (!is_string($body) || $body === '' || $status < 200 || $status >= 300) {
             return ['ok' => false, 'message' => 'Google profile lookup failed.'];
         }
@@ -5851,7 +6038,7 @@ final class App
     private function sanitizeSettingsTab(string $tab): string
     {
         $tab = strtolower(trim($tab));
-        $allowed = ['basics', 'menus', 'apis', 'theme', 'smtp', 'auth', 'backup', 'updates', 'advanced'];
+        $allowed = ['basics', 'menus', 'apis', 'theme', 'smtp', 'auth', 'backup', 'updates'];
         if (!in_array($tab, $allowed, true)) {
             return 'basics';
         }
@@ -5874,6 +6061,10 @@ final class App
     private function maybeRunScheduledBackup(): void
     {
         if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') {
+            return;
+        }
+        if (!$this->systemDatabase->isAvailable()) {
+            // Without SQLite the last run cannot be persisted, so every request would start a new backup.
             return;
         }
         $auto = $this->settings['backup']['auto'] ?? [];
@@ -5980,12 +6171,9 @@ final class App
             $keep = 1;
         }
         $this->pruneBackupSnapshots($keep);
+        $remote = $this->uploadBackupToRemote($snapshotPath, $filename);
 
-        return [
-            'ok' => true,
-            'message' => 'Snapshot created.',
-            'filename' => $filename,
-        ];
+        return $this->buildBackupResult('Snapshot created.', $filename, $remote);
     }
 
     /** @return array{ok: bool, message: string, filename?: string} */
@@ -6015,11 +6203,9 @@ final class App
         $zip->addFile($dbPath, 'storage/db/app.sqlite');
         $zip->close();
 
-        return [
-            'ok' => true,
-            'message' => 'Database backup created.',
-            'filename' => $filename,
-        ];
+        $remote = $this->uploadBackupToRemote($snapshotPath, $filename);
+
+        return $this->buildBackupResult('Database backup created.', $filename, $remote);
     }
 
     private function recordBackupRun(array $result): void
@@ -6033,13 +6219,110 @@ final class App
             }
             $this->backupRuns->record([
                 'filename' => $filename,
-                'status' => (($result['ok'] ?? false) === true) ? 'success' : 'failed',
+                'status' => $this->backupResultStatus($result),
                 'size_bytes' => $size,
                 'message' => (string)($result['message'] ?? ''),
             ]);
         } catch (\Throwable) {
             // Backup run history must never block the backup workflow.
         }
+    }
+
+    /** @return array{ok: bool, message: string, object_key?: string, pruned?: int}|null */
+    private function uploadBackupToRemote(string $path, string $filename): ?array
+    {
+        $remoteSettings = $this->settings['backup']['remote'] ?? [];
+        if (!is_array($remoteSettings) || !$this->isTruthy($remoteSettings['enabled'] ?? false)) {
+            return null;
+        }
+
+        $storage = new S3BackupStorage($remoteSettings);
+        $upload = $storage->upload($path, $filename);
+        if (($upload['ok'] ?? false) === true) {
+            $keep = (int)($remoteSettings['keep'] ?? 20);
+            $prune = $storage->prune($keep > 0 ? $keep : 20);
+            if (($prune['ok'] ?? false) === true) {
+                $upload['pruned'] = (int)($prune['deleted'] ?? 0);
+            }
+        }
+
+        return $upload;
+    }
+
+    /**
+     * The local archive decides `ok`; a failed remote upload only downgrades the run to a warning,
+     * so schedules still advance and the local snapshot is not reported as lost.
+     *
+     * @param array<string, mixed>|null $remote
+     * @return array{ok: bool, status: string, message: string, filename: string, remote: array<string, mixed>|null}
+     */
+    private function buildBackupResult(string $message, string $filename, ?array $remote): array
+    {
+        $remoteFailed = $remote !== null && (($remote['ok'] ?? false) !== true);
+        return [
+            'ok' => true,
+            'status' => $remoteFailed ? 'warning' : 'success',
+            'message' => $message . $this->remoteBackupMessage($remote),
+            'filename' => $filename,
+            'remote' => $remote,
+        ];
+    }
+
+    private function backupLogLevel(array $result): string
+    {
+        return match ($this->backupResultStatus($result)) {
+            'warning' => 'warning',
+            'success' => 'info',
+            default => 'error',
+        };
+    }
+
+    private function backupResultQueryStatus(array $result): string
+    {
+        return match ($this->backupResultStatus($result)) {
+            'warning' => 'warn',
+            'success' => 'ok',
+            default => 'fail',
+        };
+    }
+
+    private function backupResultStatus(array $result): string
+    {
+        if (($result['ok'] ?? false) !== true) {
+            return 'failed';
+        }
+        return (string)($result['status'] ?? 'success') === 'warning' ? 'warning' : 'success';
+    }
+
+    /** @param array<string, mixed>|null $remote */
+    private function remoteBackupMessage(?array $remote): string
+    {
+        if ($remote === null) {
+            return '';
+        }
+        if (($remote['ok'] ?? false) === true) {
+            $suffix = ' Remote upload completed.';
+            if (isset($remote['object_key']) && trim((string)$remote['object_key']) !== '') {
+                $suffix .= ' Object: ' . (string)$remote['object_key'] . '.';
+            }
+            if (isset($remote['pruned']) && (int)$remote['pruned'] > 0) {
+                $suffix .= ' Pruned ' . (int)$remote['pruned'] . ' remote backup(s).';
+            }
+            return $suffix;
+        }
+
+        return ' Saved locally, but remote upload failed: ' . (string)($remote['message'] ?? 'Remote storage error.');
+    }
+
+    /** @return array{ok: bool, message: string} */
+    private function testRemoteBackupStorage(): array
+    {
+        $remoteSettings = $this->settings['backup']['remote'] ?? [];
+        if (!is_array($remoteSettings)) {
+            return ['ok' => false, 'message' => 'Remote backup settings are missing.'];
+        }
+
+        return (new S3BackupStorage($remoteSettings))->testConnection();
     }
 
     private function shouldExcludeBackupPath(string $relative): bool
@@ -6055,6 +6338,9 @@ final class App
         $excludedPrefixes = [
             '.git/',
             '.codex/',
+            '.claude/',
+            '_reference/',
+            'node_modules/',
             'storage/cache/',
             'storage/backups/',
         ];
@@ -6174,17 +6460,12 @@ final class App
 
     private function updateBackupLastRun(string $isoDate): void
     {
-        $raw = $this->loadSettingsRaw('site_settings', $this->contentDir . '/settings/site.yaml', $this->defaultSettings());
-        $data = $raw !== '' ? (Yaml::parse($raw) ?: []) : [];
-        if (!is_array($data)) {
-            $data = [];
-        }
+        $raw = $this->loadSettingsRaw('site_settings', $this->defaultSettings());
+        $data = $this->parseSettingsYaml($raw);
         $data['backup']['auto']['last_run'] = $isoDate;
         $yaml = Yaml::dump($data, 4, 2);
         if ($this->systemDatabase->isAvailable()) {
             $this->setSystemMeta('site_settings', $yaml);
-        } else {
-            file_put_contents($this->contentDir . '/settings/site.yaml', $yaml);
         }
         $this->settings = $this->loadSettings();
     }
@@ -8567,7 +8848,6 @@ final class App
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             $response = curl_exec($ch);
             $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            curl_close($ch);
             return $status >= 200 && $status < 300;
         }
 
