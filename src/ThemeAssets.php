@@ -6,8 +6,10 @@ namespace FarosCMS;
 
 /**
  * Serves theme and custom/ assets, which live outside the public document root:
- *   /_themes/<theme>/<path>  → themes/<theme>/assets/<path>
- *   /_custom/<path>          → custom/assets/<path>
+ *   /_themes/<theme>/blocks/<type>/<file>  → themes/<theme>/blocks/<type>/<file>
+ *   /_themes/<theme>/<path>                → themes/<theme>/assets/<path>
+ *   /_custom/blocks/<type>/<file>          → custom/blocks/<type>/<file>
+ *   /_custom/<path>                        → custom/assets/<path>
  *
  * Runs from public/index.php before the application boots, so a stylesheet request costs no
  * session, database, or Twig work. Only allowlisted file types are served.
@@ -54,16 +56,30 @@ final class ThemeAssets
                 self::notFound();
                 return true;
             }
-            self::send(Theme::assetFile($basePath . '/themes/' . $theme . '/assets', substr($rest, $slash + 1)));
+            $assetPath = substr($rest, $slash + 1);
+            if ($assetPath === '_blocks.css') {
+                self::sendBlockBundle($basePath . '/themes/' . $theme, $basePath . '/custom');
+                return true;
+            }
+            self::send(self::resolve($basePath . '/themes/' . $theme, $assetPath));
             return true;
         }
 
         if (str_starts_with($path, '_custom/')) {
-            self::send(Theme::assetFile($basePath . '/custom/assets', substr($path, strlen('_custom/'))));
+            self::send(self::resolve($basePath . '/custom', substr($path, strlen('_custom/'))));
             return true;
         }
 
         return false;
+    }
+
+    /** `blocks/<type>/<file>` maps into the blocks folder; everything else into assets/. */
+    private static function resolve(string $root, string $path): ?string
+    {
+        if (str_starts_with($path, 'blocks/')) {
+            return Theme::assetFile($root . '/blocks', substr($path, strlen('blocks/')));
+        }
+        return Theme::assetFile($root . '/assets', $path);
     }
 
     private static function send(?string $file): void
@@ -104,6 +120,40 @@ final class ThemeAssets
         header('Content-Length: ' . $size);
         if ($method === 'GET') {
             readfile($file);
+        }
+    }
+
+    /** Concatenated block stylesheets for `?b=type,type` (see Theme::blockStylesheetUrl()). */
+    private static function sendBlockBundle(string $themePath, string $customPath): void
+    {
+        if (!is_dir($themePath)) {
+            self::notFound();
+            return;
+        }
+        $types = explode(',', (string)($_GET['b'] ?? ''));
+        $files = Theme::blockStyleFiles($themePath, $customPath, $types);
+        if ($files === []) {
+            self::notFound();
+            return;
+        }
+        $css = '';
+        $stamp = '';
+        foreach ($files as $file) {
+            $css .= '/* ' . basename(dirname($file)) . ' */' . "\n" . (string)file_get_contents($file) . "\n";
+            $stamp .= $file . filemtime($file) . filesize($file);
+        }
+        $etag = '"' . substr(sha1($stamp), 0, 16) . '"';
+        header('Content-Type: text/css; charset=utf-8');
+        header('X-Content-Type-Options: nosniff');
+        header('Cache-Control: ' . (isset($_GET['v']) && $_GET['v'] !== '' ? 'public, max-age=31536000, immutable' : 'public, max-age=300'));
+        header('ETag: ' . $etag);
+        if (trim((string)($_SERVER['HTTP_IF_NONE_MATCH'] ?? '')) === $etag) {
+            http_response_code(304);
+            return;
+        }
+        header('Content-Length: ' . strlen($css));
+        if (strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET')) !== 'HEAD') {
+            echo $css;
         }
     }
 

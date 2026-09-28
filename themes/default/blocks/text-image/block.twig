@@ -1,0 +1,14 @@
+{% import 'components/ui.twig' as ui %}
+<div class="container ti-grid">
+  <div class="ti-text">
+    {% if block.eyebrow %}<p class="eyebrow">{{ block.eyebrow }}</p>{% endif %}
+    {% if block.heading %}<{{ heading_tag }} class="section-title" id="{{ block_uid }}-title">{{ block.heading }}</{{ heading_tag }}>{% endif %}
+    {% if block.body_html %}<div class="prose checklist">{{ block.body_html|raw }}</div>{% endif %}
+    {{ ui.actions(block.actions, lang_prefix|default('')) }}
+  </div>
+  {% if block.image %}
+    <div class="ti-media media-frame ratio-{{ block.image_ratio }}">
+      {{ image(block.image, {alt: block.image_alt, sizes: '(min-width: 960px) 45vw, 92vw', max_width: 1600}) }}
+    </div>
+  {% endif %}
+</div>

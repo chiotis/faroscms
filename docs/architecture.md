@@ -8,7 +8,7 @@ FarosCMS is a single-entry PHP application (`public/index.php` → `FarosCMS\App
 2. `handleAdmin()` checks the CSRF token on every POST, handles sign-in/out, re-reads the signed-in user, checks the route capability (`PermissionService::canAccessAction()`), runs a due scheduled backup, and dispatches to a `handle*()` method.
 3. Handlers render Twig templates from `admin/templates/` (namespace `@admin`) or the frontend theme: `custom/` first, then `themes/default/` (see `theming.md`).
 
-Before the application boots, `public/index.php` hands `/_themes/…` and `/_custom/…` requests to `ThemeAssets`.
+Before the application boots, `public/index.php` hands `/_themes/…` and `/_custom/…` requests to `ThemeAssets` and missing `/uploads/_v/…` image variants to `Images`.
 
 ## Classes in `src/`
 
@@ -33,7 +33,10 @@ Before the application boots, `public/index.php` hands `/_themes/…` and `/_cus
 | `Format` | Shared display formatters (byte sizes). |
 | `Theme` | Frontend theme manifest (`theme.yaml`), settings schema and resolution, template lookup across `custom/` and the theme, asset URLs, layered translations and `custom/lang` overrides. |
 | `ThemeAssets` | Serves theme and `custom/` assets from outside `public/` with type allowlist, path checks, and caching. |
-| `FieldSchema` | Declarative field definitions: defaults, validation of stored values, and form input handling. Used by theme settings; blocks and content types will reuse it. |
+| `FieldSchema` | Declarative field definitions (text, markdown, link, image, select, toggle, number, repeater, …): defaults, validation of stored values, and form input handling. Used by theme settings and blocks. |
+| `BlockRegistry` | Block definitions from `themes/<theme>/blocks/*/block.yaml` and `custom/blocks/`, with shared presentation fields (variant, tone, spacing, anchor, hidden). |
+| `BlockRenderer` | Renders a page's `blocks:` list: checks values, heading levels, Markdown, dynamic data (latest items, forms), stylesheet bundle, and FAQ structured data. |
+| `Images` | Responsive `<picture>` markup for uploads and on-demand WebP variants under `/uploads/_v/`. |
 
 ## Admin front end
 

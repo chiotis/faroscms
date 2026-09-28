@@ -2,6 +2,10 @@
 
 {% block content %}
   {% set prefix = lang_prefix|default('') %}
+  {% if page_blocks|default(null) %}
+    {% if not page_blocks.leads_with_hero %}<h1 class="visually-hidden">{{ item.meta.title }}</h1>{% endif %}
+    {{ page_blocks.html|raw }}
+  {% else %}
   <article class="site-wrap section-stack">
     <section>
       <p>{{ t('home.kicker', 'Business Website Starter') }}</p>
@@ -12,7 +16,7 @@
         <a href="{{ url(prefix ~ 'projects') }}">{{ t('home.cta_secondary', 'View Projects') }}</a>
       </p>
       {% if item.meta.main_image is defined and item.meta.main_image %}
-        <p><img src="{{ item.meta.main_image }}" alt="{{ item.meta.title }}"></p>
+        <div class="media-frame">{{ image(item.meta.main_image, {priority: true, sizes: '(min-width: 1280px) 1216px, 92vw'}) }}</div>
       {% endif %}
     </section>
 
@@ -44,4 +48,5 @@
       </section>
     {% endif %}
   </article>
+  {% endif %}
 {% endblock %}

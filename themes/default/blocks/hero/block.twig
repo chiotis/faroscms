@@ -1,0 +1,31 @@
+{% import 'components/ui.twig' as ui %}
+{% set variant = block.variant %}
+{% set has_image = block.image and variant != 'minimal' %}
+{# The opening hero image is the largest thing on screen: load it first, never lazily. #}
+{% set media_sizes = variant == 'split' ? '(min-width: 960px) 46vw, 92vw' : (variant == 'cover' ? '100vw' : '(min-width: 1280px) 1216px, 92vw') %}
+{% if variant == 'cover' and has_image %}
+  <div class="hero-cover-media">
+    {{ image(block.image, {alt: block.image_alt, sizes: media_sizes, priority: block_first}) }}
+  </div>
+{% endif %}
+<div class="container hero-inner">
+  <div class="hero-content">
+    {% if block.eyebrow %}<p class="eyebrow">{{ block.eyebrow }}</p>{% endif %}
+    <{{ heading_tag }} class="hero-title" id="{{ block_uid }}-title">{{ block.heading }}</{{ heading_tag }}>
+    {% if block.text %}<p class="hero-text">{{ block.text|nl2br }}</p>{% endif %}
+    {{ ui.actions(block.actions, lang_prefix|default('')) }}
+    {% set highlights = block.highlights|filter(h => h.text) %}
+    {% if highlights is not empty %}
+      <ul class="hero-highlights" role="list">
+        {% for highlight in highlights %}
+          <li>{{ icon('check-circle', 'hero-highlight-icon') }}<span>{{ highlight.text }}</span></li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  </div>
+  {% if has_image and variant != 'cover' %}
+    <div class="hero-media media-frame">
+      {{ image(block.image, {alt: block.image_alt, sizes: media_sizes, priority: block_first}) }}
+    </div>
+  {% endif %}
+</div>

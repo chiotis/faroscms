@@ -1,4 +1,5 @@
 {% extends 'layouts/base.twig' %}
+{% set document_title = archive_title ?? (t('type.' ~ type|default(''), type|default('')|title) ~ ' ' ~ t('archive.suffix')) %}
 
 {% block content %}
   {% set prefix = lang_prefix|default('') %}
@@ -19,7 +20,7 @@
     {% else %}
       <div class="content-grid">
         {% for item in items %}
-          {% include 'components/card.twig' %}
+          {% include 'components/card.twig' with {card_heading_tag: 'h2'} %}
         {% endfor %}
       </div>
     {% endif %}

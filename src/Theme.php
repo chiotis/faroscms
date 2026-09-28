@@ -207,6 +207,101 @@ final class Theme
         return $file !== null ? $url . '?v=' . self::fileVersion($file) : $url;
     }
 
+    /**
+     * One stylesheet URL for the block types on a page: each type's theme block.css followed by
+     * the site's additive custom/blocks/<type>/block.css, served together by ThemeAssets.
+     * Empty when none of the types has styles.
+     *
+     * @param string[] $types
+     */
+    public function blockStylesheetUrl(string $baseUrl, array $types): string
+    {
+        $files = self::blockStyleFiles($this->path(), $this->customPath(), $types);
+        if ($files === []) {
+            return '';
+        }
+        $stamp = '';
+        foreach ($files as $file) {
+            $stamp .= $file . ':' . self::fileVersion($file) . ';';
+        }
+        $names = array_values(array_unique(array_filter($types, static fn(string $type): bool => (bool)preg_match('/^[a-z][a-z0-9-]*$/', $type))));
+        return $baseUrl . '/_themes/' . $this->name . '/_blocks.css?b=' . implode(',', $names) . '&v=' . substr(sha1($stamp), 0, 10);
+    }
+
+    /**
+     * Existing block stylesheets for the given types, in order (theme file, then custom file).
+     *
+     * @param string[] $types
+     * @return string[]
+     */
+    public static function blockStyleFiles(string $themePath, string $customPath, array $types): array
+    {
+        $files = [];
+        foreach (array_slice(array_values(array_unique($types)), 0, 40) as $type) {
+            if (!is_string($type) || !preg_match('/^[a-z][a-z0-9-]*$/', $type)) {
+                continue;
+            }
+            foreach ([$themePath . '/blocks', $customPath . '/blocks'] as $root) {
+                $file = self::assetFile($root, $type . '/block.css');
+                if ($file !== null) {
+                    $files[] = $file;
+                }
+            }
+        }
+        return $files;
+    }
+
+    /** Block definition folders, theme first; custom/ may add new block types. @return array<string, string> */
+    public function blockRoots(): array
+    {
+        return ['theme' => $this->path() . '/blocks', 'custom' => $this->customPath() . '/blocks'];
+    }
+
+    /** @return string[] icon names from the theme and custom/icons */
+    public function iconNames(): array
+    {
+        $names = [];
+        foreach ([$this->path() . '/icons', $this->customPath() . '/icons'] as $dir) {
+            foreach (glob($dir . '/*.svg') ?: [] as $file) {
+                $name = basename($file, '.svg');
+                if (preg_match('/^[a-z0-9-]+$/', $name)) {
+                    $names[$name] = true;
+                }
+            }
+        }
+        $names = array_keys($names);
+        sort($names);
+        return $names;
+    }
+
+    /** Inline SVG for an icon (custom/icons wins), decorative by default, or '' when unknown. */
+    public function icon(string $name, string $class = ''): string
+    {
+        if (!preg_match('/^[a-z0-9-]+$/', $name)) {
+            return '';
+        }
+        static $cache = [];
+        $key = $this->name . ':' . $name;
+        if (!array_key_exists($key, $cache)) {
+            $svg = '';
+            foreach ([$this->customPath() . '/icons', $this->path() . '/icons'] as $dir) {
+                if (is_file($dir . '/' . $name . '.svg')) {
+                    $svg = trim((string)file_get_contents($dir . '/' . $name . '.svg'));
+                    break;
+                }
+            }
+            $cache[$key] = str_starts_with($svg, '<svg') ? $svg : '';
+        }
+        if ($cache[$key] === '') {
+            return '';
+        }
+        $attributes = ' aria-hidden="true" focusable="false"';
+        if ($class !== '') {
+            $attributes .= ' class="' . htmlspecialchars($class, ENT_QUOTES, 'UTF-8') . '"';
+        }
+        return '<svg' . $attributes . substr($cache[$key], 4);
+    }
+
     /** URL of a file in custom/assets, or '' when the site has no such file. */
     public function customAssetUrl(string $baseUrl, string $path): string
     {

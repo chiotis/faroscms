@@ -1,0 +1,46 @@
+.stats-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: var(--space-l);
+  margin: 0;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+/* The number is read after its label but shown first. */
+.stat-value {
+  order: -1;
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: clamp(2.6rem, 1.8rem + 3vw, 4.25rem);
+  font-weight: var(--heading-weight);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.stat-label {
+  font-weight: 600;
+}
+
+.stat-text {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: var(--step--1);
+}
+
+.block--row .stat {
+  padding-left: var(--space-m);
+  border-left: 2px solid var(--accent);
+}
+
+.block--cards .stat {
+  padding: clamp(1.4rem, 1rem + 1vw, 2rem);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-l);
+  background: var(--card-bg);
+}

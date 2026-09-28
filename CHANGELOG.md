@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-09-28 — Design system and first block family (phase 2)
+- Blocks: pages and posts can list `blocks:` in front matter; 12 blocks (hero, content, text, text-image, features, stats, testimonials, logos, faq, cta, cards, form) with variants, background tones, and spacing; values are checked against each block's `block.yaml`
+- Blocks: an opening hero becomes the page title; block CSS loads only where used, bundled into one request per page; a hidden `/blocks` showcase page shows every block and variant
+- Design system: new `site.css` with tokens for palette (six palettes, light and dark), fonts, and corner shape (new setting); the palette and font settings now change the site; dark mode follows the system without a flash
+- Images: `image()` renders width/height, WebP srcset, lazy or high-priority loading; variants are generated on first request under `/uploads/_v/`, excluded from backups, and removed with the media item
+- Media: default alt text per image (Admin > Media), used when a page does not give its own
+- Accessibility: skip link, visible focus, reduced motion, accessible mobile menu (dialog, focus handling, Escape), one link per card, labelled form controls with linked errors, correct heading levels in templates and demo content; checked for WCAG AA contrast in all palettes
+- SEO: page titles with the site name, Open Graph type/site/locale/image, Twitter cards, share-image fallbacks, and a JSON-LD graph (Organization, WebSite, BlogPosting, BreadcrumbList, FAQPage)
+- Theme settings: Brand (logo, default share image) and Social profiles; footer social icons show only when set
+- Admin: saving a page keeps its `blocks:` intact (it was previously turned into text custom fields)
+- Local development: run `php -S 127.0.0.1:8087 -t public public/index.php` so generated files work as on Apache/nginx; the nginx example in `docs/security.md` now falls back to `index.php`
+- Demo content: home pages rebuilt with blocks; English projects pointed to an existing image; post headings start at h2
+
 ## 2026-09-28 — Theme foundation (phase 1)
 - Theme: `themes/default` is reorganised into `layouts/`, `templates/`, `components/`, and `assets/`, with a `theme.yaml` manifest; rendered pages are unchanged
 - Theme: the admin Theme tab is generated from the manifest, and stored theme settings are checked against it on every request (new fields get defaults, invalid values fall back)

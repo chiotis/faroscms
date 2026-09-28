@@ -193,6 +193,7 @@ final class MediaLibrary
             'size_human' => Format::bytes(max(0, $sizeBytes)),
             'tags' => $tags,
             'tags_csv' => implode(', ', $tags),
+            'alt' => trim((string)($meta['alt'] ?? '')),
             'uploaded_by' => trim((string)($meta['uploaded_by'] ?? '')),
             'created_at' => $createdAt,
             'updated_at' => $updatedAt,
@@ -313,6 +314,11 @@ final class MediaLibrary
             'created_at' => trim((string)($meta['created_at'] ?? gmdate('c'))),
             'updated_at' => trim((string)($meta['updated_at'] ?? gmdate('c'))),
         ];
+        // Default alternative text, used wherever the image is placed without its own alt.
+        $alt = trim(preg_replace('/\s+/', ' ', (string)($meta['alt'] ?? '')) ?? '');
+        if ($alt !== '') {
+            $payload['alt'] = mb_substr($alt, 0, 300);
+        }
         file_put_contents($this->metaPath($id), Yaml::dump($payload, 4, 2));
     }
 
@@ -465,13 +471,16 @@ final class MediaLibrary
         return true;
     }
 
-    public function updateTags(string $id, string $tagsCsv): bool
+    public function updateTags(string $id, string $tagsCsv, ?string $alt = null): bool
     {
         $item = $this->find($id);
         if ($item === null) {
             return false;
         }
         $item['tags'] = $this->normalizeTags($tagsCsv);
+        if ($alt !== null) {
+            $item['alt'] = $alt;
+        }
         $item['updated_at'] = gmdate('c');
         $this->saveMeta($item);
         return true;
@@ -489,6 +498,7 @@ final class MediaLibrary
             if (is_file($absolutePath)) {
                 @unlink($absolutePath);
             }
+            (new Images(dirname($this->uploadsRootDir())))->purge($relativePath);
         }
         $metaPath = $this->metaPath($id);
         if (is_file($metaPath)) {

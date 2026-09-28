@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace FarosCMS;
 
 /**
- * Declarative field definitions (theme settings now, blocks and content types later).
+ * Declarative field definitions for theme settings and content blocks (content types later).
  *
  * A definition list is a map of key => definition. Values are always checked against the
  * definition: a missing value takes the field default and an invalid one falls back to it, so a
@@ -13,7 +13,7 @@ namespace FarosCMS;
  */
 final class FieldSchema
 {
-    public const TYPES = ['text', 'textarea', 'email', 'url', 'image', 'color', 'number', 'select', 'toggle'];
+    public const TYPES = ['text', 'textarea', 'markdown', 'email', 'url', 'link', 'image', 'color', 'number', 'select', 'toggle', 'repeater'];
 
     /**
      * @param array<string, mixed> $definitions raw map of key => definition
@@ -39,13 +39,23 @@ final class FieldSchema
                 'placeholder' => (string)($definition['placeholder'] ?? ''),
                 'span' => ($definition['span'] ?? '') === 'full' ? 'full' : '',
                 'hidden' => ($definition['hidden'] ?? false) === true,
+                'required' => ($definition['required'] ?? false) === true,
             ];
             if ($type === 'select') {
                 $field['options'] = self::normalizeOptions($definition['options'] ?? []);
             }
-            if ($type === 'number') {
+            if ($type === 'number' || $type === 'repeater') {
                 $field['min'] = isset($definition['min']) && is_numeric($definition['min']) ? (int)$definition['min'] : null;
                 $field['max'] = isset($definition['max']) && is_numeric($definition['max']) ? (int)$definition['max'] : null;
+            }
+            if ($type === 'repeater') {
+                // Repeater items are flat: nested repeaters are not supported.
+                $subDefinitions = is_array($definition['fields'] ?? null) ? $definition['fields'] : [];
+                $field['fields'] = array_filter(
+                    self::normalize($subDefinitions),
+                    static fn(array $sub): bool => $sub['type'] !== 'repeater'
+                );
+                $field['item_label'] = (string)($definition['item_label'] ?? 'Item');
             }
             $field['default'] = self::clean($field, $definition['default'] ?? null, true);
             $fields[$key] = $field;
@@ -165,6 +175,23 @@ final class FieldSchema
                 $value = is_scalar($value) ? trim((string)$value) : '';
                 return $value === '' || self::isSafeUrl($value) ? $value : $fallback;
 
+            case 'link':
+                $value = is_scalar($value) ? trim((string)$value) : '';
+                return $value === '' || self::isSafeLink($value) ? $value : $fallback;
+
+            case 'repeater':
+                if (!is_array($value)) {
+                    return $fallback;
+                }
+                $items = [];
+                foreach (array_values($value) as $item) {
+                    if (is_array($item)) {
+                        $items[] = self::resolve($field['fields'], array_intersect_key($item, $field['fields']));
+                    }
+                }
+                return $field['max'] !== null ? array_slice($items, 0, max(0, $field['max'])) : $items;
+
+            case 'markdown':
             case 'textarea':
                 if (!is_scalar($value)) {
                     return $fallback;
@@ -208,6 +235,21 @@ final class FieldSchema
         return true;
     }
 
+    /**
+     * Links may also point inside the page (#id), to email, or to a phone number; script and data
+     * schemes, quotes, brackets, and whitespace are refused.
+     */
+    public static function isSafeLink(string $value): bool
+    {
+        if (preg_match('/[\s"\'<>\\\\]/', $value)) {
+            return false;
+        }
+        if (preg_match('#^[a-z][a-z0-9+.-]*:#i', $value)) {
+            return (bool)preg_match('#^(https?://|mailto:|tel:)#i', $value);
+        }
+        return true;
+    }
+
     /** @return array<string, string> */
     private static function normalizeOptions(mixed $options): array
     {
@@ -215,16 +257,17 @@ final class FieldSchema
             return [];
         }
         $normalized = [];
+        // List form [a, b] means value a with label "A"; a map (even with numeric keys) is value => label.
+        $isList = array_is_list($options);
         foreach ($options as $value => $label) {
-            if (is_int($value)) {
-                // List form: [a, b] means value a with label "A".
+            if ($isList) {
                 $value = (string)$label;
+                if ($value === '') {
+                    continue;
+                }
                 $label = ucfirst(str_replace(['_', '-'], ' ', $value));
             }
-            $value = (string)$value;
-            if ($value !== '') {
-                $normalized[$value] = (string)$label;
-            }
+            $normalized[(string)$value] = (string)$label;
         }
         return $normalized;
     }
@@ -235,6 +278,7 @@ final class FieldSchema
         return match ($field['type']) {
             'toggle' => false,
             'number' => $field['min'] ?? 0,
+            'repeater' => [],
             default => '',
         };
     }

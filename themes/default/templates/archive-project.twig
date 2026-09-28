@@ -1,4 +1,6 @@
 {% extends 'layouts/base.twig' %}
+{% set document_title = t('projects.archive_title') %}
+{% set document_description = t('projects.archive_subtitle') %}
 
 {% block content %}
   <section class="single-hero">
@@ -14,7 +16,7 @@
     {% else %}
       <div class="content-grid">
         {% for item in items %}
-          {% include 'components/card.twig' %}
+          {% include 'components/card.twig' with {card_heading_tag: 'h2'} %}
         {% endfor %}
       </div>
     {% endif %}

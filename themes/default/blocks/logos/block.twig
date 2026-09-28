@@ -1,0 +1,21 @@
+{% set prefix = lang_prefix|default('') %}
+<div class="container">
+  {% if block.heading %}
+    <{{ heading_tag }} class="logos-heading" id="{{ block_uid }}-title">{{ block.heading }}</{{ heading_tag }}>
+  {% endif %}
+  <ul class="logos-list" role="list">
+    {% for logo in block.items|filter(l => l.name or l.image) %}
+      {% set href = link_url(logo.url, prefix) %}
+      {% set mark %}
+        {% if logo.image %}
+          {{ image(logo.image, {alt: logo.name, sizes: '10rem', max_width: 540, class: 'logo-image'}) }}
+        {% else %}
+          <span class="logo-wordmark">{{ logo.name }}</span>
+        {% endif %}
+      {% endset %}
+      <li class="logo-item">
+        {% if href %}<a href="{{ href }}" class="logo-link">{{ mark }}</a>{% else %}{{ mark }}{% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+</div>

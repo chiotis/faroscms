@@ -11,10 +11,11 @@ Two rules follow from that:
 
 | Layer | Where | Status |
 |-------|-------|--------|
-| Theme contract | `themes/default/theme.yaml` | Phase 1 (done) |
-| Site-level components: header, footer, page/post/CPT single, archive, search, 404 | `themes/default/layouts`, `templates`, `components` | Structure in place; design system and variants in Phase 2 |
-| Content blocks per page or post | `themes/default/blocks/<block>/` + `blocks:` in front matter | Phase 3 (engine), Phase 4 (admin editor) |
-| Field definitions per content type | content type config | Phase 5 |
+| Theme contract | `themes/default/theme.yaml` | Done |
+| Design system: tokens, palettes, dark mode, fonts, corner shapes | `assets/css/site.css` | Done |
+| Content blocks per page or post | `themes/default/blocks/<block>/` + `blocks:` in front matter | Engine and first family done; admin block editor next |
+| Site-level component variants (header, footer, page templates) | `components/`, `templates/` | Header/footer restyled; variants later |
+| Field definitions per content type | content type config | Later |
 
 ## Folder layout
 
@@ -23,8 +24,9 @@ themes/default/
 ├── theme.yaml            manifest: label, version, menu locations, settings schema
 ├── layouts/base.twig     HTML shell; blocks: head, header, content, footer, scripts
 ├── templates/            one template per page kind (hierarchy below)
-├── components/           header, footer, card, form, menu macros
-├── blocks/               (Phase 3) one folder per content block
+├── components/           header, footer, card, form, menu macros, block wrapper, ui macros
+├── blocks/<type>/        block.yaml (fields), block.twig (markup), block.css (styles)
+├── icons/<name>.svg      icon set used by blocks (icon('name') in Twig)
 ├── assets/css, assets/js served at /_themes/default/<path>
 └── lang/<lang>.php       shipped strings
 
@@ -32,6 +34,8 @@ custom/                   site-specific, never touched by updates
 ├── assets/css/custom.css loaded after the theme CSS when present
 ├── assets/js/custom.js   loaded after the theme JS when present
 ├── lang/<lang>.yaml      string overrides (written by Admin > Translations)
+├── blocks/<type>/        new block types, or block.css added after a theme block's styles
+├── icons/<name>.svg      extra icons (or replacements for theme icons)
 └── templates/, components/, layouts/   overrides by relative path
 ```
 
@@ -87,9 +91,103 @@ These rules keep existing sites working after an update:
 - Keep translation keys stable. Sites override them in `custom/lang/`.
 - When a real break is unavoidable, ship a migration that rewrites stored data, and note it in `CHANGELOG.md`.
 
+## Blocks
+
+A page, post, or any content item can list blocks in its front matter. Without `blocks:` the item renders as before.
+
+```yaml
+blocks:
+  - type: hero
+    variant: split          # layout, from the block's variants
+    tone: default           # default | muted | contrast | accent (background)
+    spacing: default        # default | compact | spacious | none
+    anchor: intro           # optional id for in-page links (#intro)
+    heading: Websites that work as hard as you do.
+    actions:
+      - { label: Start a project, url: contact }
+  - type: content           # where the item's Markdown body appears
+  - type: faq
+    hidden: true            # kept, not shown
+```
+
+- The first block may be a `hero`; it then renders the page's `<h1>` and the template skips its own title header. All other block headings start at `<h2>`, and their items at `<h3>`.
+- If the body has text and no `content` block places it, it appears right after an opening hero (or first).
+- Unknown block types and invalid values are ignored; fields take their defaults.
+- Links (`type: link`): a bare path (`contact`) is relative to the current language (`/en/contact` on English pages); `/path` is from the site root; full URLs, `#anchor`, `mailto:`, and `tel:` are used as given.
+
+First block family:
+
+| Block | Variants | Notes |
+|-------|----------|-------|
+| `hero` | split, centered, cover, minimal | Up to 2 buttons and 3 highlights. Opening hero images load first (`fetchpriority=high`). |
+| `content` | narrow, wide | The item's Markdown body. |
+| `text` | default, split, lead | Markdown text with optional buttons. |
+| `text-image` | image-right, image-left | Bullet lists show check marks. Image shape: landscape, portrait, square. |
+| `features` | cards, plain, numbered | Icon, title, text, and link per item; 2–4 columns. Services use the same block. |
+| `stats` | row, cards | Numbers in a `<dl>`. |
+| `testimonials` | grid, featured | `<figure>`/`<blockquote>`; initials when there is no photo. |
+| `logos` | row, grid | Image logos or text wordmarks. |
+| `faq` | stacked, split | Native `<details>`; adds `FAQPage` structured data. |
+| `cta` | band, card, split | Default tone: accent. |
+| `cards` | grid, list | Latest items of a content type, or hand-written cards. |
+| `form` | split, stacked | Any form from Admin > Forms. |
+
+The blocks showcase page (`/blocks`, hidden, admins only) shows every block and variant.
+
+### Writing a block
+
+Create `blocks/<type>/` with three files:
+
+- `block.yaml`: `label`, `description`, `variants`, optional default `tone` and `spacing`, and `fields` (FieldSchema types plus `markdown`, `link`, `repeater` with `fields`/`max`, `icon`, and `options_from: content_types | forms`).
+- `block.twig`: receives `block` (checked values; Markdown fields also as `<key>_html`), `heading_tag`, `item_heading_tag`, `block_uid` (use `{{ block_uid }}-title` as the heading id), `block_first`, and the page context. Import `components/ui.twig` for `section_header`, `actions`, and `initials`.
+- `block.css`: styles scoped to `.block-<type>`, using the tokens from `site.css`. It is loaded only on pages that use the block, bundled with the other blocks of the page into one request.
+
+A site-specific block goes in `custom/blocks/<type>/` with the same files.
+
+## Design tokens
+
+`site.css` defines semantic tokens (`--color-bg`, `--color-surface`, `--color-text`, `--color-muted`, `--color-border`, `--accent`, `--accent-soft`, `--accent-contrast`, spacing `--space-*`, type scale `--step-*`, radii `--radius-*`). Theme settings switch them through attributes on `<html>`:
+
+- `data-theme`: palette (slate, indigo, emerald, teal, rose, amber), with light and dark variants of each accent;
+- `data-mode` and the `.dark` class: colour mode, following the system until the visitor chooses;
+- `data-font`: sans, serif, or display (serif headings);
+- `data-shape`: soft, rounded, or sharp corners.
+
+Block tones re-scope the same tokens, so every component works on every background. Text and accent pairs meet WCAG AA contrast in all palettes, in light and dark mode.
+
+## Images
+
+`image(src, options)` renders responsive markup for files in `/uploads`:
+
+- intrinsic `width`/`height` (no layout shift);
+- a WebP `srcset` (360–2400 px) with the original as fallback;
+- `loading="lazy"` by default, `priority: true` for above-the-fold images (eager, `fetchpriority=high`);
+- `alt`: the given text, `''` for decorative images, or the media library's alt text when omitted.
+
+Variants are created on first request at `/uploads/_v/<file>/<width>-<version>.webp` and then served as static files. The version comes from the source file's modification time, so replacing a file changes its URLs. Variants are excluded from backups and removed when the media item is deleted. Alt text is edited in Admin > Media.
+
+## SEO
+
+The layout outputs the title (`Page | Site`, or the SEO title), meta description, canonical URL, `hreflang` alternates, Open Graph (`og:type`, `og:site_name`, `og:locale` and alternates, image), and Twitter card tags. The share image falls back from the SEO image to the main image, the first block image, and finally Theme settings > Brand.
+
+Structured data is one JSON-LD graph per page: `Organization` (with logo and social profiles from Theme settings) everywhere, `WebSite` with a search action on the home page, `BlogPosting` for posts, `BreadcrumbList` on inner pages, and `FAQPage` from FAQ blocks. Templates can add nodes through the `structured_data` variable or override `{% block structured_data %}`.
+
+## Accessibility
+
+- Skip link to `<main id="main">`, visible focus styles, and `prefers-reduced-motion` support.
+- One `<h1>` per page and no skipped heading levels (blocks and cards pick their level from the page).
+- Mobile menu: a dialog with `aria-expanded`, focus moved in, kept in, and returned on close; Escape closes it.
+- Cards and feature items have one link each (the title), stretched over the item.
+- Forms: labels for every control, `aria-describedby` for help and errors, `aria-invalid`, announced status messages, and `autocomplete` hints.
+- Social links render only when set in Theme settings (no `#` placeholders).
+
+## Server configuration
+
+Theme assets and image variants go through `public/index.php` when no file exists. Apache needs nothing beyond the shipped `.htaccess`. On nginx every location that serves static files must end in `try_files $uri /index.php?$query_string;` (see `security.md`). For local development pass the router: `php -S 127.0.0.1:8087 -t public public/index.php`.
+
 ## Assets
 
-Theme and custom assets live outside `public/` and are served by `ThemeAssets` from `public/index.php` before the application boots. Only static types are served: css, js, map, json, images, and fonts. URLs carry a `?v=` version from the file's mtime and size, and versioned responses are cached for a year.
+Theme and custom assets live outside `public/` and are served by `ThemeAssets` from `public/index.php` before the application boots. Only static types are served: css, js, map, json, images, and fonts. URLs carry a `?v=` version from the file's mtime and size, and versioned responses are cached for a year. Block stylesheets of a page are served as one bundle (`/_themes/default/_blocks.css?b=hero,faq`).
 
 In templates:
 

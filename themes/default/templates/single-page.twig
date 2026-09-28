@@ -1,6 +1,7 @@
 {% extends 'layouts/base.twig' %}
 
 {% block content %}
+  {% if not (page_blocks|default(null) and page_blocks.leads_with_hero) %}
   {% set hero_layouts = theme_settings.hero_layouts|default({}) %}
   {% set hero_layout = hero_layouts[item.type|default('pages')]|default(hero_layouts.default|default('default')) %}
   {% set is_centered_hero = hero_layout == 'centered' %}
@@ -17,7 +18,7 @@
         {% endif %}
         {% if hero_image %}
           <div class="single-hero-media">
-            <img src="{{ hero_image }}" alt="{{ item.meta.title }}">
+            {{ image(hero_image, {priority: true, sizes: '(min-width: 1280px) 1216px, 92vw'}) }}
           </div>
         {% endif %}
       </div>
@@ -30,9 +31,6 @@
       </div>
     </section>
   {% endif %}
-  <article class="site-wrap section-stack single-body">
-    <section class="prose-block">
-      {{ item.html|raw }}
-    </section>
-  </article>
+  {% endif %}
+  {% include 'components/page-body.twig' %}
 {% endblock %}

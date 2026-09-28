@@ -16,7 +16,7 @@ categories:
 ---
 A successful redesign needs clear structure, ownership, and milestones from day one.
 
-### Typical phases
+## Typical phases
 
 1. Discovery and strategy
 2. UX/UI design

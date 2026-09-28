@@ -1,0 +1,37 @@
+label: Features
+description: A grid of features or services, each with an icon, a title, a short text, and an optional link.
+variants:
+  cards: Cards
+  plain: Plain, no cards
+  numbered: Numbered steps
+fields:
+  eyebrow:
+    type: text
+    label: Eyebrow
+  heading:
+    type: text
+    label: Heading
+  intro:
+    type: textarea
+    label: Introduction
+  align:
+    type: select
+    label: Heading alignment
+    default: left
+    options: { left: Left, center: Center }
+  columns:
+    type: select
+    label: Columns
+    default: '3'
+    options: { '2': '2', '3': '3', '4': '4' }
+  items:
+    type: repeater
+    label: Items
+    item_label: Feature
+    max: 12
+    fields:
+      icon: { type: icon, label: Icon }
+      title: { type: text, label: Title }
+      text: { type: textarea, label: Text }
+      link: { type: link, label: Link }
+      link_label: { type: text, label: Link text, placeholder: Learn more }

@@ -1,0 +1,38 @@
+.ti-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(2rem, 1rem + 5vw, 6rem);
+}
+
+.block-text-image.block--image-left .ti-media {
+  order: -1;
+}
+
+.ti-text .section-title {
+  margin-bottom: var(--space-m);
+}
+
+.ti-text .prose {
+  color: var(--color-muted);
+  font-size: var(--step-1);
+  line-height: 1.65;
+}
+
+.ti-text .prose :is(strong, li) {
+  color: var(--color-text);
+}
+
+.ti-media.ratio-landscape { aspect-ratio: 4 / 3; }
+.ti-media.ratio-portrait { aspect-ratio: 4 / 5; }
+.ti-media.ratio-square { aspect-ratio: 1; }
+
+@media (max-width: 860px) {
+  .ti-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .block-text-image.block--image-left .ti-media {
+    order: 0;
+  }
+}

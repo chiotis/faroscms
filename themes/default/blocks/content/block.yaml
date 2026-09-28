@@ -1,0 +1,6 @@
+label: Page content
+description: The page's own Markdown text. Pages with blocks show it after an opening hero unless this block places it elsewhere.
+variants:
+  narrow: Reading width
+  wide: Full width
+fields: {}

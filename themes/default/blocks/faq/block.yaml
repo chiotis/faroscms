@@ -1,0 +1,31 @@
+label: FAQ
+description: Questions and answers that open one at a time. Adds FAQ structured data for search engines.
+variants:
+  stacked: Single column
+  split: Heading beside the questions
+fields:
+  eyebrow:
+    type: text
+    label: Eyebrow
+  heading:
+    type: text
+    label: Heading
+  intro:
+    type: textarea
+    label: Introduction
+  items:
+    type: repeater
+    label: Questions
+    item_label: Question
+    max: 30
+    fields:
+      question: { type: text, label: Question }
+      answer: { type: markdown, label: Answer }
+  open_first:
+    type: toggle
+    label: Open the first answer
+    default: false
+  schema:
+    type: toggle
+    label: Add FAQ structured data
+    default: true

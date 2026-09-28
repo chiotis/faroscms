@@ -1,0 +1,56 @@
+.text-single .section-title {
+  margin-bottom: var(--space-m);
+}
+
+.text-single.is-center {
+  text-align: center;
+}
+
+.text-single.is-center .eyebrow,
+.text-single .actions.is-center {
+  justify-content: center;
+}
+
+.text-single.is-center .prose :is(ul, ol) {
+  text-align: left;
+}
+
+.prose.is-lead {
+  color: var(--color-text);
+  font-size: var(--step-2);
+  font-weight: 450;
+  letter-spacing: -0.012em;
+  line-height: 1.45;
+}
+
+.text-split {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  gap: clamp(2rem, 1rem + 5vw, 6rem);
+  align-items: start;
+}
+
+.text-split-head {
+  position: sticky;
+  top: calc(var(--header-height, 4.5rem) + 2rem);
+}
+
+.text-split-head .section-title {
+  margin: 0;
+  font-size: var(--step-4);
+}
+
+.text-split-body .prose {
+  font-size: var(--step-1);
+  line-height: 1.7;
+}
+
+@media (max-width: 860px) {
+  .text-split {
+    grid-template-columns: 1fr;
+  }
+
+  .text-split-head {
+    position: static;
+  }
+}

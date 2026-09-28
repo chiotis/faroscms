@@ -8,3 +8,5 @@ node_modules/
 # Site-specific customizations are not part of the FarosCMS codebase.
 custom/*
 !custom/README.md
+# Responsive image variants are generated on demand.
+public/uploads/_v/

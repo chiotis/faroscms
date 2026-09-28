@@ -17,7 +17,7 @@
         {% endif %}
         {% if hero_image %}
           <div class="single-hero-media">
-            <img src="{{ hero_image }}" alt="{{ item.meta.title }}">
+            {{ image(hero_image, {priority: true, sizes: '(min-width: 1280px) 1216px, 92vw'}) }}
           </div>
         {% endif %}
       </div>
@@ -31,9 +31,5 @@
     </section>
   {% endif %}
 
-  <article class="site-wrap section-stack single-body">
-    <section class="prose-block">
-      {{ item.html|raw }}
-    </section>
-  </article>
+  {% include 'components/page-body.twig' %}
 {% endblock %}

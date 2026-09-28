@@ -1,0 +1,75 @@
+.cta-title {
+  max-width: 20ch;
+  margin: 0;
+  font-size: var(--step-4);
+}
+
+.cta-copy {
+  max-width: 40rem;
+  margin: var(--space-s) 0 0;
+  color: var(--color-muted);
+  font-size: var(--step-1);
+}
+
+/* Band: centred */
+.block-cta.block--band .cta-inner,
+.block-cta.block--card .cta-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.block-cta.block--band .cta-title,
+.block-cta.block--card .cta-title,
+.block-cta.block--band .cta-copy,
+.block-cta.block--card .cta-copy {
+  margin-inline: auto;
+}
+
+.block-cta.block--band .eyebrow,
+.block-cta.block--card .eyebrow,
+.block-cta.block--band .cta-actions,
+.block-cta.block--card .cta-actions {
+  justify-content: center;
+}
+
+/* Card: the section keeps the page background, the card carries the tone. */
+.block-cta.block--card {
+  background: var(--page-bg);
+}
+
+.block-cta.block--card .cta-inner {
+  position: relative;
+  overflow: hidden;
+  padding: clamp(2.5rem, 1.5rem + 5vw, 5.5rem) clamp(1.5rem, 1rem + 4vw, 5rem);
+  border-radius: var(--radius-xl);
+  background: var(--section-bg, var(--color-surface));
+}
+
+.block-cta.block--card .cta-inner::before {
+  content: "";
+  position: absolute;
+  inset: auto -20% -60% auto;
+  width: 70%;
+  aspect-ratio: 1;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--color-text) 12%, transparent), transparent);
+  pointer-events: none;
+}
+
+.block-cta.block--card .cta-inner > * {
+  position: relative;
+}
+
+/* Split: text left, buttons right */
+.block-cta.block--split .cta-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-l);
+}
+
+.block-cta.block--split .cta-actions {
+  margin-top: 0;
+}

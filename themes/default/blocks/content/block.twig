@@ -1,0 +1,5 @@
+{% if block.body_html|default('') %}
+  <div class="{{ block.variant == 'wide' ? 'container' : 'container-narrow' }}">
+    <div class="prose">{{ block.body_html|raw }}</div>
+  </div>
+{% endif %}

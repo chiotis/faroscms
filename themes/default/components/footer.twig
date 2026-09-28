@@ -6,56 +6,43 @@
 <footer class="site-footer{% if footer_bg_image %} has-image{% endif %}"{% if footer_bg or footer_bg_image %} style="{% if footer_bg_image %}--footer-image:url('{{ footer_bg_image|e('html_attr') }}');{% endif %}{% if footer_bg %}--footer-bg:{{ footer_bg|e('html_attr') }};{% endif %}"{% endif %}>
   <div class="site-wrap site-footer-inner">
     <div class="footer-grid">
-    <section>
-      <h4>{{ site.title }}</h4>
-      <p>{{ footer.summary ?: site.tagline }}</p>
-    </section>
+      <div>
+        <p class="footer-brand">{{ site.title }}</p>
+        <p class="footer-summary">{{ footer.summary ?: site.tagline }}</p>
+      </div>
 
-    <section>
-      <h5>{{ t('footer.company') }}</h5>
-      {% if footer_menu is not empty %}
-        {{ menu_macros.footer_menu(footer_menu, prefix, 1) }}
-      {% else %}
-        <ul class="footer-list">
-          <li><a class="footer-link" href="{{ url(prefix ~ 'about') }}">{{ t('nav.footer.about') }}</a></li>
-          <li><a class="footer-link" href="{{ url(prefix ~ 'contact') }}">{{ t('nav.footer.contact') }}</a></li>
-          <li><a class="footer-link" href="{{ url(prefix ~ 'faq') }}">{{ t('nav.footer.faq') }}</a></li>
-        </ul>
-      {% endif %}
-    </section>
+      <nav aria-labelledby="footer-company-title">
+        <h2 class="footer-title" id="footer-company-title">{{ t('footer.company', 'Company') }}</h2>
+        {% if footer_menu is not empty %}
+          {{ menu_macros.footer_menu(footer_menu, prefix, 1) }}
+        {% else %}
+          <ul class="footer-list">
+            <li><a class="footer-link" href="{{ url(prefix ~ 'about') }}">{{ t('nav.footer.about') }}</a></li>
+            <li><a class="footer-link" href="{{ url(prefix ~ 'contact') }}">{{ t('nav.footer.contact') }}</a></li>
+            <li><a class="footer-link" href="{{ url(prefix ~ 'faq') }}">{{ t('nav.footer.faq') }}</a></li>
+          </ul>
+        {% endif %}
+      </nav>
 
-    <section>
-      <h5>{{ t('footer.contact') }}</h5>
-      <ul class="footer-list">
-        {% if footer.email %}
-          <li><a class="footer-link" href="mailto:{{ footer.email }}">{{ footer.email }}</a></li>
-        {% endif %}
-        {% if footer.phone %}
-          <li><a class="footer-link" href="tel:{{ footer.phone|replace({' ': ''}) }}">{{ footer.phone }}</a></li>
-        {% endif %}
-        {% if footer.address %}
-          <li>{{ footer.address }}</li>
-        {% endif %}
-      </ul>
-    </section>
+      <div>
+        <h2 class="footer-title">{{ t('footer.contact', 'Contact') }}</h2>
+        <address class="footer-list">
+          {% if footer.email %}
+            <a class="footer-link" href="mailto:{{ footer.email }}">{{ footer.email }}</a>
+          {% endif %}
+          {% if footer.phone %}
+            <a class="footer-link" href="tel:{{ footer.phone|replace({' ': ''}) }}">{{ footer.phone }}</a>
+          {% endif %}
+          {% if footer.address %}
+            <span>{{ footer.address }}</span>
+          {% endif %}
+        </address>
+      </div>
     </div>
 
     <div class="footer-bottom">
-      <span>© {{ "now"|date("Y") }} {{ site.title }}. {{ t('footer.rights') }}</span>
-      <div class="footer-icons">
-        <a href="#" aria-label="Facebook">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 9h3V6h-3c-2.2 0-4 1.8-4 4v2H7v3h3v6h3v-6h3l1-3h-4v-2c0-.6.4-1 1-1z"></path></svg>
-        </a>
-        <a href="#" aria-label="Instagram">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5zm0 2a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3H7zm5 3.5A4.5 4.5 0 1 1 7.5 12 4.5 4.5 0 0 1 12 7.5zm0 2A2.5 2.5 0 1 0 14.5 12 2.5 2.5 0 0 0 12 9.5zm5.25-3a1.25 1.25 0 1 1-1.25 1.25 1.25 1.25 0 0 1 1.25-1.25z"></path></svg>
-        </a>
-        <a href="#" aria-label="LinkedIn">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 8A1.5 1.5 0 1 1 5 6.5 1.5 1.5 0 0 1 6.5 8zM5 10h3v9H5zm5 0h2.9v1.3h.1A3.2 3.2 0 0 1 15.9 10c3 0 3.6 2 3.6 4.6V19h-3v-3.8c0-.9 0-2.1-1.3-2.1s-1.5 1-1.5 2v3.9h-3z"></path></svg>
-        </a>
-        <a href="#" aria-label="YouTube">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.6 8.2s-.2-1.6-.8-2.3c-.8-.9-1.7-.9-2.1-1C15.8 4.6 12 4.6 12 4.6h0s-3.8 0-6.7.3c-.4.1-1.3.1-2.1 1-.6.7-.8 2.3-.8 2.3S2 10.1 2 12v1.8c0 1.9.4 3.8.4 3.8s.2 1.6.8 2.3c.8.9 1.9.8 2.4 1 1.7.2 6.4.3 6.4.3s3.8 0 6.7-.3c.4-.1 1.3-.1 2.1-1 .6-.7.8-2.3.8-2.3s.4-1.9.4-3.8V12c0-1.9-.4-3.8-.4-3.8zM9.8 15.7V8.9l6 3.4-6 3.4z"></path></svg>
-        </a>
-      </div>
+      <p class="footer-copy">© {{ "now"|date("Y") }} {{ site.title }}. {{ t('footer.rights') }}</p>
+      {% include 'components/social-links.twig' with {list_class: 'footer-icons'} %}
     </div>
   </div>
 </footer>

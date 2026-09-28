@@ -1,0 +1,18 @@
+{% import 'components/ui.twig' as ui %}
+{% set questions = block.items|filter(q => q.question and q.answer_html) %}
+<div class="container faq-layout">
+  <div class="faq-head">
+    {{ ui.section_header(block, heading_tag, block_uid, block.variant == 'stacked' ? 'center' : 'left') }}
+  </div>
+  <div class="faq-list">
+    {% for faq in questions %}
+      <details class="faq-item"{% if loop.first and block.open_first %} open{% endif %}>
+        <summary class="faq-question">
+          <span>{{ faq.question }}</span>
+          {{ icon('plus', 'faq-icon') }}
+        </summary>
+        <div class="faq-answer prose">{{ faq.answer_html|raw }}</div>
+      </details>
+    {% endfor %}
+  </div>
+</div>

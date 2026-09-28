@@ -1,0 +1,24 @@
+label: Stats
+description: Key numbers with a short label, e.g. years of experience or completed projects.
+variants:
+  row: In a row
+  cards: Cards
+fields:
+  eyebrow:
+    type: text
+    label: Eyebrow
+  heading:
+    type: text
+    label: Heading
+  intro:
+    type: textarea
+    label: Introduction
+  items:
+    type: repeater
+    label: Numbers
+    item_label: Number
+    max: 6
+    fields:
+      value: { type: text, label: Value, placeholder: '120+' }
+      label: { type: text, label: Label }
+      text: { type: text, label: Note }

@@ -1,0 +1,32 @@
+{% import 'components/ui.twig' as ui %}
+{% set quotes = block.items|filter(q => q.quote) %}
+{% set featured = block.variant == 'featured' %}
+<div class="container">
+  {{ ui.section_header(block, heading_tag, block_uid, featured ? 'center' : 'left') }}
+  <ul class="testimonials-list{% if featured %} is-featured{% endif %}" role="list">
+    {% for testimonial in featured ? quotes|slice(0, 1) : quotes %}
+      <li>
+        <figure class="testimonial">
+          <blockquote class="testimonial-quote">
+            <p>{{ testimonial.quote|nl2br }}</p>
+          </blockquote>
+          {% if testimonial.name %}
+            <figcaption class="testimonial-person">
+              <span class="testimonial-avatar" aria-hidden="true">
+                {% if testimonial.image %}
+                  {{ image(testimonial.image, {alt: '', sizes: '48px', max_width: 360}) }}
+                {% else %}
+                  {{ ui.initials(testimonial.name) }}
+                {% endif %}
+              </span>
+              <span class="testimonial-meta">
+                <span class="testimonial-name">{{ testimonial.name }}</span>
+                {% if testimonial.role %}<span class="testimonial-role">{{ testimonial.role }}</span>{% endif %}
+              </span>
+            </figcaption>
+          {% endif %}
+        </figure>
+      </li>
+    {% endfor %}
+  </ul>
+</div>

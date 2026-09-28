@@ -8,7 +8,7 @@
 #   - retire a field by marking it `hidden: true` (it keeps its stored value), not by deleting it.
 name: default
 label: FarosCMS Default
-version: 1.0.0
+version: 1.1.0
 description: All-purpose FarosCMS theme.
 
 menu_locations:
@@ -23,7 +23,7 @@ settings:
   appearance:
     label: Appearance
     description: Global visual preferences.
-    columns: 3
+    columns: 4
     fields:
       mode:
         type: select
@@ -52,6 +52,63 @@ settings:
           sans: Sans
           serif: Serif
           display: Display
+      shape:
+        type: select
+        label: Corners
+        default: soft
+        options:
+          soft: Soft
+          rounded: Rounded
+          sharp: Sharp
+
+  brand:
+    label: Brand
+    description: Logo in the header and the image shown when pages are shared without their own image.
+    columns: 2
+    fields:
+      logo:
+        type: image
+        label: Logo
+        default: ''
+        placeholder: /uploads/media/logo.svg
+        help: Replaces the site name in the header. SVG or a wide PNG works best.
+      share_image:
+        type: image
+        label: Default share image
+        default: ''
+        placeholder: /uploads/media/share.jpg
+        help: 1200×630 pixels is the common size for social previews.
+
+  social:
+    label: Social profiles
+    description: Shown as icons in the footer and mobile menu, and listed in the site's structured data.
+    columns: 2
+    fields:
+      facebook:
+        type: url
+        label: Facebook
+        default: ''
+        placeholder: https://www.facebook.com/…
+      instagram:
+        type: url
+        label: Instagram
+        default: ''
+        placeholder: https://www.instagram.com/…
+      linkedin:
+        type: url
+        label: LinkedIn
+        default: ''
+        placeholder: https://www.linkedin.com/company/…
+      youtube:
+        type: url
+        label: YouTube
+        default: ''
+        placeholder: https://www.youtube.com/@…
+      x:
+        type: url
+        label: X (Twitter)
+        default: ''
+        placeholder: https://x.com/…
 
   hero_layouts:
     label: Hero Layouts

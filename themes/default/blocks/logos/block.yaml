@@ -1,0 +1,20 @@
+label: Logos
+description: Client or partner logos. Without an image the name is shown as text.
+variants:
+  row: Single row
+  grid: Framed grid
+spacing: compact
+fields:
+  heading:
+    type: text
+    label: Heading
+    placeholder: Trusted by
+  items:
+    type: repeater
+    label: Logos
+    item_label: Logo
+    max: 18
+    fields:
+      name: { type: text, label: Name, help: Used as the logo's alternative text. }
+      image: { type: image, label: Logo image }
+      url: { type: link, label: Link }

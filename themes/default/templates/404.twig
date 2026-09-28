@@ -1,14 +1,16 @@
 {% extends 'layouts/base.twig' %}
+{% set document_title = t('error.404_title', 'Page not found') %}
 
 {% block content %}
   <section class="single-hero">
     <div class="site-wrap single-hero-inner">
-    <h1>{{ t('error.404_title', 'Page not found') }}</h1>
-    <p class="single-hero-subtitle">{{ t('error.404_message', 'The page you are looking for does not exist or has moved.') }}</p>
+      <p class="eyebrow">404</p>
+      <h1>{{ t('error.404_title', 'Page not found') }}</h1>
+      <p class="single-hero-subtitle">{{ t('error.404_message', 'The page you are looking for does not exist or has moved.') }}</p>
+      <div class="actions">
+        <a class="btn btn-primary" href="{{ url(lang_prefix|default('')) }}">{{ t('error.back_home', 'Back to home') }}{{ icon('arrow-right', 'btn-icon') }}</a>
+        <a class="btn btn-secondary" href="{{ url(lang_prefix|default('') ~ 'search') }}">{{ t('search.title', 'Search') }}</a>
+      </div>
     </div>
-  </section>
-
-  <section class="site-wrap section-stack single-body">
-    <p><a href="{{ url(lang_prefix|default('')) }}">{{ t('error.back_home', 'Back to home') }}</a></p>
   </section>
 {% endblock %}

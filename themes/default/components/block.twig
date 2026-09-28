@@ -1,0 +1,8 @@
+{#
+  Section wrapper for one content block (rendered by BlockRenderer).
+  Variables: block (checked values), block_type, block_uid, heading_tag (h1 for an opening hero, else h2),
+  item_heading_tag (one level below), block_first, block_labelled, plus the page context.
+#}
+<section class="block block-{{ block_type }} block--{{ block.variant }} tone-{{ block.tone }} space-{{ block.spacing }}"{% if block.anchor %} id="{{ block.anchor }}"{% endif %}{% if block_labelled %} aria-labelledby="{{ block_uid }}-title"{% endif %}>
+  {% include 'blocks/' ~ block_type ~ '/block.twig' %}
+</section>

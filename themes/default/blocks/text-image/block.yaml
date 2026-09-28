@@ -1,0 +1,37 @@
+label: Text and image
+description: Text with an image beside it. Alternate left and right to give long pages a rhythm.
+variants:
+  image-right: Image on the right
+  image-left: Image on the left
+fields:
+  eyebrow:
+    type: text
+    label: Eyebrow
+  heading:
+    type: text
+    label: Heading
+  body:
+    type: markdown
+    label: Text
+    help: Bullet lists are shown with check marks.
+  actions:
+    type: repeater
+    label: Buttons
+    item_label: Button
+    max: 2
+    fields:
+      label: { type: text, label: Label }
+      url: { type: link, label: Link }
+      style: { type: select, label: Style, default: primary, options: { primary: Primary, secondary: Secondary } }
+  image:
+    type: image
+    label: Image
+  image_alt:
+    type: text
+    label: Image description
+    help: What the image shows. Leave empty if it is purely decorative.
+  image_ratio:
+    type: select
+    label: Image shape
+    default: landscape
+    options: { landscape: 'Landscape (4:3)', portrait: 'Portrait (4:5)', square: 'Square' }

@@ -1,4 +1,5 @@
 {% extends 'layouts/base.twig' %}
+{% set document_title = t('search.title') %}
 
 {% block content %}
   {% set prefix = lang_prefix|default('') %}
@@ -6,8 +7,9 @@
     <div class="site-wrap single-hero-inner">
       <h1>{{ t('search.title') }}</h1>
       <p class="single-hero-subtitle">{{ t('search.subtitle') }}</p>
-      <form method="get" action="{{ url(prefix ~ 'search') }}" class="search-form">
-        <input type="text" name="q" value="{{ query }}" placeholder="{{ t('search.placeholder') }}">
+      <form method="get" action="{{ url(prefix ~ 'search') }}" class="search-form" role="search">
+        <label class="visually-hidden" for="search-q">{{ t('search.title') }}</label>
+        <input type="search" id="search-q" name="q" value="{{ query }}" placeholder="{{ t('search.placeholder') }}">
         <button type="submit">{{ t('search.button') }}</button>
       </form>
     </div>

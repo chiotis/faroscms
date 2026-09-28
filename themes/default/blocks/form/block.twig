@@ -1,0 +1,9 @@
+{% import 'components/ui.twig' as ui %}
+<div class="container form-block-layout">
+  <div class="form-block-head">
+    {{ ui.section_header(block, heading_tag, block_uid, block.variant == 'stacked' ? 'center' : 'left') }}
+  </div>
+  {% if block.form_html|default('') %}
+    <div class="form-block-card">{{ block.form_html|raw }}</div>
+  {% endif %}
+</div>

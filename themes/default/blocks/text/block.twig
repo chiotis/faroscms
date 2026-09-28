@@ -1,0 +1,20 @@
+{% import 'components/ui.twig' as ui %}
+{% if block.variant == 'split' %}
+  <div class="container text-split">
+    <div class="text-split-head">
+      {% if block.eyebrow %}<p class="eyebrow">{{ block.eyebrow }}</p>{% endif %}
+      {% if block.heading %}<{{ heading_tag }} class="section-title" id="{{ block_uid }}-title">{{ block.heading }}</{{ heading_tag }}>{% endif %}
+    </div>
+    <div class="text-split-body">
+      <div class="prose">{{ block.body_html|raw }}</div>
+      {{ ui.actions(block.actions, lang_prefix|default('')) }}
+    </div>
+  </div>
+{% else %}
+  <div class="container-narrow text-single{% if block.align == 'center' %} is-center{% endif %}">
+    {% if block.eyebrow %}<p class="eyebrow">{{ block.eyebrow }}</p>{% endif %}
+    {% if block.heading %}<{{ heading_tag }} class="section-title" id="{{ block_uid }}-title">{{ block.heading }}</{{ heading_tag }}>{% endif %}
+    <div class="prose{% if block.variant == 'lead' %} is-lead{% endif %}">{{ block.body_html|raw }}</div>
+    {{ ui.actions(block.actions, lang_prefix|default(''), block.align == 'center' ? 'is-center' : '') }}
+  </div>
+{% endif %}

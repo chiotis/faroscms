@@ -1,0 +1,8 @@
+{# Page or post body: its blocks when it has any, otherwise the Markdown text at reading width. #}
+{% if page_blocks|default(null) %}
+  {{ page_blocks.html|raw }}
+{% else %}
+  <div class="site-wrap single-body">
+    <div class="prose-block">{{ item.html|raw }}</div>
+  </div>
+{% endif %}

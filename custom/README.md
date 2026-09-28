@@ -12,6 +12,9 @@ custom/
 │   └── ...                 any other file, served at /_custom/<path>
 ├── lang/
 │   └── <lang>.yaml         string overrides, written by Admin > Translations
+├── blocks/<type>/          a new block (block.yaml, block.twig, block.css), or a block.css
+│                           that adds to a theme block's styles
+├── icons/<name>.svg        extra icons for blocks
 ├── templates/              page templates, e.g. templates/single-project.twig
 ├── components/             header, footer, card, ...
 └── layouts/                base.twig

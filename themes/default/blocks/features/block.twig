@@ -1,0 +1,27 @@
+{% import 'components/ui.twig' as ui %}
+{% set prefix = lang_prefix|default('') %}
+<div class="container">
+  {{ ui.section_header(block, heading_tag, block_uid, block.align) }}
+  {% set list_tag = block.variant == 'numbered' ? 'ol' : 'ul' %}
+  <{{ list_tag }} class="features-grid cols-{{ block.columns }}" role="list">
+    {% for feature in block.items %}
+      {% set href = link_url(feature.link, prefix) %}
+      <li class="feature{% if href %} has-link{% endif %}">
+        {% if block.variant == 'numbered' %}
+          <span class="feature-number" aria-hidden="true">{{ '%02d'|format(loop.index) }}</span>
+        {% elseif feature.icon %}
+          <span class="icon-badge feature-icon">{{ icon(feature.icon) }}</span>
+        {% endif %}
+        {% if feature.title %}
+          <{{ item_heading_tag }} class="feature-title">
+            {% if href %}<a href="{{ href }}">{{ feature.title }}</a>{% else %}{{ feature.title }}{% endif %}
+          </{{ item_heading_tag }}>
+        {% endif %}
+        {% if feature.text %}<p class="feature-text">{{ feature.text|nl2br }}</p>{% endif %}
+        {% if href %}
+          <span class="feature-more" aria-hidden="true">{{ feature.link_label ?: t('blocks.learn_more', 'Learn more') }}{{ icon('arrow-right', 'btn-icon') }}</span>
+        {% endif %}
+      </li>
+    {% endfor %}
+  </{{ list_tag }}>
+</div>

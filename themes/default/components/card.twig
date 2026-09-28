@@ -1,16 +1,28 @@
-{% set is_home = item.type == 'pages' and item.slug == site.home_page %}
+{#
+  Content card for a ContentItem. One link (the title) covers the whole card.
+  Optional: card_heading_tag (h2|h3|h4, default h3), card_sizes (image sizes attribute).
+#}
+{% set heading = card_heading_tag|default('h3') in ['h2', 'h3', 'h4'] ? card_heading_tag|default('h3') : 'h3' %}
+{% set is_home = item.type == 'pages' and item.slug == site.home_page|default('index') %}
 {% set path = item.type == 'pages' ? (is_home ? prefix : prefix ~ item.slug) : prefix ~ item.type ~ '/' ~ item.slug %}
+{% set summary = (item.meta.excerpt ?? item.markdown)|striptags|trim %}
 <article class="content-item">
   {% if item.meta.main_image is defined and item.meta.main_image %}
-    <a href="{{ url(path) }}"><img src="{{ item.meta.main_image }}" alt="{{ item.meta.title }}"></a>
+    <div class="content-item-media">
+      {{ image(item.meta.main_image, {alt: '', sizes: card_sizes|default('(min-width: 1100px) 360px, (min-width: 700px) 45vw, 92vw'), max_width: 1280}) }}
+    </div>
   {% endif %}
   <div class="content-item-body">
     <p class="content-meta">
-      {% if item.meta.date is defined %}{{ format_date(item.meta.date) }}{% endif %}
-      <span>{{ t('type.' ~ item.type, item.type|title) }}</span>
+      <span class="content-type">{{ t('type.' ~ item.type, item.type|title) }}</span>
+      {% if item.meta.date is defined and item.meta.date %}
+        <time datetime="{{ item.meta.date|date('Y-m-d') }}">{{ format_date(item.meta.date) }}</time>
+      {% endif %}
     </p>
-    <h3><a href="{{ url(path) }}">{{ item.meta.title }}</a></h3>
-    <p>{{ (item.meta.excerpt ?? item.markdown)|striptags|slice(0, 170) }}{% if (item.meta.excerpt ?? item.markdown)|length > 170 %}...{% endif %}</p>
-    <a href="{{ url(path) }}">{{ t('archive.read_more') }}</a>
+    <{{ heading }} class="content-item-title"><a href="{{ url(path) }}">{{ item.meta.title }}</a></{{ heading }}>
+    {% if summary %}
+      <p>{{ summary|length > 170 ? summary|slice(0, 170)|trim ~ '…' : summary }}</p>
+    {% endif %}
+    <span class="content-item-more" aria-hidden="true">{{ t('archive.read_more') }}{{ icon('arrow-right') }}</span>
   </div>
 </article>

@@ -1,0 +1,126 @@
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr));
+  gap: clamp(1rem, 0.5rem + 1.6vw, 1.75rem);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.features-grid.cols-2 { --cols: 2; }
+.features-grid.cols-3 { --cols: 3; }
+.features-grid.cols-4 { --cols: 4; }
+
+.feature {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.feature-icon {
+  margin-bottom: var(--space-2xs);
+}
+
+.feature-title {
+  margin: 0;
+  font-size: var(--step-1);
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+}
+
+.feature-title a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* The title link covers the whole item. */
+.feature-title a::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+}
+
+.feature-title a:focus-visible {
+  outline: none;
+}
+
+.feature.has-link:focus-within {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 4px;
+}
+
+.feature-text {
+  margin: 0;
+  color: var(--color-muted);
+  line-height: 1.6;
+}
+
+.feature-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: auto;
+  padding-top: var(--space-2xs);
+  color: var(--accent);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.feature.has-link:hover .btn-icon {
+  transform: translateX(3px);
+}
+
+/* Cards */
+.block--cards .feature {
+  padding: clamp(1.4rem, 1rem + 1vw, 2rem);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-l);
+  background: var(--card-bg);
+  transition: border-color 0.2s var(--ease), box-shadow 0.25s var(--ease);
+}
+
+.block--cards .feature.has-link:hover {
+  border-color: var(--color-border-strong);
+  box-shadow: var(--shadow-m);
+}
+
+/* Plain */
+.block--plain .features-grid {
+  row-gap: clamp(2rem, 1.5rem + 2vw, 3rem);
+}
+
+.block--plain .feature {
+  padding-top: var(--space-m);
+  border-top: 1px solid var(--color-border);
+}
+
+/* Numbered */
+.block--numbered .feature {
+  padding-top: var(--space-m);
+  border-top: 2px solid var(--color-text);
+}
+
+.feature-number {
+  color: var(--accent);
+  font-family: var(--font-heading);
+  font-size: var(--step-3);
+  font-weight: var(--heading-weight);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+@media (max-width: 1024px) {
+  .features-grid.cols-4 { --cols: 2; }
+}
+
+@media (max-width: 860px) {
+  .features-grid.cols-3 { --cols: 2; }
+}
+
+@media (max-width: 600px) {
+  .features-grid { --cols: 1 !important; }
+}

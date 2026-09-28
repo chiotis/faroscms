@@ -271,7 +271,7 @@
                 <td class="px-4 py-2.5 align-top text-slate-600">{{ item.kind|title }}</td>
                 <td class="px-4 py-2.5 align-top text-slate-600" data-sort-value="{{ item.size_bytes|default(0) }}">{{ item.size_human }}</td>
                 <td class="px-4 py-2.5 align-top">
-                  <form method="post" action="{{ url('admin/media') }}" class="flex items-center gap-2">
+                  <form method="post" action="{{ url('admin/media') }}" class="flex flex-wrap items-center gap-2">
                     {{ csrf_field() }}
                     <input type="hidden" name="media_action" value="save_tags">
                     <input type="hidden" name="id" value="{{ item.id }}">
@@ -281,8 +281,11 @@
                     <input type="hidden" name="_state_view" value="{{ view_mode }}">
                     <input type="hidden" name="_state_per_page" value="{{ per_page }}">
                     <input type="hidden" name="_state_page" value="{{ page }}">
-                    <input type="text" name="tags" value="{{ item.tags_csv }}" class="w-44 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" placeholder="tag1, tag2">
-                    <button type="submit" class="{{ icon_btn }}" title="Save tags" aria-label="Save tags">
+                    <input type="text" name="tags" value="{{ item.tags_csv }}" aria-label="Tags" class="w-44 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" placeholder="tag1, tag2">
+                    {% if item.kind == 'image' %}
+                      <input type="text" name="alt" value="{{ item.alt }}" aria-label="Alt text" class="w-56 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" placeholder="Alt text: what the image shows">
+                    {% endif %}
+                    <button type="submit" class="{{ icon_btn }}" title="Save" aria-label="Save tags and alt text">
                       <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
                       </svg>
@@ -372,8 +375,11 @@
                   <input type="hidden" name="_state_view" value="{{ view_mode }}">
                   <input type="hidden" name="_state_per_page" value="{{ per_page }}">
                   <input type="hidden" name="_state_page" value="{{ page }}">
-                  <input type="text" name="tags" value="{{ item.tags_csv }}" class="min-w-0 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" placeholder="tag1, tag2">
-                  <button type="submit" class="{{ icon_btn }}" title="Save tags" aria-label="Save tags">
+                  {% if item.kind == 'image' %}
+                    <input type="text" name="alt" value="{{ item.alt }}" aria-label="Alt text" class="col-span-2 min-w-0 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" placeholder="Alt text: what the image shows">
+                  {% endif %}
+                  <input type="text" name="tags" value="{{ item.tags_csv }}" aria-label="Tags" class="min-w-0 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" placeholder="tag1, tag2">
+                  <button type="submit" class="{{ icon_btn }}" title="Save" aria-label="Save tags and alt text">
                     <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
                     </svg>

@@ -1,0 +1,26 @@
+{# Links to this page in the other languages (falls back to the same path when no translation map is given). #}
+{% set current = current_lang|default(site.languages.default) %}
+{% set default_lang = site.languages.default %}
+{% set path = path_no_lang|default('') %}
+{% set links = language_links|default({}) %}
+{% set use_links = links is not empty %}
+{% set language_names = {'el': 'Ελληνικά', 'en': 'English', 'de': 'Deutsch', 'fr': 'Français', 'it': 'Italiano', 'es': 'Español'} %}
+{% set available = site.languages.available|default([default_lang]) %}
+{% if available|length > 1 %}
+  <div class="{{ links_class|default('lang-switcher') }}" role="group" aria-label="{{ t('nav.language', 'Language') }}">
+    {% for l in available %}
+      {% if l != current %}
+        {% set href = '' %}
+        {% if use_links and links[l] is defined %}
+          {% set href = url(links[l]) %}
+        {% elseif not use_links %}
+          {% set prefix_lang = l == default_lang ? '' : l ~ '/' %}
+          {% set href = url(prefix_lang ~ (path == '' ? '' : path|trim('/'))) %}
+        {% endif %}
+        {% if href %}
+          <a href="{{ href }}" hreflang="{{ l }}" lang="{{ l }}" aria-label="{{ language_names[l] ?? l|upper }}">{{ l|upper }}</a>
+        {% endif %}
+      {% endif %}
+    {% endfor %}
+  </div>
+{% endif %}

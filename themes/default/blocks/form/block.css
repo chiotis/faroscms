@@ -1,0 +1,25 @@
+.block-form.block--split .form-block-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: clamp(2rem, 1rem + 5vw, 6rem);
+  align-items: start;
+}
+
+.block-form.block--stacked .form-block-card {
+  max-width: 44rem;
+  margin-inline: auto;
+}
+
+.form-block-card {
+  padding: clamp(1.5rem, 1rem + 2vw, 2.75rem);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--card-bg);
+  box-shadow: var(--shadow-s);
+}
+
+@media (max-width: 860px) {
+  .block-form.block--split .form-block-layout {
+    grid-template-columns: 1fr;
+  }
+}

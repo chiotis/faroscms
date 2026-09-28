@@ -1,16 +1,22 @@
 <!doctype html>
 {% set meta = item is defined ? item.meta : {} %}
-{% set page_title = meta.seo.title ?? meta.title ?? site.title %}
-{% set page_description = meta.seo.description ?? meta.excerpt ?? site.tagline %}
-{% set og_title = meta.seo.og_title ?? meta.seo.title ?? meta.title ?? site.title %}
-{% set og_description = meta.seo.og_description ?? meta.seo.description ?? meta.excerpt ?? site.tagline %}
-{% set og_image = meta.seo.og_image ?? meta.main_image ?? '' %}
+{% set current_language = lang|default(site.languages.default) %}
+{% set is_home_page = item is defined and item.type == 'pages' and item.slug == site.home_page|default('index') %}
+{# Templates may set document_title (archives, search) before extending this layout. #}
+{% set base_title = meta.title ?? document_title ?? '' %}
+{% set page_title = meta.seo.title ?? (base_title and not is_home_page ? base_title ~ ' | ' ~ site.title : site.title) %}
+{% set page_description = meta.seo.description ?? meta.excerpt ?? document_description ?? site.tagline %}
+{% set og_title = meta.seo.og_title ?? meta.seo.title ?? (base_title ?: site.title) %}
+{% set og_description = meta.seo.og_description ?? page_description %}
+{% set brand = theme_settings.brand|default({}) %}
+{% set og_image = meta.seo.og_image|default('') ?: meta.main_image|default('') ?: (page_blocks.image ?? '') ?: brand.share_image|default('') %}
 {% set appearance = theme_settings.appearance|default({}) %}
 {% set palette = appearance.palette|default('slate') %}
 {% set mode = appearance.mode|default('system') %}
 {% set font = appearance.font|default('sans') %}
-<html lang="{{ lang|default(site.languages.default) }}" data-theme="{{ palette }}" data-mode="{{ mode }}"
-  data-font="{{ font }}">
+{% set shape = appearance.shape|default('soft') %}
+{% set og_locales = {'el': 'el_GR', 'en': 'en_US', 'de': 'de_DE', 'fr': 'fr_FR', 'it': 'it_IT', 'es': 'es_ES'} %}
+<html lang="{{ current_language }}" data-theme="{{ palette }}" data-mode="{{ mode }}" data-font="{{ font }}" data-shape="{{ shape }}">
 
 <head>
   <meta charset="utf-8">
@@ -20,6 +26,9 @@
   {% if meta.seo.noindex ?? false %}
   <meta name="robots" content="noindex">
   {% endif %}
+  {% if canonical_url is defined and canonical_url %}
+  <link rel="canonical" href="{{ canonical_url }}">
+  {% endif %}
   {% if alternate_urls is defined and alternate_urls %}
   {% for code, link in alternate_urls %}
   <link rel="alternate" hreflang="{{ code }}" href="{{ link }}">
@@ -28,31 +37,64 @@
   <link rel="alternate" hreflang="x-default" href="{{ alternate_default }}">
   {% endif %}
   {% endif %}
+  <meta property="og:type" content="{{ og_type|default('website') }}">
+  <meta property="og:site_name" content="{{ site.title }}">
   <meta property="og:title" content="{{ og_title }}">
   <meta property="og:description" content="{{ og_description }}">
+  <meta property="og:locale" content="{{ og_locales[current_language] ?? current_language }}">
+  {% if alternate_urls is defined and alternate_urls %}
+  {% for code, link in alternate_urls %}{% if code != current_language %}
+  <meta property="og:locale:alternate" content="{{ og_locales[code] ?? code }}">
+  {% endif %}{% endfor %}
+  {% endif %}
   {% if canonical_url is defined and canonical_url %}
   <meta property="og:url" content="{{ canonical_url }}">
-  <link rel="canonical" href="{{ canonical_url }}">
   {% endif %}
   {% if og_image %}
-  {% set og_image_url = og_image starts with 'http' ? og_image : url(og_image) %}
-  <meta property="og:image" content="{{ og_image_url }}">
+  <meta property="og:image" content="{{ absolute_url(og_image) }}">
+  <meta property="og:image:alt" content="{{ og_title }}">
   {% endif %}
+  {% if og_type|default('') == 'article' and meta.date is defined and meta.date %}
+  <meta property="article:published_time" content="{{ meta.date|date('c') }}">
+  {% endif %}
+  <meta name="twitter:card" content="{{ og_image ? 'summary_large_image' : 'summary' }}">
+  <meta name="twitter:title" content="{{ og_title }}">
+  <meta name="twitter:description" content="{{ og_description }}">
+  {% if og_image %}
+  <meta name="twitter:image" content="{{ absolute_url(og_image) }}">
+  {% endif %}
+  {# Apply a remembered colour mode before first paint to avoid a light/dark flash. #}
+  <script>
+    (function () {
+      try {
+        var mode = localStorage.getItem('faroscms-mode');
+        if (mode === 'light' || mode === 'dark') {
+          document.documentElement.dataset.mode = mode;
+          document.documentElement.classList.toggle('dark', mode === 'dark');
+        }
+      } catch (e) {}
+    })();
+  </script>
   <link rel="stylesheet" href="{{ theme_asset('css/site.css') }}">
+  {% for href in block_styles|default([]) %}
+  <link rel="stylesheet" href="{{ href }}">
+  {% endfor %}
   {% set custom_css = custom_asset('css/custom.css') %}
   {% if custom_css %}
   <link rel="stylesheet" href="{{ custom_css }}">
   {% endif %}
+  {% block structured_data %}{{ json_ld(structured_data|default([])) }}{% endblock %}
   {% block head %}{% endblock %}
 </head>
 
 <body class="theme-body">
   {% set prefix = lang_prefix|default('') %}
+  <a class="skip-link" href="#main">{{ t('a11y.skip_to_content', 'Skip to content') }}</a>
   <div class="app-shell">
     {% block header %}{% include 'components/header.twig' %}{% endblock %}
     <div class="header-spacer" data-header-spacer aria-hidden="true"></div>
 
-    <main class="main-shell">
+    <main class="main-shell" id="main" tabindex="-1">
       {% block content %}{% endblock %}
     </main>
 

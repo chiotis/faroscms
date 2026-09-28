@@ -9,8 +9,10 @@ See [docs/migration-plan.md](docs/migration-plan.md) for the current migration p
 Run the app with PHP's built-in server:
 
 ```bash
-php -S 127.0.0.1:8087 -t public
+php -S 127.0.0.1:8087 -t public public/index.php
 ```
+
+Passing `public/index.php` as the router lets PHP serve generated files (responsive image variants, theme assets) the same way Apache and nginx do.
 
 Then open:
 

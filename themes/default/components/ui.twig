@@ -1,0 +1,38 @@
+{# Shared markup for blocks and templates. #}
+
+{# Eyebrow, heading, and intro. The heading carries the id the section is labelled by. #}
+{% macro section_header(block, heading_tag, uid, align) %}
+  {% if block.eyebrow|default('') or block.heading|default('') or block.intro|default('') %}
+    <header class="section-header{% if align|default('left') == 'center' %} is-center{% endif %}">
+      {% if block.eyebrow|default('') %}<p class="eyebrow">{{ block.eyebrow }}</p>{% endif %}
+      {% if block.heading|default('') %}<{{ heading_tag }} class="section-title" id="{{ uid }}-title">{{ block.heading }}</{{ heading_tag }}>{% endif %}
+      {% if block.intro|default('') %}<p class="lead">{{ block.intro|nl2br }}</p>{% endif %}
+    </header>
+  {% endif %}
+{% endmacro %}
+
+{# Buttons from a repeater of {label, url, style}. Rows without a label or a valid link are skipped. #}
+{% macro actions(items, prefix, extra_class) %}
+  {% set buttons = [] %}
+  {% for action in items|default([]) %}
+    {% set href = link_url(action.url|default(''), prefix) %}
+    {% if action.label|default('') and href %}
+      {% set buttons = buttons|merge([{label: action.label, href: href, secondary: action.style|default('primary') == 'secondary'}]) %}
+    {% endif %}
+  {% endfor %}
+  {% if buttons is not empty %}
+    <div class="actions{% if extra_class %} {{ extra_class }}{% endif %}">
+      {% for button in buttons %}
+        <a class="btn {{ button.secondary ? 'btn-secondary' : 'btn-primary' }}" href="{{ button.href }}">
+          {{- button.label -}}
+          {% if not button.secondary %}{{ icon('arrow-right', 'btn-icon') }}{% endif %}
+        </a>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endmacro %}
+
+{# Initials for a person without a photo, e.g. "Μαρία Παππά" → "ΜΠ". #}
+{% macro initials(name) %}
+  {%- for part in name|default('')|trim|split(' ')|slice(0, 2) -%}{{ part|slice(0, 1)|upper }}{%- endfor -%}
+{% endmacro %}

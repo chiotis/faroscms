@@ -16,7 +16,7 @@ categories:
 ---
 A rebrand is a strategic decision, not only a visual update.
 
-### Signs it may be time
+## Signs it may be time
 
 - Your positioning has changed
 - Your target audience has shifted

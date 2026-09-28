@@ -34,6 +34,9 @@ final class App
     private ContentIndex $contentIndex;
     private MediaLibrary $media;
     private Theme $theme;
+    private Images $images;
+    private MarkdownConverter $markdown;
+    private ?BlockRegistry $blockRegistry = null;
     private string $currentLang;
     private array $translations = [];
     private array $formStates = [];
@@ -56,6 +59,7 @@ final class App
         $this->ensureDefaultTaxonomies();
 
         $markdown = $this->markdownConverter();
+        $this->markdown = $markdown;
 
         $this->users = new UserRepository($this->systemDatabase, $this->contentDir . '/users/users.yaml');
         $this->users->importYamlUsersIfEmpty();
@@ -70,6 +74,7 @@ final class App
         $this->formSubmissions = new FormSubmissionRepository($this->contentDir);
         $this->contentIndex = new ContentIndex($this->systemDatabase, $this->contentDir);
         $this->media = new MediaLibrary($this->contentDir, $this->basePath . '/public/uploads');
+        $this->images = new Images($this->basePath . '/public', $this->contentDir . '/media');
         $this->content = new ContentRepository($this->contentDir, $markdown, $this->settings);
         $this->auth = new Auth($this->contentDir . '/users/users.yaml', $this->users);
 
@@ -285,7 +290,7 @@ final class App
                 'alternate_urls' => $alternates['urls'],
                 'alternate_default' => $alternates['default'],
                 'language_links' => $languageLinks,
-            ] + $viewDefaults);
+            ] + $this->frontItemData($item, $lang, $path, $viewDefaults, false) + $viewDefaults);
             return;
         }
 
@@ -324,7 +329,177 @@ final class App
             'alternate_urls' => $alternates['urls'],
             'alternate_default' => $alternates['default'],
             'language_links' => $languageLinks,
-        ] + $homeData + $viewDefaults);
+        ] + $homeData + $this->frontItemData($page, $lang, $path, $viewDefaults, $template === 'templates/home.twig') + $viewDefaults);
+    }
+
+    /**
+     * Rendered blocks, their stylesheets, and structured data for a page or single item.
+     *
+     * @param array<string, mixed> $viewDefaults
+     * @return array<string, mixed>
+     */
+    private function frontItemData(ContentItem $item, string $lang, string $path, array $viewDefaults, bool $isHome): array
+    {
+        $pageBlocks = null;
+        $raw = $item->meta['blocks'] ?? null;
+        if (is_array($raw) && $raw !== []) {
+            $pageBlocks = $this->blockRenderer($lang, $path)->render(array_values($raw), $viewDefaults + [
+                'item' => $item,
+                'body_html' => $item->html,
+            ]);
+        }
+        return [
+            'page_blocks' => $pageBlocks,
+            'block_styles' => $pageBlocks['styles'] ?? [],
+            'structured_data' => array_merge(
+                $this->itemStructuredData($item, $lang, (string)($viewDefaults['canonical_url'] ?? ''), $isHome),
+                $pageBlocks['structured_data'] ?? []
+            ),
+            'og_type' => $item->type === 'posts' ? 'article' : 'website',
+        ];
+    }
+
+    private function blockRenderer(string $lang, string $path): BlockRenderer
+    {
+        $includeHidden = $this->auth->check();
+        return new BlockRenderer(
+            $this->blockRegistry(),
+            $this->twig,
+            $this->theme,
+            fn(string $markdown): string => $this->applyShortcodes((string)$this->markdown->convert($markdown), $lang, $path),
+            [
+                'items' => function (string $type, string $itemLang, int $limit) use ($includeHidden): array {
+                    if ($type === 'forms' || !in_array($type, $this->content->getTypes(), true)) {
+                        return [];
+                    }
+                    return array_slice($this->content->getItems($type, $itemLang, $includeHidden, false), 0, max(1, min(24, $limit)));
+                },
+                'form' => fn(string $slug): string => $slug === '' ? '' : $this->renderFormEmbedBySlug($this->slugify($slug), $lang, $path),
+            ],
+            rtrim((string)($this->settings['base_url'] ?? ''), '/')
+        );
+    }
+
+    private function blockRegistry(): BlockRegistry
+    {
+        return $this->blockRegistry ??= new BlockRegistry($this->theme, [
+            'content_types' => function (): array {
+                $options = [];
+                foreach ($this->content->getTypes() as $type) {
+                    if ($type !== 'forms' && $type !== 'pages') {
+                        $options[$type] = ucfirst($type);
+                    }
+                }
+                return $options;
+            },
+            'forms' => function (): array {
+                $options = ['' => '—'];
+                foreach ($this->content->getItems('forms', null, true) as $form) {
+                    $options[$form->slug] = (string)($form->meta['title'] ?? $form->slug);
+                }
+                return $options;
+            },
+        ]);
+    }
+
+    /** Organization node shared by every frontend page. @return array<int, array<string, mixed>> */
+    private function baseStructuredData(): array
+    {
+        $siteUrl = $this->buildAbsoluteUrl('');
+        $organization = [
+            '@type' => 'Organization',
+            '@id' => $siteUrl . '#organization',
+            'name' => (string)($this->settings['title'] ?? 'FarosCMS'),
+            'url' => $siteUrl,
+        ];
+        $logo = trim((string)($this->themeSettings['brand']['logo'] ?? ''));
+        if ($logo !== '') {
+            $organization['logo'] = preg_match('#^https?://#i', $logo) ? $logo : $this->buildAbsoluteUrl($logo);
+        }
+        $social = is_array($this->themeSettings['social'] ?? null) ? $this->themeSettings['social'] : [];
+        $sameAs = array_values(array_filter(array_map(static fn($url): string => trim((string)$url), $social), static fn(string $url): bool => $url !== ''));
+        if ($sameAs !== []) {
+            $organization['sameAs'] = $sameAs;
+        }
+        return [$organization];
+    }
+
+    /** @return array<int, array<string, mixed>> */
+    private function itemStructuredData(ContentItem $item, string $lang, string $canonical, bool $isHome): array
+    {
+        $graph = $this->baseStructuredData();
+        $siteUrl = $this->buildAbsoluteUrl('');
+        $organization = ['@id' => $siteUrl . '#organization'];
+        $prefix = $this->langPrefix($lang);
+        $homeUrl = $this->buildAbsoluteUrl($prefix);
+
+        if ($isHome) {
+            $graph[] = [
+                '@type' => 'WebSite',
+                '@id' => $siteUrl . '#website',
+                'url' => $homeUrl,
+                'name' => (string)($this->settings['title'] ?? 'FarosCMS'),
+                'inLanguage' => $lang,
+                'publisher' => $organization,
+                'potentialAction' => [
+                    '@type' => 'SearchAction',
+                    'target' => ['@type' => 'EntryPoint', 'urlTemplate' => $this->buildAbsoluteUrl($prefix . 'search') . '?q={search_term_string}'],
+                    'query-input' => 'required name=search_term_string',
+                ],
+            ];
+            return $graph;
+        }
+
+        $title = (string)($item->meta['title'] ?? $item->slug);
+        if ($item->type === 'posts') {
+            $article = [
+                '@type' => 'BlogPosting',
+                'headline' => $title,
+                'mainEntityOfPage' => $canonical,
+                'inLanguage' => $lang,
+                'author' => $organization,
+                'publisher' => $organization,
+                'dateModified' => gmdate('c', $item->mtime),
+            ];
+            $published = strtotime((string)($item->meta['date'] ?? ''));
+            if ($published !== false) {
+                $article['datePublished'] = date('c', $published);
+            }
+            $excerpt = trim((string)($item->meta['excerpt'] ?? ''));
+            if ($excerpt !== '') {
+                $article['description'] = $excerpt;
+            }
+            $image = trim((string)($item->meta['main_image'] ?? ''));
+            if ($image !== '') {
+                $article['image'] = preg_match('#^https?://#i', $image) ? $image : $this->buildAbsoluteUrl($image);
+            }
+            $graph[] = $article;
+        }
+
+        $crumbs = [[$this->translate('nav.main.home', 'Home'), $homeUrl]];
+        if ($item->type !== 'pages') {
+            $crumbs[] = [$this->translate('type.' . $item->type, ucfirst($item->type)), $this->buildAbsoluteUrl($prefix . $item->type)];
+        }
+        $crumbs[] = [$title, $canonical];
+        $list = [];
+        foreach ($crumbs as $position => [$name, $url]) {
+            $list[] = ['@type' => 'ListItem', 'position' => $position + 1, 'name' => $name, 'item' => $url];
+        }
+        $graph[] = ['@type' => 'BreadcrumbList', 'itemListElement' => $list];
+        return $graph;
+    }
+
+    /** JSON-LD graph as a script tag; `<`, `>` and `&` are escaped so content cannot close the tag. */
+    private function jsonLdScript(array $graph): string
+    {
+        if ($graph === []) {
+            return '';
+        }
+        $json = json_encode(
+            ['@context' => 'https://schema.org', '@graph' => array_values($graph)],
+            JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_INVALID_UTF8_SUBSTITUTE
+        );
+        return $json === false ? '' : '<script type="application/ld+json">' . $json . '</script>';
     }
 
     private function handleAdmin(string $path): void
@@ -1724,7 +1899,7 @@ final class App
             $meta['status'] = $action === 'publish' ? 'published' : 'draft';
             // Same layout handleSave writes: front matter, one blank line, body.
             $body = preg_replace('/\A\R/', '', $body) ?? $body;
-            file_put_contents($path, "---\n" . trim(Yaml::dump($meta, 4, 2)) . "\n---\n\n" . rtrim($body) . "\n");
+            file_put_contents($path, "---\n" . trim(Yaml::dump($meta, 10, 2, Yaml::DUMP_MULTI_LINE_LITERAL_BLOCK)) . "\n---\n\n" . rtrim($body) . "\n");
             $this->indexContentFile($type, $path);
             $changed++;
         }
@@ -2217,7 +2392,7 @@ final class App
             }
         }
 
-        $frontmatter = trim(Yaml::dump($data, 4, 2));
+        $frontmatter = trim(Yaml::dump($data, 10, 2, Yaml::DUMP_MULTI_LINE_LITERAL_BLOCK));
         $payload = "---\n" . $frontmatter . "\n---\n\n" . $body . "\n";
         file_put_contents($path, $payload);
         $this->indexContentFile($type, $path);
@@ -2848,12 +3023,13 @@ final class App
                     $redirectMedia(['error' => 'Invalid media item.']);
                     return;
                 }
-                if (!$this->media->updateTags($id, (string)($_POST['tags'] ?? ''))) {
+                $alt = isset($_POST['alt']) ? (string)$_POST['alt'] : null;
+                if (!$this->media->updateTags($id, (string)($_POST['tags'] ?? ''), $alt)) {
                     $redirectMedia(['error' => 'Media item not found.']);
                     return;
                 }
-                $this->logActivity('media.tags_update', 'info', 'media', $id, 'Media tags updated.');
-                $redirectMedia(['success' => 'Tags updated.']);
+                $this->logActivity('media.tags_update', 'info', 'media', $id, 'Media details updated.');
+                $redirectMedia(['success' => 'Saved.']);
                 return;
             }
 
@@ -3732,6 +3908,38 @@ final class App
             return $this->theme->customAssetUrl($baseUrl, $path);
         }));
 
+        $twig->addFunction(new TwigFunction('image', function (string $src, array $options = []): string {
+            return $this->images->render($src, $options);
+        }, ['is_safe' => ['html']]));
+
+        $twig->addFunction(new TwigFunction('icon', function (string $name, string $class = ''): string {
+            return $this->theme->icon($name, $class);
+        }, ['is_safe' => ['html']]));
+
+        // Block links: absolute URLs, #anchors, mailto:/tel: as given; "/path" from the site root;
+        // a bare "path" is relative to the current language ("contact" → "/en/contact").
+        $twig->addFunction(new TwigFunction('link_url', function (string $value, string $prefix = '') use ($baseUrl): string {
+            $value = trim($value);
+            if ($value === '' || !FieldSchema::isSafeLink($value)) {
+                return '';
+            }
+            if (preg_match('#^(https?://|mailto:|tel:|\#)#i', $value)) {
+                return $value;
+            }
+            if (str_starts_with($value, '/')) {
+                return $baseUrl . $value;
+            }
+            return $baseUrl . '/' . $prefix . ltrim($value, '/');
+        }));
+
+        $twig->addFunction(new TwigFunction('absolute_url', function (string $path): string {
+            return preg_match('#^https?://#i', $path) ? $path : $this->buildAbsoluteUrl($path);
+        }));
+
+        $twig->addFunction(new TwigFunction('json_ld', function (array $graph): string {
+            return $this->jsonLdScript($graph);
+        }, ['is_safe' => ['html']]));
+
         $twig->addFunction(new TwigFunction('admin_asset', function (string $path) use ($baseUrl): string {
             return $baseUrl . '/admin-assets/' . ltrim($path, '/');
         }));
@@ -3805,6 +4013,10 @@ final class App
                 $defaults['admin_notification_unread_count'] = $this->notifications->unreadCount();
                 $defaults['admin_current_url'] = $this->currentRequestPath();
             }
+        }
+
+        if (!str_starts_with($template, '@admin/') && !array_key_exists('structured_data', $data)) {
+            $defaults['structured_data'] = $this->baseStructuredData();
         }
 
         $data = array_merge($defaults, $data);
@@ -5380,6 +5592,7 @@ final class App
             'main_image',
             'custom_fields',
             'template',
+            'blocks',
             'translation_id',
             'fields',
             'notifications',

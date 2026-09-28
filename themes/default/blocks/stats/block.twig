@@ -1,0 +1,15 @@
+{% import 'components/ui.twig' as ui %}
+<div class="container">
+  {{ ui.section_header(block, heading_tag, block_uid, 'left') }}
+  <dl class="stats-list count-{{ min(block.items|length, 4) }}">
+    {% for stat in block.items %}
+      {% if stat.value and stat.label %}
+        <div class="stat">
+          <dt class="stat-label">{{ stat.label }}</dt>
+          <dd class="stat-value">{{ stat.value }}</dd>
+          {% if stat.text %}<dd class="stat-text">{{ stat.text }}</dd>{% endif %}
+        </div>
+      {% endif %}
+    {% endfor %}
+  </dl>
+</div>

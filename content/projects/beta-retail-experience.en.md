@@ -5,7 +5,7 @@ visible: true
 date: 2025-12-15
 translation_id: b2c3d4e5f6071829
 excerpt: "A flagship retail concept that improved dwell time and product discovery."
-main_image: /uploads/images/alexandroupoli-1.jpg
+main_image: /uploads/media/5e6915a67b9ceec5.jpg
 tags:
   - design
   - growth

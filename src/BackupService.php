@@ -30,6 +30,8 @@ final class BackupService
         'storage/backups/',
         'storage/restore/',
         'storage/updates/',
+        // Responsive image variants are regenerated on demand.
+        'public/uploads/_v/',
     ];
 
     public function __construct(
