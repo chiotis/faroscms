@@ -103,4 +103,6 @@ return [
     'team.email' => 'Email',
     'nav.quick' => 'Γρήγορες ενέργειες',
     'nav.call' => 'Κλήση',
+    'sidebar.label' => 'Σχετικά με το θέμα',
+    'sidebar.on_this_page' => 'Σε αυτή τη σελίδα',
 ];

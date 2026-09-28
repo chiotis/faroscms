@@ -36,6 +36,8 @@ Before the application boots, `public/index.php` hands `/_themes/…` and `/_cus
 | `FieldSchema` | Declarative field definitions (text, markdown, link, image, select, toggle, number, repeater, …): defaults, validation of stored values, and form input handling. Used by theme settings and blocks. |
 | `BlockRegistry` | Block definitions from `themes/<theme>/blocks/*/block.yaml` and `custom/blocks/`, with shared presentation fields (variant, tone, spacing, anchor, hidden); editor definitions and storage sanitising for the admin block editor (`public/assets/js/admin-blocks.js`). |
 | `BlockRenderer` | Renders a page's `blocks:` list: checks values, heading levels, Markdown, dynamic data (latest items, forms), stylesheet bundle, and FAQ structured data. |
+| `PresetLibrary` | Ready-made sections and page layouts from `themes/<theme>/presets/` and `custom/presets/`, localised per language; saves and deletes site sections. |
+| `Toc` | Heading ids and "On this page" contents for the sidebar template. |
 | `Images` | Responsive `<picture>` markup for uploads and on-demand WebP variants under `/uploads/_v/`. |
 
 ## Admin front end

@@ -1,0 +1,23 @@
+{#
+  With sidebar: title header, then the text beside a sidebar (contents, related pages, contact card).
+  Blocks follow below at full width; the text is not repeated by a Page content block.
+#}
+{% extends 'layouts/base.twig' %}
+
+{% block content %}
+  {% if not (page_blocks|default(null) and page_blocks.leads_with_hero) %}
+    {% include 'components/page-header.twig' %}
+  {% endif %}
+  {% set contents = toc(item.html) %}
+  <div class="site-wrap with-sidebar">
+    <article class="with-sidebar-main prose-block">
+      {{ contents.html|raw }}
+    </article>
+    <aside class="with-sidebar-aside" aria-label="{{ t('sidebar.label', 'More on this topic') }}">
+      {% include 'components/sidebar.twig' with {toc_items: contents.items} %}
+    </aside>
+  </div>
+  {% if page_blocks|default(null) %}
+    {{ page_blocks.html|raw }}
+  {% endif %}
+{% endblock %}

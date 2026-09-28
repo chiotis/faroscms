@@ -68,6 +68,15 @@
   grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
 }
 
+/* Split without an image: one wide column instead of an empty half. */
+.block-hero.block--split .hero-inner.no-media {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.block-hero.block--split .no-media .hero-title {
+  max-width: 22ch;
+}
+
 .block-hero.block--split .hero-media {
   aspect-ratio: 4 / 5;
   max-height: 44rem;

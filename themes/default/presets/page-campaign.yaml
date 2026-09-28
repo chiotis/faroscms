@@ -1,0 +1,17 @@
+kind: page
+template: landing
+label: { el: 'Landing καμπάνιας', en: 'Campaign landing page' }
+description: { el: 'Σελίδα για διαφήμιση ή προσφορά: hero, οφέλη, σχόλιο, φόρμα και ερωτήσεις. Χρησιμοποιεί το template Landing.', en: 'A page for an ad or an offer: hero, benefits, a quote, a form, and questions. Uses the Landing template.' }
+blocks:
+  el:
+    - { type: hero, variant: centered, eyebrow: 'Προσφορά', heading: 'Ένας τίτλος που λέει την προσφορά σε μία ανάσα', text: 'Για ποιον είναι, τι παίρνει και μέχρι πότε ισχύει.', actions: [{ label: 'Κλείστε θέση', url: '#form' }], highlights: [{ text: 'Χωρίς δέσμευση' }, { text: 'Απάντηση σε 24 ώρες' }] }
+    - { type: features, variant: plain, columns: '3', items: [{ icon: bolt, title: 'Γρήγορα', text: 'Μία πρόταση.' }, { icon: shield, title: 'Με εγγύηση', text: 'Μία πρόταση.' }, { icon: heart, title: 'Με φροντίδα', text: 'Μία πρόταση.' }] }
+    - { type: testimonials, variant: featured, tone: muted, items: [{ quote: 'Ένα σύντομο, πειστικό σχόλιο πελάτη.', name: 'Όνομα Επώνυμο', role: 'Πόλη' }] }
+    - { type: form, variant: split, anchor: form, heading: 'Κλείστε θέση', intro: 'Συμπληρώστε τη φόρμα και θα επικοινωνήσουμε μαζί σας.', form: contact }
+    - { type: faq, variant: stacked, heading: 'Ερωτήσεις', items: [{ question: 'Μέχρι πότε ισχύει;', answer: 'Ημερομηνία λήξης.' }, { question: 'Τι περιλαμβάνει;', answer: 'Σύντομη λίστα.' }] }
+  en:
+    - { type: hero, variant: centered, eyebrow: 'Offer', heading: 'A headline that states the offer in one breath', text: 'Who it is for, what they get, and until when.', actions: [{ label: 'Book your place', url: '#form' }], highlights: [{ text: 'No commitment' }, { text: 'Reply within 24 hours' }] }
+    - { type: features, variant: plain, columns: '3', items: [{ icon: bolt, title: 'Fast', text: 'One sentence.' }, { icon: shield, title: 'Guaranteed', text: 'One sentence.' }, { icon: heart, title: 'With care', text: 'One sentence.' }] }
+    - { type: testimonials, variant: featured, tone: muted, items: [{ quote: 'A short, convincing client quote.', name: 'First Last', role: 'City' }] }
+    - { type: form, variant: split, anchor: form, heading: 'Book your place', intro: 'Fill in the form and we will contact you.', form: contact }
+    - { type: faq, variant: stacked, heading: 'Questions', items: [{ question: 'Until when does it run?', answer: 'The end date.' }, { question: 'What is included?', answer: 'A short list.' }] }

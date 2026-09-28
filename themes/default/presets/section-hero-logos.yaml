@@ -1,0 +1,10 @@
+kind: section
+label: { el: 'Άνοιγμα με λογότυπα πελατών', en: 'Opening with client logos' }
+description: { el: 'Hero με κείμενο και κουμπιά, και από κάτω τα λογότυπα όσων σας εμπιστεύονται.', en: 'A hero with text and buttons, followed by the logos of those who trust you.' }
+blocks:
+  el:
+    - { type: hero, variant: split, eyebrow: 'Η εταιρεία σας', heading: 'Μια πρόταση που λέει καθαρά τι κάνετε και για ποιον', text: 'Μία ή δύο προτάσεις για το όφελος που παίρνει ο πελάτης. Προσθέστε εικόνα στο πεδίο Image.', actions: [{ label: 'Επικοινωνία', url: contact }, { label: 'Υπηρεσίες', url: services, style: secondary }], highlights: [{ text: 'Πρώτο πλεονέκτημα' }, { text: 'Δεύτερο πλεονέκτημα' }] }
+    - { type: logos, heading: 'Μας εμπιστεύονται', items: [{ name: 'Πελάτης Α' }, { name: 'Πελάτης Β' }, { name: 'Πελάτης Γ' }, { name: 'Πελάτης Δ' }, { name: 'Πελάτης Ε' }] }
+  en:
+    - { type: hero, variant: split, eyebrow: 'Your company', heading: 'One sentence that says clearly what you do and for whom', text: 'One or two sentences about the benefit your client gets. Add an image in the Image field.', actions: [{ label: 'Contact us', url: contact }, { label: 'Services', url: services, style: secondary }], highlights: [{ text: 'First advantage' }, { text: 'Second advantage' }] }
+    - { type: logos, heading: 'Trusted by', items: [{ name: 'Client A' }, { name: 'Client B' }, { name: 'Client C' }, { name: 'Client D' }, { name: 'Client E' }] }

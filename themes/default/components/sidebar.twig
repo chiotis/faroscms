@@ -1,0 +1,58 @@
+{#
+  Sidebar for the "With sidebar" template: "On this page" contents, related pages from the main
+  menu (the current page's section), and a card from Theme settings > Sidebar template.
+#}
+{% set sb = theme_settings.sidebar|default({}) %}
+{% set contact = theme_settings.footer|default({}) %}
+{% set toc_list = (toc_items|default([]))|filter(i => i.level == 2) %}
+
+{% if sb.toc|default(true) and toc_list|length >= 2 %}
+  <nav class="sidebar-card sidebar-toc" aria-labelledby="sidebar-toc-title">
+    <h2 class="sidebar-title" id="sidebar-toc-title">{{ t('sidebar.on_this_page', 'On this page') }}</h2>
+    <ol class="sidebar-links">
+      {% for entry in toc_list %}
+        <li><a href="#{{ entry.id }}">{{ entry.text }}</a></li>
+      {% endfor %}
+    </ol>
+  </nav>
+{% endif %}
+
+{% if sb.related|default(true) %}
+  {# The main-menu branch that contains this page: its parent and the parent's children. #}
+  {% set section = null %}
+  {% for top in theme_menus.header ?? [] %}
+    {% if section is null and top.children is defined and top.children is not empty and (top.is_trail|default(false) or top.is_active|default(false)) %}
+      {% set section = top %}
+    {% endif %}
+  {% endfor %}
+  {% if section %}
+    <nav class="sidebar-card" aria-labelledby="sidebar-related-title">
+      <h2 class="sidebar-title" id="sidebar-related-title">{{ section.label }}</h2>
+      <ul class="sidebar-links">
+        {% for child in section.children %}
+          {% set path = child.url|default('') %}
+          {% set href = path starts with 'http' ? path : url(prefix ~ path|trim('/')) %}
+          <li><a href="{{ href }}"{% if child.is_active|default(false) %} aria-current="page" class="is-current"{% endif %}>{{ child.label }}</a></li>
+        {% endfor %}
+      </ul>
+    </nav>
+  {% endif %}
+{% endif %}
+
+{% set card_href = link_url(sb.card_url|default(''), prefix) %}
+{% set show_contacts = sb.card_contacts|default(true) and (contact.phone|default('') or contact.email|default('')) %}
+{% if sb.card_heading|default('') or sb.card_text|default('') or (sb.card_label|default('') and card_href) or show_contacts %}
+  <div class="sidebar-card sidebar-cta">
+    {% if sb.card_heading|default('') %}<h2 class="sidebar-cta-title">{{ sb.card_heading }}</h2>{% endif %}
+    {% if sb.card_text|default('') %}<p>{{ sb.card_text|nl2br }}</p>{% endif %}
+    {% if show_contacts %}
+      <p class="sidebar-contacts">
+        {% if contact.phone|default('') %}<a href="tel:{{ contact.phone|replace({' ': ''}) }}">{{ icon('phone') }}<span>{{ contact.phone }}</span></a>{% endif %}
+        {% if contact.email|default('') %}<a href="mailto:{{ contact.email }}">{{ icon('mail') }}<span>{{ contact.email }}</span></a>{% endif %}
+      </p>
+    {% endif %}
+    {% if sb.card_label|default('') and card_href %}
+      <a class="btn btn-primary" href="{{ card_href }}">{{ sb.card_label }}{{ icon('arrow-right', 'btn-icon') }}</a>
+    {% endif %}
+  </div>
+{% endif %}

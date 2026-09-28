@@ -145,6 +145,33 @@ final class Theme
         return $current;
     }
 
+    /**
+     * Page templates editors can choose (manifest `page_templates`). "default" is always present and
+     * means the normal hierarchy; other keys map to templates/<key>.twig and are listed only when that
+     * template exists (theme or custom/).
+     *
+     * @return array<string, array{label: string, description: string}>
+     */
+    public function pageTemplates(): array
+    {
+        $templates = ['default' => ['label' => 'Standard', 'description' => '']];
+        $raw = $this->manifest()['page_templates'] ?? [];
+        foreach (is_array($raw) ? $raw : [] as $key => $template) {
+            $key = (string)$key;
+            if (!preg_match('/^[a-z][a-z0-9-]*$/', $key) || !is_array($template)) {
+                continue;
+            }
+            if ($key !== 'default' && !$this->hasTemplate('templates/' . $key . '.twig')) {
+                continue;
+            }
+            $templates[$key] = [
+                'label' => (string)($template['label'] ?? ucfirst($key)),
+                'description' => (string)($template['description'] ?? ''),
+            ];
+        }
+        return $templates;
+    }
+
     /** @return array<string, array{label: string, default: string}> */
     public function menuLocations(): array
     {

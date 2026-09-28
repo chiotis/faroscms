@@ -8,7 +8,7 @@
     {{ image(block.image, {alt: block.image_alt, sizes: media_sizes, priority: block_first}) }}
   </div>
 {% endif %}
-<div class="container hero-inner">
+<div class="container hero-inner{% if not has_image %} no-media{% endif %}">
   <div class="hero-content">
     {% if block.eyebrow %}<p class="eyebrow">{{ block.eyebrow }}</p>{% endif %}
     <{{ heading_tag }} class="hero-title" id="{{ block_uid }}-title">{{ block.heading }}</{{ heading_tag }}>

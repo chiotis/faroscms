@@ -8,7 +8,7 @@
 #   - retire a field by marking it `hidden: true` (it keeps its stored value), not by deleting it.
 name: default
 label: FarosCMS Default
-version: 1.3.0
+version: 1.4.0
 description: All-purpose FarosCMS theme.
 
 menu_locations:
@@ -18,6 +18,19 @@ menu_locations:
   footer:
     label: Footer
     default: footer
+
+# Templates editors can choose per page or post (front matter `template:`). "default" means the
+# normal template hierarchy. Keep keys stable: content refers to them by name.
+page_templates:
+  default:
+    label: Standard
+    description: Title header, then the text and the blocks.
+  landing:
+    label: Landing
+    description: No title header. The page is built from blocks only; start it with a Hero.
+  sidebar:
+    label: With sidebar
+    description: Text beside a sidebar with the page's contents, related pages, and a contact card. Blocks follow below.
 
 settings:
   appearance:
@@ -124,6 +137,44 @@ settings:
         default: ''
         placeholder: Free consultation for new projects this month
         span: full
+
+  sidebar:
+    label: Sidebar template
+    description: The card shown in pages that use the "With sidebar" template.
+    columns: 2
+    fields:
+      toc:
+        type: toggle
+        label: Show "On this page" contents
+        default: true
+      related:
+        type: toggle
+        label: Show related pages from the main menu
+        default: true
+      card_heading:
+        type: text
+        label: Card heading
+        default: ''
+        placeholder: Need help?
+      card_text:
+        type: textarea
+        label: Card text
+        default: ''
+      card_label:
+        type: text
+        label: Card button text
+        default: ''
+        placeholder: Contact us
+      card_url:
+        type: link
+        label: Card button link
+        default: ''
+        placeholder: contact
+      card_contacts:
+        type: toggle
+        label: Show phone and email in the card
+        help: Uses the phone and email from the Footer section.
+        default: true
 
   brand:
     label: Brand

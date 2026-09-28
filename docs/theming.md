@@ -15,7 +15,8 @@ Two rules follow from that:
 | Design system: tokens, palettes, dark mode, fonts, corner shapes | `assets/css/site.css` | Done |
 | Content blocks per page or post | `themes/default/blocks/<block>/` + `blocks:` in front matter | 17 blocks in two families; admin block editor |
 | Site-level component variants (header, footer) | `components/`, Theme settings | Header: 4 layouts, transparent, sticky modes, top bar, CTA, phone bottom bar. Footer: 3 layouts |
-| Page templates beyond the hierarchy (landing, sidebar) | `templates/` | Later |
+| Page templates (standard, landing, with sidebar) | `templates/`, `page_templates` in the manifest | Done |
+| Ready-made sections and page layouts | `presets/`, `custom/presets/` | Done |
 | Field definitions per content type | content type config | Later |
 
 ## Folder layout
@@ -152,6 +153,36 @@ Create `blocks/<type>/` with three files:
 ### Editing blocks
 
 Admin > Edit > **Blocks** lists the page's blocks: add (from a picker with each block's description), move, duplicate, hide, remove (with undo), and edit the fields generated from `block.yaml`, including repeaters and image fields with the media library. On save the server checks every value again (`BlockRegistry::sanitizeForStorage`) and stores only values that differ from the defaults. Unknown block types are kept unchanged. Without JavaScript the page's existing blocks are kept when it is saved.
+
+## Page templates
+
+Pages and posts choose a template in Admin > Edit > Publish (stored as `template:`). The manifest's `page_templates` lists them; a template appears only if its file exists.
+
+- **Standard** (`default`): the normal hierarchy: title header, text, blocks.
+- **Landing** (`landing`): no title header; the page is its blocks. Without an opening hero the title is still the (visually hidden) `<h1>`.
+- **With sidebar** (`sidebar`): title header, then the text beside a sticky sidebar with "On this page" contents (from the text's `##` headings, which get ids), the related pages from the main-menu branch the page belongs to, and a card from Theme settings > Sidebar template (text, button, phone and email). Blocks follow below at full width; a Page content block does not repeat the text.
+
+Add a template by creating `templates/<name>.twig` (in the theme or `custom/`) and listing it under `page_templates`.
+
+## Ready-made sections
+
+In the block editor, **Add block** has three tabs: single blocks, **Ready-made sections** (a few blocks that belong together, e.g. FAQ + call to action), and **Page layouts** (a whole page, optionally with a suggested template). A page layout can replace the page's blocks (with undo) or be added after them.
+
+Presets are YAML files in `themes/default/presets/` (theme) and `custom/presets/` (site):
+
+```yaml
+kind: section            # or page
+template: landing        # page layouts only, optional
+label: { el: 'Ομάδα', en: 'The team' }
+description: { el: '…', en: '…' }
+blocks:
+  el: [ { type: team, heading: 'Η ομάδα', members: [ … ] } ]
+  en: [ { type: team, heading: 'The team', members: [ … ] } ]
+```
+
+Labels, descriptions, and blocks may be a single value or a map per language; the editor uses the page's language, then the default language. Theme presets hold placeholder text and no images, so they work on any site.
+
+Editors can tick blocks and **Save as section**: the blocks are checked and written to `custom/presets/<name>.yaml` in the page's language, appear under Ready-made sections with a delete button, and are included in backups (Site customizations).
 
 ## Header and footer
 

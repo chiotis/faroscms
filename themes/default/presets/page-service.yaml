@@ -1,0 +1,21 @@
+kind: page
+template: landing
+label: { el: 'Σελίδα υπηρεσίας', en: 'Service page' }
+description: { el: 'Hero, περιγραφή, οφέλη, διαδικασία, σχόλιο πελάτη, ερωτήσεις και κάλεσμα. Χρησιμοποιεί το template Landing.', en: 'Hero, description, benefits, process, a client quote, questions, and a call to action. Uses the Landing template.' }
+blocks:
+  el:
+    - { type: hero, variant: split, eyebrow: 'Υπηρεσία', heading: 'Όνομα υπηρεσίας: το αποτέλεσμα που παίρνει ο πελάτης', text: 'Σε ποιον απευθύνεται και τι αλλάζει.', actions: [{ label: 'Ζητήστε προσφορά', url: contact }] }
+    - { type: text, variant: split, heading: 'Τι περιλαμβάνει', body: "Περιγράψτε την υπηρεσία σε λίγες παραγράφους.\n\nΤι παραλαμβάνει ο πελάτης, σε πόσο χρόνο και πώς συνεργάζεστε." }
+    - { type: features, variant: plain, tone: muted, eyebrow: 'Οφέλη', heading: 'Γιατί αξίζει', columns: '3', items: [{ icon: check-circle, title: 'Πρώτο όφελος', text: 'Μία πρόταση.' }, { icon: check-circle, title: 'Δεύτερο όφελος', text: 'Μία πρόταση.' }, { icon: check-circle, title: 'Τρίτο όφελος', text: 'Μία πρόταση.' }] }
+    - { type: timeline, variant: steps, eyebrow: 'Διαδικασία', heading: 'Πώς γίνεται', items: [{ label: '01', title: 'Γνωριμία' }, { label: '02', title: 'Πρόταση' }, { label: '03', title: 'Υλοποίηση' }, { label: '04', title: 'Παράδοση' }] }
+    - { type: testimonials, variant: featured, tone: muted, items: [{ quote: 'Σχόλιο πελάτη για αυτή την υπηρεσία.', name: 'Όνομα Επώνυμο', role: 'Ρόλος, Εταιρεία' }] }
+    - { type: faq, variant: stacked, heading: 'Ερωτήσεις για την υπηρεσία', items: [{ question: 'Πόσο κοστίζει;', answer: 'Εξηγήστε από τι εξαρτάται.' }, { question: 'Πόσο χρόνο χρειάζεται;', answer: 'Ένα τυπικό χρονοδιάγραμμα.' }] }
+    - { type: cta, variant: band, heading: 'Θέλετε να το συζητήσουμε;', actions: [{ label: 'Ζητήστε προσφορά', url: contact }] }
+  en:
+    - { type: hero, variant: split, eyebrow: 'Service', heading: 'Service name: the result your client gets', text: 'Who it is for and what changes.', actions: [{ label: 'Get a quote', url: contact }] }
+    - { type: text, variant: split, heading: 'What is included', body: "Describe the service in a few paragraphs.\n\nWhat the client receives, how long it takes, and how you work together." }
+    - { type: features, variant: plain, tone: muted, eyebrow: 'Benefits', heading: 'Why it is worth it', columns: '3', items: [{ icon: check-circle, title: 'First benefit', text: 'One sentence.' }, { icon: check-circle, title: 'Second benefit', text: 'One sentence.' }, { icon: check-circle, title: 'Third benefit', text: 'One sentence.' }] }
+    - { type: timeline, variant: steps, eyebrow: 'Process', heading: 'How it works', items: [{ label: '01', title: 'Discovery' }, { label: '02', title: 'Proposal' }, { label: '03', title: 'Delivery' }, { label: '04', title: 'Launch' }] }
+    - { type: testimonials, variant: featured, tone: muted, items: [{ quote: 'A client quote about this service.', name: 'First Last', role: 'Role, Company' }] }
+    - { type: faq, variant: stacked, heading: 'Questions about this service', items: [{ question: 'How much does it cost?', answer: 'Explain what it depends on.' }, { question: 'How long does it take?', answer: 'A typical timeline.' }] }
+    - { type: cta, variant: band, heading: 'Want to talk it through?', actions: [{ label: 'Get a quote', url: contact }] }

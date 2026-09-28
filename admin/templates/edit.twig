@@ -146,6 +146,21 @@
                   <option value="draft" {% if meta_form.status == 'draft' %}selected{% endif %}>Draft</option>
                 </select>
               </label>
+              {% if page_templates is not empty and page_templates|length > 1 %}
+                {% set current_template = meta_form.template|default('') ?: 'default' %}
+                <label class="block">
+                  <span class="mb-1 block text-sm font-medium text-slate-700">Template</span>
+                  <select name="template" class="{{ select_class }}" data-template-select>
+                    {% for key, template in page_templates %}
+                      <option value="{{ key }}" data-description="{{ template.description }}" {% if current_template == key %}selected{% endif %}>{{ template.label }}</option>
+                    {% endfor %}
+                    {% if current_template not in page_templates|keys %}
+                      <option value="{{ current_template }}" selected>{{ current_template }} (not available)</option>
+                    {% endif %}
+                  </select>
+                  <span class="mt-1 block text-xs text-slate-400" data-template-description>{{ page_templates[current_template].description ?? '' }}</span>
+                </label>
+              {% endif %}
               <label class="block">
                 <span class="mb-1 block text-sm font-medium text-slate-700">Date</span>
                 <input type="text" name="date" value="{{ meta_form.date }}" placeholder="{{ site.date_format|default('d/m/Y') }}" class="{{ input_class }}">

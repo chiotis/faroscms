@@ -103,4 +103,6 @@ return [
     'team.email' => 'Email',
     'nav.quick' => 'Quick actions',
     'nav.call' => 'Call',
+    'sidebar.label' => 'More on this topic',
+    'sidebar.on_this_page' => 'On this page',
 ];

@@ -37,6 +37,7 @@ final class App
     private Images $images;
     private MarkdownConverter $markdown;
     private ?BlockRegistry $blockRegistry = null;
+    private ?PresetLibrary $presetLibrary = null;
     private string $currentLang;
     private array $translations = [];
     private array $formStates = [];
@@ -343,9 +344,11 @@ final class App
         $pageBlocks = null;
         $raw = $item->meta['blocks'] ?? null;
         if (is_array($raw) && $raw !== []) {
+            // The sidebar template places the text itself, so blocks must not repeat it.
+            $bodyInTemplate = !$isHome && $this->resolveItemTemplate($item) === 'templates/sidebar.twig';
             $pageBlocks = $this->blockRenderer($lang, $path)->render(array_values($raw), $viewDefaults + [
                 'item' => $item,
-                'body_html' => $item->html,
+                'body_html' => $bodyInTemplate ? '' : $item->html,
             ]);
         }
         return [
@@ -709,6 +712,11 @@ final class App
 
         if ($action === 'save') {
             $this->handleSave();
+            return;
+        }
+
+        if ($action === 'block-presets') {
+            $this->handleBlockPresets();
             return;
         }
 
@@ -2003,6 +2011,7 @@ final class App
             $rawDate = $meta['date'] ?? '';
             $metaForm['date'] = $this->normalizeAdminDate($rawDate);
             $metaForm['author'] = (string)($meta['author'] ?? '');
+            $metaForm['template'] = (string)($meta['template'] ?? '');
             foreach ($this->listTaxonomyNames() as $taxonomyName) {
                 $metaForm['taxonomy_terms'][$taxonomyName] = $this->normalizeMetaList($meta[$taxonomyName] ?? null);
             }
@@ -2111,12 +2120,13 @@ final class App
             'form_submissions_total' => $formSubmissionsTotal,
             'form_field_types' => $this->formFieldTypes(),
             'media_picker_images' => $mediaPickerImages,
-            'block_editor_json' => $type === 'forms' ? '' : $this->blockEditorJson($pageBlocks, $mediaPickerImages),
+            'block_editor_json' => $type === 'forms' ? '' : $this->blockEditorJson($pageBlocks, $mediaPickerImages, $lang),
+            'page_templates' => $type === 'forms' ? [] : $this->theme->pageTemplates(),
         ]);
     }
 
     /** Data for the admin block editor, safe to embed in a <script type="application/json">. */
-    private function blockEditorJson(array $blocks, array $mediaImages): string
+    private function blockEditorJson(array $blocks, array $mediaImages, string $lang): string
     {
         $media = [];
         foreach ($mediaImages as $item) {
@@ -2131,7 +2141,71 @@ final class App
             'definitions' => $this->blockRegistry()->editorDefinitions(),
             'blocks' => $blocks,
             'media' => $media,
+            'presets' => $this->presetLibrary()->forEditor($lang, (string)($this->settings['languages']['default'] ?? 'en')),
+            'presets_url' => rtrim((string)($this->settings['base_url'] ?? ''), '/') . '/admin/block-presets',
+            'lang' => $lang,
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_INVALID_UTF8_SUBSTITUTE);
+    }
+
+    private function presetLibrary(): PresetLibrary
+    {
+        return $this->presetLibrary ??= new PresetLibrary(
+            $this->theme,
+            $this->blockRegistry(),
+            fn(string $value): string => $this->slugify($value)
+        );
+    }
+
+    /** Saves or deletes a site section from the block editor (JSON in, JSON out). */
+    private function handleBlockPresets(): void
+    {
+        header('Content-Type: application/json; charset=utf-8');
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+            http_response_code(405);
+            echo json_encode(['ok' => false, 'message' => 'POST only.']);
+            return;
+        }
+        $action = (string)($_POST['preset_action'] ?? '');
+        $lang = $this->slugify((string)($_POST['lang'] ?? ''));
+        $defaultLang = (string)($this->settings['languages']['default'] ?? 'en');
+        $library = $this->presetLibrary();
+
+        if ($action === 'save') {
+            $blocks = json_decode((string)($_POST['blocks_json'] ?? ''), true);
+            $result = $library->saveCustom(
+                (string)($_POST['name'] ?? ''),
+                (string)($_POST['description'] ?? ''),
+                $lang,
+                is_array($blocks) ? array_values($blocks) : []
+            );
+            if ($result['ok']) {
+                $this->logActivity('presets.save', 'info', 'preset', (string)$result['id'], 'Block section saved.');
+                foreach ($library->forEditor($lang, $defaultLang) as $preset) {
+                    if ($preset['id'] === $result['id']) {
+                        $result['preset'] = $preset;
+                    }
+                }
+            } else {
+                http_response_code(422);
+            }
+            echo json_encode($result, JSON_UNESCAPED_UNICODE);
+            return;
+        }
+
+        if ($action === 'delete') {
+            $id = (string)($_POST['id'] ?? '');
+            $ok = $library->deleteCustom($id);
+            if ($ok) {
+                $this->logActivity('presets.delete', 'warning', 'preset', $id, 'Block section deleted.');
+            } else {
+                http_response_code(404);
+            }
+            echo json_encode(['ok' => $ok]);
+            return;
+        }
+
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'message' => 'Unknown action.']);
     }
 
     /** Blocks stored in an existing content file, used when the editor did not submit any. */
@@ -2278,6 +2352,17 @@ final class App
             unset($data['excerpt']);
         }
         unset($data['summary']);
+
+        if ($type !== 'forms' && array_key_exists('template', $_POST)) {
+            // Only templates the theme offers; "default" (or empty) means the normal hierarchy.
+            // An unknown value (e.g. a custom template file set by hand) is left as the front matter has it.
+            $template = trim((string)$_POST['template']);
+            if ($template === '' || $template === 'default') {
+                unset($data['template']);
+            } elseif (isset($this->theme->pageTemplates()[$template])) {
+                $data['template'] = $template;
+            }
+        }
 
         if ($translationId === '') {
             $translationId = $this->findTranslationIdBySlug($type, $slug);
@@ -3997,6 +4082,10 @@ final class App
 
         $twig->addFunction(new TwigFunction('absolute_url', function (string $path): string {
             return preg_match('#^https?://#i', $path) ? $path : $this->buildAbsoluteUrl($path);
+        }));
+
+        $twig->addFunction(new TwigFunction('toc', function (string $html): array {
+            return Toc::build($html);
         }));
 
         $twig->addFunction(new TwigFunction('json_ld', function (array $graph): string {

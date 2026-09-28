@@ -89,7 +89,7 @@ final class PermissionService
             'updates' => 'updates.manage',
             'users', 'users-delete' => 'users.manage',
             'users-edit' => null,
-            'edit', 'save', 'delete', 'new' => 'content.manage',
+            'edit', 'save', 'delete', 'new', 'block-presets' => 'content.manage',
             default => 'content.manage',
         };
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-09-28 — Page templates and ready-made sections (phase 4)
+- Page templates: Standard, Landing (no title header, blocks only), and With sidebar ("On this page" contents, related pages from the main menu, contact card from Theme settings > Sidebar template); chosen per page in the editor's Publish panel
+- Ready-made sections: 8 section presets and 5 page layouts (company home, service, about, contact, campaign landing) in Greek and English; page layouts can replace or follow existing blocks and set their suggested template
+- Saved sections: tick blocks in the editor and save them as a reusable section in `custom/presets/` (kept across updates and in backups); delete from the picker
+- Hero: the split layout without an image uses one wide column
+- Demo: the Workplace Strategy pages use the sidebar template
+
 ## 2026-09-28 — Block editor, second block family, header and footer options (phase 3)
 - Admin: Blocks tab in the editor with a block picker, move, duplicate, hide, remove with undo, schema-generated fields (including repeaters, Markdown, and image fields with a media library picker); the server re-checks values and stores only non-default ones; existing blocks are kept when the editor cannot load
 - Blocks: gallery (grid, masonry, strip, accessible viewer), team, timeline, contact (details with an optional form), and map (OpenStreetMap, loaded on request by default); demo About and Contact pages use them

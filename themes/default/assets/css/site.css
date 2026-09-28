@@ -1584,6 +1584,123 @@ body.has-transparent-header:not(.header-solid) .site-header.is-on-dark[data-stic
   max-width: var(--container-narrow);
 }
 
+/* "With sidebar" template */
+.with-sidebar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(16rem, 20rem);
+  gap: clamp(2rem, 1rem + 4vw, 5rem);
+  align-items: start;
+  padding: clamp(2.5rem, 6vw, 4.5rem) 0 clamp(3rem, 7vw, 5rem);
+}
+
+.with-sidebar-main {
+  max-width: var(--container-narrow);
+}
+
+.with-sidebar-main :is(h2, h3) {
+  scroll-margin-top: calc(var(--header-height, 4.5rem) + 1.5rem);
+}
+
+.with-sidebar-aside {
+  position: sticky;
+  top: calc(var(--header-height, 4.5rem) + 1.5rem);
+  display: grid;
+  gap: var(--space-m);
+}
+
+.sidebar-card {
+  padding: var(--space-m);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-l);
+  background: var(--card-bg);
+}
+
+.sidebar-title {
+  margin: 0 0 var(--space-xs);
+  color: var(--color-muted);
+  font-family: var(--font-body);
+  font-size: var(--step--1);
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.sidebar-links {
+  display: grid;
+  gap: 0.15rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sidebar-links a {
+  display: block;
+  padding: 0.4rem 0.6rem;
+  margin-inline: -0.6rem;
+  border-radius: var(--radius-s);
+  color: var(--color-text);
+  font-size: 0.95rem;
+  line-height: 1.4;
+  text-decoration: none;
+}
+
+.sidebar-links a:hover {
+  background: var(--color-surface);
+}
+
+.sidebar-links a.is-current {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.sidebar-cta {
+  background: var(--color-surface);
+}
+
+.sidebar-cta-title {
+  margin: 0 0 var(--space-2xs);
+  font-size: var(--step-1);
+}
+
+.sidebar-cta p {
+  color: var(--color-muted);
+  font-size: 0.95rem;
+}
+
+.sidebar-contacts {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.sidebar-contacts a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.sidebar-contacts svg {
+  width: 1.05rem;
+  height: 1.05rem;
+  color: var(--accent);
+}
+
+.sidebar-cta .btn {
+  width: 100%;
+}
+
+@media (max-width: 960px) {
+  .with-sidebar {
+    grid-template-columns: 1fr;
+  }
+
+  .with-sidebar-aside {
+    position: static;
+  }
+}
+
 .content-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr));

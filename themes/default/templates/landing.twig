@@ -1,0 +1,17 @@
+{#
+  Landing: no title header; the page is its blocks. Without an opening hero the page title is
+  still announced to assistive technology as the <h1>.
+#}
+{% extends 'layouts/base.twig' %}
+
+{% block content %}
+  {% if page_blocks|default(null) %}
+    {% if not page_blocks.leads_with_hero %}<h1 class="visually-hidden">{{ item.meta.title }}</h1>{% endif %}
+    {{ page_blocks.html|raw }}
+  {% else %}
+    <div class="site-wrap single-body">
+      <h1 class="visually-hidden">{{ item.meta.title }}</h1>
+      <div class="prose-block">{{ item.html|raw }}</div>
+    </div>
+  {% endif %}
+{% endblock %}

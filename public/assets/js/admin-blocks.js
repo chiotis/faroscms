@@ -26,6 +26,8 @@
   var definitions = {};
   (data.definitions || []).forEach(function (def) { definitions[def.type] = def; });
   var media = data.media || [];
+  var presets = data.presets || [];
+  var selected = {};
   var nextId = 1;
   var blocks = (data.blocks || []).map(function (block) { return withId(block, false); });
   var lastRemoved = null;
@@ -331,7 +333,13 @@
     });
     [up, down, insert, duplicate, remove].forEach(function (b) { actions.appendChild(b); });
 
-    card.appendChild(el('div', { class: 'flex items-center gap-2 px-2 py-1.5' }, [toggle, actions]));
+    var select = el('input', { type: 'checkbox', class: 'ml-1 h-4 w-4 shrink-0 rounded border-slate-300', 'aria-label': 'Select ' + label + ' to save as a section', checked: !!selected[block._id], disabled: !def });
+    select.addEventListener('change', function () {
+      if (select.checked) selected[block._id] = true;
+      else delete selected[block._id];
+      syncSaveBar();
+    });
+    card.appendChild(el('div', { class: 'flex items-center gap-2 px-2 py-1.5' }, [select, toggle, actions]));
 
     if (block._open && def) {
       var body = el('div', { id: idBase + '-body', class: 'space-y-4 border-t border-slate-100 p-4' });
@@ -369,7 +377,10 @@
   var list = el('div', { class: 'space-y-2', 'data-block-list': '' });
   var empty = el('div', { class: 'rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center' }, [
     el('p', { class: 'text-sm font-medium text-slate-700', text: 'This page has no blocks yet.' }),
-    el('p', { class: 'mt-1 text-xs text-slate-400', text: 'Without blocks the page shows its Markdown text as before. Add blocks to build the page from sections.' })
+    el('p', { class: 'mt-1 text-xs text-slate-400', text: 'Without blocks the page shows its Markdown text as before. Add blocks to build the page from sections.' }),
+    presets.some(function (p) { return p.kind === 'page'; })
+      ? el('button', { type: 'button', class: 'mt-3 ' + 'inline-flex shrink-0 items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50', text: 'Start from a page layout', onclick: function (event) { pickerTab = 'pages'; openPicker(blocks.length, event.currentTarget); } })
+      : null
   ]);
   var undoBar = el('div', { class: 'hidden flex items-center justify-between gap-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800', role: 'status' });
 
@@ -379,6 +390,14 @@
     var undo = el('button', { type: 'button', class: 'font-semibold underline', text: 'Undo' });
     undo.addEventListener('click', function () {
       if (!lastRemoved) return;
+      if (lastRemoved.many) {
+        blocks.length = 0;
+        lastRemoved.many.forEach(function (b) { blocks.push(b); });
+        lastRemoved = null;
+        undoBar.classList.add('hidden');
+        render(blocks.length ? blocks[0]._id : null, 'toggle');
+        return;
+      }
       blocks.splice(lastRemoved.index, 0, lastRemoved.block);
       var id = lastRemoved.block._id;
       lastRemoved = null;
@@ -414,32 +433,150 @@
   var pickerTarget = blocks.length;
   var pickerReturn = null;
 
+  var pickerTab = 'blocks';
+
+  function insertBlocks(list, position) {
+    var added = list.map(function (b) { return withId(b, false); });
+    Array.prototype.splice.apply(blocks, [position, 0].concat(added));
+    if (added.length) added[0]._open = true;
+    return added;
+  }
+
+  function applyTemplate(template) {
+    var selectEl = document.querySelector('[data-template-select]');
+    if (!selectEl || !template) return;
+    var option = selectEl.querySelector('option[value="' + template + '"]');
+    if (!option) return;
+    selectEl.value = template;
+    selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  function presetCard(preset, onChoose) {
+    var card = el('div', { class: 'relative rounded-md border border-slate-200 transition hover:border-blue-300 hover:bg-blue-50/50' });
+    var choose = el('button', { type: 'button', class: 'block w-full px-3 py-2.5 pr-10 text-left' }, [
+      el('span', { class: 'block text-sm font-semibold text-slate-900', text: preset.label }),
+      el('span', { class: 'mt-0.5 block text-xs text-slate-500', text: preset.description || '' }),
+      el('span', { class: 'mt-1 block text-[11px] text-slate-400', text: preset.blocks.map(function (b) { return definitions[b.type] ? definitions[b.type].label : b.type; }).join(' · ') + (preset.origin === 'custom' ? ' · saved on this site' : '') })
+    ]);
+    choose.addEventListener('click', function () { onChoose(preset); });
+    card.appendChild(choose);
+    if (preset.origin === 'custom') {
+      var remove = el('button', { type: 'button', class: CLS.iconDanger + ' absolute right-1.5 top-1.5', 'aria-label': 'Delete saved section ' + preset.label, html: svg('trash') });
+      remove.addEventListener('click', function () {
+        remove.disabled = true;
+        postPresets({ preset_action: 'delete', id: preset.id }).then(function (res) {
+          if (!res.ok) throw new Error('delete');
+          presets = presets.filter(function (p) { return p.id !== preset.id; });
+          renderPicker();
+          if (window.adminToast) window.adminToast('Saved section deleted.', 'success');
+        }).catch(function () {
+          remove.disabled = false;
+          if (window.adminToast) window.adminToast('Could not delete the section.', 'error');
+        });
+      });
+      card.appendChild(remove);
+    }
+    return card;
+  }
+
+  function renderPicker() {
+    var position = pickerTarget;
+    picker.innerHTML = '';
+    var tabs = [['blocks', 'Blocks'], ['sections', 'Ready-made sections'], ['pages', 'Page layouts']];
+    var tabBar = el('div', { class: 'flex flex-wrap gap-1', role: 'tablist' });
+    tabs.forEach(function (tab) {
+      var active = pickerTab === tab[0];
+      var button = el('button', { type: 'button', role: 'tab', 'aria-selected': active ? 'true' : 'false', class: 'rounded-md px-3 py-1.5 text-sm font-medium ' + (active ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'), text: tab[1] });
+      button.addEventListener('click', function () { pickerTab = tab[0]; renderPicker(); var t = picker.querySelector('[aria-selected="true"]'); if (t) t.focus(); });
+      tabBar.appendChild(button);
+    });
+    picker.appendChild(el('div', { class: 'mb-3 flex flex-wrap items-center justify-between gap-2' }, [
+      tabBar,
+      el('div', { class: 'flex items-center gap-2' }, [
+        el('span', { class: 'text-xs text-slate-500', text: position < blocks.length ? 'Inserts at position ' + (position + 1) : 'Adds at the end' }),
+        el('button', { type: 'button', class: CLS.btn, text: 'Cancel', onclick: closePicker })
+      ])
+    ]));
+    var grid = el('div', { class: 'grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3' });
+
+    if (pickerTab === 'blocks') {
+      Object.keys(definitions).forEach(function (type) {
+        var def = definitions[type];
+        var option = el('button', { type: 'button', class: 'rounded-md border border-slate-200 px-3 py-2.5 text-left transition hover:border-blue-300 hover:bg-blue-50/50' }, [
+          el('span', { class: 'block text-sm font-semibold text-slate-900', text: def.label + (def.origin === 'custom' ? ' (custom)' : '') }),
+          el('span', { class: 'mt-0.5 block text-xs text-slate-500', text: def.description })
+        ]);
+        option.addEventListener('click', function () {
+          var block = newBlock(type);
+          blocks.splice(pickerTarget, 0, block);
+          closePicker(true);
+          render(block._id, 'toggle');
+        });
+        grid.appendChild(option);
+      });
+    } else if (pickerTab === 'sections') {
+      var sections = presets.filter(function (p) { return p.kind === 'section'; });
+      if (!sections.length) grid.appendChild(el('p', { class: 'text-sm text-slate-500', text: 'No sections yet.' }));
+      sections.forEach(function (preset) {
+        grid.appendChild(presetCard(preset, function () {
+          var added = insertBlocks(preset.blocks, pickerTarget);
+          closePicker(true);
+          render(added[0]._id, 'toggle');
+          if (window.adminToast) window.adminToast(preset.label + ' added.', 'success');
+        }));
+      });
+    } else {
+      var note = blocks.length
+        ? 'This page already has ' + blocks.length + ' block(s). A layout can replace them or be added after them.'
+        : 'Pick a layout to start the page. Replace the placeholder text and add images before publishing.';
+      picker.appendChild(el('p', { class: 'mb-3 rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-600', text: note }));
+      presets.filter(function (p) { return p.kind === 'page'; }).forEach(function (preset) {
+        grid.appendChild(presetCard(preset, function (chosen) {
+          if (!blocks.length) {
+            usePage(chosen, 'replace');
+            return;
+          }
+          // Ask how to combine with existing blocks, inside the picker.
+          picker.querySelectorAll('[data-page-choice]').forEach(function (n) { n.remove(); });
+          var bar = el('div', { class: 'mb-3 flex flex-wrap items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900', 'data-page-choice': '' }, [
+            el('span', { class: 'mr-auto', text: 'Use "' + chosen.label + '":' }),
+            el('button', { type: 'button', class: CLS.btn, text: 'Add after existing blocks', onclick: function () { usePage(chosen, 'append'); } }),
+            el('button', { type: 'button', class: CLS.btnPrimary, text: 'Replace existing blocks', onclick: function () { usePage(chosen, 'replace'); } })
+          ]);
+          picker.insertBefore(bar, grid);
+          bar.querySelector('button').focus();
+        }));
+      });
+    }
+    picker.appendChild(grid);
+  }
+
+  function usePage(preset, mode) {
+    var removed = null;
+    if (mode === 'replace' && blocks.length) {
+      removed = blocks.slice();
+      blocks.length = 0;
+    }
+    var added = insertBlocks(preset.blocks, blocks.length);
+    applyTemplate(preset.template);
+    closePicker(true);
+    render(added[0]._id, 'toggle');
+    if (removed) {
+      lastRemoved = { many: removed };
+      showUndo('Previous blocks');
+    }
+    if (window.adminToast) window.adminToast(preset.label + ' added' + (preset.template ? ' (template: ' + preset.template + ')' : '') + '.', 'success');
+  }
+
   function openPicker(position, returnTo) {
     pickerTarget = position;
     pickerReturn = returnTo || null;
-    picker.innerHTML = '';
-    picker.appendChild(el('div', { class: 'mb-3 flex items-center justify-between' }, [
-      el('span', { class: 'text-sm font-semibold text-slate-900', text: 'Add a block' + (position < blocks.length ? ' at position ' + (position + 1) : '') }),
-      el('button', { type: 'button', class: CLS.btn, text: 'Cancel', onclick: closePicker })
-    ]));
-    var grid = el('div', { class: 'grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3' });
-    Object.keys(definitions).forEach(function (type) {
-      var def = definitions[type];
-      var option = el('button', { type: 'button', class: 'rounded-md border border-slate-200 px-3 py-2.5 text-left transition hover:border-blue-300 hover:bg-blue-50/50' }, [
-        el('span', { class: 'block text-sm font-semibold text-slate-900', text: def.label + (def.origin === 'custom' ? ' (custom)' : '') }),
-        el('span', { class: 'mt-0.5 block text-xs text-slate-500', text: def.description })
-      ]);
-      option.addEventListener('click', function () {
-        var block = newBlock(type);
-        blocks.splice(pickerTarget, 0, block);
-        closePicker(true);
-        render(block._id, 'toggle');
-      });
-      grid.appendChild(option);
-    });
-    picker.appendChild(grid);
+    if (!blocks.length && presets.some(function (p) { return p.kind === 'page'; }) && pickerTab === 'blocks' && returnTo === addButton) {
+      pickerTab = 'pages';
+    }
+    renderPicker();
     picker.classList.remove('hidden');
-    var first = grid.querySelector('button');
+    var first = picker.querySelector('[aria-selected="true"]');
     if (first) first.focus();
   }
 
@@ -503,6 +640,85 @@
     mediaDialog._search.focus();
   }
 
+  /* Save selected blocks as a reusable section ---------------------------------- */
+
+  function postPresets(fields) {
+    var body = new FormData();
+    Object.keys(fields).forEach(function (key) { body.append(key, fields[key]); });
+    var tokenMeta = document.querySelector('meta[name="csrf-token"]');
+    var token = tokenMeta ? tokenMeta.getAttribute('content') : '';
+    body.append('_csrf', token);
+    return fetch(data.presets_url, {
+      method: 'POST',
+      body: body,
+      credentials: 'same-origin',
+      headers: { 'X-CSRF-Token': token, 'Accept': 'application/json' }
+    }).then(function (response) { return response.json(); });
+  }
+
+  var saveName = el('input', { type: 'text', class: CLS.input + ' sm:w-56', placeholder: 'Section name', 'aria-label': 'Section name' });
+  var saveDescription = el('input', { type: 'text', class: CLS.input + ' sm:w-72', placeholder: 'Short description (optional)', 'aria-label': 'Section description' });
+  var saveButton = el('button', { type: 'button', class: CLS.btnPrimary, text: 'Save as section' });
+  var clearSelection = el('button', { type: 'button', class: CLS.btn, text: 'Clear selection' });
+  var saveCount = el('span', { class: 'text-sm font-medium text-slate-700' });
+  var saveBar = el('div', { class: 'hidden flex flex-wrap items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2', role: 'region', 'aria-label': 'Save selected blocks as a section' }, [saveCount, saveName, saveDescription, saveButton, clearSelection]);
+
+  function syncSaveBar() {
+    var count = blocks.filter(function (b) { return selected[b._id]; }).length;
+    saveBar.classList.toggle('hidden', count === 0);
+    saveCount.textContent = count + ' selected';
+  }
+
+  clearSelection.addEventListener('click', function () {
+    selected = {};
+    render(null);
+    syncSaveBar();
+  });
+
+  saveButton.addEventListener('click', function () {
+    var chosen = blocks.filter(function (b) { return selected[b._id]; });
+    if (!saveName.value.trim()) {
+      saveName.focus();
+      if (window.adminToast) window.adminToast('Give the section a name.', 'error');
+      return;
+    }
+    saveButton.disabled = true;
+    postPresets({
+      preset_action: 'save',
+      name: saveName.value,
+      description: saveDescription.value,
+      lang: data.lang || '',
+      blocks_json: JSON.stringify(chosen)
+    }).then(function (res) {
+      saveButton.disabled = false;
+      if (!res.ok) {
+        if (window.adminToast) window.adminToast(res.message || 'Could not save the section.', 'error');
+        return;
+      }
+      if (res.preset) presets.push(res.preset);
+      selected = {};
+      saveName.value = '';
+      saveDescription.value = '';
+      render(null);
+      syncSaveBar();
+      if (window.adminToast) window.adminToast('Section saved. Find it under Add block → Ready-made sections.', 'success');
+    }).catch(function () {
+      saveButton.disabled = false;
+      if (window.adminToast) window.adminToast('Could not save the section.', 'error');
+    });
+  });
+
+  /* Template description (Basics tab) ------------------------------------------ */
+
+  var templateSelect = document.querySelector('[data-template-select]');
+  var templateDescription = document.querySelector('[data-template-description]');
+  if (templateSelect && templateDescription) {
+    templateSelect.addEventListener('change', function () {
+      var option = templateSelect.options[templateSelect.selectedIndex];
+      templateDescription.textContent = option ? option.getAttribute('data-description') || '' : '';
+    });
+  }
+
   /* Mount -------------------------------------------------------------------- */
 
   var addButton = el('button', { type: 'button', class: CLS.btnPrimary, html: svg('plus') + '<span>Add block</span>' });
@@ -517,10 +733,11 @@
 
   root.innerHTML = '';
   root.appendChild(el('div', { class: 'flex flex-wrap items-center justify-between gap-2' }, [
-    el('p', { class: 'text-xs text-slate-500', text: 'Sections of this page, top to bottom. An opening Hero becomes the page title. Changes are saved with the page.' }),
+    el('p', { class: 'text-xs text-slate-500', text: 'Sections of this page, top to bottom. An opening Hero becomes the page title. Tick blocks to save them as a reusable section. Changes are saved with the page.' }),
     el('div', { class: 'flex gap-2' }, [expandAll, addButton])
   ]));
   root.appendChild(undoBar);
+  root.appendChild(saveBar);
   root.appendChild(picker);
   root.appendChild(empty);
   root.appendChild(list);
