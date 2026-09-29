@@ -1,7 +1,7 @@
 # Changelog
 
 ## 2026-09-29 — Choose how each entry opens
-- **Every entry can choose its own title layout** (Default, Centered, Split, Cover, Minimal) in its editor, for pages, posts, projects, forms, and any other content type: the new card **How it opens** in the right column. "Follow settings" (the default) uses Theme settings > Hero Layouts and says what that currently is. Kept in the front matter as `hero_layout`
+- **Every entry can choose its own title layout** (Default, Centered, Split, Cover, Minimal) in its editor, for pages, posts, projects, forms, and any other content type: the new card **Hero Layout** in the right column. "Follow settings" (the default) uses Theme settings > Hero Layouts and says what that currently is. Kept in the front matter as `hero_layout`
 - **Transparent over an opening hero** can now be set **per content type** (Theme settings > Transparent Header: Site default, On, Off for pages, posts, projects, forms, and other types) and **per entry** (`header_transparent`, same card). Site default follows Header > Transparent over an opening hero. The header now also sits over the **title area** of a page, not only over a Hero block: room is left above the title, and over a Cover (or a Default with an image) the header text turns light. A site that already had the Header setting on will see it over title areas too; set the content type to Off to keep them solid
 - The decision is made in one place, `components/hero-layout.twig`, used by the layout and the title area. Templates that show the title area set `title_header`. Theme version 1.11.0
 ## 2026-09-29 — Title layouts like the Hero block
