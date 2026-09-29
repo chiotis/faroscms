@@ -104,6 +104,18 @@ final class Theme
         return $this->settingsSchema = $sections;
     }
 
+    /**
+     * The choices of a select in the theme's settings (value => label), or [] when the theme has no such field.
+     * The content editor uses this to offer the same choices per entry.
+     *
+     * @return array<string, string>
+     */
+    public function settingOptions(string $section, string $field): array
+    {
+        $options = $this->settingsSchema()[$section]['fields'][$field]['options'] ?? [];
+        return is_array($options) ? $options : [];
+    }
+
     /** @return array<string, array<string, mixed>> */
     public function defaultSettings(): array
     {

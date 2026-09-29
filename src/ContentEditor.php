@@ -210,6 +210,20 @@ final class ContentEditor
             }
         }
 
+        // How the entry opens, when it should differ from its content type: a title layout, and whether the
+        // header sits over it. Empty means "follow the settings"; a value the theme does not offer is left as it is.
+        foreach (['hero_layout' => $this->theme->settingOptions('hero_layouts', 'default'), 'header_transparent' => array_diff_key($this->theme->settingOptions('transparent_header', 'default'), ['site' => true])] as $key => $choices) {
+            if (!array_key_exists($key, $post)) {
+                continue;
+            }
+            $choice = trim((string)$post[$key]);
+            if ($choice === '') {
+                unset($data[$key]);
+            } elseif (isset($choices[$choice])) {
+                $data[$key] = $choice;
+            }
+        }
+
         if ($translationId === '') {
             $translationId = $this->translationIdForSlug($type, $slug);
         }
@@ -726,6 +740,8 @@ final class ContentEditor
             'main_image',
             'custom_fields',
             'template',
+            'hero_layout',
+            'header_transparent',
             'blocks',
             'translation_id',
             'fields',

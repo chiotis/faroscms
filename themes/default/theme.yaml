@@ -8,7 +8,7 @@
 #   - retire a field by marking it `hidden: true` (it keeps its stored value), not by deleting it.
 name: default
 label: FarosCMS Default
-version: 1.8.0
+version: 1.11.0
 description: All-purpose FarosCMS theme.
 
 menu_locations:
@@ -227,7 +227,7 @@ settings:
 
   hero_layouts:
     label: Hero Layouts
-    description: Default hero presentation per content type.
+    description: How the title area looks per content type, with the layouts of the Hero block. Centered puts the image below the text, Split beside it, Cover behind it, and Minimal shows only a large heading. Cover falls back to Default when a page has no image.
     columns: 5
     fields:
       default:
@@ -237,6 +237,9 @@ settings:
         options: &hero_layouts
           default: Default
           centered: Centered
+          split: Split
+          cover: Cover
+          minimal: Minimal
       pages:
         type: select
         label: Pages
@@ -258,33 +261,39 @@ settings:
         default: default
         options: *hero_layouts
 
-  home:
-    label: Home Sections
-    description: Latest content on the homepage.
-    columns: 2
+  transparent_header:
+    label: Transparent Header
+    description: Whether the header sits over the opening hero (a Hero block, or the title area) and turns solid on scroll. Site default follows Header > Transparent over an opening hero; a single page can override this in its editor.
+    columns: 5
     fields:
-      show_latest_projects:
-        type: toggle
-        label: Show latest projects
-        help: Display recent project cards on the homepage.
-        default: true
-      projects_limit:
-        type: number
-        label: Projects limit
-        default: 3
-        min: 1
-        max: 12
-      show_latest_posts:
-        type: toggle
-        label: Show latest posts
-        help: Display recent post cards on the homepage.
-        default: true
-      posts_limit:
-        type: number
-        label: Posts limit
-        default: 3
-        min: 1
-        max: 12
+      default:
+        type: select
+        label: Other types
+        default: site
+        options: &transparent_choices
+          site: Site default
+          'on': 'On'
+          'off': 'Off'
+      pages:
+        type: select
+        label: Pages
+        default: site
+        options: *transparent_choices
+      posts:
+        type: select
+        label: Posts
+        default: site
+        options: *transparent_choices
+      projects:
+        type: select
+        label: Projects
+        default: site
+        options: *transparent_choices
+      forms:
+        type: select
+        label: Forms
+        default: site
+        options: *transparent_choices
 
   footer:
     label: Footer

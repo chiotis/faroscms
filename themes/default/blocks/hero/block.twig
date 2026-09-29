@@ -2,8 +2,9 @@
 {% set variant = block.variant %}
 {% set has_image = block.image and variant != 'minimal' %}
 {# The opening hero image is the largest thing on screen: load it first, never lazily. #}
-{% set media_sizes = variant == 'split' ? '(min-width: 960px) 46vw, 92vw' : (variant == 'cover' ? '100vw' : '(min-width: 1280px) 1216px, 92vw') %}
-{% if variant == 'cover' and has_image %}
+{% set is_cover = variant == 'cover' or variant == 'steps' %}
+{% set media_sizes = variant == 'split' ? '(min-width: 960px) 46vw, 92vw' : (is_cover ? '100vw' : '(min-width: 1280px) 1216px, 92vw') %}
+{% if is_cover and has_image %}
   <div class="hero-cover-media">
     {{ image(block.image, {alt: block.image_alt, sizes: media_sizes, priority: block_first}) }}
   </div>
@@ -23,7 +24,25 @@
       </ul>
     {% endif %}
   </div>
-  {% if has_image and variant != 'cover' %}
+  {% set steps = block.items|default([])|filter(step => step.title or step.text) %}
+  {% if variant == 'steps' and steps is not empty %}
+    <ol class="hero-steps" role="list">
+      {% for step in steps %}
+        {% set href = link_url(step.link|default(''), lang_prefix|default('')) %}
+        <li class="hero-step{% if href %} has-link{% endif %}">
+          <span class="hero-step-number" aria-hidden="true">{{ '%02d'|format(loop.index) }}</span>
+          {% if step.title %}
+            <{{ item_heading_tag }} class="hero-step-title">{% if href %}<a href="{{ href }}">{{ step.title }}</a>{% else %}{{ step.title }}{% endif %}</{{ item_heading_tag }}>
+          {% elseif href %}
+            <a class="hero-step-title" href="{{ href }}">{{ step.link_label ?: t('blocks.learn_more', 'Learn more') }}</a>
+          {% endif %}
+          {% if step.text %}<p class="hero-step-text">{{ step.text|nl2br }}</p>{% endif %}
+          {% if href %}<span class="hero-step-more" aria-hidden="true">{{ step.link_label ?: t('blocks.learn_more', 'Learn more') }}{{ icon('arrow-right', 'btn-icon') }}</span>{% endif %}
+        </li>
+      {% endfor %}
+    </ol>
+  {% endif %}
+  {% if has_image and not is_cover %}
     <div class="hero-media media-frame">
       {{ image(block.image, {alt: block.image_alt, sizes: media_sizes, priority: block_first}) }}
     </div>

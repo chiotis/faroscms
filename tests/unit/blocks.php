@@ -69,4 +69,8 @@ $ba = array_values(array_filter($once, fn($b) => $b['type'] === 'before-after'))
 check('before and after keeps both images', [$ba[0]['before'], $ba[0]['after']], ['/uploads/media/faros-demo-rocks.jpg', '/uploads/media/faros-demo-lake.jpg']);
 check('before and after variants', array_keys($registry->get('before-after')['variants']), ['slider', 'side']);
 check('before and after shape falls back', FieldSchema::resolve($registry->get('before-after')['fields'], ['image_ratio' => 'huge'])['image_ratio'], 'landscape');
+check('hero has a steps layout', array_keys($registry->get('hero')['variants']), ['split', 'centered', 'cover', 'steps', 'minimal']);
+$heroSteps = array_values(array_filter($once, fn($b) => $b['type'] === 'hero' && ($b['variant'] ?? '') === 'steps'))[0];
+check('hero steps keep their steps', [count($heroSteps['items']), $heroSteps['items'][0]['title']], [4, 'Ανάλυση']);
+check('hero has at most four steps', $registry->get('hero')['fields']['items']['max'], 4);
 echo $fail === 0 ? "\nALL PASSED\n" : "\n$fail FAILED\n";

@@ -394,8 +394,9 @@ hr {
 .space-spacious { --section-space: clamp(5rem, 3rem + 8vw, 10rem); }
 .space-none { --section-space: 0px; }
 
-/* Two neighbouring sections on the same background share one gap. */
-.block.tone-default + .block.tone-default:not(.block-hero),
+/* Two neighbouring sections on the same background share one gap. A full-width cover image is its own background,
+   so the section after it keeps its own top space. */
+.block.tone-default:not(.block--cover, .block-hero.block--steps) + .block.tone-default:not(.block-hero),
 .block.tone-muted + .block.tone-muted {
   padding-top: 0;
 }
@@ -1427,8 +1428,29 @@ body.has-transparent-header:not(.header-solid) .site-header.is-on-dark[data-stic
   padding-top: calc(var(--header-height, 4.5rem) + clamp(2.5rem, 1rem + 5vw, 6rem));
 }
 
-.has-transparent-header .main-shell > .block-hero.block--cover:first-child {
+.has-transparent-header .main-shell > .block-hero:is(.block--cover, .block--steps):first-child {
   padding-top: calc(var(--header-height, 4.5rem) + clamp(5rem, 10vw, 9rem));
+}
+
+/* The same when the page opens with its title area: room for the header on top of each layout's own space. */
+.has-transparent-header .main-shell > .single-hero:first-child .single-hero-inner {
+  padding-top: calc(var(--header-height, 4.5rem) + clamp(4.5rem, 12vw, 9rem));
+}
+
+.has-transparent-header .main-shell > .single-hero-centered:first-child .single-hero-inner {
+  padding-top: calc(var(--header-height, 4.5rem) + clamp(3rem, 8vw, 5.5rem));
+}
+
+.has-transparent-header .main-shell > .single-hero-split:first-child .single-hero-inner {
+  padding-top: calc(var(--header-height, 4.5rem) + clamp(3rem, 8vw, 6rem));
+}
+
+.has-transparent-header .main-shell > .single-hero-minimal:first-child .single-hero-inner {
+  padding-top: calc(var(--header-height, 4.5rem) + clamp(3.5rem, 9vw, 7rem));
+}
+
+.has-transparent-header .main-shell > .single-hero-cover:first-child .single-hero-inner {
+  padding-top: calc(var(--header-height, 4.5rem) + clamp(6rem, 12vw, 10rem));
 }
 
 /* Bottom bar on phones: menu, call, email, and the header CTA within thumb reach. */
@@ -1599,6 +1621,142 @@ body.has-transparent-header:not(.header-solid) .site-header.is-on-dark[data-stic
 
 .single-hero-centered + .single-body {
   padding-top: 0;
+}
+
+/* Title layouts shared with the Hero block: split, cover and minimal. */
+.single-hero-split,
+.single-hero-minimal {
+  isolation: isolate;
+  border-bottom: 0;
+  background: var(--hero-bg, var(--color-bg));
+  color: var(--color-text);
+}
+
+/* The soft glow in the palette colour behind the text, as in the Hero block. */
+.single-hero-split::before,
+.single-hero-minimal::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: -30%;
+  right: -15%;
+  width: min(70vw, 56rem);
+  aspect-ratio: 1;
+  background: radial-gradient(closest-side, var(--accent-soft), transparent);
+  pointer-events: none;
+}
+
+.single-hero-split .single-hero-inner {
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(2rem, 1rem + 4vw, 5rem);
+  padding: clamp(3rem, 8vw, 6rem) 0 clamp(2.5rem, 6vw, 4.5rem);
+}
+
+.single-hero-split.no-media .single-hero-inner {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.single-hero-content {
+  display: grid;
+  gap: var(--space-xs);
+}
+
+.single-hero-split .single-hero-media {
+  margin-top: 0;
+  box-shadow: var(--shadow-m);
+}
+
+.single-hero-split .single-hero-media img {
+  aspect-ratio: 4 / 5;
+  max-height: 40rem;
+}
+
+.single-hero-minimal .single-hero-inner {
+  justify-items: center;
+  gap: var(--space-s);
+  padding: clamp(3.5rem, 9vw, 7rem) 0 clamp(2.5rem, 6vw, 4.5rem);
+  text-align: center;
+}
+
+.single-hero-minimal .single-hero-inner h1 {
+  max-width: 15ch;
+  font-size: clamp(2.8rem, 1.5rem + 5.8vw, 6.25rem);
+  line-height: 1.03;
+}
+
+.single-hero-minimal .single-hero-subtitle {
+  margin: 0 auto;
+  max-width: 56ch;
+}
+
+.single-hero-minimal .single-hero-meta {
+  justify-content: center;
+}
+
+.single-hero-minimal::before {
+  top: -45%;
+  right: auto;
+  left: 50%;
+  translate: -50% 0;
+}
+
+/* Cover: light text over a full-width image, kept readable by two shades. */
+.single-hero-cover {
+  display: grid;
+  align-items: end;
+  min-height: min(70vh, 40rem);
+  border-bottom: 0;
+  background: #0b1220;
+  color: #ffffff;
+  color-scheme: dark;
+  --color-text: #ffffff;
+  --color-muted: rgb(255 255 255 / 0.86);
+  --color-focus: #ffffff;
+}
+
+.single-hero-cover .single-hero-inner {
+  padding: clamp(6rem, 12vw, 10rem) 0 clamp(2.5rem, 6vw, 4.5rem);
+}
+
+.single-hero-cover .single-hero-subtitle,
+.single-hero-cover .single-hero-meta {
+  color: rgb(255 255 255 / 0.9);
+}
+
+.single-hero-cover-media {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.single-hero-cover-media picture,
+.single-hero-cover-media img {
+  width: 100%;
+  height: 100%;
+}
+
+.single-hero-cover-media img {
+  object-fit: cover;
+}
+
+.single-hero-cover-media::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgb(11 18 32 / 0.55) 0%, rgb(11 18 32 / 0.15) 65%, transparent 100%),
+    linear-gradient(180deg, rgb(11 18 32 / 0.25) 0%, rgb(11 18 32 / 0.35) 40%, rgb(11 18 32 / 0.88) 100%);
+}
+
+@media (max-width: 900px) {
+  .single-hero-split .single-hero-inner {
+    grid-template-columns: 1fr;
+  }
+
+  .single-hero-split .single-hero-media img {
+    aspect-ratio: 4 / 3;
+  }
 }
 
 .single-body {
