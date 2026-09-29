@@ -9,6 +9,7 @@ Direction: one all-purpose theme (`themes/default`) that grows with blocks and v
 - Phase 5 (done): third block family (latest content in 8 layouts, video with large viewer, slider, pricing, tabs, banner); five more ready-made sections
 - Editor role (done): see `docs/security.md`
 - Permissions per role (done): Admin > Roles, super admin only; see `docs/security.md`
+- Addresses and redirects (done): addresses made from the title, address changes leave 301 redirects, Admin > Redirects with a not-found list
 - Next candidates: comparison table and before/after blocks, draft preview links, revision history, brand-new custom roles
 - Style references from the owner can refine the design system at any point (tokens and block CSS)
 - Phase 6 (done): content types with declared fields, an admin screen for them, archive layouts, filters, and pagination
@@ -94,7 +95,6 @@ Direction: one all-purpose theme (`themes/default`) that grows with blocks and v
 ## Later Development
 - Draft preview links (no publish required)
 - Search improvements (weighted + highlights)
-- Slug changes with redirect map
 - Brand-new custom roles (the four roles are fixed; their permissions can be changed at Admin > Roles)
 - Runtime page/data cache implementation (filesystem backend + targeted invalidation)
 - Theme switcher in settings + preview mode

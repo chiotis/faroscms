@@ -18,6 +18,12 @@
   {% if deleted %}
     <template data-flash data-type="success">Deleted.</template>
   {% endif %}
+  {% if address_changed %}
+    <template data-flash data-type="success">Address changed. The old address now leads here.</template>
+  {% endif %}
+  {% if address_taken %}
+    <template data-flash data-type="warning">The address "{{ address_taken }}" is already used or reserved, so "{{ slug }}" was used instead.</template>
+  {% endif %}
   {% if notice == 'html' %}
     <template data-flash data-type="warning">Saved. Raw HTML is only available to administrators, so the HTML you typed is shown as plain text. Use Markdown for formatting.</template>
   {% endif %}
@@ -93,10 +99,46 @@
               <span class="mb-1 block text-sm font-medium text-slate-700">Title</span>
               <input type="text" name="title" value="{{ meta_form.title }}" placeholder="Title" class="{{ input_class }}">
             </label>
-            <label class="block">
-              <span class="mb-1 block text-sm font-medium text-slate-700">Slug</span>
-              <input type="text" name="slug" value="{{ slug }}" class="{{ input_class }}">
-            </label>
+            <div class="block sm:col-span-2" data-address>
+              <span class="mb-1 block text-sm font-medium text-slate-700" id="addressLabel">Web address</span>
+              {% if not address.exists %}
+                {# New content: the address is made from the title. A new translation keeps the address it inherits. #}
+                <input type="hidden" name="slug" value="{{ slug }}" data-address-value>
+                <p class="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600" aria-labelledby="addressLabel">
+                  <span class="text-slate-400">{{ address.prefix }}</span><span class="font-medium text-slate-900" data-address-preview data-fixed="{{ slug ? '1' : '0' }}">{{ slug ?: '…' }}</span>
+                </p>
+                <p class="mt-1 text-xs text-slate-400">{% if slug %}Same address as the other languages.{% else %}Made from the title when you save, with Greek letters converted to Latin. You can change it afterwards.{% endif %}</p>
+              {% elseif address.locked %}
+                <input type="hidden" name="slug" value="{{ slug }}">
+                <p class="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600" aria-labelledby="addressLabel"><span class="text-slate-400">{{ address.prefix }}</span><span class="font-medium text-slate-900">{{ slug }}</span></p>
+                <p class="mt-1 text-xs text-slate-400">{{ is_form ? 'A form keeps its address because stored submissions and pages that embed it refer to it.' : 'The home page keeps its address. Choose another home page in Settings if you want a different one.' }}</p>
+              {% else %}
+                <div class="flex items-center gap-2">
+                  <p class="min-w-0 flex-1 truncate rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600" aria-labelledby="addressLabel"><span class="text-slate-400">{{ address.prefix }}</span><span class="font-medium text-slate-900" data-address-current>{{ slug }}</span></p>
+                  <button type="button" class="{{ secondary_button_class }}" data-address-edit aria-expanded="false" aria-controls="addressPanel">Change</button>
+                </div>
+                <div id="addressPanel" class="mt-2 hidden rounded-md border border-amber-200 bg-amber-50 p-3" data-address-panel>
+                  <label class="block">
+                    <span class="mb-1 block text-sm font-medium text-slate-700">New address</span>
+                    <input type="text" name="slug" value="{{ slug }}" class="{{ input_class }}" data-address-value data-original="{{ slug }}" autocomplete="off" spellcheck="false">
+                  </label>
+                  <p class="mt-1 text-xs text-slate-600">Letters, numbers, and dashes. Greek letters are converted to Latin. The old address keeps working: visitors and search engines are sent to the new one automatically (permanent redirect), and menu links are updated.</p>
+                  {% if address.siblings %}
+                    <label class="mt-2 flex items-start gap-2 text-sm text-slate-700">
+                      <input type="checkbox" name="rename_translations" value="1" checked class="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600">
+                      <span>Change the address of the other languages too ({{ address.siblings|join(', ')|upper }}). Recommended: translations, menus, and language links expect the same address.</span>
+                    </label>
+                  {% endif %}
+                </div>
+                {% if address.old_addresses %}
+                  <p class="mt-2 text-xs text-slate-500">
+                    Old addresses that lead here:
+                    {% for r in address.old_addresses %}<code class="mx-0.5 rounded bg-slate-100 px-1 py-0.5">/{{ r.source }}</code>{% if r.hits > 0 %}<span class="text-slate-400">({{ r.hits }} visits)</span>{% endif %}{% endfor %}
+                    <a class="ml-1 font-medium text-blue-600 hover:text-blue-700" href="{{ url('admin/redirects') }}">Manage redirects</a>
+                  </p>
+                {% endif %}
+              {% endif %}
+            </div>
             <label class="block">
               <span class="mb-1 block text-sm font-medium text-slate-700">Language</span>
               <select name="lang" class="{{ select_class }}">
@@ -927,4 +969,63 @@
   {% if block_editor_json %}
     <script src="{{ url('assets/js/admin-blocks.js') }}"></script>
   {% endif %}
+
+  <script>
+    (function () {
+      var box = document.querySelector('[data-address]');
+      if (!box) return;
+      // Same rules as the server (src/Slug.php), used only to show a preview: the server decides the real address.
+      var greek = {α:'a',β:'v',γ:'g',δ:'d',ε:'e',ζ:'z',η:'i',θ:'th',ι:'i',κ:'k',λ:'l',μ:'m',ν:'n',ξ:'x',ο:'o',π:'p',ρ:'r',σ:'s',τ:'t',υ:'y',φ:'f',χ:'ch',ψ:'ps',ω:'o',ϊ:'i',ϋ:'y'};
+      var stress = {'ά':'α','έ':'ε','ή':'η','ί':'ι','ό':'ο','ύ':'υ','ώ':'ω','ς':'σ','ΐ':'ϊ','ΰ':'ϋ'};
+      var latin = {'à':'a','á':'a','â':'a','ã':'a','ä':'a','å':'a','æ':'ae','ç':'c','è':'e','é':'e','ê':'e','ë':'e','ì':'i','í':'i','î':'i','ï':'i','ñ':'n','ò':'o','ó':'o','ô':'o','õ':'o','ö':'o','ø':'o','œ':'oe','ù':'u','ú':'u','û':'u','ü':'u','ý':'y','ÿ':'y','ß':'ss','š':'s','ž':'z','č':'c','ł':'l','ğ':'g','ş':'s','ı':'i'};
+      var voicelessAfter = ['κ','ξ','π','σ','τ','φ','χ','ψ'];
+      function slugFromText(text) {
+        text = String(text).trim().toLowerCase();
+        text = text.replace(/[άέήίόύώςΐΰ]/g, function (m) { return stress[m]; }).replace(/[À-ſ]/g, function (m) { return latin[m] || m; });
+        var chars = Array.from(text), out = '';
+        for (var i = 0; i < chars.length; i++) {
+          var c = chars[i], next = chars[i + 1] || '', after = chars[i + 2] || '', pair = c + next;
+          var start = i === 0 || !greek[chars[i - 1]];
+          var voiceless = after === '' || voicelessAfter.indexOf(after) !== -1 || !greek[after];
+          var d = null;
+          switch (pair) {
+            case 'ου': d = 'ou'; break; case 'ει': d = 'ei'; break; case 'οι': d = 'oi'; break; case 'αι': d = 'ai'; break; case 'υι': d = 'yi'; break;
+            case 'αυ': d = voiceless ? 'af' : 'av'; break; case 'ευ': d = voiceless ? 'ef' : 'ev'; break; case 'ηυ': d = voiceless ? 'if' : 'iv'; break;
+            case 'μπ': d = start ? 'b' : 'mp'; break; case 'ντ': d = start ? 'd' : 'nt'; break; case 'γκ': d = start ? 'g' : 'gk'; break;
+            case 'γγ': d = 'ng'; break; case 'γξ': d = 'nx'; break; case 'γχ': d = 'nch'; break;
+          }
+          if (d !== null) { out += d; i++; continue; }
+          out += greek[c] !== undefined ? greek[c] : c;
+        }
+        out = out.replace(/[^a-z0-9\-_]+/g, '-').replace(/-{2,}/g, '-').replace(/^[-_]+|[-_]+$/g, '');
+        if (out.length > 80) {
+          var cut = out.slice(0, 80), dash = cut.lastIndexOf('-');
+          out = (dash > 20 ? cut.slice(0, dash) : cut).replace(/[-_]+$/, '');
+        }
+        return out;
+      }
+      window.farosSlug = slugFromText;
+
+      var preview = box.querySelector('[data-address-preview]');
+      var title = document.querySelector('input[name="title"]');
+      if (preview && title && preview.getAttribute('data-fixed') === '0') {
+        var show = function () { preview.textContent = slugFromText(title.value) || '…'; };
+        title.addEventListener('input', show);
+      }
+
+      var toggle = box.querySelector('[data-address-edit]');
+      var panel = box.querySelector('[data-address-panel]');
+      if (toggle && panel) {
+        var field = panel.querySelector('[data-address-value]');
+        var current = box.querySelector('[data-address-current]');
+        toggle.addEventListener('click', function () {
+          var open = panel.classList.toggle('hidden') === false;
+          toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+          toggle.textContent = open ? 'Cancel' : 'Change';
+          if (open) { field.focus(); field.select(); } else { field.value = field.getAttribute('data-original'); current.textContent = field.value; }
+        });
+        field.addEventListener('input', function () { current.textContent = field.value.trim() === '' ? field.getAttribute('data-original') : slugFromText(field.value); });
+      }
+    })();
+  </script>
 {% endblock %}

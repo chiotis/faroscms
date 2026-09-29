@@ -29,6 +29,7 @@ final class App
     private SystemMetaRepository $systemMeta;
     private UserRepository $users;
     private PermissionService $permissions;
+    private RedirectRepository $redirects;
     private ActivityLogRepository $activityLogs;
     private EmailLogRepository $emailLogs;
     private NotificationRepository $notifications;
@@ -72,6 +73,7 @@ final class App
         $this->users->importYamlUsersIfEmpty();
         $this->users->ensureSuperadminExists();
         $this->permissions = new PermissionService($this->systemMeta->getJson('role_permissions'));
+        $this->redirects = new RedirectRepository($this->systemDatabase);
         $this->activityLogs = new ActivityLogRepository($this->systemDatabase);
         $this->emailLogs = new EmailLogRepository($this->systemDatabase);
         $this->notifications = new NotificationRepository($this->systemDatabase);
@@ -992,6 +994,11 @@ final class App
             return;
         }
 
+        if ($action === 'redirects') {
+            $this->handleRedirects();
+            return;
+        }
+
         if ($action === 'users') {
             $this->handleUsersList();
             return;
@@ -1517,6 +1524,263 @@ final class App
             'types' => $this->content->getTypes(),
             'user' => $this->auth->user(),
             'admin_section' => 'roles',
+            'current_type' => 'pages',
+        ]);
+    }
+
+    /** @return array<string, string> public path (no leading slash) => title, for published content in every language */
+    private function contentPathMap(): array
+    {
+        $homeSlug = (string)(($this->settings['home_page'] ?? '') !== '' ? $this->settings['home_page'] : 'index');
+        $defaultLang = $this->defaultLanguage();
+        $map = [];
+        foreach ($this->content->getTypes() as $type) {
+            if ($type === 'forms') {
+                continue;
+            }
+            foreach ($this->content->getItems($type, null, false, false) as $item) {
+                $path = $this->buildContentPath($type, $item->slug, $item->lang, $homeSlug, $defaultLang);
+                $map[$path] = (string)($item->meta['title'] ?? $item->slug);
+            }
+        }
+        ksort($map);
+        return $map;
+    }
+
+    /** Whether a visitor asking for this path (normalised, no leading slash) gets a real page. */
+    private function publicPathExists(string $path): bool
+    {
+        if ($path === '' || in_array($path, ['sitemap.xml', 'robots.txt'], true)) {
+            return true;
+        }
+        [$lang, $segments] = $this->extractLang($path);
+        if ($segments === []) {
+            return true;
+        }
+        $first = $segments[0];
+        if (in_array($first, ['search', 'pages'], true)) {
+            return true;
+        }
+        if (in_array($first, ['tag', 'tags', 'category', 'categories'], true)) {
+            return isset($segments[1]) && $this->findTaxonomyTermBySlug(in_array($first, ['category', 'categories'], true) ? 'categories' : 'tags', $segments[1]) !== null;
+        }
+        if (in_array($first, $this->content->getTypes(), true)) {
+            if (count($segments) === 1) {
+                return true;
+            }
+            return count($segments) === 2 && $this->content->find($first, $segments[1], $lang, false, false) !== null;
+        }
+        return count($segments) === 1 && $this->content->find('pages', $first, $lang, false, false) !== null;
+    }
+
+    /** The existing address most like one that was not found, or '' when nothing is close. */
+    private function suggestAddress(string $missing, array $known): string
+    {
+        $tail = basename($missing);
+        $best = '';
+        $bestScore = 0.0;
+        foreach ($known as $path => $title) {
+            $candidate = basename((string)$path);
+            similar_text($tail, $candidate, $percent);
+            if ($percent > $bestScore) {
+                $bestScore = $percent;
+                $best = (string)$path;
+            }
+        }
+        return $bestScore >= 65 ? '/' . $best : '';
+    }
+
+    /** Turns a pasted address of this very site into a path, so it survives a change of domain. */
+    private function localizeTarget(string $target): string
+    {
+        $target = trim($target);
+        if (!RedirectRepository::isExternal($target)) {
+            return $target;
+        }
+        $host = strtolower((string)(parse_url($target, PHP_URL_HOST) ?? ''));
+        $own = [strtolower((string)(parse_url($this->getBaseUrl(), PHP_URL_HOST) ?? '')), strtolower((string)explode(':', (string)($_SERVER['HTTP_HOST'] ?? ''))[0])];
+        if ($host === '' || !in_array($host, array_filter($own), true)) {
+            return $target;
+        }
+        $path = (string)(parse_url($target, PHP_URL_PATH) ?? '/');
+        $query = parse_url($target, PHP_URL_QUERY);
+        $fragment = parse_url($target, PHP_URL_FRAGMENT);
+        return ($path !== '' ? $path : '/') . ($query ? '?' . $query : '') . ($fragment ? '#' . $fragment : '');
+    }
+
+    private function handleRedirects(): void
+    {
+        $repo = $this->redirects;
+        $by = $this->currentUsername();
+        $tab = (string)($_GET['tab'] ?? '') === 'missing' ? 'missing' : 'redirects';
+        $blank = ['id' => 0, 'source' => '', 'target' => '', 'code' => 301, 'note' => '', 'enabled' => true];
+        $form = $blank;
+        $error = '';
+        $importReport = null;
+
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $do = (string)($_POST['do'] ?? '');
+            if (!$repo->isAvailable()) {
+                $this->redirect('/admin/redirects?error=store');
+                return;
+            }
+            if ($do === 'add' || $do === 'update') {
+                $id = $do === 'update' ? (int)($_POST['id'] ?? 0) : 0;
+                $form = [
+                    'id' => $id,
+                    'source' => trim((string)($_POST['source'] ?? '')),
+                    'target' => $this->localizeTarget((string)($_POST['target'] ?? '')),
+                    'code' => (int)($_POST['code'] ?? 301),
+                    'note' => trim((string)($_POST['note'] ?? '')),
+                    'enabled' => $do === 'add' || (string)($_POST['enabled'] ?? '') === '1',
+                ];
+                $error = (string)$repo->validate($form['source'], $form['target'], $form['code'], $id ?: null);
+                $normalized = RedirectRepository::normalizePath($form['source']);
+                if ($error === '') {
+                    $existing = $repo->findBySource($normalized, false);
+                    if ($existing !== null && (int)$existing['id'] !== $id) {
+                        $error = 'duplicate';
+                    } elseif ($this->publicPathExists($normalized)) {
+                        $error = 'source_has_page';
+                    }
+                }
+                if ($error === '') {
+                    if ($do === 'add') {
+                        $repo->create($normalized, $form['target'], $form['code'], 'manual', $form['note'], $by);
+                        $this->logActivity('redirects.create', 'info', 'redirect', $normalized, 'Redirect added.', ['target' => $form['target'], 'code' => $form['code']]);
+                        $this->redirect('/admin/redirects?done=added');
+                    } else {
+                        $before = $repo->find($id);
+                        if ($before === null) {
+                            $this->redirect('/admin/redirects');
+                            return;
+                        }
+                        $repo->update($id, $normalized, $form['target'], $form['code'], $form['enabled'], $form['note']);
+                        $this->logActivity('redirects.update', 'info', 'redirect', $normalized, 'Redirect changed.', ['from_target' => (string)$before['target'], 'target' => $form['target'], 'code' => $form['code'], 'enabled' => $form['enabled']]);
+                        $this->redirect('/admin/redirects?done=updated');
+                    }
+                    return;
+                }
+            } elseif ($do === 'delete' || $do === 'bulk_delete') {
+                $ids = $do === 'delete' ? [(int)($_POST['id'] ?? 0)] : (array)($_POST['ids'] ?? []);
+                $removed = $repo->deleteMany($ids);
+                $this->logActivity('redirects.delete', 'warning', 'redirect', (string)implode(',', array_map('intval', $ids)), 'Redirects deleted.', ['count' => $removed]);
+                $this->redirect('/admin/redirects?done=deleted&n=' . $removed);
+                return;
+            } elseif ($do === 'toggle') {
+                $row = $repo->find((int)($_POST['id'] ?? 0));
+                if ($row !== null) {
+                    $repo->update((int)$row['id'], (string)$row['source'], (string)$row['target'], (int)$row['status_code'], !(bool)$row['enabled'], (string)($row['note'] ?? ''));
+                    $this->logActivity('redirects.update', 'info', 'redirect', (string)$row['source'], !(bool)$row['enabled'] ? 'Redirect turned on.' : 'Redirect turned off.');
+                }
+                $this->redirect('/admin/redirects?done=updated');
+                return;
+            } elseif ($do === 'import') {
+                $importReport = ['added' => 0, 'skipped' => []];
+                $lines = preg_split('/\R/', (string)($_POST['lines'] ?? '')) ?: [];
+                foreach (array_slice($lines, 0, 500) as $number => $line) {
+                    $line = trim($line);
+                    if ($line === '' || str_starts_with($line, '#')) {
+                        continue;
+                    }
+                    $parts = preg_split('/\s*(?:,|\t|->|=>|\s)\s*/', $line, 3) ?: [];
+                    $source = (string)($parts[0] ?? '');
+                    $target = $this->localizeTarget((string)($parts[1] ?? ''));
+                    $code = in_array((int)($parts[2] ?? 301), [301, 302], true) ? (int)($parts[2] ?? 301) : 301;
+                    $problem = (string)$repo->validate($source, $target, $code);
+                    $normalized = RedirectRepository::normalizePath($source);
+                    if ($problem === '' && $repo->findBySource($normalized, false) !== null) {
+                        $problem = 'duplicate';
+                    } elseif ($problem === '' && $this->publicPathExists($normalized)) {
+                        $problem = 'source_has_page';
+                    }
+                    if ($problem !== '') {
+                        $importReport['skipped'][] = ['line' => $number + 1, 'text' => mb_substr($line, 0, 80), 'reason' => $problem];
+                        continue;
+                    }
+                    $repo->create($normalized, $target, $code, 'manual', 'Imported', $by);
+                    $importReport['added']++;
+                }
+                $this->logActivity('redirects.import', 'info', 'redirect', 'import', 'Redirects imported.', ['added' => $importReport['added'], 'skipped' => count($importReport['skipped'])]);
+                $tab = 'redirects';
+            } elseif ($do === 'missing_delete') {
+                $repo->deleteNotFound((string)($_POST['path'] ?? ''));
+                $this->redirect('/admin/redirects?tab=missing&done=ignored');
+                return;
+            } elseif ($do === 'missing_clear') {
+                $repo->clearNotFound();
+                $this->logActivity('redirects.missing_clear', 'info', 'redirect', 'not_found_log', 'List of missing addresses cleared.');
+                $this->redirect('/admin/redirects?tab=missing&done=cleared');
+                return;
+            }
+        }
+
+        $known = $this->contentPathMap();
+        $filters = [
+            'q' => trim((string)($_GET['q'] ?? '')),
+            'origin' => (string)($_GET['origin'] ?? ''),
+            'state' => (string)($_GET['state'] ?? ''),
+        ];
+        $perPage = 100;
+        $page = max(1, (int)($_GET['page'] ?? 1));
+        $total = $repo->count($filters);
+        $editId = (int)($_GET['edit'] ?? 0);
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            if ($editId > 0 && ($row = $repo->find($editId)) !== null) {
+                $form = ['id' => (int)$row['id'], 'source' => '/' . $row['source'], 'target' => (string)$row['target'], 'code' => (int)$row['status_code'], 'note' => (string)($row['note'] ?? ''), 'enabled' => (bool)$row['enabled']];
+            } elseif (isset($_GET['source'])) {
+                $form['source'] = '/' . RedirectRepository::normalizePath((string)$_GET['source']);
+                $form['target'] = trim((string)($_GET['target'] ?? ''));
+            }
+        }
+
+        $rows = [];
+        foreach ($repo->all($filters, $perPage, ($page - 1) * $perPage) as $row) {
+            $target = (string)$row['target'];
+            $state = 'external';
+            if (!RedirectRepository::isExternal($target)) {
+                $next = RedirectRepository::normalizePath($target);
+                if ($this->publicPathExists($next)) {
+                    $state = 'ok';
+                } elseif ($repo->findBySource($next) !== null) {
+                    $state = $repo->resolve((string)$row['source']) === null ? 'loop' : 'chain';
+                } else {
+                    $state = 'missing';
+                }
+            }
+            $row['target_state'] = $state;
+            $row['shadowed'] = $this->publicPathExists((string)$row['source']);
+            $rows[] = $row;
+        }
+
+        $missing = [];
+        if ($tab === 'missing') {
+            foreach ($repo->notFound(trim((string)($_GET['q'] ?? '')), 200) as $row) {
+                $row['suggestion'] = $this->suggestAddress((string)$row['path'], $known);
+                $missing[] = $row;
+            }
+        }
+
+        $this->render('@admin/redirects.twig', [
+            'tab' => $tab,
+            'rows' => $rows,
+            'missing' => $missing,
+            'stats' => $repo->stats(),
+            'missing_total' => $repo->notFoundCount(),
+            'filters' => $filters,
+            'page' => $page,
+            'pages' => max(1, (int)ceil($total / $perPage)),
+            'total' => $total,
+            'form' => $form,
+            'error' => $error !== '' ? $error : (string)($_GET['error'] ?? ''),
+            'done' => (string)($_GET['done'] ?? ''),
+            'done_count' => (int)($_GET['n'] ?? 0),
+            'import_report' => $importReport,
+            'known_paths' => array_slice($known, 0, 500, true),
+            'store_ok' => $repo->isAvailable(),
+            'types' => $this->content->getTypes(),
+            'user' => $this->auth->user(),
+            'admin_section' => 'redirects',
             'current_type' => 'pages',
         ]);
     }
@@ -2481,11 +2745,23 @@ final class App
             ]), 0, 120);
         }
         $frontUrl = '';
+        $itemExists = $slug !== '' && is_file($path);
+        $homeSlug = $this->settings['home_page'] ?? 'index';
+        $defaultLang = $this->settings['languages']['default'] ?? 'en';
+        $address = [
+            'exists' => $itemExists,
+            'prefix' => '/' . str_replace('__slug__', '', $this->buildContentPath($type, '__slug__', $lang, $homeSlug, $defaultLang)),
+            // The home page and forms keep their address: the site and its stored submissions refer to it by name.
+            'locked' => $type === 'forms' || ($type === 'pages' && $slug === $homeSlug && $lang === $defaultLang),
+            'siblings' => $itemExists ? array_column($this->translationSiblings($type, $slug, $lang), 'lang') : [],
+            'old_addresses' => [],
+        ];
         if ($slug !== '') {
-            $homeSlug = $this->settings['home_page'] ?? 'index';
-            $defaultLang = $this->settings['languages']['default'] ?? 'en';
-            $path = $this->buildContentPath($type, $slug, $lang, $homeSlug, $defaultLang);
-            $frontUrl = $this->buildAbsoluteUrl($path);
+            $publicPath = $this->buildContentPath($type, $slug, $lang, $homeSlug, $defaultLang);
+            $frontUrl = $this->buildAbsoluteUrl($publicPath);
+            if ($itemExists && $this->permissions->can($this->auth->user(), 'redirects.manage')) {
+                $address['old_addresses'] = $this->redirects->pointingTo($publicPath);
+            }
         }
 
         $this->render('@admin/edit.twig', [
@@ -2508,6 +2784,9 @@ final class App
             'user' => $this->auth->user(),
             'saved' => $saved,
             'notice' => (string)($_GET['notice'] ?? ''),
+            'address' => $address,
+            'address_changed' => (string)($_GET['address'] ?? '') === 'changed',
+            'address_taken' => $this->slugify((string)($_GET['address_taken'] ?? '')),
             'deleted' => $deleted,
             'admin_section' => $type === 'forms' ? 'forms' : 'content',
             'current_type' => $type,
@@ -2656,7 +2935,8 @@ final class App
             $this->denyContentType($type);
             return;
         }
-        $slug = $this->slugify((string)($_POST['slug'] ?? ''));
+        $postedSlug = $this->slugify((string)($_POST['slug'] ?? ''));
+        $slug = $postedSlug;
         $lang = $this->slugify((string)($_POST['lang'] ?? ($this->settings['languages']['default'] ?? 'en')));
         $frontmatter = trim((string)($_POST['frontmatter'] ?? ''));
         $body = rtrim((string)($_POST['body'] ?? ''));
@@ -2712,26 +2992,47 @@ final class App
             }
         }
 
-        if ($slug === '' && $title !== '') {
-            $slug = $this->slugify($title);
-        }
-
-        if ($slug === '') {
-            $this->redirect('/admin');
-            return;
-        }
-
         $dir = $this->contentDir . '/' . $type;
         if (!is_dir($dir)) {
             mkdir($dir, 0775, true);
         }
 
-        $path = $dir . '/' . $this->buildFilename($slug, $lang);
-        $wasExisting = file_exists($path);
         $oldPath = '';
         if ($originalSlug !== '' && $originalLang !== '') {
             $oldPath = $dir . '/' . $this->buildFilename($originalSlug, $originalLang);
         }
+        $sourceExists = $oldPath !== '' && is_file($oldPath);
+        $defaultLang = (string)($this->settings['languages']['default'] ?? 'en');
+        $homeSlug = (string)(($this->settings['home_page'] ?? '') !== '' ? $this->settings['home_page'] : 'index');
+
+        // The web address. New content gets it from the title (Greek is converted to Latin letters); a translation
+        // being created keeps the address it inherits; an existing item keeps its address unless it was changed on purpose.
+        $slugTaken = '';
+        if ($sourceExists) {
+            $isHome = $type === 'pages' && $originalSlug === $homeSlug && $originalLang === $defaultLang;
+            if ($postedSlug === '' || $postedSlug === $originalSlug || $type === 'forms' || $isHome) {
+                $slug = $originalSlug;
+            } else {
+                $slug = Slug::fromText((string)($_POST['slug'] ?? ''));
+                $slug = $slug !== '' ? $slug : $originalSlug;
+            }
+        } elseif ($postedSlug === '') {
+            $slug = Slug::fromText($title);
+            if ($slug === '') {
+                $slug = $this->slugify(rtrim($type, 's')) . '-' . date('Ymd-His');
+            }
+        }
+        $requestedSlug = $slug;
+        if (!$sourceExists || $slug !== $originalSlug || $lang !== $originalLang) {
+            $slug = $this->availableSlug($type, $slug, $lang, $sourceExists ? $oldPath : '');
+            $slugTaken = $slug !== $requestedSlug ? $requestedSlug : '';
+        }
+
+        $path = $dir . '/' . $this->buildFilename($slug, $lang);
+        $wasExisting = file_exists($path);
+        $moved = $sourceExists && $oldPath !== $path;
+        $oldStatus = $moved ? $this->storedStatus($oldPath) : '';
+        $siblings = $moved && $slug !== $originalSlug ? $this->translationSiblings($type, $originalSlug, $originalLang) : [];
         $data = [];
         if ($frontmatter !== '') {
             $parsed = Yaml::parse($frontmatter) ?: [];
@@ -3016,15 +3317,53 @@ final class App
             $this->unindexContent($type, $originalSlug, $originalLang);
         }
 
+        // Addresses that changed leave a redirect behind, so links, bookmarks, and search results keep working.
+        $moves = [];
+        if ($moved) {
+            $moves[] = ['lang' => $originalLang, 'to_lang' => $lang, 'status' => $oldStatus];
+            if ($siblings !== [] && (string)($_POST['rename_translations'] ?? '') === '1') {
+                foreach ($siblings as $sibling) {
+                    $from = $dir . '/' . $this->buildFilename($originalSlug, $sibling['lang']);
+                    $to = $dir . '/' . $this->buildFilename($slug, $sibling['lang']);
+                    if (!is_file($from) || file_exists($to) || !@rename($from, $to)) {
+                        continue;
+                    }
+                    $this->unindexContent($type, $originalSlug, $sibling['lang']);
+                    $this->indexContentFile($type, $to);
+                    $moves[] = ['lang' => $sibling['lang'], 'to_lang' => $sibling['lang'], 'status' => $sibling['status']];
+                }
+            }
+            foreach ($moves as $move) {
+                if ($move['status'] !== 'published') {
+                    continue; // An address that was never public has nobody to redirect.
+                }
+                $this->redirects->moved(
+                    $this->buildContentPath($type, $originalSlug, $move['lang'], $homeSlug, $defaultLang),
+                    $this->buildContentPath($type, $slug, $move['to_lang'], $homeSlug, $defaultLang),
+                    $this->currentUsername(),
+                    $type
+                );
+            }
+            if (count($moves) === 1 + count($siblings)) {
+                $this->relinkMenus($type === 'pages' ? $originalSlug : $type . '/' . $originalSlug, $type === 'pages' ? $slug : $type . '/' . $slug);
+            }
+        }
+        // Content now lives here, so a redirect that starts from this address would never be used.
+        $this->redirects->removeSource($this->buildContentPath($type, $slug, $lang, $homeSlug, $defaultLang));
+
         $this->logActivity($wasExisting ? 'content.update' : 'content.create', 'info', $type, $slug . ':' . $lang, ($wasExisting ? 'Content updated.' : 'Content created.'), [
             'type' => $type,
             'slug' => $slug,
             'lang' => $lang,
             'title' => (string)($data['title'] ?? ''),
             'status' => (string)($data['status'] ?? ''),
-            'renamed_from' => $oldPath !== '' && $oldPath !== $path ? $originalSlug . ':' . $originalLang : '',
+            'renamed_from' => $moved ? $originalSlug . ':' . $originalLang : '',
+            'translations_renamed' => $moved ? max(0, count($moves) - 1) : 0,
         ]);
-        $this->redirect('/admin/edit?type=' . urlencode($type) . '&slug=' . urlencode($slug) . '&lang=' . urlencode($lang) . '&saved=1' . ($htmlNeutralized ? '&notice=html' : ''));
+        $this->redirect('/admin/edit?type=' . urlencode($type) . '&slug=' . urlencode($slug) . '&lang=' . urlencode($lang) . '&saved=1'
+            . ($htmlNeutralized ? '&notice=html' : '')
+            . ($moved ? '&address=changed' : '')
+            . ($slugTaken !== '' ? '&address_taken=' . urlencode($slugTaken) : ''));
     }
 
     private function handleDelete(): void
@@ -5155,8 +5494,50 @@ final class App
         return (string)($_SERVER['REMOTE_ADDR'] ?? '');
     }
 
+    /**
+     * A request that matched nothing: send it where a redirect says, or remember it so an administrator can fix it.
+     * Real pages never get here, so redirects cost nothing on normal requests.
+     */
+    private function redirectOrRemember404(): void
+    {
+        if (!in_array($_SERVER['REQUEST_METHOD'] ?? 'GET', ['GET', 'HEAD'], true) || !$this->redirects->isAvailable()) {
+            return;
+        }
+        $path = (string)(parse_url((string)($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH) ?? '/');
+        $hit = $this->redirects->resolve($path);
+        if ($hit !== null) {
+            $this->redirects->recordHit($hit['id']);
+            $target = $hit['target'];
+            if (!RedirectRepository::isExternal($target)) {
+                $suffix = '';
+                if (preg_match('/^([^?#]*)([?#].*)$/', $target, $m)) {
+                    $target = $m[1];
+                    $suffix = $m[2];
+                }
+                $target = '/' . implode('/', array_map('rawurlencode', explode('/', ltrim($target, '/')))) . $suffix;
+                $query = (string)($_SERVER['QUERY_STRING'] ?? '');
+                if ($query !== '' && !str_contains($suffix, '?')) {
+                    $target = preg_replace('/#.*$/', '', $target) . '?' . $query . (str_contains($suffix, '#') ? substr($suffix, (int)strpos($suffix, '#')) : '');
+                }
+            }
+            header('Location: ' . $target, true, $hit['code']);
+            exit;
+        }
+        // Files and probes are not broken links, so they stay out of the list.
+        if (preg_match('#\.(css|js|map|png|jpe?g|gif|svg|webp|avif|ico|woff2?|ttf|eot|php|env|git)$#i', $path) || preg_match('#^/(assets|uploads|\.well-known)/#', $path)) {
+            return;
+        }
+        $referrer = '';
+        $ref = parse_url((string)($_SERVER['HTTP_REFERER'] ?? ''));
+        if (is_array($ref) && isset($ref['host'])) {
+            $referrer = $ref['host'] . ($ref['path'] ?? '');
+        }
+        $this->redirects->recordNotFound($path, $referrer);
+    }
+
     private function render404(): void
     {
+        $this->redirectOrRemember404();
         http_response_code(404);
         $lang = $this->currentLang ?: ($this->settings['languages']['default'] ?? 'en');
         if ($this->theme->hasTemplate('templates/404.twig')) {
@@ -7350,6 +7731,100 @@ final class App
             return '';
         }
         return $lang . '/';
+    }
+
+    /**
+     * A web address nobody else has: the requested one, or with -2, -3 ... added. Pages live at the root of the site,
+     * so they cannot take a word the site already uses (admin, search, a content type, a language code).
+     */
+    private function availableSlug(string $type, string $slug, string $lang, string $ownPath): string
+    {
+        $base = $slug;
+        if ($type === 'pages') {
+            $reserved = array_merge($this->content->getTypes(), (array)($this->settings['languages']['available'] ?? []));
+            if (Slug::isReserved($base, $reserved)) {
+                $base .= '-page';
+            }
+        }
+        $dir = $this->contentDir . '/' . $type;
+        $candidate = $base;
+        for ($n = 2; $n < 500; $n++) {
+            $candidatePath = $dir . '/' . $this->buildFilename($candidate, $lang);
+            if (!file_exists($candidatePath) || $candidatePath === $ownPath) {
+                break;
+            }
+            $candidate = $base . '-' . $n;
+        }
+        return $candidate;
+    }
+
+    private function storedStatus(string $path): string
+    {
+        if (!is_file($path)) {
+            return '';
+        }
+        [$front] = $this->splitFrontMatter((string)file_get_contents($path));
+        try {
+            $data = Yaml::parse($front);
+        } catch (\Throwable) {
+            return '';
+        }
+        return is_array($data) ? (string)($data['status'] ?? 'published') : '';
+    }
+
+    /**
+     * The other languages of an item that share its address (translations kept together by translation_id).
+     *
+     * @return array<int, array{lang: string, status: string}>
+     */
+    private function translationSiblings(string $type, string $slug, string $lang): array
+    {
+        $items = $this->content->getItems($type, null, true);
+        $id = '';
+        foreach ($items as $item) {
+            if ($item->slug === $slug && $item->lang === $lang) {
+                $id = (string)($item->meta['translation_id'] ?? '');
+            }
+        }
+        $siblings = [];
+        foreach ($items as $item) {
+            if ($item->slug !== $slug || $item->lang === $lang) {
+                continue;
+            }
+            $itemId = (string)($item->meta['translation_id'] ?? '');
+            if ($id !== '' ? $itemId === $id : $itemId === '') {
+                $siblings[] = ['lang' => $item->lang, 'status' => (string)($item->meta['status'] ?? 'published')];
+            }
+        }
+        return $siblings;
+    }
+
+    /** Menu links follow a page whose address changed. Links are language-neutral ("about", "posts/my-post"). */
+    private function relinkMenus(string $oldUrl, string $newUrl): void
+    {
+        $walk = function (array $items) use (&$walk, $oldUrl, $newUrl, &$changed): array {
+            foreach ($items as $i => $item) {
+                if (!is_array($item)) {
+                    continue;
+                }
+                if (isset($item['url']) && trim((string)$item['url'], '/') === $oldUrl) {
+                    $items[$i]['url'] = $newUrl;
+                    $changed = true;
+                }
+                if (isset($item['children']) && is_array($item['children'])) {
+                    $items[$i]['children'] = $walk($item['children']);
+                }
+            }
+            return $items;
+        };
+        foreach ($this->listMenuKeys() as $key) {
+            $changed = false;
+            $menu = $this->loadMenuDefinition($key, '');
+            $menu['items'] = $walk($menu['items']);
+            if ($changed) {
+                $this->writeMenuDefinition($key, '', $menu);
+            }
+        }
     }
 
     private function slugify(string $value): string
