@@ -53,26 +53,6 @@
           <span data-nonindex-pill class="{% if not meta_form.seo_noindex %}hidden {% endif %}inline-flex items-center rounded-full bg-pink-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-pink-700">Non-indexed</span>
         </div>
       </div>
-      <div class="flex flex-wrap items-center gap-2">
-        {% if front_url %}
-          <a class="{{ secondary_button_class }}" href="{{ front_url }}" target="_blank" rel="noopener">
-            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12z"/><circle cx="12" cy="12" r="3"/></svg>
-            Preview
-          </a>
-        {% endif %}
-        {% if slug and not is_home %}
-          {% if address.exists and type != 'forms' and meta_form.status == 'published' %}
-            {# A public entry: the next page asks where its visitors should go. #}
-            <a class="{{ danger_button_class }}" href="{{ url('admin/delete?type=' ~ type ~ '&slug=' ~ slug ~ '&lang=' ~ lang) }}">Delete</a>
-          {% else %}
-            <button type="submit" class="{{ danger_button_class }}" formaction="{{ url('admin/delete') }}" formmethod="post" data-confirm="Delete this item?" data-confirm-button="Delete">Delete</button>
-          {% endif %}
-        {% endif %}
-        <button type="submit" class="{{ primary_button_class }}">
-          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-          Save changes
-        </button>
-      </div>
     </div>
 
     <div class="overflow-x-auto border-b border-slate-200">
@@ -760,6 +740,31 @@
         <textarea name="frontmatter" rows="16" class="{{ textarea_class }} font-mono text-[13px] leading-6">{{ frontmatter }}</textarea>
       </div>
     </div>
+
+    {% embed '@admin/partials/action-bar.twig' %}
+      {% block leading %}
+        {% if front_url %}
+          <a class="{{ secondary_button_class }}" href="{{ front_url }}" target="_blank" rel="noopener">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12z"/><circle cx="12" cy="12" r="3"/></svg>
+            Preview
+          </a>
+        {% endif %}
+        {% if slug and not is_home %}
+          {% if address.exists and type != 'forms' and meta_form.status == 'published' %}
+            {# A public entry: the next page asks where its visitors should go. #}
+            <a class="{{ danger_button_class }}" href="{{ url('admin/delete?type=' ~ type ~ '&slug=' ~ slug ~ '&lang=' ~ lang) }}">Delete</a>
+          {% else %}
+            <button type="submit" class="{{ danger_button_class }}" formaction="{{ url('admin/delete') }}" formmethod="post" data-confirm="Delete this item?" data-confirm-button="Delete">Delete</button>
+          {% endif %}
+        {% endif %}
+      {% endblock %}
+      {% block actions %}
+        <button type="submit" class="{{ primary_button_class }}">
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+          Save changes
+        </button>
+      {% endblock %}
+    {% endembed %}
   </form>
 
   <script>

@@ -1,0 +1,41 @@
+label: Comparison table
+description: Compare plans, options, or approaches feature by feature. Type yes or no in a cell to show a check or a cross, or write any text.
+variants:
+  lines: Lines
+  striped: Striped rows
+fields:
+  eyebrow:
+    type: text
+    label: Eyebrow
+  heading:
+    type: text
+    label: Heading
+  intro:
+    type: textarea
+    label: Introduction
+  columns:
+    type: repeater
+    label: Columns
+    item_label: Column
+    max: 4
+    fields:
+      name: { type: text, label: Name, help: 'The column shows only if it has a name.' }
+      badge: { type: text, label: Badge, placeholder: Recommended }
+      highlight: { type: toggle, label: Highlight this column }
+      button_label: { type: text, label: Button text }
+      button_url: { type: link, label: Button link }
+  rows:
+    type: repeater
+    label: Rows
+    item_label: Row
+    max: 30
+    fields:
+      label: { type: text, label: Feature }
+      group: { type: toggle, label: This row is a heading for the rows below }
+      v1: { type: text, label: Column 1, help: 'Yes or no shows a check or a cross.' }
+      v2: { type: text, label: Column 2 }
+      v3: { type: text, label: Column 3 }
+      v4: { type: text, label: Column 4 }
+  note:
+    type: text
+    label: Note below the table

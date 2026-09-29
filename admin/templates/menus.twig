@@ -135,20 +135,24 @@
       </div>
     </section>
 
-    <div class="sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 bg-white/90 px-4 py-3 backdrop-blur lg:-mx-6 lg:px-6">
+    {% embed '@admin/partials/action-bar.twig' %}
+      {% block leading %}
       <button type="submit" name="menu_action" value="delete" class="{{ quiet_danger_btn }}" data-confirm="Delete this menu?" data-confirm-button="Delete">
         <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true">
           <path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2m2 0v14a1 1 0 01-1 1H7a1 1 0 01-1-1V6"/>
         </svg>
         Delete
       </button>
+      {% endblock %}
+      {% block actions %}
       <button type="submit" name="menu_action" value="save" class="{{ primary_btn }}">
         <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
           <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
         </svg>
         Save menu
       </button>
-    </div>
+      {% endblock %}
+    {% endembed %}
   </form>
 
   <template data-menu-item-template>

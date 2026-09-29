@@ -12,8 +12,8 @@ function check(string $label, $actual, $expected) { global $fail; $ok = $actual 
 
 $theme = new Theme($root, 'default');
 $registry = new BlockRegistry($theme, ['content_types' => fn() => ['posts' => 'Posts', 'projects' => 'Projects'], 'forms' => fn() => ['' => '—']]);
-check('at least the 23 shipped blocks', count($registry->all()) >= 23, true);
-foreach (['banner', 'latest', 'pricing', 'slider', 'tabs', 'video'] as $t) check("$t registered", $registry->get($t) !== null, true);
+check('at least the 25 shipped blocks', count($registry->all()) >= 25, true);
+foreach (['banner', 'latest', 'pricing', 'slider', 'tabs', 'video', 'compare', 'before-after'] as $t) check("$t registered", $registry->get($t) !== null, true);
 check('latest variants', array_keys($registry->get('latest')['variants']), ['cards', 'list', 'compact', 'overlay', 'strip', 'featured', 'magazine', 'editorial']);
 check('latest source options', array_keys($registry->get('latest')['fields']['source']['options']), ['posts', 'projects']);
 check('latest source default', $registry->get('latest')['fields']['source']['default'], 'posts');
@@ -60,4 +60,13 @@ check('latest default variant omitted from storage', array_key_exists('variant',
 check('latest posts source omitted', array_key_exists('source', $lat[0]), false);
 $edit = array_map(fn($d) => $d['type'], $registry->editorDefinitions());
 check('editor gets new blocks', count(array_intersect($edit, ['banner', 'latest', 'pricing', 'slider', 'tabs', 'video'])), 6);
+$compare = array_values(array_filter($once, fn($b) => $b['type'] === 'compare'))[0];
+check('compare keeps its columns and rows', [count($compare['columns']), count($compare['rows']), $compare['rows'][1]['v1']], [3, 6, 'ναι']);
+check('compare has at most four columns', $registry->get('compare')['fields']['columns']['max'], 4);
+$tooMany = $registry->sanitizeForStorage([['type' => 'compare', 'columns' => array_map(fn($n) => ['name' => "c$n"], range(1, 9)), 'rows' => [['label' => 'x', 'v1' => 'y']]]]);
+check('compare drops columns beyond four', count($tooMany[0]['columns']), 4);
+$ba = array_values(array_filter($once, fn($b) => $b['type'] === 'before-after'));
+check('before and after keeps both images', [$ba[0]['before'], $ba[0]['after']], ['/uploads/media/faros-demo-rocks.jpg', '/uploads/media/faros-demo-lake.jpg']);
+check('before and after variants', array_keys($registry->get('before-after')['variants']), ['slider', 'side']);
+check('before and after shape falls back', FieldSchema::resolve($registry->get('before-after')['fields'], ['image_ratio' => 'huge'])['image_ratio'], 'landscape');
 echo $fail === 0 ? "\nALL PASSED\n" : "\n$fail FAILED\n";

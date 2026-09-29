@@ -1,0 +1,20 @@
+{#
+  The bar that ends every screen with a form to save: Save, and whatever belongs with it (cancel, preview, delete),
+  stay in view at the bottom of the window however far the page is scrolled. Put it inside the form, last:
+
+    {% embed '@admin/partials/action-bar.twig' %}
+      {% block leading %}…cancel, preview, delete…{% endblock %}
+      {% block actions %}…the Save button…{% endblock %}
+    {% endembed %}
+
+  The colours (black bar, white Save, see-through everything else) are in public/assets/css/app.css, so the buttons
+  keep the classes the screens give them. It sits to the right of the sidebar on wide screens and across the whole window on small ones. The empty block
+  before it keeps the end of the page from hiding behind it.
+#}
+<div class="col-span-full h-20" aria-hidden="true"></div>
+<div data-action-bar class="fixed inset-x-0 bottom-0 z-20 lg:left-64">
+  <div class="flex flex-wrap items-center justify-between gap-2 px-4 py-3 lg:px-6" role="group" aria-label="Actions">
+    <div class="flex flex-wrap items-center gap-2">{% block leading %}{% endblock %}</div>
+    <div class="ml-auto flex flex-wrap items-center gap-2">{% block actions %}{% endblock %}</div>
+  </div>
+</div>

@@ -161,3 +161,40 @@ html.dark body.bg-slate-100 { background-color: #0b1120; }
 /* Dark scrollbars */
 .dark .scroll-thin { scrollbar-color: #334155 transparent; }
 .dark .scroll-thin::-webkit-scrollbar-thumb { background: #334155; }
+
+/* The action bar at the bottom of every form screen: black, a white primary button, everything else see-through.
+   The attribute is doubled so the bar wins over the dark-mode rules above. */
+[data-action-bar][data-action-bar] {
+  border-top: 1px solid #1e293b;
+  background: #0f172a;
+  color: #e2e8f0;
+}
+[data-action-bar][data-action-bar] :is(a, button) {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  color: #e2e8f0;
+}
+[data-action-bar][data-action-bar] :is(a, button):hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+[data-action-bar][data-action-bar] :is(a, button):is([class*="text-red"], [class*="text-rose"]) {
+  color: #fca5a5;
+}
+[data-action-bar][data-action-bar] :is(a, button):is([class*="text-red"], [class*="text-rose"]):hover {
+  background: rgba(248, 113, 113, 0.16);
+  color: #fecaca;
+}
+[data-action-bar][data-action-bar] :is(a, button).bg-blue-600 {
+  background: #fff;
+  color: #0f172a;
+}
+[data-action-bar][data-action-bar] :is(a, button).bg-blue-600:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+[data-action-bar][data-action-bar] :is(a, button):focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}

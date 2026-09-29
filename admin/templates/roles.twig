@@ -62,10 +62,13 @@
       </table>
     </div>
 
-    <div class="mt-4 flex flex-wrap items-center gap-3">
+    <p class="mt-4 text-xs text-slate-500">Users, roles, and restoring backups can never be given away. Your own access is not affected by anything on this page.</p>
+    {% embed '@admin/partials/action-bar.twig' %}
+      {% block leading %}      {% endblock %}
+      {% block actions %}
       <button type="submit" class="{{ btn_primary }}">Save permissions</button>
-      <p class="text-xs text-slate-500">Users, roles, and restoring backups can never be given away. Your own access is not affected by anything on this page.</p>
-    </div>
+      {% endblock %}
+    {% endembed %}
   </form>
 
   <section class="rounded-lg border border-slate-200 bg-white p-4">

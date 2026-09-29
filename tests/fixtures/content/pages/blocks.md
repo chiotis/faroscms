@@ -440,6 +440,56 @@ blocks:
       - { label: Χρόνοι, title: Πόσο διαρκεί ένα έργο, text: 'Από 6 έως 16 εβδομάδες, ανάλογα με το μέγεθος.' }
       - { label: Κόστος, title: Πώς διαμορφώνεται η τιμή, text: 'Ξεκινά από την ανάλυση του χώρου και το εύρος του έργου.' }
       - { label: Υποστήριξη, title: Τι γίνεται μετά την παράδοση, text: 'Παραμένουμε δίπλα σας με υποστήριξη και συντήρηση.' }
+  - type: compare
+    variant: lines
+    anchor: compare
+    eyebrow: 'Compare · lines'
+    heading: Τι περιλαμβάνει κάθε πακέτο
+    intro: Ναι και όχι γίνονται τικ και σταυρός. Οτιδήποτε άλλο εμφανίζεται ως κείμενο.
+    columns:
+      - { name: Βασικό }
+      - { name: Επαγγελματικό, badge: Προτεινόμενο, highlight: true, button_label: Επικοινωνία, button_url: contact }
+      - { name: Εταιρικό }
+    rows:
+      - { label: Σχεδιασμός, group: true }
+      - { label: Αρχική μελέτη, v1: ναι, v2: ναι, v3: ναι }
+      - { label: Τρισδιάστατες απεικονίσεις, v1: όχι, v2: ναι, v3: ναι }
+      - { label: Υποστήριξη, group: true }
+      - { label: Χρόνος απάντησης, v1: 3 ημέρες, v2: 1 ημέρα, v3: 4 ώρες }
+      - { label: Προσωπικός σύμβουλος, v1: όχι, v2: όχι, v3: ναι }
+    note: Τα χαρακτηριστικά είναι ενδεικτικά.
+  - type: compare
+    variant: striped
+    tone: muted
+    eyebrow: 'Compare · striped'
+    heading: Δύο προσεγγίσεις
+    columns:
+      - { name: Ανακαίνιση }
+      - { name: Νέα κατασκευή }
+    rows:
+      - { label: Διάρκεια, v1: 6–10 εβδομάδες, v2: 4–8 μήνες }
+      - { label: Άδεια, v1: Συχνά όχι, v2: Ναι }
+      - { label: Ευελιξία στο σχέδιο, v1: Περιορισμένη, v2: Πλήρης }
+  - type: before-after
+    variant: slider
+    anchor: before-after
+    eyebrow: 'Before and after · slider'
+    heading: Πριν και μετά
+    intro: Σύρετε τη λαβή ή χρησιμοποιήστε τα βελάκια του πληκτρολογίου.
+    before: /uploads/media/faros-demo-rocks.jpg
+    before_alt: Ο χώρος πριν την παρέμβαση
+    after: /uploads/media/faros-demo-lake.jpg
+    after_alt: Ο ίδιος χώρος μετά την παρέμβαση
+    caption: Ενδεικτικές εικόνες.
+  - type: before-after
+    variant: side
+    tone: muted
+    eyebrow: 'Before and after · side by side'
+    before: /uploads/media/faros-demo-path.jpg
+    before_label: Παλιά όψη
+    after: /uploads/media/faros-demo-trees.jpg
+    after_label: Νέα όψη
+    image_ratio: wide
   - type: content
 ---
 ## Block «Page content»

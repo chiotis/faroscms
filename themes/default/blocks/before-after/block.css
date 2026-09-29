@@ -1,0 +1,124 @@
+.ba-figure {
+  margin: 0;
+}
+
+/* Without JavaScript, and in the side by side variant: two pictures next to each other. */
+.ba {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(0.75rem, 0.5rem + 1vw, 1.25rem);
+}
+
+.ba-pane {
+  position: relative;
+}
+
+.ba-pane .media-frame {
+  aspect-ratio: 4 / 3;
+}
+
+.ba.ratio-wide .media-frame { aspect-ratio: 16 / 9; }
+.ba.ratio-portrait .media-frame { aspect-ratio: 4 / 5; }
+.ba.ratio-square .media-frame { aspect-ratio: 1; }
+
+/* The before picture comes second in the markup (so it can lie over the after one) but is shown first. */
+.ba-pane--before { order: -1; }
+
+.ba-tag {
+  position: absolute;
+  bottom: 0.75rem;
+  left: 0.75rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(15, 18, 24, 0.78);
+  color: #fff;
+  font-size: var(--step--1);
+  font-weight: 650;
+}
+
+.ba-tag--after { left: auto; right: 0.75rem; }
+.ba-pane--before .ba-tag { left: 0.75rem; right: auto; }
+
+.ba-caption {
+  margin-top: var(--space-s);
+  color: var(--color-muted);
+  font-size: var(--step--1);
+  text-align: center;
+}
+
+@media (max-width: 600px) {
+  .ba { grid-template-columns: 1fr; }
+}
+
+/* The slider: one frame, the before picture cut off at the handle. */
+.block--slider .ba.is-ready {
+  --pos: 50%;
+  position: relative;
+  display: block;
+  overflow: hidden;
+  border-radius: var(--radius-l);
+  aspect-ratio: 4 / 3;
+  touch-action: pan-y;
+  user-select: none;
+}
+
+.block--slider .ba.is-ready.ratio-wide { aspect-ratio: 16 / 9; }
+.block--slider .ba.is-ready.ratio-portrait { aspect-ratio: 4 / 5; }
+.block--slider .ba.is-ready.ratio-square { aspect-ratio: 1; }
+
+.block--slider .ba.is-ready .ba-pane {
+  position: absolute;
+  inset: 0;
+}
+
+.block--slider .ba.is-ready .media-frame {
+  height: 100%;
+  border-radius: 0;
+  aspect-ratio: auto;
+}
+
+.block--slider .ba.is-ready .ba-pane--before {
+  clip-path: inset(0 calc(100% - var(--pos)) 0 0);
+}
+
+.ba-range {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: ew-resize;
+}
+
+.ba-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--pos);
+  z-index: 2;
+  width: 3px;
+  margin-left: -1.5px;
+  background: #fff;
+  box-shadow: 0 0 0 1px rgba(15, 18, 24, 0.25);
+  pointer-events: none;
+}
+
+.ba-handle::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2.75rem;
+  height: 2.75rem;
+  margin: -1.375rem 0 0 -1.375rem;
+  border-radius: 50%;
+  background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23161a20' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 7l-5 5 5 5M15 7l5 5-5 5'/%3E%3C/svg%3E") center / 1.5rem no-repeat;
+  box-shadow: 0 2px 10px rgba(15, 18, 24, 0.35);
+}
+
+.ba-range:focus-visible ~ .ba-handle::after {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 3px;
+}

@@ -140,14 +140,17 @@
       </div>
     </section>
 
-    <div class="sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 bg-white/90 px-4 py-3 backdrop-blur lg:-mx-6 lg:px-6">
+    {% embed '@admin/partials/action-bar.twig' %}
+      {% block leading %}      {% endblock %}
+      {% block actions %}
       <button type="submit" class="{{ primary_btn }}">
         <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
           <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
         </svg>
         Save taxonomy
       </button>
-    </div>
+      {% endblock %}
+    {% endembed %}
   </form>
 
   <template data-taxonomy-row-template>
