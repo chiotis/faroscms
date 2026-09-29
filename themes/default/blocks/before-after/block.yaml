@@ -1,0 +1,45 @@
+label: Before and after
+description: Two pictures of the same subject. Visitors drag a handle to move between them, or see them side by side. Works with the keyboard.
+variants:
+  slider: Slider
+  side: Side by side
+fields:
+  eyebrow:
+    type: text
+    label: Eyebrow
+  heading:
+    type: text
+    label: Heading
+  intro:
+    type: textarea
+    label: Introduction
+  before:
+    type: image
+    label: Before image
+  before_alt:
+    type: text
+    label: Before image description
+    help: What the image shows. Leave empty to use the description from the media library.
+  before_label:
+    type: text
+    label: Before label
+    placeholder: Before
+  after:
+    type: image
+    label: After image
+    help: Use a picture with the same framing as the first one.
+  after_alt:
+    type: text
+    label: After image description
+  after_label:
+    type: text
+    label: After label
+    placeholder: After
+  caption:
+    type: text
+    label: Caption
+  image_ratio:
+    type: select
+    label: Image shape
+    default: landscape
+    options: { landscape: 'Landscape (4:3)', wide: 'Wide (16:9)', portrait: 'Portrait (4:5)', square: 'Square' }

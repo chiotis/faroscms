@@ -56,13 +56,6 @@
         <h1 class="truncate text-[15px] font-semibold leading-tight text-slate-900">Settings</h1>
         <p class="truncate text-xs text-slate-400">Configure your FarosCMS installation</p>
       </div>
-      <div class="flex flex-wrap items-center gap-2">
-        <a href="{{ url('admin/settings?tab=' ~ active_tab) }}" class="{{ secondary_button_class }}">Discard</a>
-        <button type="submit" class="{{ primary_button_class }}">
-          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-          Save changes
-        </button>
-      </div>
     </div>
 
     <div>
@@ -480,6 +473,18 @@
       </div>
 
     </div>
+
+    {% embed '@admin/partials/action-bar.twig' %}
+      {% block leading %}
+        <a href="{{ url('admin/settings?tab=' ~ active_tab) }}" class="{{ secondary_button_class }}">Discard</a>
+      {% endblock %}
+      {% block actions %}
+        <button type="submit" class="{{ primary_button_class }}">
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+          Save changes
+        </button>
+      {% endblock %}
+    {% endembed %}
   </form>
 
   <script>

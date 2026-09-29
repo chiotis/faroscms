@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-09-29 — A fixed action bar, and two new blocks
+- **Save and its companions stay at the bottom of the window** on every screen with a form to save: content editor (Preview, Delete, Save), Settings (Discard, Save), content types, roles, menus, new menu, taxonomies, users, and translations. One shared bar (`partials/action-bar.twig`) sits to the right of the sidebar on wide screens and across the window on phones, so nothing has to be found at the top of a long page. Notifications moved above it
+- New block **Comparison table** (`compare`): up to four columns, one of them highlightable with a badge and a button, up to 30 rows with group headings; `yes`/`no` become a check or a cross with text for screen readers. A real table in a named, focusable, scrolling region. Lines and striped variants
+- New block **Before and after** (`before-after`): a slider you drag or move with the arrow keys (a native range input laid over the picture), or the two pictures side by side; without JavaScript they sit side by side. Labels, shape, and caption are editable
+- Both blocks have ready-made sections, are on the blocks showcase page, and are covered by tests. Theme version 1.8.0
+
 ## 2026-09-29 — Layouts per taxonomy, links after an address change, and deleting with a redirect
 - **Each taxonomy has its own page layout** (Admin > Taxonomies, "How its pages look"): the same choices a content type has (layout, columns, order, items per page, what shows on each entry, page title and subtitle, filters from other taxonomies) plus which content types are listed, so categories can be a magazine and tags a plain list. `{term}` in the title or subtitle stands for the term's name. Category and tag pages are now paged, filterable, and list entries of several types newest first. The archive form is shared with Content types
 - **Term addresses are automatic**: a new category or tag gets its address from its name, with Greek converted to Latin (`Ελληνική κουζίνα` → `elliniki-kouzina`). Changing an address leaves a permanent redirect in every language and updates menu links; entries keep referring to the term by its id, which never changes. Removing a term that entries still use warns how many. The terms table shows how many entries use each term

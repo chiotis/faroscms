@@ -1,0 +1,22 @@
+{% import 'components/ui.twig' as ui %}
+{% set before_label = block.before_label ?: t('before_after.before', 'Before') %}
+{% set after_label = block.after_label ?: t('before_after.after', 'After') %}
+{% if block.before and block.after %}
+  <div class="container">
+    {{ ui.section_header(block, heading_tag, block_uid, 'center') }}
+    <figure class="ba-figure">
+      {# Without JavaScript the two pictures sit side by side; the script turns them into a slider. #}
+      <div class="ba ratio-{{ block.image_ratio }}" data-before-after data-label="{{ t('before_after.position', 'Position of the comparison') }}" data-before-label="{{ before_label }}" data-after-label="{{ after_label }}">
+        <div class="ba-pane ba-pane--after">
+          <div class="media-frame">{{ image(block.after, {alt: block.after_alt ?: null, sizes: '(min-width: 960px) 45vw, 92vw', max_width: 1600}) }}</div>
+          <span class="ba-tag ba-tag--after">{{ after_label }}</span>
+        </div>
+        <div class="ba-pane ba-pane--before">
+          <div class="media-frame">{{ image(block.before, {alt: block.before_alt ?: null, sizes: '(min-width: 960px) 45vw, 92vw', max_width: 1600}) }}</div>
+          <span class="ba-tag ba-tag--before">{{ before_label }}</span>
+        </div>
+      </div>
+      {% if block.caption %}<figcaption class="ba-caption">{{ block.caption }}</figcaption>{% endif %}
+    </figure>
+  </div>
+{% endif %}

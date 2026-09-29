@@ -1,0 +1,55 @@
+{% import 'components/ui.twig' as ui %}
+{% set prefix = lang_prefix|default('') %}
+{# Columns keep their position even when an earlier one is empty, so a cell always belongs to the column it was typed under. #}
+{% set cols = [] %}
+{% for column in block.columns|default([]) %}
+  {% if column.name %}{% set cols = cols|merge([{name: column.name, badge: column.badge, highlight: column.highlight, key: 'v' ~ loop.index, href: link_url(column.button_url|default(''), prefix), button: column.button_label}]) %}{% endif %}
+{% endfor %}
+{% set rows = block.rows|default([])|filter(r => r.label) %}
+{% if cols is not empty and rows is not empty %}
+  <div class="container">
+    {{ ui.section_header(block, heading_tag, block_uid, 'left') }}
+    <div class="compare-wrap" role="region" tabindex="0" {% if block.heading %}aria-labelledby="{{ block_uid }}-title"{% else %}aria-label="{{ t('compare.label', 'Comparison table') }}"{% endif %}>
+      <table class="compare-table">
+        <caption class="visually-hidden">{{ block.heading ?: t('compare.label', 'Comparison table') }}</caption>
+        <thead>
+          <tr>
+            <td class="compare-corner"><span class="visually-hidden">{{ t('compare.feature', 'Feature') }}</span></td>
+            {% for col in cols %}
+              <th scope="col" class="compare-col{% if col.highlight %} is-highlight{% endif %}">
+                {% if col.badge %}<span class="compare-badge">{{ col.badge }}</span>{% endif %}
+                <span class="compare-name">{{ col.name }}</span>
+                {% if col.href and col.button %}<a class="btn {{ col.highlight ? 'btn-primary' : 'btn-secondary' }} compare-button" href="{{ col.href }}">{{ col.button }}</a>{% endif %}
+              </th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            {% if row.group %}
+              <tr class="compare-group"><th scope="colgroup" colspan="{{ cols|length + 1 }}">{{ row.label }}</th></tr>
+            {% else %}
+              <tr>
+                <th scope="row" class="compare-feature">{{ row.label }}</th>
+                {% for col in cols %}
+                  {% set cell = (attribute(row, col.key) is defined ? attribute(row, col.key) : '')|trim %}
+                  {% set word = cell|lower %}
+                  <td class="{% if col.highlight %}is-highlight{% endif %}">
+                    {%- if word in ['yes', 'y', 'ναι', '✓', '✔'] -%}
+                      {{ icon('check', 'compare-yes') }}<span class="visually-hidden">{{ t('compare.yes', 'Yes') }}</span>
+                    {%- elseif word in ['no', 'n', 'όχι', 'οχι', '✗', '✕', '×'] -%}
+                      {{ icon('x', 'compare-no') }}<span class="visually-hidden">{{ t('compare.no', 'No') }}</span>
+                    {%- else -%}
+                      {{ cell }}
+                    {%- endif -%}
+                  </td>
+                {% endfor %}
+              </tr>
+            {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if block.note %}<p class="compare-note">{{ block.note }}</p>{% endif %}
+  </div>
+{% endif %}

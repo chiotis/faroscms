@@ -31,6 +31,7 @@ It needs PHP and Python 3 (standard library only). Nothing touches your site: th
 | `tests/http/taxonomies_test.py` | Each taxonomy's own layout, title, paging, filters, and content types; term addresses; redirects when an address changes; who may change them |
 | `tests/http/links_test.py` | Links to old addresses: the notice after a change, the review screen, updating, chains, other websites, history, permissions |
 | `tests/http/delete_test.py` | Deleting with a redirect: the choices, refused targets, drafts, permissions, restore, bulk delete |
+| `tests/http/blocks_test.py` | The comparison table and before/after blocks on the showcase page: markup, accessibility attributes, script bundling, the editor |
 | `tests/http/redirects_test.py` | Automatic addresses, address changes, redirects, the not-found list, permissions |
 
 Not covered: real browsers and screen readers, hosting and web server rules, sending email, backups and restores, Google sign-in. See `scripts/theme-audit.js` for the in-browser accessibility scan.

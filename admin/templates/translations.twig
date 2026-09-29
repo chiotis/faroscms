@@ -48,10 +48,6 @@
             <span class="text-xs text-slate-400">{{ customized|length }} customized</span>
           {% endif %}
         </div>
-        <button type="submit" class="{{ btn_primary }}">
-          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-          Save translations
-        </button>
       </div>
 
       <div class="overflow-x-auto">
@@ -114,12 +110,16 @@
         </table>
       </div>
 
-      <div class="flex items-center justify-end border-t border-slate-200 px-4 py-3">
+    </div>
+
+    {% embed '@admin/partials/action-bar.twig' %}
+      {% block leading %}      {% endblock %}
+      {% block actions %}
         <button type="submit" class="{{ btn_primary }}">
           <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
           Save translations
         </button>
-      </div>
-    </div>
+      {% endblock %}
+    {% endembed %}
   </form>
 {% endblock %}
