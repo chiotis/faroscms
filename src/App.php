@@ -30,6 +30,7 @@ final class App
     private UserRepository $users;
     private PermissionService $permissions;
     private RedirectRepository $redirects;
+    private ?HtmlGuard $htmlGuard = null;
     private ActivityLogRepository $activityLogs;
     private EmailLogRepository $emailLogs;
     private NotificationRepository $notifications;
@@ -113,6 +114,11 @@ final class App
         $this->handleFront($path);
     }
 
+    private function htmlGuard(): HtmlGuard
+    {
+        return $this->htmlGuard ??= new HtmlGuard(fn(): Environment => $this->markdownEnvironment(), fn(): BlockRegistry => $this->blockRegistry());
+    }
+
     private function markdownConverter(): MarkdownConverter
     {
         return new MarkdownConverter($this->markdownEnvironment());
@@ -133,33 +139,6 @@ final class App
     }
 
     /**
-     * Raw HTML the Markdown contains, with the lines it sits on. Used to keep raw HTML (which can carry
-     * script) out of content written by people who may not add it.
-     *
-     * @return array<int, array{kind: string, literal: string, start: ?int, end: ?int}>
-     */
-    private function rawHtmlNodes(string $markdown): array
-    {
-        if (!str_contains($markdown, '<')) {
-            return [];
-        }
-        $document = (new MarkdownParser($this->markdownEnvironment()))->parse($markdown);
-        $found = [];
-        foreach ($document->iterator() as $node) {
-            if ($node instanceof HtmlBlock) {
-                $found[] = ['kind' => 'block', 'literal' => $node->getLiteral(), 'start' => $node->getStartLine(), 'end' => $node->getEndLine()];
-            } elseif ($node instanceof HtmlInline) {
-                $parent = $node->parent();
-                while ($parent !== null && !$parent instanceof AbstractBlock) {
-                    $parent = $parent->parent();
-                }
-                $found[] = ['kind' => 'inline', 'literal' => $node->getLiteral(), 'start' => $parent?->getStartLine(), 'end' => $parent?->getEndLine()];
-            }
-        }
-        return $found;
-    }
-
-    /**
      * Shows raw HTML as plain text instead of letting it through, except HTML that is already in the
      * content being edited (placed there by someone allowed to), so an edit never breaks an embed.
      *
@@ -167,27 +146,7 @@ final class App
      */
     private function neutralizeRawHtml(string $markdown, array $allowed = []): string
     {
-        $body = str_replace(["\r\n", "\r"], "\n", $markdown);
-        for ($pass = 0; $pass < 3; $pass++) {
-            $blocked = array_values(array_filter($this->rawHtmlNodes($body), static fn(array $n): bool => !in_array($n['literal'], $allowed, true)));
-            if ($blocked === []) {
-                return $body;
-            }
-            $lines = explode("\n", $body);
-            foreach ($blocked as $node) {
-                if ($node['start'] === null || $node['end'] === null) {
-                    return str_replace('<', '&lt;', $body);
-                }
-                for ($i = $node['start'] - 1; $i <= $node['end'] - 1 && isset($lines[$i]); $i++) {
-                    $lines[$i] = $node['kind'] === 'block'
-                        ? str_replace('<', '&lt;', $lines[$i])
-                        : str_replace($node['literal'], str_replace('<', '&lt;', $node['literal']), $lines[$i]);
-                }
-            }
-            $body = implode("\n", $lines);
-        }
-        // Still something left after three passes (an unusual construct): escape every tag opener.
-        return str_replace('<', '&lt;', $body);
+        return $this->htmlGuard()->neutralize($markdown, $allowed);
     }
 
     /**
@@ -197,29 +156,7 @@ final class App
      */
     private function storedHtmlFragments(string $path): array
     {
-        if ($path === '' || !is_file($path)) {
-            return [];
-        }
-        [$frontmatter, $body] = $this->splitFrontMatter((string)file_get_contents($path));
-        $texts = [$body];
-        try {
-            $meta = $frontmatter !== '' ? Yaml::parse($frontmatter) : [];
-        } catch (\Throwable) {
-            $meta = [];
-        }
-        if (is_array($meta) && is_array($meta['blocks'] ?? null)) {
-            $this->eachMarkdownField($meta['blocks'], static function (string $value) use (&$texts): string {
-                $texts[] = $value;
-                return $value;
-            });
-        }
-        $fragments = [];
-        foreach ($texts as $text) {
-            foreach ($this->rawHtmlNodes((string)$text) as $node) {
-                $fragments[] = $node['literal'];
-            }
-        }
-        return array_values(array_unique($fragments));
+        return $this->htmlGuard()->storedFragments($path);
     }
 
     /**
@@ -231,26 +168,7 @@ final class App
      */
     private function eachMarkdownField(array $blocks, \Closure $change): array
     {
-        foreach ($blocks as $i => $block) {
-            $definition = is_array($block) && is_string($block['type'] ?? null) ? $this->blockRegistry()->get($block['type']) : null;
-            if ($definition === null) {
-                continue;
-            }
-            foreach ($definition['fields'] as $key => $field) {
-                if ($field['type'] === 'markdown' && is_string($block[$key] ?? null)) {
-                    $blocks[$i][$key] = $change($block[$key]);
-                } elseif ($field['type'] === 'repeater' && is_array($block[$key] ?? null)) {
-                    foreach ($block[$key] as $r => $row) {
-                        foreach ($field['fields'] as $subKey => $subField) {
-                            if ($subField['type'] === 'markdown' && is_array($row) && is_string($row[$subKey] ?? null)) {
-                                $blocks[$i][$key][$r][$subKey] = $change($row[$subKey]);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return $blocks;
+        return $this->htmlGuard()->eachMarkdownField($blocks, $change);
     }
 
     private function configureSession(): void
@@ -6672,16 +6590,7 @@ final class App
 
     private function buildContentPath(string $type, string $slug, string $lang, string $homeSlug, string $defaultLang): string
     {
-        $prefix = $lang === $defaultLang ? '' : $lang . '/';
-
-        if ($type === 'pages') {
-            if ($slug === $homeSlug) {
-                return rtrim($prefix, '/');
-            }
-            return $prefix . $slug;
-        }
-
-        return $prefix . $type . '/' . $slug;
+        return ContentPaths::build($type, $slug, $lang, $homeSlug, $defaultLang);
     }
 
     private function buildArchivePath(string $type, string $lang, string $defaultLang): string
@@ -6889,19 +6798,7 @@ final class App
 
     private function isTruthy(mixed $value): bool
     {
-        if (is_bool($value)) {
-            return $value;
-        }
-        if (is_int($value)) {
-            return $value > 0;
-        }
-        if (is_numeric($value)) {
-            return (int)$value > 0;
-        }
-        if (is_string($value)) {
-            return in_array(strtolower(trim($value)), ['1', 'true', 'yes', 'on'], true);
-        }
-        return false;
+        return Format::isTruthy($value);
     }
 
     private function isReservedFrontmatterKey(string $key): bool
@@ -7829,27 +7726,12 @@ final class App
 
     private function slugify(string $value): string
     {
-        $value = $this->transliterateGreek(trim($value));
-        $value = strtolower($value);
-        $value = preg_replace('/[^a-z0-9\-\_]+/', '-', $value) ?? '';
-        $value = trim($value, '-');
-        return $value;
+        return Slug::plain($value);
     }
 
     private function transliterateGreek(string $value): string
     {
-        $replacements = [
-            'Ά' => 'a', 'Έ' => 'e', 'Ή' => 'i', 'Ί' => 'i', 'Ό' => 'o', 'Ύ' => 'y', 'Ώ' => 'o', 'Ϊ' => 'i', 'Ϋ' => 'y',
-            'Α' => 'a', 'Β' => 'v', 'Γ' => 'g', 'Δ' => 'd', 'Ε' => 'e', 'Ζ' => 'z', 'Η' => 'i', 'Θ' => 'th', 'Ι' => 'i',
-            'Κ' => 'k', 'Λ' => 'l', 'Μ' => 'm', 'Ν' => 'n', 'Ξ' => 'x', 'Ο' => 'o', 'Π' => 'p', 'Ρ' => 'r', 'Σ' => 's',
-            'Τ' => 't', 'Υ' => 'y', 'Φ' => 'f', 'Χ' => 'ch', 'Ψ' => 'ps', 'Ω' => 'o',
-            'ά' => 'a', 'έ' => 'e', 'ή' => 'i', 'ί' => 'i', 'ό' => 'o', 'ύ' => 'y', 'ώ' => 'o', 'ϊ' => 'i', 'ϋ' => 'y', 'ΐ' => 'i', 'ΰ' => 'y',
-            'α' => 'a', 'β' => 'v', 'γ' => 'g', 'δ' => 'd', 'ε' => 'e', 'ζ' => 'z', 'η' => 'i', 'θ' => 'th', 'ι' => 'i',
-            'κ' => 'k', 'λ' => 'l', 'μ' => 'm', 'ν' => 'n', 'ξ' => 'x', 'ο' => 'o', 'π' => 'p', 'ρ' => 'r', 'σ' => 's', 'ς' => 's',
-            'τ' => 't', 'υ' => 'y', 'φ' => 'f', 'χ' => 'ch', 'ψ' => 'ps', 'ω' => 'o',
-        ];
-
-        return strtr($value, $replacements);
+        return Slug::transliterateGreek($value);
     }
 
     private function sanitizeType(string $value): string
@@ -7878,7 +7760,7 @@ final class App
 
     private function titleFromSlug(string $slug): string
     {
-        return trim(ucwords(str_replace(['-', '_'], ' ', $slug)));
+        return Slug::title($slug);
     }
 
     private function sanitizeFilename(string $name): string
@@ -8209,24 +8091,7 @@ final class App
     /** @return string[] */
     private function formFieldTypes(): array
     {
-        return [
-            'text',
-            'email',
-            'textarea',
-            'number',
-            'tel',
-            'url',
-            'date',
-            'time',
-            'datetime-local',
-            'select',
-            'radio',
-            'checkbox',
-            'checkboxes',
-            'hidden',
-            'color',
-            'range',
-        ];
+        return FormFields::types();
     }
 
     /** @return array<int, array<string, mixed>> */
@@ -8326,99 +8191,18 @@ final class App
     /** @return array<int, array<string, mixed>> */
     private function parseFormFieldsInput(mixed $input): array
     {
-        if (!is_array($input)) {
-            return [];
-        }
-        $fields = [];
-        $allowedTypes = $this->formFieldTypes();
-        foreach ($input as $row) {
-            if (!is_array($row)) {
-                continue;
-            }
-            $type = strtolower(trim((string)($row['type'] ?? 'text')));
-            if (!in_array($type, $allowedTypes, true)) {
-                $type = 'text';
-            }
-            $name = $this->sanitizeFormFieldName((string)($row['name'] ?? ''));
-            if ($name === '' || str_starts_with($name, 'form_')) {
-                continue;
-            }
-            $label = trim((string)($row['label'] ?? ''));
-            if ($label === '') {
-                $label = $this->titleFromSlug($name);
-            }
-            $field = [
-                'type' => $type,
-                'name' => $name,
-                'label' => $label,
-            ];
-            if ($this->isTruthy($row['required'] ?? false)) {
-                $field['required'] = true;
-            }
-            $placeholder = trim((string)($row['placeholder'] ?? ''));
-            if ($placeholder !== '') {
-                $field['placeholder'] = $placeholder;
-            }
-            $options = $this->parseFormOptions((string)($row['options'] ?? ''));
-            if (!empty($options) && in_array($type, ['select', 'radio', 'checkboxes'], true)) {
-                $field['options'] = $options;
-            }
-            $default = (string)($row['default'] ?? '');
-            if ($default !== '') {
-                $field['default'] = $default;
-            }
-            $help = trim((string)($row['help'] ?? ''));
-            if ($help !== '') {
-                $field['help'] = $help;
-            }
-            $rows = (int)($row['rows'] ?? 4);
-            if ($type === 'textarea' && $rows > 0) {
-                $field['rows'] = $rows;
-            }
-            $min = trim((string)($row['min'] ?? ''));
-            if ($min !== '') {
-                $field['min'] = $min;
-            }
-            $max = trim((string)($row['max'] ?? ''));
-            if ($max !== '') {
-                $field['max'] = $max;
-            }
-            $step = trim((string)($row['step'] ?? ''));
-            if ($step !== '') {
-                $field['step'] = $step;
-            }
-            $fields[] = $field;
-        }
-        return $fields;
+        return FormFields::parseInput($input);
     }
 
     private function sanitizeFormFieldName(string $value): string
     {
-        $value = trim($value);
-        if ($value === '') {
-            return '';
-        }
-        $value = str_replace(' ', '-', $value);
-        return $this->slugify($value);
+        return FormFields::sanitizeName($value);
     }
 
     /** @return string[] */
     private function parseFormOptions(string $value): array
     {
-        $value = trim($value);
-        if ($value === '') {
-            return [];
-        }
-        $parts = preg_split('/\R|,/', $value) ?: [];
-        $options = [];
-        foreach ($parts as $part) {
-            $part = trim((string)$part);
-            if ($part === '') {
-                continue;
-            }
-            $options[] = $part;
-        }
-        return $options;
+        return FormFields::parseOptions($value);
     }
 
     /** @return array<int, array{value: string, label: string}> */
@@ -9652,20 +9436,13 @@ final class App
 
     private function buildFilename(string $slug, string $lang): string
     {
-        $defaultLang = $this->settings['languages']['default'] ?? 'en';
-        if ($lang === $defaultLang || $lang === '') {
-            return $slug . '.md';
-        }
-        return $slug . '.' . $lang . '.md';
+        return (new ContentPaths($this->settings))->filename($slug, $lang);
     }
 
     /** @return array{0: string, 1: string} */
     private function splitFrontMatter(string $raw): array
     {
-        if (preg_match('/\A---\s*\R(.*?)\R---\s*\R(.*)\z/s', $raw, $matches)) {
-            return [$matches[1], $matches[2]];
-        }
-        return ['', $raw];
+        return FrontMatter::split($raw);
     }
 
     private function redirect(string $path): void

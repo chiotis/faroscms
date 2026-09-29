@@ -86,4 +86,40 @@ final class Slug
     {
         return in_array($slug, self::ROOT_RESERVED, true) || in_array($slug, $reservedExtra, true);
     }
+
+    /**
+     * The plain form used for identifiers that are already Latin (types, languages, term ids, form field names):
+     * Greek is converted letter by letter, everything else outside a-z, 0-9, dash and underscore becomes a dash.
+     * New addresses made from titles use fromText() instead, which follows the ELOT digraph rules.
+     */
+    public static function plain(string $value): string
+    {
+        $value = self::transliterateGreek(trim($value));
+        $value = strtolower($value);
+        $value = preg_replace('/[^a-z0-9\-\_]+/', '-', $value) ?? '';
+        return trim($value, '-');
+    }
+
+    /** Letter by letter conversion (no digraph rules): kept for identifiers and file names that already exist. */
+    public static function transliterateGreek(string $value): string
+    {
+        $replacements = [
+            'Ά' => 'a', 'Έ' => 'e', 'Ή' => 'i', 'Ί' => 'i', 'Ό' => 'o', 'Ύ' => 'y', 'Ώ' => 'o', 'Ϊ' => 'i', 'Ϋ' => 'y',
+            'Α' => 'a', 'Β' => 'v', 'Γ' => 'g', 'Δ' => 'd', 'Ε' => 'e', 'Ζ' => 'z', 'Η' => 'i', 'Θ' => 'th', 'Ι' => 'i',
+            'Κ' => 'k', 'Λ' => 'l', 'Μ' => 'm', 'Ν' => 'n', 'Ξ' => 'x', 'Ο' => 'o', 'Π' => 'p', 'Ρ' => 'r', 'Σ' => 's',
+            'Τ' => 't', 'Υ' => 'y', 'Φ' => 'f', 'Χ' => 'ch', 'Ψ' => 'ps', 'Ω' => 'o',
+            'ά' => 'a', 'έ' => 'e', 'ή' => 'i', 'ί' => 'i', 'ό' => 'o', 'ύ' => 'y', 'ώ' => 'o', 'ϊ' => 'i', 'ϋ' => 'y', 'ΐ' => 'i', 'ΰ' => 'y',
+            'α' => 'a', 'β' => 'v', 'γ' => 'g', 'δ' => 'd', 'ε' => 'e', 'ζ' => 'z', 'η' => 'i', 'θ' => 'th', 'ι' => 'i',
+            'κ' => 'k', 'λ' => 'l', 'μ' => 'm', 'ν' => 'n', 'ξ' => 'x', 'ο' => 'o', 'π' => 'p', 'ρ' => 'r', 'σ' => 's', 'ς' => 's',
+            'τ' => 't', 'υ' => 'y', 'φ' => 'f', 'χ' => 'ch', 'ψ' => 'ps', 'ω' => 'o',
+        ];
+
+        return strtr($value, $replacements);
+    }
+
+    /** A readable title from an address ("my-page" becomes "My Page"). */
+    public static function title(string $slug): string
+    {
+        return trim(ucwords(str_replace(['-', '_'], ' ', $slug)));
+    }
 }
