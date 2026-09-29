@@ -394,8 +394,9 @@ hr {
 .space-spacious { --section-space: clamp(5rem, 3rem + 8vw, 10rem); }
 .space-none { --section-space: 0px; }
 
-/* Two neighbouring sections on the same background share one gap. */
-.block.tone-default + .block.tone-default:not(.block-hero),
+/* Two neighbouring sections on the same background share one gap. A full-width cover image is its own background,
+   so the section after it keeps its own top space. */
+.block.tone-default:not(.block--cover) + .block.tone-default:not(.block-hero),
 .block.tone-muted + .block.tone-muted {
   padding-top: 0;
 }
