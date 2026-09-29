@@ -187,7 +187,7 @@
         </button>
 
         <div class="min-w-0">
-          <h1 class="truncate text-[15px] font-semibold leading-tight text-slate-900">{{ title|default(page_context) }}</h1>
+          <h1 class="truncate text-[15px] font-semibold leading-tight text-slate-900">{{ page_heading|default(title|default(page_context)) }}</h1>
           <p class="truncate text-xs text-slate-400">FarosCMS admin / {{ page_context }}</p>
         </div>
 

@@ -1,4 +1,5 @@
 {% extends '@admin/base.twig' %}
+{% set page_heading = 'Redirects' %}
 
 {% block content %}
   {% set btn_primary = 'inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700' %}
@@ -23,7 +24,6 @@
 
   <header class="mb-4 flex flex-col gap-3 border-b border-slate-200 pb-4">
     <div class="min-w-0">
-      <h1 class="truncate text-[15px] font-semibold leading-tight text-slate-900">Redirects</h1>
       <p class="text-xs text-slate-400">Old addresses that lead to new ones. They are created automatically when you change a page's address, and you can add your own. Visitors and search engines follow them without noticing.</p>
     </div>
     <nav class="flex gap-1 border-b border-slate-200" aria-label="Redirect sections">

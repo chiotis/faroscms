@@ -1,4 +1,5 @@
 {% extends '@admin/base.twig' %}
+{% set page_heading = 'Roles and permissions' %}
 
 {% block content %}
   {% set btn_primary = 'inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700' %}
@@ -6,7 +7,6 @@
 
   <header class="mb-4 flex flex-col gap-3 border-b border-slate-200 pb-4">
     <div class="min-w-0">
-      <h1 class="truncate text-[15px] font-semibold leading-tight text-slate-900">Roles and permissions</h1>
       <p class="text-xs text-slate-400">Choose what each role can do, and make roles of your own (a photographer, a translator, an intern). Changes apply on the person's next click. Only a super admin sees this page, and the super admin always has every permission.</p>
     </div>
   </header>

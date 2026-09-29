@@ -1,4 +1,5 @@
 {% extends '@admin/base.twig' %}
+{% set page_heading = 'Delete “' ~ entry_title ~ '” (' ~ lang|upper ~ ')' %}
 
 {% block content %}
   {% set btn_danger = 'inline-flex items-center gap-1.5 rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700' %}
@@ -17,7 +18,6 @@
   <header class="mb-4 flex flex-col gap-3 border-b border-slate-200 pb-4">
     <div class="min-w-0">
       <p class="text-xs text-slate-400"><a class="hover:text-slate-700" href="{{ url('admin/content?type=' ~ type ~ '&lang=' ~ lang) }}">{{ type|title }}</a> /</p>
-      <h1 class="truncate text-[15px] font-semibold leading-tight text-slate-900">Delete “{{ entry_title }}” <span class="ml-1 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-slate-500">{{ lang }}</span></h1>
       <p class="text-xs text-slate-400">{% if is_public %}This entry is public at <code>{{ public_path }}</code>. Decide what visitors, search engines, and old links find there after it is gone.{% else %}This entry is not public, so nobody can be visiting it.{% endif %}</p>
     </div>
   </header>

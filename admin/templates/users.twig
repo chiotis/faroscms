@@ -1,4 +1,5 @@
 {% extends '@admin/base.twig' %}
+{% set page_heading = 'Users' %}
 {% import '@admin/partials/ui.twig' as ui %}
 
 {% block content %}
@@ -19,7 +20,6 @@
 
   <header class="mb-4 flex flex-col gap-3 border-b border-slate-200 pb-4 lg:flex-row lg:items-center lg:justify-between">
     <div class="min-w-0">
-      <h1 class="truncate text-[15px] font-semibold leading-tight text-slate-900">Users</h1>
       <p class="truncate text-xs text-slate-400">Manage admin and member accounts.</p>
     </div>
     <div class="flex flex-wrap items-center gap-2">

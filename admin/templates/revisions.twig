@@ -1,4 +1,5 @@
 {% extends '@admin/base.twig' %}
+{% set page_heading = view == 'item' ? ('History of ' ~ item.title) : 'History' %}
 
 {% block content %}
   {% set btn_secondary = 'inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50' %}
@@ -16,7 +17,6 @@
 
   <header class="mb-4 flex flex-col gap-3 border-b border-slate-200 pb-4">
     <div class="min-w-0">
-      <h1 class="truncate text-[15px] font-semibold leading-tight text-slate-900">{{ view == 'item' ? 'History of ' ~ item.title : 'History' }}</h1>
       <p class="text-xs text-slate-400">
         {% if view == 'item' %}
           Every saved version of <code>{{ item.type }}/{{ item.slug }}</code> in {{ item.lang|upper }}. The latest {{ kept }} are kept, and history follows the item if its address changes.
