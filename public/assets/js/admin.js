@@ -201,8 +201,8 @@
       dismiss.focus();
       return;
     }
-    var base = item.type === 'warning' ? 8000 : 4500;
-    var duration = Math.max(base, 2000 + item.msg.length * 40);
+    // Three seconds, longer only when the message is too long to read in that time.
+    var duration = Math.max(3000, 1000 + item.msg.length * 40);
     progress.style.transition = 'none';
     progress.style.width = '100%';
     void progress.offsetWidth;
