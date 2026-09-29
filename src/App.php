@@ -71,7 +71,7 @@ final class App
         $this->users = new UserRepository($this->systemDatabase, $this->contentDir . '/users/users.yaml');
         $this->users->importYamlUsersIfEmpty();
         $this->users->ensureSuperadminExists();
-        $this->permissions = new PermissionService();
+        $this->permissions = new PermissionService($this->systemMeta->getJson('role_permissions'));
         $this->activityLogs = new ActivityLogRepository($this->systemDatabase);
         $this->emailLogs = new EmailLogRepository($this->systemDatabase);
         $this->notifications = new NotificationRepository($this->systemDatabase);
@@ -987,6 +987,11 @@ final class App
             return;
         }
 
+        if ($action === 'roles') {
+            $this->handleRoles();
+            return;
+        }
+
         if ($action === 'users') {
             $this->handleUsersList();
             return;
@@ -1431,6 +1436,89 @@ final class App
             return ['label' => 'Warnings', 'status' => 'warning', 'detail' => $warnings . ' checks to review'];
         }
         return ['label' => 'Healthy', 'status' => 'ok', 'detail' => 'All checks passing'];
+    }
+
+    private function handleRoles(): void
+    {
+        if (!$this->permissions->can($this->auth->user(), 'roles.manage')) {
+            $this->renderForbidden();
+            return;
+        }
+
+        $roles = PermissionService::roles();
+        $catalogue = PermissionService::catalogue();
+
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            if (!$this->systemMeta->isAvailable()) {
+                $this->redirect('/admin/roles?error=store');
+                return;
+            }
+            $before = [];
+            foreach (PermissionService::CUSTOMIZABLE_ROLES as $role) {
+                $before[$role] = $this->permissions->capabilitiesForRole($role);
+            }
+
+            $selected = [];
+            if ((string)($_POST['action'] ?? 'save') === 'reset') {
+                // Back to the built-in set for the chosen role; the others keep what is stored.
+                $resetRole = (string)($_POST['role'] ?? '');
+                foreach (PermissionService::CUSTOMIZABLE_ROLES as $role) {
+                    $selected[$role] = $role === $resetRole ? $this->permissions->defaultsForRole($role) : $before[$role];
+                }
+            } else {
+                foreach (PermissionService::CUSTOMIZABLE_ROLES as $role) {
+                    $posted = $_POST['caps'][$role] ?? [];
+                    $selected[$role] = is_array($posted) ? array_keys(array_filter($posted, static fn($v): bool => (string)$v === '1')) : [];
+                }
+            }
+
+            $document = $this->permissions->saveable($selected);
+            $this->systemMeta->setJson('role_permissions', $document);
+
+            $after = new PermissionService($document);
+            foreach (PermissionService::CUSTOMIZABLE_ROLES as $role) {
+                $now = $after->capabilitiesForRole($role);
+                $added = array_values(array_diff($now, $before[$role]));
+                $removed = array_values(array_diff($before[$role], $now));
+                if ($added !== [] || $removed !== []) {
+                    $this->logActivity('roles.update', 'warning', 'role', $role, 'Role permissions changed.', [
+                        'added' => $added,
+                        'removed' => $removed,
+                    ]);
+                }
+            }
+            $this->redirect('/admin/roles?saved=1');
+            return;
+        }
+
+        $columns = [];
+        foreach (PermissionService::CUSTOMIZABLE_ROLES as $role) {
+            $columns[$role] = [
+                'label' => $roles[$role]['label'],
+                'customized' => $this->permissions->isCustomized($role),
+                'caps' => $this->permissions->capabilitiesForRole($role),
+                'defaults' => $this->permissions->defaultsForRole($role),
+                'users' => $this->users->countByRole($role),
+            ];
+        }
+        $groups = [];
+        foreach ($catalogue as $key => $capability) {
+            $groups[$capability['group']][$key] = $capability;
+        }
+
+        $this->render('@admin/roles.twig', [
+            'roles' => $roles,
+            'columns' => $columns,
+            'groups' => $groups,
+            'super_caps' => $this->permissions->capabilitiesForRole('superadmin'),
+            'locked' => ['admin.access', 'users.self'],
+            'saved' => isset($_GET['saved']),
+            'error' => (string)($_GET['error'] ?? ''),
+            'types' => $this->content->getTypes(),
+            'user' => $this->auth->user(),
+            'admin_section' => 'roles',
+            'current_type' => 'pages',
+        ]);
     }
 
     private function handleUsersList(): void
@@ -8775,6 +8863,14 @@ final class App
                 mkdir($dir, 0775, true);
             }
             $tmpPath = $dir . '/.' . basename($newPath) . '.tmp-import-' . bin2hex(random_bytes(4));
+            if (!$this->permissions->can($this->auth->user(), 'content.raw_html')) {
+                // An import must not be a way around the raw HTML rule: HTML already in the file being replaced stays.
+                $allowedHtml = $this->storedHtmlFragments((string)($entry['old_path'] ?? ''));
+                $body = $this->neutralizeRawHtml($body, $allowedHtml);
+                if (isset($data['blocks']) && is_array($data['blocks'])) {
+                    $data['blocks'] = $this->eachMarkdownField(array_values($data['blocks']), fn(string $value): string => $this->neutralizeRawHtml($value, $allowedHtml));
+                }
+            }
             $payload = $this->buildMarkdownPayload($data, $body);
             if (file_put_contents($tmpPath, $payload) === false) {
                 foreach ($temps as $temp) {

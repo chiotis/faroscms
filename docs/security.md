@@ -13,7 +13,7 @@ This page lists the protections built into the admin and what the server operato
 
 ### Roles and permissions
 
-Roles are defined in `PermissionService`. Each admin action needs a capability, and an action nobody mapped is for administrators only, so a new route is never open to a lower role by accident.
+Roles are defined in `PermissionService` (the super admin can adjust them, see below). Each admin action needs a capability, and an action nobody mapped is for administrators only, so a new route is never open to a lower role by accident.
 
 | | Super admin | Admin | Editor | Basic user |
 |---|:-:|:-:|:-:|:-:|
@@ -29,6 +29,14 @@ Roles are defined in `PermissionService`. Each admin action needs a capability, 
 | Own profile and password | yes | yes | yes | yes |
 
 An editor's dashboard shows only content: the user count, backups, system checks, storage, logs, and notifications are not sent to them. Forms are out of their reach entirely (they hold visitors' personal data and decide where notifications go), including by address, bulk actions, and search. Every refused request is written to the activity log.
+
+**Changing what a role can do.** The table shows the built-in permissions. The super admin can change them for Admin, Editor, and Basic user at **Admin > Roles**; nobody else can open that screen, and it cannot be delegated. The super admin's own permissions are fixed, so nobody can be locked out, and three are never switchable: managing users, managing roles, and restoring backups (each would let its holder gain everything else). Signing in and editing one's own profile stay on for every role.
+
+- Only differences from the built-in set are stored (`system_meta`, key `role_permissions`); a role left alone follows future defaults. Unknown or unreadable stored values are ignored, never turned into access.
+- Each permission is labelled Normal, Sensitive (personal data, bulk data, logs, backups, import) or Critical (raw HTML, settings including sign-in and email, updates). Turning on a Sensitive or Critical one asks for confirmation.
+- Every change is written to the activity log as a warning with the capabilities added and removed.
+- Settings is Critical because it includes Google sign-in and email, which decide who can get into the site. Raw HTML is Critical because it can script the public site.
+- Importing content and saving content follow the same raw HTML rule, so granting import does not bypass it.
 
 After adding or changing an admin action, run `php scripts/check-permissions.php`: it lists every action with the roles that may use it and fails when the rules drift.
 

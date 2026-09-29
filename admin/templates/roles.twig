@@ -1,0 +1,108 @@
+{% extends '@admin/base.twig' %}
+
+{% block content %}
+  {% set btn_primary = 'inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700' %}
+  {% set btn_secondary = 'inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-40' %}
+
+  <header class="mb-4 flex flex-col gap-3 border-b border-slate-200 pb-4">
+    <div class="min-w-0">
+      <h1 class="truncate text-[15px] font-semibold leading-tight text-slate-900">Roles and permissions</h1>
+      <p class="text-xs text-slate-400">Choose what Admin, Editor, and Basic user can do. Changes apply on the person's next click. Only a super admin sees this page, and the super admin always has every permission.</p>
+    </div>
+  </header>
+
+  {% if saved %}<template data-flash data-type="success">Saved. The new permissions are already in effect.</template>{% endif %}
+  {% if error == 'store' %}<template data-flash data-type="error">The system database is not available, so nothing was saved.</template>{% endif %}
+
+  <form method="post" action="{{ url('admin/roles') }}" id="rolesForm" class="mb-4">
+    {{ csrf_field() }}
+    <input type="hidden" name="action" value="save">
+
+    <div class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+      <table class="w-full min-w-[640px] text-sm">
+        <thead>
+          <tr class="border-b border-slate-100 bg-slate-50/50 text-left text-xs font-medium text-slate-500">
+            <th scope="col" class="px-4 py-2.5 font-medium">Permission</th>
+            <th scope="col" class="w-24 px-3 py-2.5 text-center font-medium">Super admin</th>
+            {% for role, column in columns %}
+              <th scope="col" class="w-24 px-3 py-2.5 text-center font-medium">
+                {{ column.label }}
+                <span class="block text-[10px] font-normal text-slate-400">{{ column.users }} {{ column.users == 1 ? 'person' : 'people' }}{% if column.customized %} · <span class="font-medium text-amber-700">changed</span>{% endif %}</span>
+              </th>
+            {% endfor %}
+          </tr>
+        </thead>
+        {% for group, items in groups %}
+          <tbody class="divide-y divide-slate-50">
+            <tr class="bg-slate-50/70"><th scope="rowgroup" colspan="{{ 2 + columns|length }}" class="px-4 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wider text-slate-400">{{ group }}</th></tr>
+            {% for key, capability in items %}
+              {% set is_locked = key in locked %}
+              <tr class="hover:bg-slate-50/60">
+                <th scope="row" class="px-4 py-2.5 text-left font-normal">
+                  <span class="font-medium text-slate-900">{{ capability.label }}</span>
+                  {% if capability.risk == 'critical' %}<span class="ml-1 rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold text-red-700">Critical</span>{% elseif capability.risk == 'sensitive' %}<span class="ml-1 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">Sensitive</span>{% endif %}
+                  <span class="block text-xs text-slate-500">{{ capability.description }}</span>
+                </th>
+                <td class="px-3 py-2.5 text-center text-emerald-600" title="Always on"><span aria-hidden="true">✓</span><span class="sr-only">Always allowed</span></td>
+                {% for role, column in columns %}
+                  <td class="px-3 py-2.5 text-center">
+                    {% if not capability.grantable %}
+                      <span class="text-slate-300" title="Only the super admin"><span aria-hidden="true">—</span><span class="sr-only">Super admin only</span></span>
+                    {% elseif is_locked %}
+                      <input type="checkbox" checked disabled class="h-4 w-4 rounded border-slate-300 text-blue-600" aria-label="{{ capability.label }} for {{ column.label }} (always on)" title="Always on">
+                    {% else %}
+                      <input type="checkbox" name="caps[{{ role }}][{{ key }}]" value="1" {% if key in column.caps %}checked{% endif %} data-was="{{ key in column.caps ? '1' : '0' }}" data-risk="{{ capability.risk }}" data-cap="{{ capability.label }}" data-role="{{ column.label }}" class="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" aria-label="{{ capability.label }} for {{ column.label }}">
+                    {% endif %}
+                  </td>
+                {% endfor %}
+              </tr>
+            {% endfor %}
+          </tbody>
+        {% endfor %}
+      </table>
+    </div>
+
+    <div class="mt-4 flex flex-wrap items-center gap-3">
+      <button type="submit" class="{{ btn_primary }}">Save permissions</button>
+      <p class="text-xs text-slate-500">Users, roles, and restoring backups can never be given away. Your own access is not affected by anything on this page.</p>
+    </div>
+  </form>
+
+  <section class="rounded-lg border border-slate-200 bg-white p-4">
+    <h2 class="text-sm font-semibold text-slate-900">Back to the built-in permissions</h2>
+    <p class="mb-3 mt-0.5 text-xs text-slate-500">Removes your changes for one role. Unsaved edits above are discarded.</p>
+    <div class="flex flex-wrap gap-2">
+      {% for role, column in columns %}
+        <form method="post" action="{{ url('admin/roles') }}">
+          {{ csrf_field() }}
+          <input type="hidden" name="action" value="reset">
+          <input type="hidden" name="role" value="{{ role }}">
+          <button type="submit" class="{{ btn_secondary }}" {% if not column.customized %}disabled{% endif %} data-confirm="Reset {{ column.label }} to its built-in permissions? {{ column.users }} {{ column.users == 1 ? 'person' : 'people' }} will be affected on their next click.">Reset {{ column.label }}</button>
+        </form>
+      {% endfor %}
+    </div>
+  </section>
+
+  <script>
+    (function () {
+      var form = document.getElementById('rolesForm');
+      if (!form) return;
+      // Warn before switching on a permission that can damage the site or expose personal data.
+      function refresh() {
+        var added = [];
+        form.querySelectorAll('input[data-risk]').forEach(function (box) {
+          var risk = box.getAttribute('data-risk');
+          if (box.checked && box.getAttribute('data-was') === '0' && (risk === 'critical' || risk === 'sensitive')) {
+            added.push(box.getAttribute('data-role') + ': ' + box.getAttribute('data-cap'));
+          }
+        });
+        if (added.length) {
+          form.setAttribute('data-confirm', 'You are switching on permissions that can expose personal data or change the site itself: ' + added.join('; ') + '. Continue?');
+        } else {
+          form.removeAttribute('data-confirm');
+        }
+      }
+      form.addEventListener('change', refresh);
+    })();
+  </script>
+{% endblock %}

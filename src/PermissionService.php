@@ -6,7 +6,16 @@ namespace FarosCMS;
 
 final class PermissionService
 {
-    /** @var array<string, array<int, string>> */
+    /** Roles whose capabilities the super admin can change. The super admin's own set is fixed so nobody can be locked out. */
+    public const CUSTOMIZABLE_ROLES = ['admin', 'editor', 'user'];
+
+    /** On for every role, and not switchable: without them a signed-in person could not reach the admin or their own profile. */
+    private const LOCKED_ON = ['admin.access', 'users.self'];
+
+    /** @var array<string, array<int, string>> Chosen by the super admin, only for roles that differ from the built-in set. */
+    private array $overrides = [];
+
+    /** @var array<string, array<int, string>> The built-in capabilities of each role. */
     private array $roleCapabilities = [
         'superadmin' => [
             'admin.access',
@@ -20,6 +29,7 @@ final class PermissionService
             'settings.manage',
             'translations.manage',
             'users.manage',
+            'roles.manage',
             'users.self',
             'activity.manage',
             'email_logs.manage',
@@ -67,6 +77,116 @@ final class PermissionService
         ],
     ];
 
+    /** @param array<string, mixed>|null $overrides The saved per-role capability lists (see saveable()), or null for the built-in roles. */
+    public function __construct(?array $overrides = null)
+    {
+        $this->overrides = $this->cleanOverrides($overrides ?? []);
+    }
+
+    /**
+     * Every capability the roles screen shows, grouped, with how much damage it could do in the wrong hands.
+     * `grantable` false means only the super admin ever has it; it never appears as a switch.
+     *
+     * @return array<string, array{group: string, label: string, description: string, risk: string, grantable: bool}>
+     */
+    public static function catalogue(): array
+    {
+        $c = static fn(string $group, string $label, string $description, string $risk = 'normal', bool $grantable = true): array => [
+            'group' => $group, 'label' => $label, 'description' => $description, 'risk' => $risk, 'grantable' => $grantable,
+        ];
+        return [
+            'admin.access' => $c('Basics', 'Sign in to the admin', 'Always on for every role.'),
+            'users.self' => $c('Basics', 'Edit own profile and password', 'Always on for every role.'),
+            'dashboard.view' => $c('Content', 'Dashboard', 'Sees the overview with content figures.'),
+            'content.manage' => $c('Content', 'Pages, posts, and projects', 'Writes, edits, publishes, and deletes content of every type except forms.'),
+            'content.raw_html' => $c('Content', 'Raw HTML in content', 'Can add HTML to text and blocks. HTML can carry scripts, so this lets the person change what runs on the public site.', 'critical'),
+            'media.manage' => $c('Content', 'Media library', 'Uploads, renames, and deletes files.'),
+            'taxonomies.manage' => $c('Content', 'Categories and tags', 'Creates, edits, and deletes them.'),
+            'menus.manage' => $c('Site', 'Menus', 'Changes the site navigation.'),
+            'translations.manage' => $c('Site', 'Translations', 'Edits the site\'s interface texts.'),
+            'forms.manage' => $c('Site', 'Forms and submissions', 'Reads what visitors sent (personal data) and decides where notifications go.', 'sensitive'),
+            'settings.manage' => $c('Site', 'Settings, system, content types', 'Includes email sending and who can sign in (Google), so it can be used to take over the site.', 'critical'),
+            'imports.manage' => $c('Data', 'Import content', 'Bulk-creates and overwrites content from CSV files.', 'sensitive'),
+            'exports.manage' => $c('Data', 'Export content and forms', 'Downloads content and visitors\' form data in bulk.', 'sensitive'),
+            'activity.manage' => $c('Data', 'Activity log', 'Sees who did what, including IP addresses.', 'sensitive'),
+            'email_logs.manage' => $c('Data', 'Email log', 'Reads the emails the site sent, which can hold personal data.', 'sensitive'),
+            'notifications.manage' => $c('Data', 'System notifications', 'Sees and dismisses warnings about the site itself.'),
+            'backups.manage' => $c('System', 'Backups', 'Creates and downloads backups, which contain everything including user accounts.', 'sensitive'),
+            'updates.manage' => $c('System', 'Updates', 'Installs new versions of the software.', 'critical'),
+            'backups.restore' => $c('System', 'Restore a backup', 'Replaces the whole site. Super admin only.', 'critical', false),
+            'users.manage' => $c('System', 'Users', 'Creates users and sets their roles. Super admin only.', 'critical', false),
+            'roles.manage' => $c('System', 'Roles and permissions', 'Changes what each role can do. Super admin only.', 'critical', false),
+        ];
+    }
+
+    /** @return array<int, string> Capabilities that can be switched on or off for a role. */
+    public static function grantable(): array
+    {
+        return array_keys(array_filter(self::catalogue(), static fn(array $c): bool => $c['grantable']));
+    }
+
+    /** @return array<int, string> The built-in capabilities of a role, ignoring anything the super admin changed. */
+    public function defaultsForRole(string $role): array
+    {
+        return $this->roleCapabilities[$this->normalizeRole($role)] ?? [];
+    }
+
+    public function isCustomized(string $role): bool
+    {
+        return isset($this->overrides[$this->normalizeRole($role)]);
+    }
+
+    /**
+     * The document to store for a submitted matrix: only roles whose choice differs from the built-in set, so a role
+     * left alone keeps following the defaults. Anything not switchable is dropped.
+     *
+     * @param array<string, mixed> $selected role => list of capability keys
+     * @return array<string, array<int, string>>
+     */
+    public function saveable(array $selected): array
+    {
+        $out = [];
+        foreach (self::CUSTOMIZABLE_ROLES as $role) {
+            if (!array_key_exists($role, $selected)) {
+                continue;
+            }
+            $list = $this->normalizeList(is_array($selected[$role]) ? $selected[$role] : []);
+            $default = $this->normalizeList($this->roleCapabilities[$role] ?? []);
+            if ($list !== $default) {
+                $out[$role] = $list;
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * @param array<string, mixed> $raw
+     * @return array<string, array<int, string>>
+     */
+    private function cleanOverrides(array $raw): array
+    {
+        $out = [];
+        foreach (self::CUSTOMIZABLE_ROLES as $role) {
+            if (isset($raw[$role]) && is_array($raw[$role])) {
+                $out[$role] = $this->normalizeList($raw[$role]);
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * Keeps only real, switchable capabilities, adds the always-on ones, and puts them in a stable order.
+     *
+     * @param array<int|string, mixed> $list
+     * @return array<int, string>
+     */
+    private function normalizeList(array $list): array
+    {
+        $known = self::grantable();
+        $keep = array_merge(self::LOCKED_ON, array_filter($list, static fn($v): bool => is_string($v) && in_array($v, $known, true)));
+        return array_values(array_intersect($known, array_unique($keep)));
+    }
+
     /**
      * Roles in order of power, for the users screens.
      *
@@ -75,7 +195,7 @@ final class PermissionService
     public static function roles(): array
     {
         return [
-            'superadmin' => ['label' => 'Super admin', 'description' => 'Everything, including users and roles. Keep at least one.'],
+            'superadmin' => ['label' => 'Super admin', 'description' => 'Everything, including users and roles. Always has every permission; keep at least one.'],
             'admin' => ['label' => 'Admin', 'description' => 'Everything except managing users: content, forms, menus, settings, backups, and updates.'],
             'editor' => ['label' => 'Editor', 'description' => 'Writes, edits, and publishes pages, posts, and projects, and manages media and categories. Cannot change settings, forms, menus, or users, and cannot add raw HTML.'],
             'user' => ['label' => 'Basic user', 'description' => 'Can sign in and edit their own profile only.'],
@@ -85,7 +205,8 @@ final class PermissionService
     /** @return array<int, string> */
     public function capabilitiesForRole(string $role): array
     {
-        return $this->roleCapabilities[$this->normalizeRole($role)] ?? [];
+        $role = $this->normalizeRole($role);
+        return $this->overrides[$role] ?? $this->roleCapabilities[$role] ?? [];
     }
 
     public function can(?array $user, string $capability): bool
@@ -116,6 +237,7 @@ final class PermissionService
             'backups' => 'backups.manage',
             'updates' => 'updates.manage',
             'users', 'users-delete' => 'users.manage',
+            'roles' => 'roles.manage',
             'users-edit' => null,
             'edit', 'save', 'delete', 'new', 'block-presets', 'content-bulk', 'search' => 'content.manage',
             // An action nobody mapped is for administrators only, never for a lower role by accident.

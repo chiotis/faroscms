@@ -90,6 +90,14 @@ final class UserRepository
         return (int)$stmt->fetchColumn();
     }
 
+    /** Active users with a role, to show how many people a permission change reaches. */
+    public function countByRole(string $role): int
+    {
+        $stmt = $this->pdo()->prepare("SELECT COUNT(*) FROM users WHERE role = :role AND status = 'active'");
+        $stmt->execute(['role' => $role]);
+        return (int)$stmt->fetchColumn();
+    }
+
     /** @return array<int, array<string, mixed>> */
     public function all(array $filters = []): array
     {

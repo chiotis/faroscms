@@ -25,7 +25,7 @@ $actions = [
     'settings' => [1,1,0,0], 'system' => [1,1,0,0], 'content-types' => [1,1,0,0], 'translations' => [1,1,0,0],
     'activity-logs' => [1,1,0,0], 'email-logs' => [1,1,0,0], 'backups' => [1,1,0,0], 'updates' => [1,1,0,0],
     'notification-read' => [1,1,0,0], 'notifications-read-all' => [1,1,0,0],
-    'users' => [1,0,0,0], 'users-delete' => [1,0,0,0],
+    'users' => [1,0,0,0], 'users-delete' => [1,0,0,0], 'roles' => [1,0,0,0],
     'users-edit' => [1,1,1,1],
     'some-future-action' => [1,1,0,0],
 ];
@@ -43,4 +43,21 @@ check('editor edits only self', [$p->canEditUser($u('editor', 5), 5), $p->canEdi
 check('editor cannot change own role', $p->canChangeAccessForUser($u('editor', 5), 5), false);
 check('admin cannot manage users', $p->canCreateUsers($u('admin')), false);
 check('role list', array_keys(PermissionService::roles()), ['superadmin', 'admin', 'editor', 'user']);
+
+// Permissions the super admin chose (stored in system_meta as role_permissions).
+$custom = new PermissionService(['editor' => ['content.manage', 'menus.manage', 'users.manage', 'roles.manage', 'backups.restore', 'nonsense'], 'admin' => ['content.manage'], 'superadmin' => []]);
+check('custom: editor gains menus', $custom->canAccessAction($u('editor'), 'menus'), true);
+check('custom: editor loses media', $custom->canAccessAction($u('editor'), 'media'), false);
+check('custom: users, roles, restore can never be granted', [$custom->can($u('editor'), 'users.manage'), $custom->can($u('editor'), 'roles.manage'), $custom->can($u('editor'), 'backups.restore')], [false, false, false]);
+check('custom: sign-in and own profile cannot be removed', [$custom->can($u('editor'), 'admin.access'), $custom->can($u('editor'), 'users.self')], [true, true]);
+check('custom: unknown capability dropped', in_array('nonsense', $custom->capabilitiesForRole('editor'), true), false);
+check('custom: admin narrowed', [$custom->canAccessAction($u('admin'), 'content'), $custom->canAccessAction($u('admin'), 'settings')], [true, false]);
+check('custom: super admin cannot be overridden', $custom->capabilitiesForRole('superadmin'), $p->capabilitiesForRole('superadmin'));
+check('custom: role left alone keeps defaults', $custom->capabilitiesForRole('user'), $p->capabilitiesForRole('user'));
+check('custom: only the super admin gets roles', [$custom->canAccessAction($u('superadmin'), 'roles'), $custom->canAccessAction($u('admin'), 'roles'), $custom->canAccessAction($u('editor'), 'roles')], [true, false, false]);
+check('saveable: unchanged role is not stored', $p->saveable(['editor' => $p->defaultsForRole('editor')]), []);
+check('saveable: change is stored without the ungrantable', $p->saveable(['editor' => ['content.manage', 'users.manage']]), ['editor' => ['admin.access', 'users.self', 'content.manage']]);
+check('saveable: superadmin never stored', $p->saveable(['superadmin' => ['content.manage']]), []);
+check('catalogue covers every capability a role has', array_values(array_diff(array_merge(...array_map([$p, 'capabilitiesForRole'], ['superadmin', 'admin', 'editor', 'user'])), array_keys(PermissionService::catalogue()))), []);
+check('junk stored data is ignored', (new PermissionService(['editor' => 'x', 'admin' => null]))->capabilitiesForRole('editor'), $p->defaultsForRole('editor'));
 echo $fail === 0 ? "\nALL PASSED\n" : "\n$fail FAILED\n";

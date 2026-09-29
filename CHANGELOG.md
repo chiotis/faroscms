@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-09-29 — Permissions per role
+- New screen **Admin > Roles** (super admin only): a matrix of every permission against Admin, Editor, and Basic user, with a description and a Sensitive or Critical label on the ones that can expose personal data or change the site itself; switching one of those on asks for confirmation
+- Changes apply on the person's next click, are stored in the system database (`role_permissions`, only for roles that differ from the built-in set), are written to the activity log with what was added and removed, and can be undone per role with "Reset"
+- Never switchable: the super admin's own permissions, and managing users, roles, and restoring backups; sign-in and editing one's own profile are always on for every role
+- Importing content from CSV now follows the raw HTML rule, so granting import does not open a way around it
+- `scripts/check-permissions.php` also checks custom permissions
+
 ## 2026-09-29 — Editor role
 - New role **Editor**: writes, edits, publishes, and deletes pages, posts, and projects, and manages media, categories, and tags. It cannot open forms, menus, settings, content types, translations, users, logs, backups, updates, or import/export, and it gets a content-only dashboard without system figures or notifications
 - Raw HTML is an administrator privilege: an editor's HTML is shown as plain text (with a notice), while HTML an administrator placed in a page stays intact when an editor saves it; this covers the text, block Markdown fields, and raw front matter

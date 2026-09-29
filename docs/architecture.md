@@ -19,7 +19,7 @@ Before the application boots, `public/index.php` hands `/_themes/…` and `/_cus
 | `ContentIndex` | SQLite `content_index` kept in sync with the files; admin search and staleness checks. |
 | `Auth` | Session sign-in (SQLite users, YAML fallback), session rotation, per-request user refresh, shipped-password detection. |
 | `UserRepository` | SQLite users: CRUD, YAML import, superadmin guarantee. |
-| `PermissionService` | Role capabilities (`superadmin`, `admin`, `editor`, `user`) and route-to-capability mapping; unmapped routes are administrator-only. |
+| `PermissionService` | Role capabilities (`superadmin`, `admin`, `editor`, `user`), the capability catalogue, the super admin's per-role changes (`system_meta.role_permissions`), and route-to-capability mapping; unmapped routes are administrator-only. |
 | `LoginThrottle` | Failed sign-in counting and blocking (`login_attempts`). |
 | `SystemDatabase` | SQLite connection, migrations, and close/reopen for restores. |
 | `SystemMetaRepository` | `system_meta` key/value storage (settings YAML, cached status JSON). |
