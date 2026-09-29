@@ -42,6 +42,10 @@ After adding or changing an admin action, run `php scripts/check-permissions.php
 
 **Raw HTML.** Raw HTML in Markdown can carry script, and an editor must not be able to script the public site. When someone without the `content.raw_html` capability saves, any HTML they type in the text or in a block's Markdown fields is shown as plain text and the editor is told so. HTML that is already in that content (put there by an administrator, for example an embed) is left alone, so an editor's edit never breaks it. `[text](javascript:…)` style links are neutralised for everybody. Uploads are checked separately (SVG files with scripts are refused).
 
+### Links and deleting
+
+Updating the links that still use an old address needs `content.manage` (it edits content) and only offers permanent redirects that are on. It changes nothing but the address in the text, files of types the person cannot edit (forms without `forms.manage`) are skipped, and every changed file gets a history entry ("Links updated") holding the earlier text. When a public entry is deleted, choosing where visitors go needs `redirects.manage`; without it the choice is ignored, so a permission that lets someone send visitors to another website cannot be used through the delete form. The target is checked like any redirect (no scripts, no loops), and an address on this site must exist. Deleting keeps the text in the history for 180 days, for bulk deletes too.
+
 ### Redirects
 
 Redirects are managed with `redirects.manage` (Sensitive: a redirect can send visitors to another website). A target must be a path on this site or an `http(s)` address; `javascript:`, `data:` and other schemes are refused, as are loops and redirects from `/admin`. The list of addresses that were not found keeps only the path and the referring host and path (no query strings, no IP addresses), ignores files and probes, and is capped at 1000 rows. Address changes made by an editor still create their redirect, because that is a side effect of saving, not a redirect management action.

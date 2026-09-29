@@ -187,13 +187,7 @@ final class ContentTypes
         }
 
         $archive = is_array($raw['archive'] ?? null) ? $raw['archive'] : [];
-        $archiveValues = FieldSchema::resolve(self::archiveSchema(), array_intersect_key($archive, self::archiveSchema()));
-        $archiveValues['title'] = trim((string)$pick($archive['title'] ?? ''));
-        $archiveValues['subtitle'] = trim((string)$pick($archive['subtitle'] ?? ''));
-        $archiveValues['taxonomies'] = array_values(array_filter(
-            array_map('strval', is_array($archive['taxonomies'] ?? null) ? $archive['taxonomies'] : []),
-            static fn(string $name): bool => (bool)preg_match('/^[a-z][a-z0-9_-]*$/', $name)
-        ));
+        $archiveValues = self::resolveArchive($archive, $pick);
 
         // Ordering by a declared field: "field:<key>:asc" or "field:<key>:desc".
         $order = (string)($archive['order'] ?? '');
@@ -369,6 +363,67 @@ final class ContentTypes
             'show_date' => ['type' => 'toggle', 'label' => 'Show the date', 'default' => true],
             'show_meta' => ['type' => 'toggle', 'label' => 'Show category and card fields', 'default' => true],
         ]);
+    }
+
+    /**
+     * The archive settings of a type or taxonomy after checking every value against the schema: how it is laid out,
+     * ordered, and paged, which parts of an entry show, and the texts above the list. Anything missing gets its default.
+     *
+     * @param array<string, mixed> $archive raw settings as written in a definition
+     * @param callable(mixed): mixed $pick chooses the text for a language
+     * @return array<string, mixed>
+     */
+    public static function resolveArchive(array $archive, callable $pick): array
+    {
+        $values = FieldSchema::resolve(self::archiveSchema(), array_intersect_key($archive, self::archiveSchema()));
+        $values['title'] = trim((string)$pick($archive['title'] ?? ''));
+        $values['subtitle'] = trim((string)$pick($archive['subtitle'] ?? ''));
+        $values['taxonomies'] = array_values(array_filter(
+            array_map('strval', is_array($archive['taxonomies'] ?? null) ? $archive['taxonomies'] : []),
+            static fn(string $name): bool => (bool)preg_match('/^[a-z][a-z0-9_-]*$/', $name)
+        ));
+        return $values;
+    }
+
+    /**
+     * What to store after the archive part of an admin form was submitted: only the values that differ from the
+     * defaults, on top of whatever the file already holds (so keys the form does not know are kept).
+     *
+     * @param array<string, mixed> $input the submitted `archive[...]` values
+     * @param array<string, mixed> $current what the site's file holds now
+     * @param array<string, mixed> $defaults the resolved settings the site would have without its own file
+     * @param string[] $taxonomyNames taxonomies that exist, the only ones that can be offered as filters
+     * @param bool $fieldOrders whether an order by a declared field ("field:<key>:asc") is accepted
+     * @return array<string, mixed>
+     */
+    public static function archiveFromInput(array $input, array $current, array $defaults, array $taxonomyNames, bool $fieldOrders): array
+    {
+        $schema = self::archiveSchema();
+        $submitted = [];
+        foreach (['layout', 'columns'] as $key) {
+            $submitted[$key] = FieldSchema::clean($schema[$key], $input[$key] ?? null);
+        }
+        $order = (string)($input['order'] ?? '');
+        $submitted['order'] = isset(self::ORDERS[$order]) || ($fieldOrders && preg_match('/^field:[a-z][a-z0-9_]*:(asc|desc)$/', $order))
+            ? $order
+            : $defaults['order'];
+        $submitted['per_page'] = FieldSchema::clean($schema['per_page'], $input['per_page'] ?? null);
+        foreach (['show_image', 'show_excerpt', 'show_date', 'show_meta'] as $key) {
+            $submitted[$key] = FieldSchema::isTruthy($input[$key] ?? false);
+        }
+        $chosen = array_map('strval', is_array($input['taxonomies'] ?? null) ? $input['taxonomies'] : []);
+        $submitted['taxonomies'] = array_values(array_intersect($taxonomyNames, $chosen));
+        foreach (['title', 'subtitle'] as $key) {
+            $submitted[$key] = trim((string)preg_replace('/\s+/', ' ', (string)($input[$key] ?? '')));
+        }
+        foreach ($submitted as $key => $value) {
+            if ($value === $defaults[$key]) {
+                unset($current[$key]);
+            } else {
+                $current[$key] = $value;
+            }
+        }
+        return $current;
     }
 
     /**

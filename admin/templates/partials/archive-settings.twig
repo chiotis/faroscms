@@ -1,0 +1,56 @@
+{#
+  The archive settings shared by content types and taxonomies: how a list of entries looks and what visitors can
+  filter by. Field names are archive[...]; the server keeps only what differs from the defaults.
+
+  archive          resolved settings (layout, columns, order, per_page, show_*, title, subtitle, taxonomies)
+  layouts, orders  the choices offered
+  filter_names     taxonomies that can be offered as filters
+  title_hint       help under the page title
+  title_placeholder, filter_note   optional texts
+#}
+{% set input_soft = 'w-full rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20' %}
+  <div class="grid gap-3 md:grid-cols-4">
+    <label class="grid gap-1 text-sm font-medium text-slate-700">Layout
+      <select name="archive[layout]" class="{{ input_soft }}">
+        {% for value, label in layouts %}<option value="{{ value }}"{% if archive.layout == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+    </label>
+    <label class="grid gap-1 text-sm font-medium text-slate-700">Columns (cards and tiles)
+      <select name="archive[columns]" class="{{ input_soft }}">
+        {% for value in ['2', '3', '4'] %}<option value="{{ value }}"{% if archive.columns == value %} selected{% endif %}>{{ value }}</option>{% endfor %}
+      </select>
+    </label>
+    <label class="grid gap-1 text-sm font-medium text-slate-700">Order
+      <select name="archive[order]" class="{{ input_soft }}">
+        {% for value, label in orders %}<option value="{{ value }}"{% if archive.order == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+    </label>
+    <label class="grid gap-1 text-sm font-medium text-slate-700">Items per page
+      <input type="number" name="archive[per_page]" min="0" max="60" value="{{ archive.per_page }}" class="{{ input_soft }}">
+      <span class="text-xs font-normal text-slate-400">0 shows everything on one page.</span>
+    </label>
+    <label class="grid content-start gap-1 text-sm font-medium text-slate-700 md:col-span-2">Page title
+      <input type="text" name="archive[title]" value="{{ archive.title }}" placeholder="{{ title_placeholder|default("Default: the theme's text") }}" class="{{ input_soft }}">
+      {% if title_hint %}<span class="text-xs font-normal text-slate-400">{{ title_hint }}</span>{% endif %}
+    </label>
+    <label class="grid content-start gap-1 text-sm font-medium text-slate-700 md:col-span-2">Subtitle
+      <input type="text" name="archive[subtitle]" value="{{ archive.subtitle }}" class="{{ input_soft }}">
+    </label>
+  </div>
+  <div class="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-700">
+    <label class="inline-flex items-center gap-2"><input type="checkbox" name="archive[show_image]" value="1"{% if archive.show_image %} checked{% endif %} class="h-4 w-4 rounded border-slate-300"> Show images</label>
+    <label class="inline-flex items-center gap-2"><input type="checkbox" name="archive[show_excerpt]" value="1"{% if archive.show_excerpt %} checked{% endif %} class="h-4 w-4 rounded border-slate-300"> Show the excerpt</label>
+    <label class="inline-flex items-center gap-2"><input type="checkbox" name="archive[show_date]" value="1"{% if archive.show_date %} checked{% endif %} class="h-4 w-4 rounded border-slate-300"> Show the date</label>
+    <label class="inline-flex items-center gap-2"><input type="checkbox" name="archive[show_meta]" value="1"{% if archive.show_meta %} checked{% endif %} class="h-4 w-4 rounded border-slate-300"> Show category and card fields</label>
+  </div>
+  {% if filter_names %}
+    <fieldset class="mt-3">
+      <legend class="text-sm font-medium text-slate-700">Filters from taxonomies</legend>
+      <div class="mt-1 flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-700">
+        {% for name in filter_names %}
+          <label class="inline-flex items-center gap-2"><input type="checkbox" name="archive[taxonomies][]" value="{{ name }}"{% if name in archive.taxonomies %} checked{% endif %} class="h-4 w-4 rounded border-slate-300"> {{ name|capitalize }}</label>
+        {% endfor %}
+      </div>
+      <p class="mt-1 text-xs text-slate-400">{{ filter_note|default('Visitors can narrow the archive by these. Select fields marked "filter" below appear as filters too.') }}</p>
+    </fieldset>
+  {% endif %}

@@ -243,7 +243,7 @@ final class PermissionService
             'roles' => 'roles.manage',
             'redirects' => 'redirects.manage',
             'users-edit' => null,
-            'edit', 'save', 'delete', 'new', 'block-presets', 'content-bulk', 'search', 'revisions' => 'content.manage',
+            'edit', 'save', 'delete', 'new', 'block-presets', 'content-bulk', 'search', 'revisions', 'links' => 'content.manage',
             // An action nobody mapped is for administrators only, never for a lower role by accident.
             default => 'settings.manage',
         };

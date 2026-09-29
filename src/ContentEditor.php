@@ -528,6 +528,39 @@ final class ContentEditor
         return ['ok' => true, 'error' => '', 'html_neutralized' => $neutralized, 'was_deleted' => $undelete];
     }
 
+    /**
+     * Points the links in content at their new places, in every file that has one. Only the address in the text
+     * changes; nothing else in a file is touched, and the earlier version stays in the history.
+     *
+     * @param array<string, string> $map normalised path => where it goes now ("/path" on this site or a full address)
+     * @param \Closure(string): bool|null $mayEdit whether the person may change content of a type; files of other types are left alone
+     * @return array{files: int, links: int, failed: int}
+     */
+    public function updateLinks(LinkScanner $scanner, array $map, string $actor, ?\Closure $mayEdit = null): array
+    {
+        $done = ['files' => 0, 'links' => 0, 'failed' => 0];
+        foreach ($scanner->find(array_keys($map)) as $file) {
+            if ($mayEdit !== null && !$mayEdit($file['type'])) {
+                continue;
+            }
+            $raw = (string)@file_get_contents($file['path']);
+            [$updated, $changed] = $scanner->rewrite($raw, $map);
+            if ($changed === 0 || $updated === $raw) {
+                continue;
+            }
+            $this->revisions?->baseline($file['type'], $file['slug'], $file['lang'], $file['path'], $actor);
+            if (@file_put_contents($file['path'], $updated) === false) {
+                $done['failed']++;
+                continue;
+            }
+            $this->index($file['type'], $file['path']);
+            $this->revisions?->capture($file['type'], $file['slug'], $file['lang'], $updated, 'links', $actor);
+            $done['files']++;
+            $done['links'] += $changed;
+        }
+        return $done;
+    }
+
     private function paths(): ContentPaths
     {
         return new ContentPaths($this->settings);

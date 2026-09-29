@@ -27,7 +27,7 @@ All tables are wired into admin flows. `login_attempts` (sign-in throttling) and
 ## Content Index
 
 - `redirects` holds old addresses that lead elsewhere (source path without slashes, lower case; target `/path` or a full address; 301 or 302; automatic or by hand; visit count). `not_found_log` counts addresses visitors asked for that do not exist (path, hits, last referrer host and path, capped at 1000 rows).
-- `content_revisions` keeps the whole text of a content file each time it is saved, imported, restored, or deleted (deflated; type, slug, language, action, who, title, status, checksum). The latest 50 per item are kept, and items whose newest entry is a delete for 180 days. It is part of every database backup.
+- `content_revisions` keeps the whole text of a content file each time it is saved, imported, restored, or deleted (deflated; type, slug, language, action (create, save, import, restore, links, delete, external, baseline), who, title, status, checksum). The latest 50 per item are kept, and items whose newest entry is a delete for 180 days. It is part of every database backup.
 - `content_index` mirrors every Markdown file (type, slug, language, title, status, visibility, path, checksum, mtime, and lowercased search text).
 - It is updated on save, delete, bulk actions, CSV imports, and restores, and rebuilt automatically when files change outside the admin (for example after `git pull`).
 - Admin search (`/admin/search`) reads it; `/admin/system` shows its status and has a manual rebuild button.

@@ -52,7 +52,7 @@ final class App
     private array $translations = [];
     private array $formStates = [];
     private array $menusCache = [];
-    private array $taxonomiesCache = [];
+    private ?Taxonomies $taxonomyStore = null;
     private array $themeSettings = [];
 
     public function __construct(string $basePath)
@@ -67,7 +67,7 @@ final class App
         $this->theme = new Theme($this->basePath, (string)($this->settings['theme'] ?? Theme::DEFAULT_NAME));
         $this->themeSettings = $this->loadThemeSettings();
         $this->ensureDefaultMenus();
-        $this->ensureDefaultTaxonomies();
+        $this->taxonomies()->ensureDefaults();
 
         $markdown = $this->markdownConverter();
         $this->markdown = $markdown;
@@ -129,7 +129,7 @@ final class App
             $this->redirects,
             $this->htmlGuard(),
             fn(): BlockRegistry => $this->blockRegistry(),
-            fn(): array => $this->listTaxonomyNames(),
+            fn(): array => $this->taxonomies()->names(),
             $this->revisions
         );
     }
@@ -461,17 +461,31 @@ final class App
     private function archiveContext(string $type, string $lang, array $items): array
     {
         $definition = $this->contentTypes()->definition($type, $lang, $this->defaultLanguage());
-        $settings = $definition['archive'];
+        return $this->buildArchive($definition['archive'], $definition['fields'], $definition, $lang, $items);
+    }
 
+    /**
+     * The archive of any list of entries (a content type, or the entries of a category or tag): filters, order, and pages
+     * from settings that a content type or a taxonomy chose. Filters come from the chosen taxonomies and, for a content
+     * type, from its filterable select fields.
+     *
+     * @param array<string, mixed> $settings resolved archive settings
+     * @param array<string, array<string, mixed>> $fields the declared fields of the type (none for a taxonomy)
+     * @param array<string, mixed>|null $definition the type's definition, when there is one
+     * @param ContentItem[] $items
+     * @return array<string, mixed>
+     */
+    private function buildArchive(array $settings, array $fields, ?array $definition, string $lang, array $items): array
+    {
         // Facets: name => label, options (value => label), how to read an item's values.
         $facets = [];
-        $taxonomyNames = $this->listTaxonomyNames();
+        $taxonomyNames = $this->taxonomies()->names();
         foreach ($settings['taxonomies'] as $taxonomy) {
             if (in_array($taxonomy, $taxonomyNames, true)) {
                 $facets[$taxonomy] = ['label' => $this->titleFromSlug($taxonomy), 'kind' => 'taxonomy', 'labels' => []];
             }
         }
-        foreach ($definition['fields'] as $key => $field) {
+        foreach ($fields as $key => $field) {
             if ($field['filterable'] && !$field['hidden']) {
                 $facets[$key] = ['label' => $field['label'], 'kind' => 'field', 'labels' => $field['options']];
             }
@@ -523,7 +537,7 @@ final class App
         if (preg_match('/^field:([a-z][a-z0-9_]*):(asc|desc)$/', (string)$settings['order'], $m)) {
             // By a declared field; items without a value go last in either direction.
             [$key, $direction] = [$m[1], $m[2]];
-            $type_ = $definition['fields'][$key]['type'] ?? 'text';
+            $type_ = $fields[$key]['type'] ?? 'text';
             $sortKey = static function (ContentItem $item) use ($key, $type_): string|float|null {
                 $value = $item->meta['custom_fields'][$key] ?? null;
                 if ($value === null || $value === '') {
@@ -939,6 +953,11 @@ final class App
 
         if ($action === 'revisions') {
             $this->handleRevisions();
+            return;
+        }
+
+        if ($action === 'links') {
+            $this->handleLinks();
             return;
         }
 
@@ -1505,7 +1524,7 @@ final class App
             return true;
         }
         if (in_array($first, ['tag', 'tags', 'category', 'categories'], true)) {
-            return isset($segments[1]) && $this->findTaxonomyTermBySlug(in_array($first, ['category', 'categories'], true) ? 'categories' : 'tags', $segments[1]) !== null;
+            return isset($segments[1]) && $this->taxonomies()->findBySlug(in_array($first, ['category', 'categories'], true) ? 'categories' : 'tags', $segments[1]) !== null;
         }
         if (in_array($first, $this->content->getTypes(), true)) {
             if (count($segments) === 1) {
@@ -1695,6 +1714,15 @@ final class App
             $row['shadowed'] = $this->publicPathExists((string)$row['source']);
             $rows[] = $row;
         }
+        // Links inside content that still use an old address (only for permanent redirects that are on).
+        $linkCounts = null;
+        if ($this->permissions->can($this->auth->user(), 'content.manage')) {
+            $usable = array_column(array_filter($rows, static fn(array $r): bool => (bool)$r['enabled'] && (int)$r['status_code'] === 301), 'source');
+            $linkCounts = $usable !== [] ? $this->linkScanner()->countBySource($usable) : [];
+        }
+        foreach ($rows as $i => $row) {
+            $rows[$i]['links'] = $linkCounts === null ? null : ($linkCounts[$row['source']] ?? 0);
+        }
 
         $missing = [];
         if ($tab === 'missing') {
@@ -1728,12 +1756,100 @@ final class App
         ]);
     }
 
+    private function linkScanner(): LinkScanner
+    {
+        $hosts = [
+            (string)(parse_url($this->getBaseUrl(), PHP_URL_HOST) ?? ''),
+            explode(':', (string)($_SERVER['HTTP_HOST'] ?? ''))[0],
+        ];
+        return new LinkScanner(
+            $this->contentDir,
+            array_map('strval', $this->settings['languages']['available'] ?? [$this->defaultLanguage()]),
+            $this->defaultLanguage(),
+            $hosts
+        );
+    }
+
+    /**
+     * Where each redirect's old address should now be linked to, for redirects that are permanent and on.
+     *
+     * @param int[] $ids
+     * @return array<string, string> normalised source => target
+     */
+    private function linkFixes(array $ids): array
+    {
+        $map = [];
+        foreach ($ids as $id) {
+            $row = $this->redirects->find($id);
+            if ($row === null || !(bool)$row['enabled'] || (int)$row['status_code'] !== 301) {
+                continue;
+            }
+            // The end of a chain, so a link never goes through two redirects.
+            $resolved = $this->redirects->resolve((string)$row['source']);
+            if ($resolved !== null && $resolved['code'] === 301) {
+                $map[(string)$row['source']] = $resolved['target'];
+            }
+        }
+        return $map;
+    }
+
+    /**
+     * Links inside content that still use an old address. Lists where they are and, on request, points them at the
+     * redirect's target, so visitors no longer take the detour. Only the address in the text changes.
+     */
+    private function handleLinks(): void
+    {
+        $raw = (string)($_POST['ids'] ?? $_GET['ids'] ?? '');
+        $ids = array_values(array_unique(array_filter(array_map('intval', explode(',', $raw)), static fn(int $id): bool => $id > 0)));
+        $map = $this->linkFixes(array_slice($ids, 0, 50));
+        $scanner = $this->linkScanner();
+        $may = fn(string $type): bool => $this->canAccessContentType($type);
+
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && $map !== []) {
+            $result = $this->contentEditor()->updateLinks($scanner, $map, $this->currentUsername(), $may);
+            $this->logActivity('content.links_updated', 'info', 'links', implode(',', array_keys($map)), 'Links to changed addresses updated.', [
+                'entries' => $result['files'],
+                'links' => $result['links'],
+                'addresses' => array_keys($map),
+            ]);
+            $this->redirect('/admin/links?ids=' . implode(',', $ids) . '&done=' . $result['files'] . '-' . $result['links'] . '-' . $result['failed']);
+            return;
+        }
+
+        $entries = [];
+        $total = 0;
+        foreach ($scanner->find(array_keys($map)) as $found) {
+            if (!$may($found['type'])) {
+                continue;
+            }
+            $item = $this->content->find($found['type'], $found['slug'], $found['lang'], true, false);
+            $found['title'] = $item !== null ? (string)($item->meta['title'] ?? $found['slug']) : $found['slug'];
+            $found['edit_url'] = '/admin/edit?type=' . urlencode($found['type']) . '&slug=' . urlencode($found['slug']) . '&lang=' . urlencode($found['lang']);
+            $entries[] = $found;
+            $total += $found['count'];
+        }
+        $done = array_map('intval', explode('-', (string)($_GET['done'] ?? '')) + [0, 0, 0]);
+        $this->render('@admin/links.twig', [
+            'fixes' => array_map(fn(string $source, string $target): array => ['source' => $source, 'target' => $target], array_keys($map), array_values($map)),
+            'skipped' => count($ids) - count($map),
+            'ids' => implode(',', $ids),
+            'entries' => $entries,
+            'total' => $total,
+            'done' => isset($_GET['done']) ? ['entries' => $done[0], 'links' => $done[1], 'failed' => $done[2]] : null,
+            'types' => $this->content->getTypes(),
+            'user' => $this->auth->user(),
+            'admin_section' => 'redirects',
+            'current_type' => 'pages',
+        ]);
+    }
+
     /** Shown for each kind of change in the history screens. */
     private const REVISION_ACTIONS = [
         'create' => 'Created',
         'save' => 'Saved',
         'import' => 'Imported',
         'restore' => 'Restored',
+        'links' => 'Links updated',
         'delete' => 'Deleted',
         'external' => 'Changed outside the editor',
         'baseline' => 'Earlier version',
@@ -2260,7 +2376,7 @@ final class App
         $this->settings = $this->loadSettings();
         $this->themeSettings = $this->loadThemeSettings();
         $this->menusCache = [];
-        $this->taxonomiesCache = [];
+        $this->taxonomies()->forget();
         $this->recordBackupRun($safety);
         if ($result['ok']) {
             $this->rebuildContentIndex();
@@ -2612,6 +2728,10 @@ final class App
             'status_options' => $statusOptions,
             'bulk_status' => (string)($_GET['bulk'] ?? ''),
             'bulk_message' => trim((string)($_GET['bulk_msg'] ?? '')),
+            'deleted_from' => trim((string)($_GET['from'] ?? '')),
+            'deleted_to' => trim((string)($_GET['to'] ?? '')),
+            'deleted_gone' => trim((string)($_GET['gone'] ?? '')),
+            'can_redirects' => $this->permissions->can($this->auth->user(), 'redirects.manage'),
         ]);
     }
 
@@ -2638,6 +2758,7 @@ final class App
         $defaultLang = (string)($this->settings['languages']['default'] ?? 'en');
         $changed = 0;
         $skipped = 0;
+        $publicDeleted = 0;
         foreach ($slugs as $slug) {
             $path = $this->contentDir . '/' . $type . '/' . $this->buildFilename($slug, $lang);
             if (!is_file($path)) {
@@ -2650,9 +2771,14 @@ final class App
                     $skipped++;
                     continue;
                 }
+                $wasPublic = $type !== 'forms' && $this->content->find($type, $slug, $lang, false, false) !== null;
+                // Same as deleting one: the text stays in the history so it can be brought back.
+                $this->revisions->baseline($type, $slug, $lang, $path, $this->currentUsername());
+                $this->revisions->capture($type, $slug, $lang, (string)file_get_contents($path), 'delete', $this->currentUsername());
                 if (@unlink($path)) {
                     $this->unindexContent($type, $slug, $lang);
                     $changed++;
+                    $publicDeleted += $wasPublic ? 1 : 0;
                 }
                 continue;
             }
@@ -2688,6 +2814,10 @@ final class App
             'skipped' => $skipped,
         ]);
         $message = $changed . ' item' . ($changed === 1 ? '' : 's') . ' ' . $verb . '.' . ($skipped > 0 ? ' ' . $skipped . ' skipped.' : '');
+        if ($publicDeleted > 0) {
+            $message .= ' ' . $publicDeleted . ' of them ' . ($publicDeleted === 1 ? 'was' : 'were') . ' public: visitors of ' . ($publicDeleted === 1 ? 'its address' : 'their addresses') . ' will see "not found".'
+                . ($this->permissions->can($this->auth->user(), 'redirects.manage') ? ' Add redirects in Admin > Redirects, or delete them one at a time to choose where visitors go.' : '');
+        }
         $this->redirect($back . '&' . http_build_query(['bulk' => $changed > 0 ? 'ok' : 'fail', 'bulk_msg' => $message]));
     }
 
@@ -2778,7 +2908,7 @@ final class App
             $metaForm['date'] = $this->normalizeAdminDate($rawDate);
             $metaForm['author'] = (string)($meta['author'] ?? '');
             $metaForm['template'] = (string)($meta['template'] ?? '');
-            foreach ($this->listTaxonomyNames() as $taxonomyName) {
+            foreach ($this->taxonomies()->names() as $taxonomyName) {
                 $metaForm['taxonomy_terms'][$taxonomyName] = $this->normalizeMetaList($meta[$taxonomyName] ?? null);
             }
             $seo = $meta['seo'] ?? [];
@@ -2853,6 +2983,7 @@ final class App
             ]), 0, 120);
         }
         $frontUrl = '';
+        $linkFix = null;
         $itemExists = $slug !== '' && is_file($path);
         $homeSlug = $this->settings['home_page'] ?? 'index';
         $defaultLang = $this->settings['languages']['default'] ?? 'en';
@@ -2869,6 +3000,14 @@ final class App
             $frontUrl = $this->buildAbsoluteUrl($publicPath);
             if ($itemExists && $this->permissions->can($this->auth->user(), 'redirects.manage')) {
                 $address['old_addresses'] = $this->redirects->pointingTo($publicPath);
+            }
+            // Just after an address changed: are there links in other content that still use the old one?
+            if ($itemExists && (string)($_GET['address'] ?? '') === 'changed') {
+                $permanent = array_values(array_filter($this->redirects->pointingTo($publicPath), static fn(array $r): bool => (bool)$r['enabled'] && (int)$r['status_code'] === 301));
+                $counts = $permanent !== [] ? $this->linkScanner()->countBySource(array_column($permanent, 'source')) : null;
+                if ($counts !== null && array_sum($counts) > 0) {
+                    $linkFix = ['count' => array_sum($counts), 'ids' => implode(',', array_column($permanent, 'id'))];
+                }
             }
         }
 
@@ -2894,6 +3033,7 @@ final class App
             'notice' => (string)($_GET['notice'] ?? ''),
             'address' => $address,
             'address_changed' => (string)($_GET['address'] ?? '') === 'changed',
+            'link_fix' => $linkFix,
             'restored' => isset($_GET['restored']),
             'history' => $itemExists ? $this->decorateRevisions($this->revisions->forItem($type, $slug, $lang, 8)) : [],
             'history_total' => $itemExists ? $this->revisions->countForItem($type, $slug, $lang) : 0,
@@ -3087,51 +3227,124 @@ final class App
             . ($result['slug_taken'] !== '' ? '&address_taken=' . urlencode($result['slug_taken']) : ''));
     }
 
+    /**
+     * Deleting one entry. A public one goes through a page of its own first, which asks whether visitors of its address
+     * should be sent somewhere (a redirect) instead of finding nothing. A draft, which nobody could have visited, is
+     * deleted straight away after the confirmation in the list.
+     */
     private function handleDelete(): void
     {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            $this->redirect('/admin');
-            return;
-        }
-
-        $type = $this->sanitizeType((string)($_POST['type'] ?? 'pages'));
+        $post = $_SERVER['REQUEST_METHOD'] === 'POST';
+        $source = $post ? $_POST : $_GET;
+        $type = $this->sanitizeType((string)($source['type'] ?? 'pages'));
         if (!$this->canAccessContentType($type)) {
             $this->denyContentType($type);
             return;
         }
-        $slug = $this->slugify((string)($_POST['slug'] ?? ''));
-        $lang = $this->slugify((string)($_POST['lang'] ?? ($this->settings['languages']['default'] ?? 'en')));
-        $defaultLang = $this->settings['languages']['default'] ?? 'en';
+        $slug = $this->slugify((string)($source['slug'] ?? ''));
+        $lang = $this->slugify((string)($source['lang'] ?? ($this->settings['languages']['default'] ?? 'en')));
+        $defaultLang = $this->defaultLanguage();
         $homeSlug = trim((string)($this->settings['home_page'] ?? 'index'));
         if ($homeSlug === '') {
             $homeSlug = 'index';
         }
+        $back = '/admin/content?type=' . urlencode($type) . '&lang=' . urlencode($lang);
 
-        if ($slug === '') {
-            $this->redirect('/admin/content?type=' . urlencode($type) . '&lang=' . urlencode($lang));
-            return;
-        }
-
-        if ($type === 'pages' && $slug === $homeSlug && $lang === $defaultLang) {
-            $this->redirect('/admin/content?type=' . urlencode($type) . '&lang=' . urlencode($lang));
+        if ($slug === '' || ($type === 'pages' && $slug === $homeSlug && $lang === $defaultLang)) {
+            $this->redirect($back);
             return;
         }
 
         $path = $this->contentDir . '/' . $type . '/' . $this->buildFilename($slug, $lang);
-        if (file_exists($path)) {
+        $isPublic = is_file($path) && $type !== 'forms' && $this->content->find($type, $slug, $lang, false, false) !== null;
+        $publicPath = $this->buildContentPath($type, $slug, $lang, $homeSlug, $defaultLang);
+        $mayRedirect = $isPublic && $this->permissions->can($this->auth->user(), 'redirects.manage') && $this->redirects->isAvailable();
+
+        // Where visitors go instead, when the person chose to send them somewhere.
+        $target = '';
+        $error = '';
+        $choice = (string)($_POST['after'] ?? '');
+        if ($post && $mayRedirect && in_array($choice, ['archive', 'home', 'custom'], true)) {
+            $target = match ($choice) {
+                'archive' => $type === 'pages' ? '' : '/' . $this->buildArchivePath($type, $lang, $defaultLang),
+                'home' => '/' . ($lang === $defaultLang ? '' : $lang),
+                default => $this->localizeTarget((string)($_POST['after_target'] ?? '')),
+            };
+            $error = $target === '' ? 'target_empty' : (string)$this->redirects->validate($publicPath, $target, 301);
+            if ($error === '' && !RedirectRepository::isExternal($target) && !$this->publicPathExists(RedirectRepository::normalizePath($target))) {
+                $error = 'target_missing';
+            }
+        }
+
+        if (!$post || $error !== '') {
+            if (!is_file($path)) {
+                $this->redirect($back);
+                return;
+            }
+            $this->renderDeleteConfirm($type, $slug, $lang, $publicPath, $isPublic, $mayRedirect, $error, $choice, (string)($_POST['after_target'] ?? ''));
+            return;
+        }
+
+        $by = $this->currentUsername();
+        if (is_file($path)) {
             // The text is kept in the history so the item can be brought back from Admin > History.
-            $this->revisions->baseline($type, $slug, $lang, $path, $this->currentUsername());
-            $this->revisions->capture($type, $slug, $lang, (string)file_get_contents($path), 'delete', $this->currentUsername());
+            $this->revisions->baseline($type, $slug, $lang, $path, $by);
+            $this->revisions->capture($type, $slug, $lang, (string)file_get_contents($path), 'delete', $by);
             unlink($path);
             $this->unindexContent($type, $slug, $lang);
+            if ($target !== '') {
+                $this->redirects->replacedBy($publicPath, $target, $by, $type);
+            }
             $this->logActivity('content.delete', 'warning', $type, $slug . ':' . $lang, 'Content deleted.', [
                 'type' => $type,
                 'slug' => $slug,
                 'lang' => $lang,
+                'redirect_to' => $target,
             ]);
         }
 
-        $this->redirect('/admin/content?type=' . urlencode($type) . '&lang=' . urlencode($lang) . '&deleted=1');
+        $query = '&deleted=1';
+        if ($target !== '') {
+            $query .= '&from=' . urlencode('/' . $publicPath) . '&to=' . urlencode($target);
+        } elseif ($isPublic) {
+            $query .= '&gone=' . urlencode('/' . $publicPath);
+        }
+        $this->redirect($back . $query);
+    }
+
+    /** The page that asks what should happen to visitors of a public entry that is about to be deleted. */
+    private function renderDeleteConfirm(string $type, string $slug, string $lang, string $publicPath, bool $isPublic, bool $mayRedirect, string $error, string $choice, string $custom): void
+    {
+        $defaultLang = $this->defaultLanguage();
+        $item = $this->content->find($type, $slug, $lang, true, false);
+        $known = $this->contentPathMap();
+        unset($known[$publicPath]);
+        $counts = $this->permissions->can($this->auth->user(), 'content.manage')
+            ? $this->linkScanner()->countBySource([RedirectRepository::normalizePath($publicPath)])
+            : null;
+        $siblings = array_column($this->translationSiblings($type, $slug, $lang), 'lang');
+        $this->render('@admin/delete.twig', [
+            'type' => $type,
+            'slug' => $slug,
+            'lang' => $lang,
+            'entry_title' => $item !== null ? (string)($item->meta['title'] ?? $slug) : $slug,
+            'public_path' => '/' . $publicPath,
+            'is_public' => $isPublic,
+            'may_redirect' => $mayRedirect,
+            'archive_path' => $type === 'pages' ? '' : '/' . $this->buildArchivePath($type, $lang, $defaultLang),
+            'archive_label' => $this->contentTypes()->definition($type, 'en', $defaultLang)['label'],
+            'home_path' => '/' . ($lang === $defaultLang ? '' : $lang),
+            'known_paths' => array_slice($known, 0, 500, true),
+            'links' => $counts !== null ? array_sum($counts) : null,
+            'siblings' => $siblings,
+            'choice' => $choice !== '' ? $choice : ($type === 'pages' ? 'none' : 'archive'),
+            'custom_target' => $custom,
+            'error' => $error,
+            'types' => $this->content->getTypes(),
+            'user' => $this->auth->user(),
+            'admin_section' => 'content',
+            'current_type' => $type,
+        ]);
     }
 
     private function handleNew(): void
@@ -3496,72 +3709,126 @@ final class App
 
     private function handleTaxonomies(): void
     {
-        $languages = $this->settings['languages']['available'] ?? [(string)($this->settings['languages']['default'] ?? 'el')];
-        $taxonomyNames = $this->listTaxonomyNames();
+        $default = $this->defaultLanguage();
+        $languages = array_map('strval', $this->settings['languages']['available'] ?? [$default]);
+        $store = $this->taxonomies();
+        $taxonomyNames = $store->names();
         $taxonomy = $this->slugify((string)($_GET['taxonomy'] ?? $_POST['taxonomy'] ?? ($taxonomyNames[0] ?? 'tags')));
         if (!in_array($taxonomy, $taxonomyNames, true)) {
             $taxonomy = $taxonomyNames[0] ?? 'tags';
         }
-
-        $saved = isset($_GET['saved']);
-        $error = '';
-        $current = $this->loadTaxonomy($taxonomy);
+        $current = $store->load($taxonomy);
+        $listable = array_values(array_filter($this->content->getTypes(), static fn(string $t): bool => !in_array($t, ['pages', 'forms'], true)));
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $title = trim((string)($_POST['taxonomy_title'] ?? $current['title']));
-            $ids = $_POST['term_id'] ?? [];
-            $slugs = $_POST['term_slug'] ?? [];
-            $labels = $_POST['term_label'] ?? [];
-            $terms = [];
-            $ids = is_array($ids) ? $ids : [];
-            $slugs = is_array($slugs) ? $slugs : [];
-            $labels = is_array($labels) ? $labels : [];
-            $count = max(count($ids), count($slugs));
-            for ($i = 0; $i < $count; $i++) {
-                $id = $this->slugify((string)($ids[$i] ?? ''));
-                $slug = $this->slugify((string)($slugs[$i] ?? ''));
-                if ($id === '' && $slug === '') {
-                    continue;
-                }
-                if ($id === '') {
-                    $id = $slug;
-                }
-                if ($slug === '') {
-                    $slug = $id;
-                }
-                $term = [
-                    'id' => $id,
-                    'slug' => $slug,
-                    'labels' => [],
-                ];
+            $post = static fn(string $key): array => is_array($_POST[$key] ?? null) ? $_POST[$key] : [];
+            $ids = $post('term_id');
+            $slugs = $post('term_slug');
+            $labels = $post('term_label');
+            $rows = [];
+            for ($i = 0, $count = max(count($ids), count($slugs)); $i < $count; $i++) {
+                $row = ['id' => trim((string)($ids[$i] ?? '')), 'slug' => (string)($slugs[$i] ?? ''), 'labels' => []];
                 foreach ($languages as $langCode) {
-                    $langCode = (string)$langCode;
-                    $term['labels'][$langCode] = trim((string)($labels[$langCode][$i] ?? ''));
+                    $row['labels'][$langCode] = trim((string)($labels[$langCode][$i] ?? ''));
                 }
-                $terms[] = $term;
+                $rows[] = $row;
+            }
+            $prepared = $store->prepare($taxonomy, $rows, $default);
+
+            // How the pages of this taxonomy look: only what differs from the defaults is written.
+            $submitted = is_array($_POST['archive'] ?? null) ? $_POST['archive'] : [];
+            $archive = ContentTypes::archiveFromInput(
+                $submitted,
+                $current['archive'],
+                ContentTypes::resolveArchive([], static fn(mixed $v): mixed => $v),
+                array_values(array_diff($taxonomyNames, [$taxonomy])),
+                false
+            );
+            $types = array_values(array_intersect($listable, Taxonomies::typeList($submitted['types'] ?? null)));
+            if ($types === [] || count($types) === count($listable)) {
+                unset($archive['types']);
+            } else {
+                $archive['types'] = $types;
             }
 
-            $this->saveTaxonomy($taxonomy, $title, $terms);
+            $store->save($taxonomy, $title, $prepared['terms'], $archive);
+
+            // A term whose address changed leaves the old one behind, in every language, like a page does.
+            $kind = Taxonomies::kind($taxonomy);
+            $by = $this->currentUsername();
+            foreach ($prepared['moved'] as $move) {
+                foreach ($languages as $langCode) {
+                    $prefix = $langCode === $default ? '' : $langCode . '/';
+                    $this->redirects->moved($prefix . $kind . '/' . $move['from'], $prefix . $kind . '/' . $move['to'], $by, $taxonomy);
+                }
+                $this->relinkMenus($kind . '/' . $move['from'], $kind . '/' . $move['to']);
+            }
+            foreach (array_merge($prepared['added'], array_column($prepared['moved'], 'id')) as $termId) {
+                foreach ($languages as $langCode) {
+                    $this->redirects->removeSource(($langCode === $default ? '' : $langCode . '/') . $kind . '/' . $store->slug($taxonomy, $termId));
+                }
+            }
+            $usage = $this->termUsage($taxonomy);
+            $orphaned = array_sum(array_map(static fn(string $id): int => $usage[$id] ?? 0, $prepared['removed']));
             $this->logActivity('taxonomies.update', 'info', 'taxonomy', $taxonomy, 'Taxonomy updated.', [
                 'title' => $title,
-                'terms' => count($terms),
+                'terms' => count($prepared['terms']),
+                'renamed' => count($prepared['moved']),
+                'removed' => count($prepared['removed']),
             ]);
-            $this->redirect('/admin/taxonomies?taxonomy=' . urlencode($taxonomy) . '&saved=1');
+            $this->redirect('/admin/taxonomies?taxonomy=' . urlencode($taxonomy) . '&saved=1'
+                . ($prepared['moved'] !== [] ? '&moved=' . count($prepared['moved']) : '')
+                . ($prepared['removed'] !== [] ? '&removed=' . count($prepared['removed']) . '&orphaned=' . $orphaned : ''));
             return;
         }
 
+        $usage = $this->termUsage($taxonomy);
+        $terms = [];
+        foreach ($current['terms'] as $term) {
+            $term['used'] = $usage[$term['id']] ?? 0;
+            $terms[] = $term;
+        }
+        $settings = $store->archive($taxonomy, $default, $default);
         $this->render('@admin/taxonomies.twig', [
             'types' => $this->content->getTypes(),
             'user' => $this->auth->user(),
             'admin_section' => 'taxonomies',
             'taxonomy_names' => $taxonomyNames,
             'taxonomy' => $taxonomy,
-            'taxonomy_title' => (string)($current['title'] ?? $this->titleFromSlug($taxonomy)),
-            'taxonomy_terms' => $current['terms'] ?? [],
+            'taxonomy_title' => $current['title'],
+            'taxonomy_terms' => $terms,
+            'taxonomy_kind' => Taxonomies::kind($taxonomy),
             'languages' => $languages,
-            'saved' => $saved,
-            'error' => $error,
+            'archive' => $settings,
+            'layouts' => ContentTypes::LAYOUTS,
+            'orders' => ContentTypes::ORDERS,
+            'other_taxonomies' => array_values(array_diff($taxonomyNames, [$taxonomy])),
+            'listable_types' => $listable,
+            'type_labels' => array_combine($listable, array_map(fn(string $t): string => $this->contentTypes()->definition($t, 'en', $default)['label'], $listable)),
+            'saved' => isset($_GET['saved']),
+            'moved' => (int)($_GET['moved'] ?? 0),
+            'removed' => (int)($_GET['removed'] ?? 0),
+            'orphaned' => (int)($_GET['orphaned'] ?? 0),
+            'error' => '',
         ]);
+    }
+
+    /** @return array<string, int> how many entries (any type, any language, drafts too) are filed under each term of a taxonomy */
+    private function termUsage(string $taxonomy): array
+    {
+        $counts = [];
+        foreach ($this->content->getTypes() as $type) {
+            if ($type === 'forms') {
+                continue;
+            }
+            foreach ($this->content->getItems($type, null, true, false) as $item) {
+                foreach ($this->normalizeMetaList($item->meta[$taxonomy] ?? null) as $termId) {
+                    $counts[$termId] = ($counts[$termId] ?? 0) + 1;
+                }
+            }
+        }
+        return $counts;
     }
 
     private function handleMedia(): void
@@ -4589,7 +4856,7 @@ final class App
                 'field_types' => ContentTypes::FIELD_TYPES,
                 'layouts' => ContentTypes::LAYOUTS,
                 'orders' => ContentTypes::orderOptions($definition['fields']),
-                'taxonomy_names' => $this->listTaxonomyNames(),
+                'taxonomy_names' => $this->taxonomies()->names(),
                 'item_count' => count($this->content->getItems($selected, null, true)),
             ] + $common);
             return;
@@ -4632,33 +4899,13 @@ final class App
         }
 
         // Archive: only what differs from the theme.
-        $schema = ContentTypes::archiveSchema();
-        $archive = is_array($out['archive'] ?? null) ? $out['archive'] : [];
-        $input = is_array($_POST['archive'] ?? null) ? $_POST['archive'] : [];
-        $submitted = [];
-        foreach (['layout', 'columns'] as $key) {
-            $submitted[$key] = FieldSchema::clean($schema[$key], $input[$key] ?? null);
-        }
-        $order = (string)($input['order'] ?? '');
-        $submitted['order'] = isset(ContentTypes::ORDERS[$order]) || preg_match('/^field:[a-z][a-z0-9_]*:(asc|desc)$/', $order)
-            ? $order
-            : $theme['archive']['order'];
-        $submitted['per_page'] = FieldSchema::clean($schema['per_page'], $input['per_page'] ?? null);
-        foreach (['show_image', 'show_excerpt', 'show_date', 'show_meta'] as $key) {
-            $submitted[$key] = FieldSchema::isTruthy($input[$key] ?? false);
-        }
-        $taxonomies = array_map('strval', is_array($input['taxonomies'] ?? null) ? $input['taxonomies'] : []);
-        $submitted['taxonomies'] = array_values(array_intersect($this->listTaxonomyNames(), $taxonomies));
-        foreach (['title', 'subtitle'] as $key) {
-            $submitted[$key] = trim((string)preg_replace('/\s+/', ' ', (string)($input[$key] ?? '')));
-        }
-        foreach ($submitted as $key => $value) {
-            if ($value === $theme['archive'][$key]) {
-                unset($archive[$key]);
-            } else {
-                $archive[$key] = $value;
-            }
-        }
+        $archive = ContentTypes::archiveFromInput(
+            is_array($_POST['archive'] ?? null) ? $_POST['archive'] : [],
+            is_array($out['archive'] ?? null) ? $out['archive'] : [],
+            $theme['archive'],
+            $this->taxonomies()->names(),
+            true
+        );
         if ($archive === []) {
             unset($out['archive']);
         } else {
@@ -5563,69 +5810,12 @@ final class App
         }
     }
 
-    private function taxonomyDir(): string
-    {
-        return $this->contentDir . '/taxonomies';
-    }
-
-    private function ensureDefaultTaxonomies(): void
-    {
-        $dir = $this->taxonomyDir();
-        if (!is_dir($dir)) {
-            mkdir($dir, 0775, true);
-        }
-
-        $defaultTaxonomies = [
-            'tags' => [
-                'title' => 'Tags',
-                'terms' => [
-                    ['id' => 'news', 'slug' => 'news', 'labels' => ['el' => 'Νέα', 'en' => 'News']],
-                    ['id' => 'design', 'slug' => 'design', 'labels' => ['el' => 'Σχεδιασμός', 'en' => 'Design']],
-                ],
-            ],
-            'categories' => [
-                'title' => 'Categories',
-                'terms' => [
-                    ['id' => 'announcements', 'slug' => 'announcements', 'labels' => ['el' => 'Ανακοινώσεις', 'en' => 'Announcements']],
-                    ['id' => 'insights', 'slug' => 'insights', 'labels' => ['el' => 'Ιδέες', 'en' => 'Insights']],
-                ],
-            ],
-        ];
-
-        foreach ($defaultTaxonomies as $name => $payload) {
-            $path = $dir . '/' . $name . '.yaml';
-            if (is_file($path)) {
-                continue;
-            }
-            $title = (string)($payload['title'] ?? $this->titleFromSlug($name));
-            $terms = $payload['terms'] ?? [];
-            $this->saveTaxonomy($name, $title, is_array($terms) ? $terms : []);
-        }
-    }
-
-    /** @return string[] */
-    private function listTaxonomyNames(): array
-    {
-        $names = ['tags', 'categories'];
-        foreach (glob($this->taxonomyDir() . '/*.yaml') ?: [] as $path) {
-            $name = $this->slugify(basename($path, '.yaml'));
-            if ($name === '') {
-                continue;
-            }
-            if (!in_array($name, $names, true)) {
-                $names[] = $name;
-            }
-        }
-        sort($names);
-        return $names;
-    }
-
     /** @return array<int, array{name: string, title: string, terms: array<int, array{id: string, slug: string, labels: array<string, string>}>}> */
     private function listTaxonomiesForAdmin(): array
     {
         $rows = [];
-        foreach ($this->listTaxonomyNames() as $name) {
-            $taxonomy = $this->loadTaxonomy($name);
+        foreach ($this->taxonomies()->names() as $name) {
+            $taxonomy = $this->taxonomies()->load($name);
             $rows[] = [
                 'name' => $name,
                 'title' => (string)$taxonomy['title'],
@@ -5635,159 +5825,14 @@ final class App
         return $rows;
     }
 
-    /** @return array{title: string, terms: array<int, array{id: string, slug: string, labels: array<string, string>}>} */
-    private function loadTaxonomy(string $name): array
-    {
-        $name = $this->slugify($name);
-        if ($name === '') {
-            $name = 'tags';
-        }
-        if (isset($this->taxonomiesCache[$name])) {
-            return $this->taxonomiesCache[$name];
-        }
-
-        $path = $this->taxonomyDir() . '/' . $name . '.yaml';
-        $data = [];
-        if (is_file($path)) {
-            $parsed = Yaml::parseFile($path);
-            if (is_array($parsed)) {
-                $data = $parsed;
-            }
-        }
-
-        $title = trim((string)($data['title'] ?? $this->titleFromSlug($name)));
-        if ($title === '') {
-            $title = $this->titleFromSlug($name);
-        }
-        $terms = $this->normalizeTaxonomyTerms($data['terms'] ?? []);
-        $taxonomy = [
-            'title' => $title,
-            'terms' => $terms,
-        ];
-        $this->taxonomiesCache[$name] = $taxonomy;
-        return $taxonomy;
-    }
-
-    /** @return array<int, array{id: string, slug: string, labels: array<string, string>}> */
-    private function normalizeTaxonomyTerms(mixed $terms): array
-    {
-        if (!is_array($terms)) {
-            return [];
-        }
-        $languages = $this->settings['languages']['available'] ?? [(string)($this->settings['languages']['default'] ?? 'el')];
-        $rows = [];
-        $seenIds = [];
-        foreach ($terms as $term) {
-            if (!is_array($term)) {
-                continue;
-            }
-            $id = $this->slugify((string)($term['id'] ?? ''));
-            $slug = $this->slugify((string)($term['slug'] ?? ''));
-            if ($id === '' && $slug !== '') {
-                $id = $slug;
-            }
-            if ($slug === '' && $id !== '') {
-                $slug = $id;
-            }
-            if ($id === '' || $slug === '' || in_array($id, $seenIds, true)) {
-                continue;
-            }
-            $labels = [];
-            $sourceLabels = is_array($term['labels'] ?? null) ? $term['labels'] : [];
-            foreach ($languages as $langCode) {
-                $langCode = (string)$langCode;
-                $labels[$langCode] = trim((string)($sourceLabels[$langCode] ?? ''));
-            }
-            $rows[] = [
-                'id' => $id,
-                'slug' => $slug,
-                'labels' => $labels,
-            ];
-            $seenIds[] = $id;
-        }
-        return $rows;
-    }
-
-    /** @param array<int, array{id: string, slug: string, labels: array<string, string>}> $terms */
-    private function saveTaxonomy(string $name, string $title, array $terms): void
-    {
-        $name = $this->slugify($name);
-        if ($name === '') {
-            return;
-        }
-        $dir = $this->taxonomyDir();
-        if (!is_dir($dir)) {
-            mkdir($dir, 0775, true);
-        }
-        $payload = [
-            'title' => trim($title) !== '' ? trim($title) : $this->titleFromSlug($name),
-            'terms' => $this->normalizeTaxonomyTerms($terms),
-        ];
-        file_put_contents($dir . '/' . $name . '.yaml', Yaml::dump($payload, 6, 2));
-        $this->taxonomiesCache = [];
-    }
-
-    /** @return array{id: string, slug: string, labels: array<string, string>}|null */
-    private function findTaxonomyTermBySlug(string $taxonomy, string $slug): ?array
-    {
-        $slug = $this->slugify($slug);
-        if ($slug === '') {
-            return null;
-        }
-        $terms = $this->loadTaxonomy($taxonomy)['terms'] ?? [];
-        foreach ($terms as $term) {
-            if ($this->slugify((string)($term['slug'] ?? '')) === $slug) {
-                return $term;
-            }
-        }
-        return null;
-    }
-
     private function taxonomyTermLabel(string $taxonomy, string $termId, ?string $lang = null): string
     {
-        $termId = $this->slugify($termId);
-        if ($termId === '') {
-            return '';
-        }
-        if ($lang === null || $lang === '') {
-            $lang = $this->currentLang;
-        }
-        $terms = $this->loadTaxonomy($taxonomy)['terms'] ?? [];
-        foreach ($terms as $term) {
-            if ((string)($term['id'] ?? '') !== $termId) {
-                continue;
-            }
-            $labels = is_array($term['labels'] ?? null) ? $term['labels'] : [];
-            $label = trim((string)($labels[$lang] ?? ''));
-            if ($label !== '') {
-                return $label;
-            }
-            foreach ($labels as $candidate) {
-                $candidate = trim((string)$candidate);
-                if ($candidate !== '') {
-                    return $candidate;
-                }
-            }
-            return $this->titleFromSlug($termId);
-        }
-        return $this->titleFromSlug($termId);
+        return $this->taxonomies()->label($taxonomy, $termId, $lang !== null && $lang !== '' ? $lang : $this->currentLang);
     }
 
-    private function taxonomyTermSlug(string $taxonomy, string $termId): string
+    private function taxonomies(): Taxonomies
     {
-        $termId = $this->slugify($termId);
-        if ($termId === '') {
-            return '';
-        }
-        $terms = $this->loadTaxonomy($taxonomy)['terms'] ?? [];
-        foreach ($terms as $term) {
-            if ((string)($term['id'] ?? '') !== $termId) {
-                continue;
-            }
-            $slug = $this->slugify((string)($term['slug'] ?? ''));
-            return $slug !== '' ? $slug : $termId;
-        }
-        return $termId;
+        return $this->taxonomyStore ??= new Taxonomies($this->contentDir, array_map('strval', $this->settings['languages']['available'] ?? [(string)($this->settings['languages']['default'] ?? 'el')]));
     }
 
     private function menuDir(): string
@@ -6357,40 +6402,54 @@ final class App
 
         $kind = in_array($kind, ['category', 'categories'], true) ? 'category' : 'tag';
         $key = $kind === 'category' ? 'categories' : 'tags';
-        $term = $this->findTaxonomyTermBySlug($key, $slug);
+        $term = $this->taxonomies()->findBySlug($key, $slug);
         if ($term === null) {
             $this->render404();
             return;
         }
-        $termId = (string)($term['id'] ?? '');
-        $termSlug = (string)($term['slug'] ?? $slug);
-        $titlePrefix = $kind === 'category'
-            ? $this->translate('taxonomy.category', 'Category')
-            : $this->translate('taxonomy.tag', 'Tag');
+        $termId = $term['id'];
+        $termSlug = $term['slug'];
         $label = $this->taxonomyTermLabel($key, $termId, $lang);
+
+        // How this taxonomy lists its entries is its own choice (Admin > Taxonomies), the same options a content type has.
+        $settings = $this->taxonomies()->archive($key, $lang, $this->defaultLanguage());
+        $settings['taxonomies'] = array_values(array_diff($settings['taxonomies'], [$key]));
+        $includeTypes = $settings['types'];
 
         $items = [];
         foreach ($this->content->getTypes() as $type) {
-            if ($type === 'pages') {
+            if (in_array($type, ['pages', 'forms'], true) || ($includeTypes !== [] && !in_array($type, $includeTypes, true))) {
                 continue;
             }
             foreach ($this->content->getItems($type, $lang, false, false) as $item) {
-                $values = $this->normalizeMetaList($item->meta[$key] ?? null);
-                if (in_array($termId, $values, true)) {
+                if (in_array($termId, $this->normalizeMetaList($item->meta[$key] ?? null), true)) {
                     $items[] = $item;
                 }
             }
         }
+        // Entries of several types come newest first, as within a single type.
+        $when = static fn(ContentItem $i): int => strtotime((string)($i->meta['date'] ?? '')) ?: $i->mtime;
+        usort($items, static fn(ContentItem $a, ContentItem $b): int => $when($b) <=> $when($a));
+        $archive = $this->buildArchive($settings, [], null, $lang, $items);
+        if ($archive['page'] > 1 && !$archive['filtered']) {
+            $viewDefaults['canonical_url'] = ($viewDefaults['canonical_url'] ?? '') . '?page=' . $archive['page'];
+        }
 
+        $fill = static fn(string $text): string => str_replace('{term}', $label, $text);
+        $titlePrefix = $kind === 'category'
+            ? $this->translate('taxonomy.category', 'Category')
+            : $this->translate('taxonomy.tag', 'Tag');
         $alternates = $this->buildAlternateUrlsForTaxonomy($kind, $termSlug);
         $this->render($this->resolveTaxonomyTemplate($kind, $slug), [
-            'items' => $items,
+            'items' => $archive['items'],
+            'archive' => $archive,
             'type' => $key,
-            'archive_title' => $titlePrefix . ': ' . $label,
-            'archive_subtitle' => '',
+            'archive_title' => $settings['title'] !== '' ? $fill($settings['title']) : $titlePrefix . ': ' . $label,
+            'archive_subtitle' => $fill($settings['subtitle']),
             'block_styles' => [$this->theme->blockStylesheetUrl(rtrim((string)($this->settings['base_url'] ?? ''), '/'), ['latest'])],
             'alternate_urls' => $alternates['urls'],
             'alternate_default' => $alternates['default'],
+            'noindex_page' => $archive['filtered'],
         ] + $viewDefaults);
     }
 
@@ -6408,7 +6467,7 @@ final class App
     private function buildTaxonomyPath(string $taxonomy, string $termId, string $prefix = ''): string
     {
         $kind = $taxonomy === 'categories' ? 'category' : 'tag';
-        $slug = $this->taxonomyTermSlug($taxonomy, $termId);
+        $slug = $this->taxonomies()->slug($taxonomy, $termId);
         if ($slug === '') {
             return '';
         }
@@ -6533,7 +6592,7 @@ final class App
 
     private function hasTaxonomyItems(string $key, string $slug, string $lang): bool
     {
-        $term = $this->findTaxonomyTermBySlug($key, $slug);
+        $term = $this->taxonomies()->findBySlug($key, $slug);
         if ($term === null) {
             return false;
         }

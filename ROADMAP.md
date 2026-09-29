@@ -11,6 +11,7 @@ Direction: one all-purpose theme (`themes/default`) that grows with blocks and v
 - Permissions per role (done): Admin > Roles, super admin only; see `docs/security.md`
 - Addresses and redirects (done): addresses made from the title, address changes leave 301 redirects, Admin > Redirects with a not-found list
 - Revision history (done): Admin > History, compare and restore, deleted items; see `docs/security.md`
+- Taxonomy layouts, links after address changes, and redirects on delete (done): each category/tag taxonomy has its own archive layout, links inside content can follow a changed address, and deleting a public entry can send its visitors somewhere
 - Next candidates: comparison table and before/after blocks, draft preview links (not now), brand-new custom roles
 - Style references from the owner can refine the design system at any point (tokens and block CSS)
 - Phase 6 (done): content types with declared fields, an admin screen for them, archive layouts, filters, and pagination

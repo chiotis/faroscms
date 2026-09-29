@@ -42,50 +42,7 @@
 
     <div class="{{ section_class }}">
       <h2 class="mb-3 text-sm font-semibold text-slate-900">Archive page</h2>
-      <div class="grid gap-3 md:grid-cols-4">
-        <label class="grid gap-1 text-sm font-medium text-slate-700">Layout
-          <select name="archive[layout]" class="{{ input_soft }}">
-            {% for value, label in layouts %}<option value="{{ value }}"{% if archive.layout == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
-          </select>
-        </label>
-        <label class="grid gap-1 text-sm font-medium text-slate-700">Columns (cards and tiles)
-          <select name="archive[columns]" class="{{ input_soft }}">
-            {% for value in ['2', '3', '4'] %}<option value="{{ value }}"{% if archive.columns == value %} selected{% endif %}>{{ value }}</option>{% endfor %}
-          </select>
-        </label>
-        <label class="grid gap-1 text-sm font-medium text-slate-700">Order
-          <select name="archive[order]" class="{{ input_soft }}">
-            {% for value, label in orders %}<option value="{{ value }}"{% if archive.order == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
-          </select>
-        </label>
-        <label class="grid gap-1 text-sm font-medium text-slate-700">Items per page
-          <input type="number" name="archive[per_page]" min="0" max="60" value="{{ archive.per_page }}" class="{{ input_soft }}">
-          <span class="text-xs font-normal text-slate-400">0 shows everything on one page.</span>
-        </label>
-        <label class="grid gap-1 text-sm font-medium text-slate-700 md:col-span-2">Page title
-          <input type="text" name="archive[title]" value="{{ archive.title }}" placeholder="Default: the theme's text" class="{{ input_soft }}">
-        </label>
-        <label class="grid gap-1 text-sm font-medium text-slate-700 md:col-span-2">Subtitle
-          <input type="text" name="archive[subtitle]" value="{{ archive.subtitle }}" class="{{ input_soft }}">
-        </label>
-      </div>
-      <div class="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-700">
-        <label class="inline-flex items-center gap-2"><input type="checkbox" name="archive[show_image]" value="1"{% if archive.show_image %} checked{% endif %} class="h-4 w-4 rounded border-slate-300"> Show images</label>
-        <label class="inline-flex items-center gap-2"><input type="checkbox" name="archive[show_excerpt]" value="1"{% if archive.show_excerpt %} checked{% endif %} class="h-4 w-4 rounded border-slate-300"> Show the excerpt</label>
-        <label class="inline-flex items-center gap-2"><input type="checkbox" name="archive[show_date]" value="1"{% if archive.show_date %} checked{% endif %} class="h-4 w-4 rounded border-slate-300"> Show the date</label>
-        <label class="inline-flex items-center gap-2"><input type="checkbox" name="archive[show_meta]" value="1"{% if archive.show_meta %} checked{% endif %} class="h-4 w-4 rounded border-slate-300"> Show category and card fields</label>
-      </div>
-      {% if taxonomy_names %}
-        <fieldset class="mt-3">
-          <legend class="text-sm font-medium text-slate-700">Filters from taxonomies</legend>
-          <div class="mt-1 flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-700">
-            {% for name in taxonomy_names %}
-              <label class="inline-flex items-center gap-2"><input type="checkbox" name="archive[taxonomies][]" value="{{ name }}"{% if name in archive.taxonomies %} checked{% endif %} class="h-4 w-4 rounded border-slate-300"> {{ name|capitalize }}</label>
-            {% endfor %}
-          </div>
-          <p class="mt-1 text-xs text-slate-400">Visitors can narrow the archive by these. Select fields marked "filter" below appear as filters too.</p>
-        </fieldset>
-      {% endif %}
+      {% include '@admin/partials/archive-settings.twig' with {archive: archive, layouts: layouts, orders: orders, filter_names: taxonomy_names} only %}
     </div>
 
     <div class="{{ section_class }}">
