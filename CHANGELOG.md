@@ -1,7 +1,7 @@
 # Changelog
 
 ## 2026-09-29 — One title per admin page
-- The page title now appears once, in the top bar, and is specific to the page ("Edit Page", "Import Pages", "History of …", "Delete “…” (EL)"). The repeated heading inside the content is gone; the description and the buttons beside it stay. Every admin page has exactly one `<h1>`. A screen sets its title with `{% set page_heading = … %}` after `extends`
+- The page title now appears once, in the top bar, and is specific to the page ("Edit Page", "Import Pages", "History of …", "Delete “…” (EL)"). The repeated heading inside the content is gone; the description and the buttons beside it stay. The grey line under it ("FarosCMS admin / Menus") is gone too. Every admin page has exactly one `<h1>`. A screen sets its title with `{% set page_heading = … %}` after `extends`
 
 ## 2026-09-29 — System in the account menu
 - **System** (health checks, scheduled tasks, environment) moved out of the sidebar into the account menu at the top right, under Settings. It only shows information, so it no longer takes a place among the things you work with
