@@ -1,0 +1,148 @@
+<?php
+
+declare(strict_types=1);
+
+namespace FarosCMS;
+
+use League\CommonMark\Environment\Environment;
+use League\CommonMark\Extension\CommonMark\Node\Block\HtmlBlock;
+use League\CommonMark\Extension\CommonMark\Node\Inline\HtmlInline;
+use League\CommonMark\Node\Block\AbstractBlock;
+use League\CommonMark\Parser\MarkdownParser;
+use Symfony\Component\Yaml\Yaml;
+
+/**
+ * Keeps raw HTML (which can carry script) out of content written by people who may not add it. HTML that is
+ * already in a stored file, put there by someone allowed to, is left alone so an edit never breaks an embed.
+ */
+final class HtmlGuard
+{
+    /**
+     * @param \Closure(): Environment $environment the site's Markdown environment
+     * @param \Closure(): BlockRegistry $blocks
+     */
+    public function __construct(private \Closure $environment, private \Closure $blocks)
+    {
+    }
+
+    /**
+     * Raw HTML the Markdown contains, with the lines it sits on. Used to keep raw HTML (which can carry
+     * script) out of content written by people who may not add it.
+     *
+     * @return array<int, array{kind: string, literal: string, start: ?int, end: ?int}>
+     */
+    private function rawHtmlNodes(string $markdown): array
+    {
+        if (!str_contains($markdown, '<')) {
+            return [];
+        }
+        $document = (new MarkdownParser(($this->environment)()))->parse($markdown);
+        $found = [];
+        foreach ($document->iterator() as $node) {
+            if ($node instanceof HtmlBlock) {
+                $found[] = ['kind' => 'block', 'literal' => $node->getLiteral(), 'start' => $node->getStartLine(), 'end' => $node->getEndLine()];
+            } elseif ($node instanceof HtmlInline) {
+                $parent = $node->parent();
+                while ($parent !== null && !$parent instanceof AbstractBlock) {
+                    $parent = $parent->parent();
+                }
+                $found[] = ['kind' => 'inline', 'literal' => $node->getLiteral(), 'start' => $parent?->getStartLine(), 'end' => $parent?->getEndLine()];
+            }
+        }
+        return $found;
+    }
+
+    /**
+     * Shows raw HTML as plain text instead of letting it through, except HTML that is already in the
+     * content being edited (placed there by someone allowed to), so an edit never breaks an embed.
+     *
+     * @param string[] $allowed HTML fragments to leave as they are
+     */
+    public function neutralize(string $markdown, array $allowed = []): string
+    {
+        $body = str_replace(["\r\n", "\r"], "\n", $markdown);
+        for ($pass = 0; $pass < 3; $pass++) {
+            $blocked = array_values(array_filter($this->rawHtmlNodes($body), static fn(array $n): bool => !in_array($n['literal'], $allowed, true)));
+            if ($blocked === []) {
+                return $body;
+            }
+            $lines = explode("\n", $body);
+            foreach ($blocked as $node) {
+                if ($node['start'] === null || $node['end'] === null) {
+                    return str_replace('<', '&lt;', $body);
+                }
+                for ($i = $node['start'] - 1; $i <= $node['end'] - 1 && isset($lines[$i]); $i++) {
+                    $lines[$i] = $node['kind'] === 'block'
+                        ? str_replace('<', '&lt;', $lines[$i])
+                        : str_replace($node['literal'], str_replace('<', '&lt;', $node['literal']), $lines[$i]);
+                }
+            }
+            $body = implode("\n", $lines);
+        }
+        // Still something left after three passes (an unusual construct): escape every tag opener.
+        return str_replace('<', '&lt;', $body);
+    }
+
+    /**
+     * Raw HTML fragments in the Markdown of an existing content file (its body and its blocks' Markdown fields).
+     *
+     * @return string[]
+     */
+    public function storedFragments(string $path): array
+    {
+        if ($path === '' || !is_file($path)) {
+            return [];
+        }
+        [$frontmatter, $body] = FrontMatter::split((string)file_get_contents($path));
+        $texts = [$body];
+        try {
+            $meta = $frontmatter !== '' ? Yaml::parse($frontmatter) : [];
+        } catch (\Throwable) {
+            $meta = [];
+        }
+        if (is_array($meta) && is_array($meta['blocks'] ?? null)) {
+            $this->eachMarkdownField($meta['blocks'], static function (string $value) use (&$texts): string {
+                $texts[] = $value;
+                return $value;
+            });
+        }
+        $fragments = [];
+        foreach ($texts as $text) {
+            foreach ($this->rawHtmlNodes((string)$text) as $node) {
+                $fragments[] = $node['literal'];
+            }
+        }
+        return array_values(array_unique($fragments));
+    }
+
+    /**
+     * Applies $change to every Markdown field of the blocks (including items inside repeaters) and returns the blocks.
+     *
+     * @param array<int, mixed> $blocks
+     * @param \Closure(string): string $change
+     * @return array<int, mixed>
+     */
+    public function eachMarkdownField(array $blocks, \Closure $change): array
+    {
+        foreach ($blocks as $i => $block) {
+            $definition = is_array($block) && is_string($block['type'] ?? null) ? ($this->blocks)()->get($block['type']) : null;
+            if ($definition === null) {
+                continue;
+            }
+            foreach ($definition['fields'] as $key => $field) {
+                if ($field['type'] === 'markdown' && is_string($block[$key] ?? null)) {
+                    $blocks[$i][$key] = $change($block[$key]);
+                } elseif ($field['type'] === 'repeater' && is_array($block[$key] ?? null)) {
+                    foreach ($block[$key] as $r => $row) {
+                        foreach ($field['fields'] as $subKey => $subField) {
+                            if ($subField['type'] === 'markdown' && is_array($row) && is_string($row[$subKey] ?? null)) {
+                                $blocks[$i][$key][$r][$subKey] = $change($row[$subKey]);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return $blocks;
+    }
+}

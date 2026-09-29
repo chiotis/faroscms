@@ -1,0 +1,78 @@
+{% extends '@admin/base.twig' %}
+
+{% block content %}
+  {% set btn_primary = 'inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700' %}
+  {% set btn_secondary = 'inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50' %}
+
+  <header class="mb-4 flex flex-col gap-3 border-b border-slate-200 pb-4">
+    <div class="min-w-0">
+      <h1 class="truncate text-[15px] font-semibold leading-tight text-slate-900">{{ revision.title ?: revision.slug }}</h1>
+      <p class="text-xs text-slate-400">
+        {{ revision.action_label }} {{ revision.when }}{% if revision.actor %} by {{ revision.actor }}{% endif %}
+        · <code>{{ revision.type }}/{{ revision.slug }}</code> · {{ revision.lang|upper }}
+      </p>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+      <a class="{{ btn_secondary }}" href="{{ url(history_url|trim('/')) }}">All versions</a>
+      {% if item_exists %}<a class="{{ btn_secondary }}" href="{{ url(edit_url|trim('/')) }}">Open in the editor</a>{% endif %}
+      {% if item_exists and not is_latest %}
+        <form method="post" action="{{ url('admin/revisions') }}">
+          {{ csrf_field() }}<input type="hidden" name="do" value="restore"><input type="hidden" name="id" value="{{ revision.id }}">
+          <button type="submit" class="{{ btn_primary }}" data-confirm="Restore the version from {{ revision.when }}? The current text is kept in the history, so you can go back." data-confirm-button="Restore">Restore this version</button>
+        </form>
+      {% elseif not item_exists and revision.action == 'delete' %}
+        <form method="post" action="{{ url('admin/revisions') }}">
+          {{ csrf_field() }}<input type="hidden" name="do" value="undelete"><input type="hidden" name="id" value="{{ revision.id }}">
+          <button type="submit" class="{{ btn_primary }}" data-confirm="Bring this item back exactly as it was when deleted?" data-confirm-button="Bring back">Bring back</button>
+        </form>
+      {% endif %}
+    </div>
+  </header>
+
+  {% if error == 'address_in_use' %}<template data-flash data-type="error">Something already exists at that address, so nothing was brought back.</template>{% endif %}
+  {% if error == 'unreadable' %}<template data-flash data-type="error">This version could not be read, so it cannot be restored.</template>{% endif %}
+  {% if error == 'write' %}<template data-flash data-type="error">Could not write the file. Check that the content folder is writable.</template>{% endif %}
+  {% if error == 'missing' %}<template data-flash data-type="error">The item no longer exists. Bring it back from Deleted items instead.</template>{% endif %}
+
+  <nav class="mb-3 flex gap-1 border-b border-slate-200" aria-label="What to compare">
+    <a href="{{ url('admin/revisions?id=' ~ revision.id) }}" class="border-b-2 px-3 py-2 text-sm font-medium {{ mode == 'changes' ? 'border-blue-600 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800' }}" {% if mode == 'changes' %}aria-current="page"{% endif %}>What this version changed</a>
+    {% if item_exists %}
+      <a href="{{ url('admin/revisions?id=' ~ revision.id ~ '&mode=restore') }}" class="border-b-2 px-3 py-2 text-sm font-medium {{ mode == 'restore' ? 'border-blue-600 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800' }}" {% if mode == 'restore' %}aria-current="page"{% endif %}>If you restore it</a>
+    {% endif %}
+  </nav>
+
+  <p class="mb-3 text-sm text-slate-600">
+    {% if mode == 'restore' %}
+      Restoring replaces the current text with this version. <span class="rounded bg-red-50 px-1 text-red-700">Red</span> lines would be removed from the current text and <span class="rounded bg-emerald-50 px-1 text-emerald-700">green</span> lines would be brought back.
+    {% elseif previous %}
+      Compared with the version before it ({{ previous.when }}). <span class="rounded bg-red-50 px-1 text-red-700">Red</span> lines were removed and <span class="rounded bg-emerald-50 px-1 text-emerald-700">green</span> lines were added.
+    {% else %}
+      This is the first version kept, so everything in it is new.
+    {% endif %}
+    <strong class="font-semibold text-slate-900">{{ summary.added }}</strong> added, <strong class="font-semibold text-slate-900">{{ summary.removed }}</strong> removed.
+  </p>
+
+  {% if identical %}
+    <div class="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
+      {{ mode == 'restore' ? 'This version is the same as the current text.' : 'Nothing changed in this version.' }}
+    </div>
+  {% else %}
+    <div class="overflow-x-auto rounded-lg border border-slate-200 bg-white" role="region" aria-label="Changes" tabindex="0">
+      <table class="w-full font-mono text-xs leading-5">
+        <caption class="sr-only">Lines that differ. Removed lines start with a minus sign, added lines with a plus sign.</caption>
+        <tbody>
+          {% for row in diff %}
+            {% if row.op == '~' %}
+              <tr class="bg-slate-50 text-slate-400"><td class="w-8 select-none px-2 text-center" aria-hidden="true">…</td><td class="px-2 py-0.5" colspan="1"><span class="sr-only">Unchanged lines skipped</span></td></tr>
+            {% else %}
+              <tr class="{{ row.op == '+' ? 'bg-emerald-50 text-emerald-900' : (row.op == '-' ? 'bg-red-50 text-red-900' : 'text-slate-600') }}">
+                <td class="w-8 select-none px-2 text-center {{ row.op == '+' ? 'text-emerald-600' : (row.op == '-' ? 'text-red-600' : 'text-slate-300') }}" aria-hidden="true">{{ row.op == '=' ? '' : row.op }}</td>
+                <td class="whitespace-pre-wrap break-words px-2 py-0.5">{% if row.op == '+' %}<span class="sr-only">Added: </span>{% elseif row.op == '-' %}<span class="sr-only">Removed: </span>{% endif %}{{ row.text ?: ' ' }}</td>
+              </tr>
+            {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+{% endblock %}

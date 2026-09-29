@@ -21,4 +21,22 @@ final class Format
         }
         return number_format($value, 1) . ' ' . $units[$unitIndex];
     }
+
+    /** Checkbox and query values: true, 1, "1", "yes", "on", "true". */
+    public static function isTruthy(mixed $value): bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+        if (is_int($value)) {
+            return $value > 0;
+        }
+        if (is_numeric($value)) {
+            return (int)$value > 0;
+        }
+        if (is_string($value)) {
+            return in_array(strtolower(trim($value)), ['1', 'true', 'yes', 'on'], true);
+        }
+        return false;
+    }
 }

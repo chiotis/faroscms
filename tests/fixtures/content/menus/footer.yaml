@@ -1,0 +1,37 @@
+title: Footer Menu
+items:
+  - label_key: nav.footer.about
+    labels:
+      el: Σχετικά
+      en: About
+    url: "about"
+  - label_key: nav.footer.careers
+    labels:
+      el: Καριέρα
+      en: Careers
+    url: "careers"
+  - label_key: nav.footer.faq
+    labels:
+      el: Συχνές Ερωτήσεις
+      en: FAQ
+    url: "faq"
+  - label_key: nav.footer.privacy
+    labels:
+      el: Πολιτική Απορρήτου
+      en: Privacy Policy
+    url: "privacy-policy"
+  - label_key: nav.footer.terms
+    labels:
+      el: Όροι Χρήσης
+      en: Terms of Use
+    url: "terms"
+  - label_key: nav.footer.cookies
+    labels:
+      el: Cookies
+      en: Cookies
+    url: "cookies"
+  - label_key: nav.footer.contact
+    labels:
+      el: Επικοινωνία
+      en: Contact
+    url: "contact"

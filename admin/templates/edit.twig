@@ -12,8 +12,11 @@
   {% set icon_button_class = 'rounded-md p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700' %}
   {% set is_home = slug and type == 'pages' and slug == site.home_page and lang == site.languages.default %}
 
-  {% if saved %}
+  {% if saved and not restored %}
     <template data-flash data-type="success">Saved.</template>
+  {% endif %}
+  {% if restored %}
+    <template data-flash data-type="success">Version restored. The text it replaced is kept in the history.</template>
   {% endif %}
   {% if deleted %}
     <template data-flash data-type="success">Deleted.</template>
@@ -83,6 +86,9 @@
         {% endif %}
         <button type="button" class="{{ tab_class }}" data-tab="seo">SEO</button>
         <button type="button" class="{{ tab_class }}" data-tab="translations">Translations</button>
+        {% if address.exists %}
+          <button type="button" class="{{ tab_class }}" data-tab="history">History{% if history_total %} <span class="ml-1 rounded-full bg-slate-100 px-1.5 text-[11px] font-semibold text-slate-600">{{ history_total }}</span>{% endif %}</button>
+        {% endif %}
         <button type="button" class="{{ tab_class }}" data-tab="advanced">Advanced</button>
       </div>
     </div>
@@ -703,6 +709,36 @@
         </div>
       </div>
     </div>
+
+    {% if address.exists %}
+      <div class="tab-panel hidden space-y-4" data-panel="history">
+        <div class="{{ section_class }}">
+          <div class="{{ section_header_class }}">
+            <h3 class="text-sm font-semibold text-slate-900">History</h3>
+            <p class="mt-0.5 text-xs text-slate-400">Earlier versions of this item. Open one to see what changed and to restore it.</p>
+          </div>
+          {% if history %}
+            <ul class="divide-y divide-slate-100">
+              {% for h in history %}
+                <li class="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
+                  <div class="min-w-0">
+                    <span class="font-medium text-slate-900">{{ h.action_label }}</span>
+                    <span class="text-slate-500">{{ h.when }}{% if h.actor %} · {{ h.actor }}{% endif %}</span>
+                  </div>
+                  <a class="font-medium text-blue-600 hover:text-blue-700" href="{{ url('admin/revisions?id=' ~ h.id) }}">View changes</a>
+                </li>
+              {% endfor %}
+            </ul>
+            {% if history_total > history|length %}
+              <p class="mt-2 text-xs text-slate-400">Showing the latest {{ history|length }} of {{ history_total }}.</p>
+            {% endif %}
+            <a class="mt-3 inline-block text-sm font-medium text-blue-600 hover:text-blue-700" href="{{ url('admin/revisions?type=' ~ type ~ '&slug=' ~ slug ~ '&lang=' ~ lang) }}">All versions</a>
+          {% else %}
+            <p class="text-sm text-slate-500">No versions are kept yet. The first one is recorded when you save.</p>
+          {% endif %}
+        </div>
+      </div>
+    {% endif %}
 
     <div class="tab-panel hidden space-y-4" data-panel="advanced">
       <div class="{{ section_class }}">

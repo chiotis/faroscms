@@ -14,12 +14,18 @@ Before the application boots, `public/index.php` hands `/_themes/…` and `/_cus
 
 | Class | Responsibility |
 |-------|----------------|
-| `App` | Routing, request handlers, settings, menus, taxonomies, forms, CSV import/export, template rendering. Still the largest file; new behaviour should go into a focused class. |
+| `App` | Routing, request handlers, settings, menus, taxonomies, forms, CSV import/export, template rendering. Still the largest file (about 8,900 lines); new behaviour should go into a focused class, as content saving did (`ContentEditor`). |
 | `ContentRepository` / `ContentItem` | Reads Markdown files with YAML front matter; listing, lookup, and frontend search. |
 | `ContentIndex` | SQLite `content_index` kept in sync with the files; admin search and staleness checks. |
 | `Auth` | Session sign-in (SQLite users, YAML fallback), session rotation, per-request user refresh, shipped-password detection. |
 | `UserRepository` | SQLite users: CRUD, YAML import, superadmin guarantee. |
 | `PermissionService` | Role capabilities (`superadmin`, `admin`, `editor`, `user`), the capability catalogue, the super admin's per-role changes (`system_meta.role_permissions`), and route-to-capability mapping; unmapped routes are administrator-only. |
+| `ContentEditor` | Saving a content item from the editor form: address (from the title, made unique, kept or changed), front matter from the submitted fields, raw HTML guard, writing the file, moving translations, redirects. Takes the submitted fields and returns what happened; knows nothing about requests, sessions, or menus. |
+| `HtmlGuard` | Neutralises raw HTML for people without `content.raw_html`, leaving HTML already stored in a file alone. |
+| `FormFields` | Form editor field types and cleaning of submitted field rows. |
+| `ContentPaths` | File names and public paths of content from the language and home page settings. |
+| `FrontMatter` | Splits a content file into its YAML and body. |
+| `RevisionRepository`, `LineDiff` | The history of content files in `content_revisions` (capture, baseline, rename, prune, deleted items) and the line comparison shown in Admin > History. `ContentEditor` records a version around every save and can restore one. |
 | `Slug` | Turns text into a web address: Greek to Latin (ELOT 743 rules), accents dropped, length cap, reserved root words. `admin/templates/edit.twig` has a JavaScript copy for the live preview only; the server decides. |
 | `RedirectRepository` | `redirects` (old path to new path or full address, 301/302, origin, hits) and `not_found_log`; path normalising, validation (no loops, no `javascript:`), following redirects that lead to redirects. Consulted only when a request matches nothing. |
 | `LoginThrottle` | Failed sign-in counting and blocking (`login_attempts`). |

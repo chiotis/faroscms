@@ -46,6 +46,10 @@ After adding or changing an admin action, run `php scripts/check-permissions.php
 
 Redirects are managed with `redirects.manage` (Sensitive: a redirect can send visitors to another website). A target must be a path on this site or an `http(s)` address; `javascript:`, `data:` and other schemes are refused, as are loops and redirects from `/admin`. The list of addresses that were not found keeps only the path and the referring host and path (no query strings, no IP addresses), ignores files and probes, and is capped at 1000 rows. Address changes made by an editor still create their redirect, because that is a side effect of saving, not a redirect management action.
 
+### History
+
+Admin > History and the editor's History tab need `content.manage`. Restoring or bringing back an item is a `POST` with the CSRF token, is written to the activity log, and goes through the raw HTML rule: someone without `content.raw_html` gets HTML that is not already in the current file shown as text, so an old version cannot be used to put script back. Forms are excluded from lists and refused by address unless the person may manage forms, because a form's history includes where its notifications go. The history holds the full text of content, so it is protected like the content itself and travels in database backups; it keeps the latest 50 versions of an item and deleted items for 180 days.
+
 ### CSRF
 
 - Every admin `POST` must carry the per-session token (`_csrf` field or `X-CSRF-Token` header). This includes the sign-in form.
