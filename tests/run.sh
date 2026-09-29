@@ -4,7 +4,7 @@
 #   tests/run.sh            everything
 #   tests/run.sh unit       the PHP checks only (fast, no server)
 #   tests/run.sh http       the browser-level tests only
-#   tests/run.sh redirects  one HTTP test by name (editor, roles, import, redirects)
+#   tests/run.sh redirects  one HTTP test by name (editor, roles, import, redirects, save)
 #
 # The HTTP tests never touch your site: they run against a temporary copy of the code with the small
 # content set in tests/fixtures, on a free local port, and remove it afterwards. They need PHP and Python 3
@@ -24,7 +24,7 @@ report() { # name output
     TOTAL_OK=$((TOTAL_OK + ok))
   else
     printf '  FAIL  %-28s %s failed\n' "$1" "$bad"
-    printf '%s\n' "$2" | grep -E '^FAIL|Fatal|Warning|Error' | sed 's/^/          /' | head -20
+    printf '%s\n' "$2" | grep -vE '^ok|^note' | sed 's/^/          /' | head -20
     FAILED+=("$1")
   fi
 }
@@ -57,7 +57,7 @@ run_http() {
   for _ in $(seq 1 50); do curl -s -o /dev/null "http://127.0.0.1:$port/" && break; sleep 0.1; done
 
   echo "HTTP tests (temporary copy on port $port)"
-  for name in editor roles import redirects; do
+  for name in editor roles import redirects save; do
     [ -n "$only" ] && [ "$only" != "$name" ] && continue
     # Every test starts from the same clean site.
     rm -rf "$work/app/content" "$work/app/storage" "$work/app/custom" "$work/app/public/uploads"
@@ -77,7 +77,7 @@ case "$MODE" in
   all) run_unit; echo; run_http ;;
   unit) run_unit ;;
   http) run_http ;;
-  editor|roles|import|redirects) run_http "$MODE" ;;
+  editor|roles|import|redirects|save) run_http "$MODE" ;;
   *) echo "Unknown option: $MODE"; exit 2 ;;
 esac
 
