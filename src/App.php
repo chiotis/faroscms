@@ -403,24 +403,12 @@ final class App
         $alternates = $this->buildAlternateUrlsForItem('pages', $page->slug);
         $languageLinks = $this->buildLanguageLinksForItem('pages', $page);
         $template = $slug === $homeSlug ? 'templates/home.twig' : $this->resolveItemTemplate($page);
-        $homeData = [];
-        if ($template === 'templates/home.twig') {
-            $home = $this->themeSettings['home'] ?? [];
-            $showProjects = $this->isTruthy($home['show_latest_projects'] ?? true);
-            $showPosts = $this->isTruthy($home['show_latest_posts'] ?? true);
-            $projectsLimit = max(1, min(12, (int)($home['projects_limit'] ?? 3)));
-            $postsLimit = max(1, min(12, (int)($home['posts_limit'] ?? 3)));
-            $homeData = [
-                'latest_projects' => $showProjects ? array_slice($this->content->getItems('projects', $lang, $includeHidden, false), 0, $projectsLimit) : [],
-                'latest_posts' => $showPosts ? array_slice($this->content->getItems('posts', $lang, $includeHidden, false), 0, $postsLimit) : [],
-            ];
-        }
         $this->render($template, [
             'item' => $page,
             'alternate_urls' => $alternates['urls'],
             'alternate_default' => $alternates['default'],
             'language_links' => $languageLinks,
-        ] + $homeData + $this->frontItemData($page, $lang, $path, $viewDefaults, $template === 'templates/home.twig') + $viewDefaults);
+        ] + $this->frontItemData($page, $lang, $path, $viewDefaults, $template === 'templates/home.twig') + $viewDefaults);
     }
 
     /**

@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-09-29 — Title layouts like the Hero block
+- **Theme settings > Hero Layouts** (the title area of pages, posts, projects, and forms) now offers the layouts of the Hero block besides Default and Centered: **Split** (text beside the image), **Cover** (text over a full-width image, with the same two shades that keep the text readable) and **Minimal** (a large centred heading, no image). Split and Minimal get the soft palette glow of the Hero block. A Cover without an image falls back to Default. The line above the title (date, tags, categories, author) is kept in every layout
+- The five templates that each carried their own copy of the title markup (page, post, project, form, sidebar) now share one component, `components/page-header.twig`, so a layout is written once. Covered by `tests/http/hero_layouts_test.py`. Theme version 1.10.0
+- Removed **Theme settings > Home Sections** (show latest projects/posts and their limits). It only applied to a home page without blocks; a home page built with blocks ignored it, and the **Latest** block does the same job with more control. A home page with no blocks now shows just its title, text, and image. Values already stored are left alone and ignored
+
 ## 2026-09-29 — Hero with numbered steps
 - The **Hero** block has a new layout, *Text over a full-width image, with numbered steps*: the cover hero with up to four numbered steps (a title and a short text each) under the heading and buttons, in the style of Features > Numbered steps. It works with a transparent header like the cover layout, is on the blocks showcase page, and is covered by tests. On phones the steps stack. Each step can also have a link (and link text): its title becomes the link, which covers the whole step, and a "Learn more" hint with an arrow shows under it, as in Features
 

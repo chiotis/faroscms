@@ -23,30 +23,6 @@
     <section class="prose-block">
       {{ item.html|raw }}
     </section>
-
-    {% if latest_projects is defined and latest_projects is not empty %}
-      <section>
-        <h2>{{ t('home.projects_title', 'Featured Projects') }}</h2>
-        <p><a href="{{ url(prefix ~ 'projects') }}">{{ t('home.view_all_projects', 'View all projects') }}</a></p>
-        <div class="content-grid">
-          {% for project_item in latest_projects %}
-            {% include 'components/card.twig' with { item: project_item } %}
-          {% endfor %}
-        </div>
-      </section>
-    {% endif %}
-
-    {% if latest_posts is defined and latest_posts is not empty %}
-      <section>
-        <h2>{{ t('home.news_title', 'Latest News') }}</h2>
-        <p><a href="{{ url(prefix ~ 'posts') }}">{{ t('home.view_all_news', 'View all news') }}</a></p>
-        <div class="content-grid">
-          {% for post_item in latest_posts %}
-            {% include 'components/card.twig' with { item: post_item } %}
-          {% endfor %}
-        </div>
-      </section>
-    {% endif %}
   </article>
   {% endif %}
 {% endblock %}
