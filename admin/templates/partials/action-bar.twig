@@ -13,8 +13,18 @@
 #}
 <div class="col-span-full h-20" aria-hidden="true"></div>
 <div data-action-bar class="fixed inset-x-0 bottom-0 z-20 lg:left-64">
-  <div class="flex flex-wrap items-center justify-between gap-2 px-4 py-3 lg:px-6" role="group" aria-label="Actions">
-    <div class="flex flex-wrap items-center gap-2">{% block leading %}{% endblock %}</div>
-    <div class="ml-auto flex flex-wrap items-center gap-2">{% block actions %}{% endblock %}</div>
+  <div class="ab-stage">
+    <div class="ab-layer ab-content flex flex-wrap items-center justify-between gap-2 px-4 py-3 lg:px-6" role="group" aria-label="Actions" data-action-bar-content>
+      <div class="flex flex-wrap items-center gap-2">{% block leading %}{% endblock %}</div>
+      <div class="ml-auto flex flex-wrap items-center gap-2">{% block actions %}{% endblock %}</div>
+    </div>
+    {# Messages (saved, warnings, errors) take the bar over for a few seconds: see showBarMessage() in admin.js. #}
+    <div class="ab-layer ab-message flex items-center gap-3 px-4 py-3 lg:px-6" aria-hidden="true" data-action-bar-message>
+      <span class="shrink-0" data-action-bar-icon></span>
+      <p class="min-w-0 flex-1 text-sm font-medium" data-action-bar-text></p>
+      <button type="button" class="shrink-0 rounded-md px-3 py-1.5 text-sm font-medium" data-action-bar-dismiss tabindex="-1">Dismiss</button>
+    </div>
   </div>
+  <div class="ab-progress" data-action-bar-progress></div>
+  <div class="sr-only" role="status" aria-live="polite" data-action-bar-live></div>
 </div>

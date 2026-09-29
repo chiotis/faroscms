@@ -198,3 +198,40 @@ html.dark body.bg-slate-100 { background-color: #0b1120; }
   outline: 2px solid #fff;
   outline-offset: 2px;
 }
+
+/* When a message appears the bar turns into the message: the buttons slide up and out, the message comes up from
+   below, and the bar takes the colour of the message. It goes back by itself (errors wait to be dismissed). */
+[data-action-bar][data-action-bar] { position: fixed; transition: background-color 0.35s ease; }
+[data-action-bar] .ab-stage { display: grid; overflow: hidden; }
+[data-action-bar] .ab-layer {
+  grid-area: 1 / 1;
+  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.3s ease, visibility 0s linear 0.35s;
+}
+[data-action-bar] .ab-message {
+  color: #fff;
+  opacity: 0;
+  transform: translateY(100%);
+  visibility: hidden;
+}
+[data-action-bar].is-notifying .ab-content { opacity: 0; transform: translateY(-100%); visibility: hidden; }
+[data-action-bar].is-notifying .ab-message {
+  opacity: 1;
+  transform: none;
+  visibility: visible;
+  transition-delay: 0s;
+}
+[data-action-bar].is-notifying .ab-message[data-action-bar-message] { transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) 0.08s, opacity 0.3s ease 0.08s; }
+[data-action-bar][data-action-bar].tone-success { background: #065f46; border-top-color: #047857; }
+[data-action-bar][data-action-bar].tone-warning { background: #78350f; border-top-color: #92400e; }
+[data-action-bar][data-action-bar].tone-error { background: #7f1d1d; border-top-color: #991b1b; }
+.ab-progress {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.55);
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-action-bar][data-action-bar], [data-action-bar] .ab-layer { transition: none !important; }
+}
