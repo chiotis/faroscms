@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-09-29 — Hero with numbered steps
+- The **Hero** block has a new layout, *Text over a full-width image, with numbered steps*: the cover hero with up to four numbered steps (a title and a short text each) under the heading and buttons, in the style of Features > Numbered steps. It works with a transparent header like the cover layout, is on the blocks showcase page, and is covered by tests. On phones the steps stack
+
 ## 2026-09-29 — Spacing after a cover hero
 - A section right after a hero with a full-width cover image lost its top space (two sections on the same background share one gap, but the cover image is a background of its own), so the Logos block's heading touched the image. Every block after a cover hero now keeps its top space. Theme version 1.8.1
 

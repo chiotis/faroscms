@@ -126,7 +126,7 @@ First block family:
 
 | Block | Variants | Notes |
 |-------|----------|-------|
-| `hero` | split, centered, cover, minimal | Up to 2 buttons and 3 highlights. Opening hero images load first (`fetchpriority=high`). |
+| `hero` | split, centered, cover, steps, minimal | Up to 2 buttons and 3 highlights. Opening hero images load first (`fetchpriority=high`). The `steps` layout is the cover layout with up to four numbered steps (title and text) under the buttons, like Features > Numbered steps. |
 | `content` | narrow, wide | The item's Markdown body. |
 | `text` | default, split, lead | Markdown text with optional buttons. |
 | `text-image` | image-right, image-left | Bullet lists show check marks. Image shape: landscape, portrait, square. |

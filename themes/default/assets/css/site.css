@@ -396,7 +396,7 @@ hr {
 
 /* Two neighbouring sections on the same background share one gap. A full-width cover image is its own background,
    so the section after it keeps its own top space. */
-.block.tone-default:not(.block--cover) + .block.tone-default:not(.block-hero),
+.block.tone-default:not(.block--cover, .block-hero.block--steps) + .block.tone-default:not(.block-hero),
 .block.tone-muted + .block.tone-muted {
   padding-top: 0;
 }
@@ -1428,7 +1428,7 @@ body.has-transparent-header:not(.header-solid) .site-header.is-on-dark[data-stic
   padding-top: calc(var(--header-height, 4.5rem) + clamp(2.5rem, 1rem + 5vw, 6rem));
 }
 
-.has-transparent-header .main-shell > .block-hero.block--cover:first-child {
+.has-transparent-header .main-shell > .block-hero:is(.block--cover, .block--steps):first-child {
   padding-top: calc(var(--header-height, 4.5rem) + clamp(5rem, 10vw, 9rem));
 }
 

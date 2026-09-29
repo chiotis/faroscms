@@ -19,7 +19,7 @@
 {% set header_settings = theme_settings.header|default({}) %}
 {% set lead_block = page_blocks.lead ?? null %}
 {% set transparent_header = header_settings.transparent|default(false) and lead_block and lead_block.type == 'hero' %}
-{% set transparent_on_dark = transparent_header and (lead_block.variant == 'cover' or lead_block.tone in ['contrast', 'accent']) %}
+{% set transparent_on_dark = transparent_header and (lead_block.variant in ['cover', 'steps'] or lead_block.tone in ['contrast', 'accent']) %}
 {% set og_locales = {'el': 'el_GR', 'en': 'en_US', 'de': 'de_DE', 'fr': 'fr_FR', 'it': 'it_IT', 'es': 'es_ES'} %}
 <html lang="{{ current_language }}" data-theme="{{ palette }}" data-mode="{{ mode }}" data-font="{{ font }}" data-shape="{{ shape }}">
 
