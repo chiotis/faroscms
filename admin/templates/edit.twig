@@ -55,6 +55,9 @@
     <div class="overflow-x-auto border-b border-slate-200">
       <div class="flex min-w-max gap-1" role="tablist">
         <button type="button" class="{{ tab_class }} active" data-tab="basics">Basics</button>
+        {% if type_fields is not empty %}
+          <button type="button" class="{{ tab_class }}" data-tab="details">{{ type_definition.singular }} details</button>
+        {% endif %}
         {% if block_editor_json %}
           <button type="button" class="{{ tab_class }}" data-tab="blocks">Blocks <span data-block-count class="ml-1 rounded-full bg-slate-100 px-1.5 text-[11px] font-semibold text-slate-600"></span></button>
         {% endif %}
@@ -236,6 +239,24 @@
           </div>
         </div>
       </div>
+
+      {% if type_fields is not empty %}
+        {% import '@admin/partials/fields.twig' as content_fields %}
+        <div class="tab-panel hidden space-y-4" data-panel="details">
+          <input type="hidden" name="details_present" value="1">
+          <div class="{{ section_class }}">
+            <div class="{{ section_header_class }}">
+              <h3 class="text-sm font-semibold text-slate-900">{{ type_definition.singular }} details</h3>
+              <p class="mt-0.5 text-xs text-slate-400">{{ type_definition.description ?: 'Fields defined for this content type. They are shown on the page and can be used to filter the archive.' }}</p>
+            </div>
+            <div class="grid gap-3 md:grid-cols-2">
+              {% for key, field in type_fields %}
+                {{ content_fields.field(field, 'details[' ~ key ~ ']', type_values[key]|default(field.type == 'toggle' ? false : '')) }}
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      {% endif %}
 
       {% if type != 'pages' %}
         <div class="tab-panel hidden space-y-4" data-panel="taxonomies">

@@ -30,17 +30,6 @@
             {{ image(hero_image, {priority: true, sizes: '(min-width: 1280px) 1216px, 92vw'}) }}
           </div>
         {% endif %}
-        <p class="single-hero-meta single-hero-meta-inline">
-          {% if item.meta.custom_fields.client is defined %}
-            <span><strong>{{ t('project.client') }}:</strong> {{ item.meta.custom_fields.client }}</span>
-          {% endif %}
-          {% if item.meta.custom_fields.location is defined %}
-            <span><strong>{{ t('project.location') }}:</strong> {{ item.meta.custom_fields.location }}</span>
-          {% endif %}
-          {% if item.meta.custom_fields.duration is defined %}
-            <span><strong>{{ t('project.duration') }}:</strong> {{ item.meta.custom_fields.duration }}</span>
-          {% endif %}
-        </p>
       </div>
     </section>
   {% else %}
@@ -60,17 +49,6 @@
         {% if item.meta.excerpt is defined or item.meta.summary is defined %}
           <p class="single-hero-subtitle">{{ item.meta.excerpt ?? item.meta.summary }}</p>
         {% endif %}
-        <p class="single-hero-meta">
-          {% if item.meta.custom_fields.client is defined %}
-            <span><strong>{{ t('project.client') }}:</strong> {{ item.meta.custom_fields.client }}</span>
-          {% endif %}
-          {% if item.meta.custom_fields.location is defined %}
-            <span><strong>{{ t('project.location') }}:</strong> {{ item.meta.custom_fields.location }}</span>
-          {% endif %}
-          {% if item.meta.custom_fields.duration is defined %}
-            <span><strong>{{ t('project.duration') }}:</strong> {{ item.meta.custom_fields.duration }}</span>
-          {% endif %}
-        </p>
       </div>
     </section>
   {% endif %}

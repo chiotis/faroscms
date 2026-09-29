@@ -140,6 +140,12 @@
             System
           </a>
         {% endif %}
+        {% if can('settings.manage') %}
+          <a href="{{ url('admin/content-types') }}" class="{{ nav_base }} {{ section == 'content-types' ? nav_active : nav_idle }}">
+            <svg class="h-4 w-4 {{ section == 'content-types' ? 'text-white/80' : 'text-slate-400 group-hover:text-slate-600' }}" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3 3 8l9 5 9-5-9-5zM3 13l9 5 9-5M3 17.5l9 5 9-5"/></svg>
+            Content types
+          </a>
+        {% endif %}
         {% if can('translations.manage') %}
           <a href="{{ url('admin/translations') }}" class="{{ nav_base }} {{ section == 'translations' ? nav_active : nav_idle }}">
             <svg class="h-4 w-4 {{ section == 'translations' ? 'text-white/80' : 'text-slate-400 group-hover:text-slate-600' }}" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5h12M9 3v2c0 4.418-2.686 8-6 8m4-3c0 2.21 2.91 4 6.5 4M14 21l4.5-9 4.5 9m-7.65-2h6.3"/></svg>

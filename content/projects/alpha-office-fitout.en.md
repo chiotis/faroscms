@@ -15,5 +15,7 @@ custom_fields:
   client: Northbridge Partners
   location: Chicago, IL
   duration: 12 weeks
+  sector: office
+  year: 2026
 ---
 We delivered a new spatial structure, collaborative zones, and clearer wayfinding to support team productivity.

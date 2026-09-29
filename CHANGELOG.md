@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-09-29 — Content types with declared fields (phase 6)
+- Content types: definitions in `themes/default/content-types/` (projects and posts ship with one) and `custom/content-types/`, merged per field; fields use the same schema as theme settings and blocks, plus a new `date` type
+- Admin > Content types: create a type, set its title and archive layout, and add, reuse, or retire fields; the site's file records only differences from the theme
+- Editor: a "<Type> details" tab with an input per declared field, values stored under `custom_fields` (existing content keeps working)
+- Pages: declared fields appear as a fact sheet on the item's page and, where marked, on its card; the project page no longer hard-codes client, location, and duration
+- Archives: any of the eight Latest-content layouts, ordering (including by a declared field), pagination, and filters from taxonomies and select fields; filtered pages are `noindex`, paginated pages have their own canonical URL; category and tag pages use the same layout
+- The demo projects gain a sector (a filter) and a year
+
 ## 2026-09-28 — Dynamic and interactive blocks (phase 5)
 - New blocks: latest content (8 layouts from a minimal text list to a magazine, optional category or tag filter), video (large viewer by default, YouTube, Vimeo, or a file, nothing loaded until played), slider, pricing, tabs, and banner (dismissible)
 - Ready-made sections: magazine posts, project tiles, video, plans and pricing, services in tabs

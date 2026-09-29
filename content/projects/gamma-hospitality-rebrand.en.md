@@ -15,5 +15,7 @@ custom_fields:
   client: Gamma Hotels Group
   location: Athens, GR
   duration: 10 weeks
+  sector: hospitality
+  year: 2025
 ---
 We delivered refreshed messaging, stronger conversion paths, and a cohesive brand rollout across channels.

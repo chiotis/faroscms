@@ -15,5 +15,7 @@ custom_fields:
   client: Lumina Retail
   location: Austin, TX
   duration: 8 weeks
+  sector: retail
+  year: 2025
 ---
 We created a modular store layout with digital touchpoints and stronger product category navigation.

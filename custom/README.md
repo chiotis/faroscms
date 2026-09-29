@@ -15,6 +15,7 @@ custom/
 ├── blocks/<type>/          a new block (block.yaml, block.twig, block.css), or a block.css
 │                           that adds to a theme block's styles
 ├── icons/<name>.svg        extra icons for blocks
+├── content-types/<type>.yaml  fields and archive settings of a content type (Admin > Content types)
 ├── presets/<name>.yaml     sections saved from the block editor (or written by hand)
 ├── templates/              page templates, e.g. templates/single-project.twig
 ├── components/             header, footer, card, ...

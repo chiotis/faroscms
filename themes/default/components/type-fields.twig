@@ -1,0 +1,32 @@
+{#
+  Fields a content type declares (Content types in docs/theming.md), as a fact sheet.
+  Variable: item. Prints nothing when the item has no values to show.
+#}
+{% set entries = content_fields(item) %}
+{% if entries %}
+  {% set prefix = lang_prefix|default('') %}
+  <dl class="type-fields">
+    {% for entry in entries %}
+      <div class="type-field">
+        <dt>{{ entry.label }}</dt>
+        <dd>
+          {%- if entry.type == 'url' -%}
+            <a href="{{ entry.value }}" rel="noopener">{{ entry.display }}</a>
+          {%- elseif entry.type == 'email' -%}
+            <a href="mailto:{{ entry.value }}">{{ entry.value }}</a>
+          {%- elseif entry.type == 'link' -%}
+            {% set href = link_url(entry.value, prefix) %}{% if href %}<a href="{{ href }}">{{ entry.display }}</a>{% else %}{{ entry.display }}{% endif %}
+          {%- elseif entry.type == 'toggle' -%}
+            {{ t('field.yes', 'Yes') }}
+          {%- elseif entry.type == 'image' -%}
+            {{ image(entry.value, {alt: '', sizes: '240px', max_width: 480}) }}
+          {%- elseif entry.type in ['textarea', 'markdown'] -%}
+            {{ entry.display|nl2br }}
+          {%- else -%}
+            {{ entry.display }}
+          {%- endif -%}
+        </dd>
+      </div>
+    {% endfor %}
+  </dl>
+{% endif %}

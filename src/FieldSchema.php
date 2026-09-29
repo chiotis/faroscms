@@ -13,7 +13,7 @@ namespace FarosCMS;
  */
 final class FieldSchema
 {
-    public const TYPES = ['text', 'textarea', 'markdown', 'email', 'url', 'link', 'image', 'color', 'number', 'decimal', 'select', 'toggle', 'repeater'];
+    public const TYPES = ['text', 'textarea', 'markdown', 'email', 'url', 'link', 'image', 'color', 'number', 'decimal', 'date', 'select', 'toggle', 'repeater'];
 
     /**
      * @param array<string, mixed> $definitions raw map of key => definition
@@ -179,6 +179,15 @@ final class FieldSchema
                     return $fallback;
                 }
                 return $decimal;
+
+            case 'date':
+                // Empty means "not set"; anything else must be a real calendar date (YYYY-MM-DD).
+                $value = is_scalar($value) ? trim((string)$value) : '';
+                if ($value === '') {
+                    return '';
+                }
+                $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+                return $date !== false && $date->format('Y-m-d') === $value ? $value : $fallback;
 
             case 'select':
                 $value = is_scalar($value) ? (string)$value : '';

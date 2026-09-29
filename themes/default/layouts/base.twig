@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ page_title }}</title>
   <meta name="description" content="{{ page_description }}">
-  {% if meta.seo.noindex ?? false %}
+  {% if (meta.seo.noindex ?? false) or (noindex_page ?? false) %}
   <meta name="robots" content="noindex">
   {% endif %}
   {% if canonical_url is defined and canonical_url %}

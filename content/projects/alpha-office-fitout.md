@@ -15,6 +15,8 @@ custom_fields:
   client: 'Northbridge Partners'
   location: 'Chicago, IL'
   duration: '12 εβδομάδες'
+  sector: office
+  year: 2026
 ---
 
 Αναπτύξαμε νέα χωρική λογική, zones συνεργασίας και σαφή wayfinding για καθημερινή λειτουργικότητα και καλύτερη εμπειρία ομάδας.

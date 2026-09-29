@@ -34,6 +34,7 @@ Before the application boots, `public/index.php` hands `/_themes/…` and `/_cus
 | `Theme` | Frontend theme manifest (`theme.yaml`), settings schema and resolution, template lookup across `custom/` and the theme, asset URLs, layered translations and `custom/lang` overrides. |
 | `ThemeAssets` | Serves theme and `custom/` assets from outside `public/` with type allowlist, path checks, and caching. |
 | `FieldSchema` | Declarative field definitions (text, markdown, link, image, select, toggle, number, repeater, …): defaults, validation of stored values, and form input handling. Used by theme settings and blocks. |
+| `ContentTypes` | Content type definitions from `themes/<theme>/content-types/` and `custom/content-types/` (merged per field): declared fields, checked values, display lists, archive settings, and writing the site's file from Admin > Content types. |
 | `BlockRegistry` | Block definitions from `themes/<theme>/blocks/*/block.yaml` and `custom/blocks/`, with shared presentation fields (variant, tone, spacing, anchor, hidden); editor definitions and storage sanitising for the admin block editor (`public/assets/js/admin-blocks.js`). |
 | `BlockRenderer` | Renders a page's `blocks:` list: checks values, heading levels, Markdown, dynamic data (latest items, forms), stylesheet bundle, and FAQ structured data. |
 | `PresetLibrary` | Ready-made sections and page layouts from `themes/<theme>/presets/` and `custom/presets/`, localised per language; saves and deletes site sections. |

@@ -1,5 +1,5 @@
 {#
-  Form controls for FieldSchema definitions (theme settings now; blocks and content types later).
+  Form controls for FieldSchema definitions (theme settings and content type fields).
   field: a normalized definition from FieldSchema::normalize(); name: the input name; value: current value.
 #}
 {% macro field(field, name, value) %}
@@ -24,6 +24,12 @@
         </select>
       {% elseif field.type == 'textarea' %}
         <textarea name="{{ name }}" rows="3" placeholder="{{ field.placeholder }}" class="{{ control }}">{{ value }}</textarea>
+      {% elseif field.type == 'markdown' %}
+        <textarea name="{{ name }}" rows="6" placeholder="{{ field.placeholder }}" class="{{ control }}">{{ value }}</textarea>
+      {% elseif field.type == 'date' %}
+        <input type="date" name="{{ name }}" value="{{ value }}" class="{{ control }}">
+      {% elseif field.type == 'decimal' %}
+        <input type="number" step="any" name="{{ name }}" value="{{ value }}"{% if field.min is not null %} min="{{ field.min }}"{% endif %}{% if field.max is not null %} max="{{ field.max }}"{% endif %} placeholder="{{ field.placeholder }}" class="{{ control }}">
       {% elseif field.type == 'number' %}
         <input type="number" name="{{ name }}" value="{{ value }}"{% if field.min is not null %} min="{{ field.min }}"{% endif %}{% if field.max is not null %} max="{{ field.max }}"{% endif %} placeholder="{{ field.placeholder }}" class="{{ control }}">
       {% elseif field.type == 'color' %}

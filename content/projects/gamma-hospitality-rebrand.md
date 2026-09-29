@@ -15,6 +15,8 @@ custom_fields:
   client: 'Gamma Hotels Group'
   location: 'Athens, GR'
   duration: '10 εβδομάδες'
+  sector: hospitality
+  year: 2025
 ---
 
 Σχεδιάσαμε νέο narrative, βελτιώσαμε conversion paths και ανανεώσαμε τα βασικά assets του brand.

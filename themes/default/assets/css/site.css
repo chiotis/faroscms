@@ -2226,3 +2226,138 @@ p.form-error {
     display: none;
   }
 }
+
+/* 12. Content types: fact sheet, archive filters, pagination ------------------- */
+
+.single-facts {
+  padding-top: clamp(1.5rem, 1rem + 2vw, 2.5rem);
+}
+
+.type-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: var(--space-s) var(--space-l);
+  margin: 0;
+  padding: var(--space-m) var(--space-l);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-l);
+  background: var(--color-surface);
+}
+
+.type-field {
+  min-width: 0;
+}
+
+.type-field dt {
+  margin: 0 0 0.15rem;
+  color: var(--color-muted);
+  font-size: var(--step--1);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.type-field dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-weight: 550;
+}
+
+.type-field dd a {
+  color: var(--accent);
+}
+
+.type-field dd img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-m);
+}
+
+.archive-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--space-s) var(--space-m);
+  margin-bottom: var(--space-l);
+}
+
+.archive-filter {
+  display: grid;
+  gap: 0.3rem;
+  min-width: min(100%, 12rem);
+  font-size: var(--step--1);
+  font-weight: 600;
+}
+
+.archive-filter select {
+  min-height: 2.875rem;
+  padding: 0.6rem 2.25rem 0.6rem 0.9rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-m);
+  background-color: var(--card-bg);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.archive-filter select:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.archive-count {
+  margin: calc(-1 * var(--space-s)) 0 var(--space-m);
+  color: var(--color-muted);
+  font-size: var(--step--1);
+}
+
+.pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-s) var(--space-m);
+  margin-top: var(--space-xl);
+}
+
+.pagination-pages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pagination a {
+  display: inline-grid;
+  place-items: center;
+  min-width: 2.5rem;
+  min-height: 2.5rem;
+  padding: 0 0.75rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-button);
+  color: var(--color-text);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.pagination a:hover {
+  border-color: var(--color-border-strong);
+}
+
+.pagination a[aria-current="page"] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.pagination a:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.pagination-step {
+  border-color: var(--color-border-strong) !important;
+}

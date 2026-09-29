@@ -1,0 +1,58 @@
+{% extends '@admin/base.twig' %}
+
+{% block content %}
+  {% set btn_primary = 'inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700' %}
+  {% set input_soft = 'w-full rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20' %}
+
+  <header class="mb-4 flex flex-col gap-3 border-b border-slate-200 pb-4">
+    <div class="min-w-0">
+      <h1 class="truncate text-[15px] font-semibold leading-tight text-slate-900">Content types</h1>
+      <p class="text-xs text-slate-400">The fields each type's editor form has, and how its archive page looks. Your changes are saved in <code>{{ custom_file }}</code> and survive updates.</p>
+    </div>
+  </header>
+
+  {% if saved %}<template data-flash data-type="success">Saved.</template>{% endif %}
+  {% if error == 'name' %}<template data-flash data-type="error">Use a new name made of letters, numbers, and dashes. Some names are reserved.</template>{% endif %}
+  {% if error == 'write' %}<template data-flash data-type="error">Could not write to the custom/ folder. Check that it is writable.</template>{% endif %}
+
+  <div class="mb-4 overflow-x-auto rounded-lg border border-slate-200 bg-white">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="border-b border-slate-100 bg-slate-50/50 text-left text-xs font-medium text-slate-400">
+          <th class="px-4 py-2 font-medium">Type</th>
+          <th class="px-4 py-2 font-medium">Fields</th>
+          <th class="px-4 py-2 font-medium">Archive layout</th>
+          <th class="px-4 py-2 font-medium">Defined by</th>
+          <th class="px-4 py-2"></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-50">
+        {% for row in types_list %}
+          <tr class="hover:bg-slate-50">
+            <td class="px-4 py-2.5"><span class="font-medium text-slate-900">{{ row.label }}</span> <code class="ml-1 text-xs text-slate-400">{{ row.type }}</code></td>
+            <td class="px-4 py-2.5 text-slate-600">{{ row.fields }}</td>
+            <td class="px-4 py-2.5 text-slate-600">{{ row.layout|replace({'_': ' '})|capitalize }}</td>
+            <td class="px-4 py-2.5 text-xs text-slate-500">{{ row.origin ? row.origin|replace({'+': ' + '}) : 'Not defined yet' }}</td>
+            <td class="px-4 py-2.5 text-right"><a class="font-medium text-blue-600 hover:text-blue-700" href="{{ url('admin/content-types?type=' ~ row.type) }}">Edit</a></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <form method="post" class="rounded-lg border border-slate-200 bg-white p-4">
+    {{ csrf_field() }}
+    <input type="hidden" name="action" value="create">
+    <h2 class="text-sm font-semibold text-slate-900">New content type</h2>
+    <p class="mt-0.5 mb-3 text-xs text-slate-400">For example "events" or "team". It gets its own list in the admin, an archive page at <code>/name</code>, and pages at <code>/name/slug</code>.</p>
+    <div class="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+      <label class="grid gap-1 text-sm font-medium text-slate-700">Name (in the address)
+        <input type="text" name="name" required pattern="[a-z][a-z0-9-]*" placeholder="events" class="{{ input_soft }}">
+      </label>
+      <label class="grid gap-1 text-sm font-medium text-slate-700">Title
+        <input type="text" name="label" placeholder="Events" class="{{ input_soft }}">
+      </label>
+      <button type="submit" class="{{ btn_primary }}">Create</button>
+    </div>
+  </form>
+{% endblock %}

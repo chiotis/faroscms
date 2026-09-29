@@ -1,4 +1,10 @@
-{# Page or post body: its blocks when it has any, otherwise the Markdown text at reading width. #}
+{# Page or post body: the fields of its content type, then its blocks when it has any, otherwise the Markdown text at reading width. #}
+{% set type_facts = content_fields(item) %}
+{% if type_facts %}
+  <div class="site-wrap single-facts">
+    {% include 'components/type-fields.twig' with {item: item, lang_prefix: lang_prefix|default('')} only %}
+  </div>
+{% endif %}
 {% if page_blocks|default(null) %}
   {{ page_blocks.html|raw }}
 {% else %}

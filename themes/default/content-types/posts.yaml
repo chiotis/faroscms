@@ -1,0 +1,10 @@
+# Posts: no extra fields by default. Sites can add some in custom/content-types/posts.yaml.
+label: { el: Άρθρα, en: Posts }
+singular: { el: Άρθρο, en: Post }
+description: { el: 'Νέα, οδηγοί και ανακοινώσεις.', en: 'News, guides, and announcements.' }
+archive:
+  layout: cards
+  columns: '3'
+  per_page: 12
+  order: date_desc
+  taxonomies: [categories, tags]

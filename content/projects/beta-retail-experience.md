@@ -15,6 +15,8 @@ custom_fields:
   client: 'Lumina Retail'
   location: 'Austin, TX'
   duration: '8 εβδομάδες'
+  sector: retail
+  year: 2025
 ---
 
 Σχεδιάσαμε modular διάταξη καταστήματος με digital touchpoints και καλύτερη πλοήγηση ανά κατηγορία προϊόντων.

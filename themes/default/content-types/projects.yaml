@@ -1,0 +1,39 @@
+# Projects: the fields an editor fills in and how the archive looks.
+# Sites can add fields or change the archive in custom/content-types/projects.yaml (kept across
+# updates). Never rename a field key: content refers to it by name. Retire a field with `hidden: true`.
+label: { el: Έργα, en: Projects }
+singular: { el: Έργο, en: Project }
+description: { el: 'Παραδοθέντα έργα και μελέτες περίπτωσης.', en: 'Delivered projects and case studies.' }
+fields:
+  client:
+    type: text
+    label: { el: Πελάτης, en: Client }
+    card: true
+  sector:
+    type: select
+    label: { el: Κλάδος, en: Sector }
+    filterable: true
+    card: true
+    options:
+      '': '—'
+      office: { el: Γραφεία, en: Office }
+      retail: { el: Λιανική, en: Retail }
+      hospitality: { el: Φιλοξενία, en: Hospitality }
+      other: { el: Άλλο, en: Other }
+  location:
+    type: text
+    label: { el: Τοποθεσία, en: Location }
+  year:
+    type: number
+    label: { el: Έτος, en: Year }
+    min: 1990
+    max: 2100
+  duration:
+    type: text
+    label: { el: Διάρκεια, en: Duration }
+archive:
+  layout: cards
+  columns: '3'
+  per_page: 12
+  order: date_desc
+  taxonomies: [categories]

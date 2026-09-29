@@ -17,7 +17,7 @@ Two rules follow from that:
 | Site-level component variants (header, footer) | `components/`, Theme settings | Header: 4 layouts, transparent, sticky modes, top bar, CTA, phone bottom bar. Footer: 3 layouts |
 | Page templates (standard, landing, with sidebar) | `templates/`, `page_templates` in the manifest | Done |
 | Ready-made sections and page layouts | `presets/`, `custom/presets/` | Done |
-| Field definitions per content type | content type config | Later |
+| Field definitions and archive settings per content type | `themes/default/content-types/`, `custom/content-types/`, Admin > Content types | Done |
 
 ## Folder layout
 
@@ -28,6 +28,7 @@ themes/default/
 ├── templates/            one template per page kind (hierarchy below)
 ├── components/           header, footer, card, form, menu macros, block wrapper, ui macros
 ├── blocks/<type>/        block.yaml (fields), block.twig (markup), block.css (styles)
+├── content-types/<type>.yaml  fields and archive settings of a content type
 ├── icons/<name>.svg      icon set used by blocks (icon('name') in Twig)
 ├── assets/css, assets/js served at /_themes/default/<path>
 └── lang/<lang>.php       shipped strings
@@ -37,6 +38,7 @@ custom/                   site-specific, never touched by updates
 ├── assets/js/custom.js   loaded after the theme JS when present
 ├── lang/<lang>.yaml      string overrides (written by Admin > Translations)
 ├── blocks/<type>/        new block types, or block.css added after a theme block's styles
+├── content-types/<type>.yaml  fields and archive settings of a type (written by Admin > Content types)
 ├── icons/<name>.svg      extra icons (or replacements for theme icons)
 └── templates/, components/, layouts/   overrides by relative path
 ```
@@ -164,6 +166,43 @@ Create `blocks/<type>/` with three files:
 ### Editing blocks
 
 Admin > Edit > **Blocks** lists the page's blocks: add (from a picker with each block's description), move, duplicate, hide, remove (with undo), and edit the fields generated from `block.yaml`, including repeaters and image fields with the media library. On save the server checks every value again (`BlockRegistry::sanitizeForStorage`) and stores only values that differ from the defaults. Unknown block types are kept unchanged. Without JavaScript the page's existing blocks are kept when it is saved.
+
+## Content types
+
+A content type is a folder in `content/` (`posts`, `projects`, or one you create). A **definition** adds two things: the fields an editor fills in, and how the type's archive page looks. Definitions are optional; a type without one behaves as before.
+
+Definitions live in `themes/default/content-types/<type>.yaml` (shipped with the theme) and `custom/content-types/<type>.yaml` (the site's own, kept across updates). When both exist they are merged: fields are added or changed one by one, and archive settings replace the theme's one by one. **Admin > Content types** edits the site file and writes only what differs from the theme, so theme improvements keep arriving.
+
+```yaml
+label: { el: Έργα, en: Projects }        # text, or a map per language
+singular: { el: Έργο, en: Project }
+fields:
+  client:  { type: text, label: { el: Πελάτης, en: Client }, card: true }
+  sector:
+    type: select
+    label: { el: Κλάδος, en: Sector }
+    filterable: true                       # offered as a filter in the archive
+    options: { '': '—', office: { el: Γραφεία, en: Office }, retail: Retail }
+  year:    { type: number, label: Year, min: 1990, max: 2100 }
+archive:
+  layout: cards            # cards, list, compact, overlay, featured, magazine, editorial
+  columns: '3'
+  per_page: 12             # 0 shows everything on one page
+  order: date_desc         # date_desc, date_asc, title_asc, title_desc, or field:<key>:asc|desc
+  taxonomies: [categories] # taxonomies offered as filters
+  show_image: true
+  show_excerpt: true
+  show_date: true
+  show_meta: true          # category and card fields
+```
+
+- **Field types:** `text`, `textarea`, `markdown`, `email`, `url`, `link`, `image`, `color`, `number`, `decimal`, `date`, `select`, `toggle`. Per field: `card: true` shows it on the item's card, `show: false` hides it on the item's own page, `filterable: true` (select fields) adds an archive filter, `hidden: true` retires it. Repeaters are not available.
+- **Storage:** values are saved in the item's front matter under `custom_fields`, checked against the definition on every read and write, so a stored value can never push markup into a template. Fields you declare get their own inputs in the editor (a "<Type> details" tab) and no longer appear under free-form Custom Fields.
+- **Compatibility:** follow the same rules as theme settings. Never rename a field key, retire it with `hidden: true` instead (stored values are kept), and give a `select` a stable set of option values.
+- **On the page:** every single page shows its declared fields as a fact sheet (`components/type-fields.twig`, included by `components/page-body.twig`). In templates, `content_fields(item)` returns the fields to print and `content_fields(item, 'card')` those marked for cards; `content_type('projects')` returns the definition.
+- **Archive:** `templates/archive.twig` draws the list with the same eight layouts as the Latest content block (`components/entry-list.twig`). Filters are plain links and a `<form method="get">` (no JavaScript): `?filter[sector]=retail&page=2`. Filter values that no item has are never offered. Filtered pages are `noindex`; each page of a paginated listing has its own canonical URL. Category and tag pages use the same layout.
+- **Per-type templates** still work: `custom/templates/archive-<type>.twig` and `single-<type>.twig` win over the defaults.
+- **Latest content block:** the block lists any type, so a new type is available in it straight away.
 
 ## Page templates
 

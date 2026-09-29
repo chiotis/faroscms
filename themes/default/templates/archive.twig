@@ -1,10 +1,17 @@
 {% extends 'layouts/base.twig' %}
-{% set document_title = archive_title ?? (t('type.' ~ type|default(''), type|default('')|title) ~ ' ' ~ t('archive.suffix')) %}
+{#
+  Archive of a content type (settings from its definition: layout, columns, order, filters, pages)
+  and of a category or tag (archive_title and items only).
+#}
+{% set config = archive.settings|default({}) %}
+{% set type_key = type|default('') %}
+{% set title_text = archive_title ?? (config.title|default('') ?: t(type_key ~ '.archive_title', '') ?: (t('type.' ~ type_key, type_key|title) ~ ' ' ~ t('archive.suffix'))) %}
+{% set subtitle_text = archive_subtitle is defined ? archive_subtitle : (config.subtitle|default('') ?: t(type_key ~ '.archive_subtitle', '') ?: t('archive.subtitle')) %}
+{% set document_title = title_text %}
 
 {% block content %}
   {% set prefix = lang_prefix|default('') %}
-  {% set title_text = archive_title ?? (t('type.' ~ type, type|title) ~ ' ' ~ t('archive.suffix')) %}
-  {% set subtitle_text = archive_subtitle is defined ? archive_subtitle : t('archive.subtitle') %}
+  {% set layout = config.layout|default('cards') %}
   <section class="single-hero">
     <div class="site-wrap single-hero-inner">
       <h1>{{ title_text }}</h1>
@@ -14,15 +21,58 @@
     </div>
   </section>
 
-  <section class="site-wrap section-stack single-body">
-    {% if items is empty %}
-      <p>{{ t('archive.empty') }}</p>
-    {% else %}
-      <div class="content-grid">
-        {% for item in items %}
-          {% include 'components/card.twig' with {card_heading_tag: 'h2'} %}
+  <section class="site-wrap section-stack single-body archive-body">
+    {% if archive is defined and archive.filters %}
+      <form class="archive-filters" method="get" aria-label="{{ t('filter.label', 'Filter') }}">
+        {% for filter in archive.filters %}
+          <label class="archive-filter">
+            <span>{{ filter.kind == 'taxonomy' ? t('filter.' ~ filter.name, filter.label) : filter.label }}</span>
+            <select name="filter[{{ filter.name }}]">
+              <option value="">{{ t('filter.all', 'All') }}</option>
+              {% for option in filter.options %}
+                <option value="{{ option.value }}"{% if option.value == filter.selected %} selected{% endif %}>{{ option.label }} ({{ option.count }})</option>
+              {% endfor %}
+            </select>
+          </label>
         {% endfor %}
+        <button class="btn btn-primary" type="submit">{{ t('filter.apply', 'Apply') }}</button>
+        {% if archive.filtered %}<a class="text-link" href="?">{{ t('filter.reset', 'Clear filters') }}</a>{% endif %}
+      </form>
+      {% if archive.filtered %}
+        <p class="archive-count" role="status">{{ archive.total }} {{ archive.total == 1 ? t('filter.result', 'result') : t('filter.results', 'results') }}</p>
+      {% endif %}
+    {% endif %}
+
+    {% if items is empty %}
+      <p>{{ archive is defined and archive.filtered ? t('filter.none', 'Nothing matches these filters.') : (t(type_key ~ '.archive_empty', '') ?: t('archive.empty')) }}</p>
+    {% else %}
+      <div class="block-latest block--{{ layout }}">
+        {% include 'components/entry-list.twig' with {
+          entries: items,
+          variant: layout,
+          columns: config.columns|default('3'),
+          show_image: config.show_image ?? true,
+          show_excerpt: config.show_excerpt ?? true,
+          show_meta: config.show_meta ?? true,
+          show_date: config.show_date ?? true,
+          prefix: prefix,
+          lang: lang|default(''),
+          heading_tag: 'h2',
+          label: title_text
+        } only %}
       </div>
+    {% endif %}
+
+    {% if archive is defined and archive.pages > 1 %}
+      <nav class="pagination" aria-label="{{ t('pagination.label', 'Pagination') }}">
+        {% if archive.prev %}<a class="pagination-step" rel="prev" href="{{ archive.prev }}">{{ t('pagination.previous', 'Previous') }}</a>{% endif %}
+        <ul class="pagination-pages" role="list">
+          {% for link in archive.page_links %}
+            <li><a href="{{ link.href }}"{% if link.current %} aria-current="page"{% endif %}><span class="visually-hidden">{{ t('pagination.page', 'Page') }} </span>{{ link.number }}</a></li>
+          {% endfor %}
+        </ul>
+        {% if archive.next %}<a class="pagination-step" rel="next" href="{{ archive.next }}">{{ t('pagination.next', 'Next') }}</a>{% endif %}
+      </nav>
     {% endif %}
   </section>
 {% endblock %}
