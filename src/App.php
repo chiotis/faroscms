@@ -30,6 +30,7 @@ final class App
     private UserRepository $users;
     private PermissionService $permissions;
     private RedirectRepository $redirects;
+    private RevisionRepository $revisions;
     private ?HtmlGuard $htmlGuard = null;
     private ?ContentEditor $contentEditor = null;
     private ActivityLogRepository $activityLogs;
@@ -76,6 +77,7 @@ final class App
         $this->users->ensureSuperadminExists();
         $this->permissions = new PermissionService($this->systemMeta->getJson('role_permissions'));
         $this->redirects = new RedirectRepository($this->systemDatabase);
+        $this->revisions = new RevisionRepository($this->systemDatabase);
         $this->activityLogs = new ActivityLogRepository($this->systemDatabase);
         $this->emailLogs = new EmailLogRepository($this->systemDatabase);
         $this->notifications = new NotificationRepository($this->systemDatabase);
@@ -127,7 +129,8 @@ final class App
             $this->redirects,
             $this->htmlGuard(),
             fn(): BlockRegistry => $this->blockRegistry(),
-            fn(): array => $this->listTaxonomyNames()
+            fn(): array => $this->listTaxonomyNames(),
+            $this->revisions
         );
     }
 
@@ -934,6 +937,11 @@ final class App
             return;
         }
 
+        if ($action === 'revisions') {
+            $this->handleRevisions();
+            return;
+        }
+
         if ($action === 'users') {
             $this->handleUsersList();
             return;
@@ -1718,6 +1726,171 @@ final class App
             'admin_section' => 'redirects',
             'current_type' => 'pages',
         ]);
+    }
+
+    /** Shown for each kind of change in the history screens. */
+    private const REVISION_ACTIONS = [
+        'create' => 'Created',
+        'save' => 'Saved',
+        'import' => 'Imported',
+        'restore' => 'Restored',
+        'delete' => 'Deleted',
+        'external' => 'Changed outside the editor',
+        'baseline' => 'Earlier version',
+    ];
+
+    /**
+     * @param array<int, array<string, mixed>> $rows revisions
+     * @return array<int, array<string, mixed>> the same rows with what the screens need to link and label them
+     */
+    private function decorateRevisions(array $rows): array
+    {
+        foreach ($rows as $i => $row) {
+            $path = $this->contentDir . '/' . $row['type'] . '/' . $this->buildFilename((string)$row['slug'], (string)$row['lang']);
+            $rows[$i]['exists'] = is_file($path);
+            $rows[$i]['action_label'] = self::REVISION_ACTIONS[$row['action']] ?? ucfirst((string)$row['action']);
+            $rows[$i]['when'] = str_replace('T', ' ', substr((string)$row['created_at'], 0, 16)) . ' UTC';
+        }
+        return $rows;
+    }
+
+    private function handleRevisions(): void
+    {
+        $repo = $this->revisions;
+        $actor = $this->currentUsername();
+        $seesForms = $this->permissions->can($this->auth->user(), 'forms.manage');
+
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $do = (string)($_POST['do'] ?? '');
+            $revision = $repo->find((int)($_POST['id'] ?? 0));
+            if ($revision === null || !in_array($do, ['restore', 'undelete'], true)) {
+                $this->redirect('/admin/revisions');
+                return;
+            }
+            $type = (string)$revision['type'];
+            if (!$this->canAccessContentType($type)) {
+                $this->denyContentType($type);
+                return;
+            }
+            $slug = (string)$revision['slug'];
+            $lang = (string)$revision['lang'];
+            $result = $this->contentEditor()->restore($type, $slug, $lang, (string)$revision['raw'], $this->permissions->can($this->auth->user(), 'content.raw_html'), $actor, $do === 'undelete');
+            if (!$result['ok']) {
+                $this->redirect('/admin/revisions?id=' . (int)$revision['id'] . '&error=' . urlencode($result['error']));
+                return;
+            }
+            $this->logActivity($do === 'undelete' ? 'content.undelete' : 'content.restore', 'warning', $type, $slug . ':' . $lang, $do === 'undelete' ? 'Deleted content brought back.' : 'Earlier version restored.', [
+                'type' => $type,
+                'slug' => $slug,
+                'lang' => $lang,
+                'revision' => (int)$revision['id'],
+                'from' => (string)$revision['created_at'],
+            ]);
+            $this->redirect('/admin/edit?type=' . urlencode($type) . '&slug=' . urlencode($slug) . '&lang=' . urlencode($lang) . '&saved=1&restored=1' . ($result['html_neutralized'] ? '&notice=html' : ''));
+            return;
+        }
+
+        $common = [
+            'types' => $this->content->getTypes(),
+            'user' => $this->auth->user(),
+            'admin_section' => 'history',
+            'current_type' => 'pages',
+            'error' => (string)($_GET['error'] ?? ''),
+        ];
+
+        // One version: what it changed, or what restoring it would do.
+        if (isset($_GET['id'])) {
+            $revision = $repo->find((int)$_GET['id']);
+            if ($revision === null || !$this->canAccessContentType((string)$revision['type'])) {
+                $this->redirect('/admin/revisions');
+                return;
+            }
+            $type = (string)$revision['type'];
+            $slug = (string)$revision['slug'];
+            $lang = (string)$revision['lang'];
+            $path = $this->contentDir . '/' . $type . '/' . $this->buildFilename($slug, $lang);
+            $current = is_file($path) ? (string)file_get_contents($path) : null;
+            $mode = (string)($_GET['mode'] ?? '') === 'restore' && $current !== null ? 'restore' : 'changes';
+            $previous = $repo->previous($revision);
+            if ($mode === 'restore') {
+                $diff = LineDiff::compare((string)$current, (string)$revision['raw']);
+            } else {
+                $diff = LineDiff::compare($previous !== null ? (string)$previous['raw'] : '', (string)$revision['raw']);
+            }
+            $summary = LineDiff::summary($diff);
+            $latest = $repo->latest($type, $slug, $lang);
+            $this->render('@admin/revision-view.twig', [
+                'revision' => $this->decorateRevisions([$revision])[0],
+                'previous' => $previous !== null ? $this->decorateRevisions([$previous])[0] : null,
+                'mode' => $mode,
+                'diff' => LineDiff::withContext($diff, 4),
+                'summary' => $summary,
+                'identical' => $summary['added'] === 0 && $summary['removed'] === 0,
+                'item_exists' => $current !== null,
+                'is_latest' => $latest !== null && (int)$latest['id'] === (int)$revision['id'],
+                'edit_url' => '/admin/edit?type=' . urlencode($type) . '&slug=' . urlencode($slug) . '&lang=' . urlencode($lang),
+                'history_url' => '/admin/revisions?type=' . urlencode($type) . '&slug=' . urlencode($slug) . '&lang=' . urlencode($lang),
+            ] + $common);
+            return;
+        }
+
+        $perPage = 50;
+        $page = max(1, (int)($_GET['page'] ?? 1));
+        $filters = [
+            'q' => trim((string)($_GET['q'] ?? '')),
+            'type' => trim((string)($_GET['type'] ?? '')),
+            'actor' => trim((string)($_GET['actor'] ?? '')),
+            'action' => trim((string)($_GET['action'] ?? '')),
+        ];
+        if (!$seesForms) {
+            $filters['exclude_type'] = 'forms';
+        }
+        $view = 'recent';
+        $item = null;
+        $rows = [];
+        $total = 0;
+
+        if ((string)($_GET['view'] ?? '') === 'deleted') {
+            $view = 'deleted';
+            $rows = $this->decorateRevisions($repo->deleted(100, $seesForms ? '' : 'forms'));
+            $total = count($rows);
+        } elseif (isset($_GET['slug']) && (string)($_GET['slug']) !== '') {
+            $type = $this->sanitizeType((string)($_GET['type'] ?? 'pages'));
+            if (!$this->canAccessContentType($type)) {
+                $this->denyContentType($type);
+                return;
+            }
+            $slug = $this->slugify((string)$_GET['slug']);
+            $lang = $this->slugify((string)($_GET['lang'] ?? $this->defaultLanguage()));
+            $view = 'item';
+            $rows = $this->decorateRevisions($repo->forItem($type, $slug, $lang, 100));
+            $total = count($rows);
+            $item = [
+                'type' => $type,
+                'slug' => $slug,
+                'lang' => $lang,
+                'exists' => is_file($this->contentDir . '/' . $type . '/' . $this->buildFilename($slug, $lang)),
+                'title' => (string)($rows[0]['title'] ?? $slug),
+            ];
+        } else {
+            $total = $repo->count($filters);
+            $rows = $this->decorateRevisions($repo->recent($filters, $perPage, ($page - 1) * $perPage));
+        }
+
+        $this->render('@admin/revisions.twig', [
+            'view' => $view,
+            'item' => $item,
+            'rows' => $rows,
+            'total' => $total,
+            'filters' => $filters,
+            'page' => $page,
+            'pages' => max(1, (int)ceil($total / $perPage)),
+            'actors' => $repo->actors(),
+            'content_types' => array_values(array_filter($this->content->getTypes(), fn(string $t): bool => $seesForms || $t !== 'forms')),
+            'actions' => self::REVISION_ACTIONS,
+            'kept' => RevisionRepository::KEEP_PER_ITEM,
+            'kept_days' => RevisionRepository::KEEP_DELETED_DAYS,
+        ] + $common);
     }
 
     private function handleUsersList(): void
@@ -2721,6 +2894,9 @@ final class App
             'notice' => (string)($_GET['notice'] ?? ''),
             'address' => $address,
             'address_changed' => (string)($_GET['address'] ?? '') === 'changed',
+            'restored' => isset($_GET['restored']),
+            'history' => $itemExists ? $this->decorateRevisions($this->revisions->forItem($type, $slug, $lang, 8)) : [],
+            'history_total' => $itemExists ? $this->revisions->countForItem($type, $slug, $lang) : 0,
             'address_taken' => $this->slugify((string)($_GET['address_taken'] ?? '')),
             'deleted' => $deleted,
             'admin_section' => $type === 'forms' ? 'forms' : 'content',
@@ -2943,6 +3119,9 @@ final class App
 
         $path = $this->contentDir . '/' . $type . '/' . $this->buildFilename($slug, $lang);
         if (file_exists($path)) {
+            // The text is kept in the history so the item can be brought back from Admin > History.
+            $this->revisions->baseline($type, $slug, $lang, $path, $this->currentUsername());
+            $this->revisions->capture($type, $slug, $lang, (string)file_get_contents($path), 'delete', $this->currentUsername());
             unlink($path);
             $this->unindexContent($type, $slug, $lang);
             $this->logActivity('content.delete', 'warning', $type, $slug . ':' . $lang, 'Content deleted.', [
@@ -8588,6 +8767,8 @@ final class App
             if (!file_exists($path)) {
                 continue;
             }
+            [$identitySlug, $identityLang] = $this->contentIdentity($path);
+            $this->revisions->baseline($type, $identitySlug, $identityLang, $path, $this->currentUsername());
             $relative = ltrim(str_replace($this->contentDir, '', $path), '/');
             $target = $backupDir . '/' . $relative;
             $targetDir = dirname($target);
@@ -8648,9 +8829,26 @@ final class App
             if ($oldPath !== '' && $oldPath !== $newPath && file_exists($oldPath)) {
                 @unlink($oldPath);
             }
+            [$identitySlug, $identityLang] = $this->contentIdentity($newPath);
+            $this->revisions->capture($type, $identitySlug, $identityLang, (string)file_get_contents($newPath), 'import', $this->currentUsername());
         }
 
         return ['ok' => true];
+    }
+
+    /**
+     * The slug and language a content file name stands for ("about.md" is the default language, "about.en.md" is English).
+     *
+     * @return array{0: string, 1: string}
+     */
+    private function contentIdentity(string $path): array
+    {
+        $name = basename($path, '.md');
+        $available = (array)($this->settings['languages']['available'] ?? []);
+        if (preg_match('/^(.+)\.([a-z0-9-]+)$/', $name, $m) === 1 && in_array($m[2], $available, true)) {
+            return [$m[1], $m[2]];
+        }
+        return [$name, $this->defaultLanguage()];
     }
 
     /** @param string[] $paths @param array<string, bool> $originalExists */

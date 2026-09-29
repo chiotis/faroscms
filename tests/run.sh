@@ -31,7 +31,7 @@ report() { # name output
 
 run_unit() {
   echo "Unit checks"
-  for spec in "blocks:tests/unit/blocks.php" "content-types:tests/unit/content-types.php" "permissions:scripts/check-permissions.php" "slugs-and-redirects:scripts/check-slugs.php" "content-blocks:scripts/check-blocks.php"; do
+  for spec in "blocks:tests/unit/blocks.php" "content-types:tests/unit/content-types.php" "revisions:tests/unit/revisions.php" "permissions:scripts/check-permissions.php" "slugs-and-redirects:scripts/check-slugs.php" "content-blocks:scripts/check-blocks.php"; do
     local name="${spec%%:*}" file="${spec#*:}" out
     out=$(cd "$ROOT" && php "$file" 2>&1)
     if [ "$name" = "content-blocks" ]; then
@@ -66,7 +66,7 @@ PYCOPY
   for _ in $(seq 1 50); do curl -s -o /dev/null "http://127.0.0.1:$port/" && break; sleep 0.1; done
 
   echo "HTTP tests (temporary copy on port $port)"
-  for name in editor roles import redirects save; do
+  for name in editor roles import redirects save history; do
     [ -n "$only" ] && [ "$only" != "$name" ] && continue
     # Every test starts from the same clean site.
     rm -rf "$work/app/content" "$work/app/storage" "$work/app/custom" "$work/app/public/uploads"
@@ -86,7 +86,7 @@ case "$MODE" in
   all) run_unit; echo; run_http ;;
   unit) run_unit ;;
   http) run_http ;;
-  editor|roles|import|redirects|save) run_http "$MODE" ;;
+  editor|roles|import|redirects|save|history) run_http "$MODE" ;;
   *) echo "Unknown option: $MODE"; exit 2 ;;
 esac
 

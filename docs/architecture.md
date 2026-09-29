@@ -25,6 +25,7 @@ Before the application boots, `public/index.php` hands `/_themes/…` and `/_cus
 | `FormFields` | Form editor field types and cleaning of submitted field rows. |
 | `ContentPaths` | File names and public paths of content from the language and home page settings. |
 | `FrontMatter` | Splits a content file into its YAML and body. |
+| `RevisionRepository`, `LineDiff` | The history of content files in `content_revisions` (capture, baseline, rename, prune, deleted items) and the line comparison shown in Admin > History. `ContentEditor` records a version around every save and can restore one. |
 | `Slug` | Turns text into a web address: Greek to Latin (ELOT 743 rules), accents dropped, length cap, reserved root words. `admin/templates/edit.twig` has a JavaScript copy for the live preview only; the server decides. |
 | `RedirectRepository` | `redirects` (old path to new path or full address, 301/302, origin, hits) and `not_found_log`; path normalising, validation (no loops, no `javascript:`), following redirects that lead to redirects. Consulted only when a request matches nothing. |
 | `LoginThrottle` | Failed sign-in counting and blocking (`login_attempts`). |

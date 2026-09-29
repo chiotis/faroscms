@@ -97,6 +97,13 @@
           </a>
         {% endif %}
 
+        {% if can('content.manage') %}
+          <a href="{{ url('admin/revisions') }}" class="{{ nav_base }} {{ section == 'history' ? nav_active : nav_idle }}">
+            <svg class="h-4 w-4 {{ section == 'history' ? 'text-white/80' : 'text-slate-400 group-hover:text-slate-600' }}" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12a9 9 0 109-9 9 9 0 00-6.7 3M3 4v4h4M12 7v5l3 2"/></svg>
+            History
+          </a>
+        {% endif %}
+
         <p class="px-2 pb-1.5 pt-3 text-[10px] font-semibold uppercase tracking-wider text-slate-400">System</p>
         {% if can('users.manage') %}
           <a href="{{ url('admin/users') }}" class="{{ nav_base }} {{ section == 'users' ? nav_active : nav_idle }}">

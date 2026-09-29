@@ -1,0 +1,129 @@
+{% extends '@admin/base.twig' %}
+
+{% block content %}
+  {% set btn_secondary = 'inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50' %}
+  {% set btn_small = 'rounded px-1.5 py-1 text-xs font-medium' %}
+  {% set input_soft = 'w-full rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20' %}
+  {% set badge_class = {
+    'create': 'bg-emerald-50 text-emerald-700',
+    'save': 'bg-blue-50 text-blue-700',
+    'import': 'bg-violet-50 text-violet-700',
+    'restore': 'bg-amber-50 text-amber-800',
+    'delete': 'bg-red-50 text-red-700',
+    'external': 'bg-slate-200 text-slate-700',
+    'baseline': 'bg-slate-100 text-slate-600'
+  } %}
+
+  <header class="mb-4 flex flex-col gap-3 border-b border-slate-200 pb-4">
+    <div class="min-w-0">
+      <h1 class="truncate text-[15px] font-semibold leading-tight text-slate-900">{{ view == 'item' ? 'History of ' ~ item.title : 'History' }}</h1>
+      <p class="text-xs text-slate-400">
+        {% if view == 'item' %}
+          Every saved version of <code>{{ item.type }}/{{ item.slug }}</code> in {{ item.lang|upper }}. The latest {{ kept }} are kept, and history follows the item if its address changes.
+        {% else %}
+          Who changed what and when. Earlier versions can be compared and brought back, and deleted items can be restored. The latest {{ kept }} versions of each item are kept, and deleted items for {{ kept_days }} days.
+        {% endif %}
+      </p>
+    </div>
+    {% if view != 'item' %}
+      <nav class="flex gap-1 border-b border-slate-200" aria-label="History sections">
+        <a href="{{ url('admin/revisions') }}" class="border-b-2 px-3 py-2 text-sm font-medium {{ view == 'recent' ? 'border-blue-600 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800' }}" {% if view == 'recent' %}aria-current="page"{% endif %}>Recent changes</a>
+        <a href="{{ url('admin/revisions?view=deleted') }}" class="border-b-2 px-3 py-2 text-sm font-medium {{ view == 'deleted' ? 'border-blue-600 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800' }}" {% if view == 'deleted' %}aria-current="page"{% endif %}>Deleted items</a>
+      </nav>
+    {% else %}
+      <div class="flex flex-wrap gap-2">
+        {% if item.exists %}<a class="{{ btn_secondary }}" href="{{ url('admin/edit?type=' ~ item.type ~ '&slug=' ~ item.slug ~ '&lang=' ~ item.lang) }}">Back to the editor</a>{% endif %}
+        <a class="{{ btn_secondary }}" href="{{ url('admin/revisions') }}">All history</a>
+      </div>
+    {% endif %}
+  </header>
+
+  {% if error == 'address_in_use' %}<template data-flash data-type="error">Something already exists at that address, so nothing was brought back.</template>{% endif %}
+
+  {% if view == 'recent' %}
+    <form method="get" action="{{ url('admin/revisions') }}" class="mb-3 flex flex-wrap items-end gap-3" role="search">
+      <label class="block min-w-[12rem] flex-1">
+        <span class="mb-1 block text-xs font-medium text-slate-500">Search</span>
+        <input type="search" name="q" value="{{ filters.q }}" placeholder="Title or address" class="{{ input_soft }}">
+      </label>
+      <label class="block">
+        <span class="mb-1 block text-xs font-medium text-slate-500">Type</span>
+        <select name="type" class="{{ input_soft }}">
+          <option value="">All</option>
+          {% for t in content_types %}<option value="{{ t }}" {{ filters.type == t ? 'selected' : '' }}>{{ t|title }}</option>{% endfor %}
+        </select>
+      </label>
+      <label class="block">
+        <span class="mb-1 block text-xs font-medium text-slate-500">Change</span>
+        <select name="action" class="{{ input_soft }}">
+          <option value="">All</option>
+          {% for key, label in actions %}<option value="{{ key }}" {{ filters.action == key ? 'selected' : '' }}>{{ label }}</option>{% endfor %}
+        </select>
+      </label>
+      <label class="block">
+        <span class="mb-1 block text-xs font-medium text-slate-500">By</span>
+        <select name="actor" class="{{ input_soft }}">
+          <option value="">Anyone</option>
+          {% for a in actors %}<option value="{{ a }}" {{ filters.actor == a ? 'selected' : '' }}>{{ a }}</option>{% endfor %}
+        </select>
+      </label>
+      <button type="submit" class="{{ btn_secondary }}">Filter</button>
+    </form>
+  {% endif %}
+
+  {% if rows %}
+    <div class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+      <table class="w-full min-w-[720px] text-sm">
+        <thead>
+          <tr class="border-b border-slate-100 bg-slate-50/50 text-left text-xs font-medium text-slate-500">
+            <th scope="col" class="px-3 py-2 font-medium">When</th>
+            {% if view != 'item' %}<th scope="col" class="px-3 py-2 font-medium">Item</th>{% endif %}
+            <th scope="col" class="px-3 py-2 font-medium">Change</th>
+            <th scope="col" class="px-3 py-2 font-medium">By</th>
+            <th scope="col" class="px-3 py-2 font-medium">Size</th>
+            <th scope="col" class="px-3 py-2 text-right font-medium">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-50">
+          {% for r in rows %}
+            <tr class="hover:bg-slate-50/60">
+              <td class="whitespace-nowrap px-3 py-2.5 align-top text-slate-600">{{ r.when }}</td>
+              {% if view != 'item' %}
+                <td class="px-3 py-2.5 align-top">
+                  <span class="font-medium text-slate-900">{{ r.title ?: r.slug }}</span>
+                  <div class="text-xs text-slate-400"><code>{{ r.type }}/{{ r.slug }}</code> · {{ r.lang|upper }}{% if r.status and r.status != 'published' %} · {{ r.status }}{% endif %}</div>
+                </td>
+              {% endif %}
+              <td class="px-3 py-2.5 align-top"><span class="rounded px-1.5 py-0.5 text-[11px] font-semibold {{ badge_class[r.action]|default('bg-slate-100 text-slate-600') }}">{{ r.action_label }}</span>{% if view == 'item' and r.title %}<div class="mt-0.5 text-xs text-slate-400">{{ r.title }}{% if r.status and r.status != 'published' %} · {{ r.status }}{% endif %}</div>{% endif %}</td>
+              <td class="px-3 py-2.5 align-top text-slate-600">{{ r.actor ?: '—' }}</td>
+              <td class="whitespace-nowrap px-3 py-2.5 align-top text-slate-500">{{ (r.size / 1024)|round(1) }} KB</td>
+              <td class="whitespace-nowrap px-3 py-2.5 text-right align-top">
+                <a class="{{ btn_small }} text-blue-600 hover:bg-blue-50" href="{{ url('admin/revisions?id=' ~ r.id) }}">View changes</a>
+                {% if view != 'item' %}<a class="{{ btn_small }} text-slate-600 hover:bg-slate-100" href="{{ url('admin/revisions?type=' ~ r.type ~ '&slug=' ~ r.slug ~ '&lang=' ~ r.lang) }}">All versions</a>{% endif %}
+                {% if view == 'deleted' %}
+                  <form method="post" action="{{ url('admin/revisions') }}" class="inline">
+                    {{ csrf_field() }}<input type="hidden" name="do" value="undelete"><input type="hidden" name="id" value="{{ r.id }}">
+                    <button type="submit" class="{{ btn_small }} text-emerald-700 hover:bg-emerald-50" data-confirm="Bring back {{ r.title ?: r.slug }}? It returns at /{{ r.slug }} exactly as it was when deleted." data-confirm-button="Bring back">Bring back</button>
+                  </form>
+                {% elseif r.exists and view != 'item' %}
+                  <a class="{{ btn_small }} text-slate-600 hover:bg-slate-100" href="{{ url('admin/edit?type=' ~ r.type ~ '&slug=' ~ r.slug ~ '&lang=' ~ r.lang) }}">Edit</a>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="mt-2 text-xs text-slate-400">{{ total }} {{ total == 1 ? 'version' : 'versions' }}{% if pages > 1 %} · page {{ page }} of {{ pages }}{% endif %}</p>
+    {% if pages > 1 %}
+      <nav class="mt-2 flex gap-2" aria-label="Pages">
+        {% if page > 1 %}<a class="{{ btn_secondary }}" href="{{ url('admin/revisions?' ~ {q: filters.q, type: filters.type, action: filters.action, actor: filters.actor, page: page - 1}|url_encode) }}">Previous</a>{% endif %}
+        {% if page < pages %}<a class="{{ btn_secondary }}" href="{{ url('admin/revisions?' ~ {q: filters.q, type: filters.type, action: filters.action, actor: filters.actor, page: page + 1}|url_encode) }}">Next</a>{% endif %}
+      </nav>
+    {% endif %}
+  {% else %}
+    <div class="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
+      {% if view == 'deleted' %}Nothing has been deleted lately.{% elseif view == 'item' %}No versions are kept for this item yet. The first one is recorded the next time it is saved.{% elseif filters.q or filters.type or filters.action or filters.actor %}No changes match these filters.{% else %}No changes recorded yet. Each time content is saved, imported, restored, or deleted it appears here.{% endif %}
+    </div>
+  {% endif %}
+{% endblock %}

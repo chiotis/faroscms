@@ -10,7 +10,8 @@ Direction: one all-purpose theme (`themes/default`) that grows with blocks and v
 - Editor role (done): see `docs/security.md`
 - Permissions per role (done): Admin > Roles, super admin only; see `docs/security.md`
 - Addresses and redirects (done): addresses made from the title, address changes leave 301 redirects, Admin > Redirects with a not-found list
-- Next candidates: comparison table and before/after blocks, draft preview links, revision history, brand-new custom roles
+- Revision history (done): Admin > History, compare and restore, deleted items; see `docs/security.md`
+- Next candidates: comparison table and before/after blocks, draft preview links (not now), brand-new custom roles
 - Style references from the owner can refine the design system at any point (tokens and block CSS)
 - Phase 6 (done): content types with declared fields, an admin screen for them, archive layouts, filters, and pagination
 - Phase 7 (done): demo content rebuilt with blocks, accessibility pass with axe-core, theme developer guide and audit script
@@ -93,7 +94,6 @@ Direction: one all-purpose theme (`themes/default`) that grows with blocks and v
 - Keep behavior identical during refactor (incremental extraction + regression checks)
 
 ## Later Development
-- Draft preview links (no publish required)
 - Search improvements (weighted + highlights)
 - Brand-new custom roles (the four roles are fixed; their permissions can be changed at Admin > Roles)
 - Runtime page/data cache implementation (filesystem backend + targeted invalidation)

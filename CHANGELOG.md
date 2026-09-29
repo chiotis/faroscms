@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-09-29 — Tests, a smaller App.php, and revision history
+- **History** (Admin > History, and a History tab in the editor): every save, import, restore, and delete keeps the whole text, so an earlier version can be compared line by line ("what this version changed" or "if you restore it") and brought back. Deleted items are listed and can be brought back exactly as they were. The latest 50 versions of each item are kept, and deleted items for 180 days
+- A file changed outside the editor (by hand or through git) is kept as its own version before the next save overwrites it, and the first save of an item that existed before history began keeps what was there
+- History follows an item when its address changes, in every language that moves with it
+- Restoring passes the same raw HTML rule as saving: someone who may not add HTML gets any HTML that is not already in the current file shown as text. Forms are visible in history only to people who may manage forms
+- Content saving moved out of `App.php` into `ContentEditor`, with `HtmlGuard`, `FormFields`, `ContentPaths`, and `FrontMatter` alongside it; `App.php` is about 500 lines shorter and behaves the same (25 public pages compared before and after)
+- **Test suite**: `tests/run.sh` runs 660 checks (PHP unit checks, and HTTP tests of the editor role, roles, import, redirects, saving every field, and history) against a temporary copy of the site with fixtures; `tests/README.md` explains what is covered. `scripts/check-blocks.php` validates a site's blocks
+
 ## 2026-09-29 — Web addresses and redirects
 - New content gets its address from the title, with Greek converted to Latin by the ELOT rules (`ου` → `ou`, `μπ` → `b`, `ευ` → `ev`/`ef`, …); the editor shows it live and nobody types a slug. A title that is already used gets `-2`, and a page cannot take a word the site uses itself (`admin`, `search`, a content type, a language code). Before, saving a new item with a used address silently overwrote the other one
 - Changing an address is a deliberate step ("Change" beside the address): the old address becomes a permanent (301) redirect, the other languages can move with it, menu links follow, and redirects that already pointed at the old address are repointed so nobody goes through a chain. The home page and forms keep their address. Drafts that were never public leave no redirect

@@ -29,7 +29,8 @@ final class ContentEditor
         private RedirectRepository $redirects,
         private HtmlGuard $guard,
         private \Closure $blocks,
-        private \Closure $taxonomyNames
+        private \Closure $taxonomyNames,
+        private ?RevisionRepository $revisions = null
     ) {
     }
 
@@ -118,6 +119,13 @@ final class ContentEditor
         $moved = $sourceExists && $oldPath !== $path;
         $oldStatus = $moved ? $this->storedStatus($oldPath) : '';
         $siblings = $moved && $slug !== $originalSlug ? $this->translationSiblings($type, $originalSlug, $originalLang) : [];
+        // What is on disk now goes into the history first, in case it is not there yet (the first save since history
+        // began, or a file edited outside the editor).
+        if ($sourceExists) {
+            $this->revisions?->baseline($type, $originalSlug, $originalLang, $oldPath, $actor);
+        } elseif ($wasExisting) {
+            $this->revisions?->baseline($type, $slug, $lang, $path, $actor);
+        }
         $data = [];
         if ($frontmatter !== '') {
             $parsed = Yaml::parse($frontmatter) ?: [];
@@ -416,6 +424,7 @@ final class ContentEditor
                     }
                     $this->unindex($type, $originalSlug, $sibling['lang']);
                     $this->index($type, $to);
+                    $this->revisions?->rename($type, $originalSlug, $sibling['lang'], $slug, $sibling['lang']);
                     $moves[] = ['lang' => $sibling['lang'], 'to_lang' => $sibling['lang'], 'status' => $sibling['status']];
                 }
             }
@@ -431,7 +440,9 @@ final class ContentEditor
                 );
             }
             $movedTogether = count($moves) === 1 + count($siblings);
+            $this->revisions?->rename($type, $originalSlug, $originalLang, $slug, $lang);
         }
+        $this->revisions?->capture($type, $slug, $lang, $payload, $sourceExists || $wasExisting ? 'save' : 'create', $actor);
         // Content now lives here, so a redirect that starts from this address would never be used.
         $this->redirects->removeSource(ContentPaths::build($type, $slug, $lang, $homeSlug, $defaultLang));
 
@@ -450,6 +461,71 @@ final class ContentEditor
             'html_neutralized' => $htmlNeutralized,
             'translations_renamed' => $moved ? max(0, count($moves) - 1) : 0,
         ];
+    }
+
+    /**
+     * Brings back the text of an earlier version, or of a deleted item, at the item's current address. Someone without
+     * the raw HTML permission gets it with any HTML that is not already in the current file shown as plain text.
+     *
+     * @return array{ok: bool, error: string, html_neutralized: bool, was_deleted: bool}
+     */
+    public function restore(string $type, string $slug, string $lang, string $raw, bool $canRawHtml, string $actor, bool $undelete = false): array
+    {
+        $fail = static fn(string $error): array => ['ok' => false, 'error' => $error, 'html_neutralized' => false, 'was_deleted' => false];
+        $path = $this->contentDir . '/' . $type . '/' . $this->paths()->filename($slug, $lang);
+        $exists = is_file($path);
+        if ($undelete && $exists) {
+            return $fail('address_in_use');
+        }
+        if (!$undelete && !$exists) {
+            return $fail('missing');
+        }
+
+        [$front, $body] = FrontMatter::split($raw);
+        try {
+            $data = $front !== '' ? Yaml::parse($front) : [];
+        } catch (\Throwable) {
+            return $fail('unreadable');
+        }
+        if (!is_array($data)) {
+            return $fail('unreadable');
+        }
+
+        $payload = $raw;
+        $neutralized = false;
+        if ($type !== 'forms' && !$canRawHtml) {
+            $allowed = $this->guard->storedFragments($exists ? $path : '');
+            $plainBody = str_replace(["\r\n", "\r"], "\n", rtrim($body));
+            $cleanBody = $this->guard->neutralize(rtrim($body), $allowed);
+            $neutralized = $cleanBody !== $plainBody;
+            if (isset($data['blocks']) && is_array($data['blocks'])) {
+                $data['blocks'] = $this->guard->eachMarkdownField(array_values($data['blocks']), function (string $value) use ($allowed, &$neutralized): string {
+                    $clean = $this->guard->neutralize($value, $allowed);
+                    $neutralized = $neutralized || $clean !== str_replace(["\r\n", "\r"], "\n", $value);
+                    return $clean;
+                });
+            }
+            if ($neutralized) {
+                $payload = "---\n" . trim(Yaml::dump($data, 10, 2, Yaml::DUMP_MULTI_LINE_LITERAL_BLOCK)) . "\n---\n\n" . $cleanBody . "\n";
+            }
+        }
+
+        if ($exists) {
+            $this->revisions?->baseline($type, $slug, $lang, $path, $actor);
+        }
+        $dir = dirname($path);
+        if (!is_dir($dir) && !@mkdir($dir, 0775, true) && !is_dir($dir)) {
+            return $fail('write');
+        }
+        if (file_put_contents($path, $payload) === false) {
+            return $fail('write');
+        }
+        $this->index($type, $path);
+        $this->revisions?->capture($type, $slug, $lang, $payload, 'restore', $actor);
+        // Content lives here again, so a redirect that starts from this address would never be used.
+        $this->redirects->removeSource($this->paths()->publicPath($type, $slug, $lang));
+
+        return ['ok' => true, 'error' => '', 'html_neutralized' => $neutralized, 'was_deleted' => $undelete];
     }
 
     private function paths(): ContentPaths

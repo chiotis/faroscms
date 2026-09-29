@@ -99,6 +99,7 @@ final class SystemDatabase
         $this->applyMigration($pdo, '202609280001_login_attempts', fn(PDO $db) => $this->createLoginAttemptsTable($db));
         $this->applyMigration($pdo, '202609280002_content_index_search', fn(PDO $db) => $this->addContentIndexSearchColumns($db));
         $this->applyMigration($pdo, '202609290001_redirects', fn(PDO $db) => $this->createRedirectTables($db));
+        $this->applyMigration($pdo, '202609290002_content_revisions', fn(PDO $db) => $this->createRevisionTable($db));
     }
 
     private function addContentIndexSearchColumns(PDO $pdo): void
@@ -113,6 +114,29 @@ final class SystemDatabase
         if (!in_array('search_text', $columns, true)) {
             $pdo->exec('ALTER TABLE content_index ADD COLUMN search_text TEXT');
         }
+    }
+
+    private function createRevisionTable(PDO $pdo): void
+    {
+        // One row per saved state of a content file. content is the whole file (front matter and body), deflated.
+        $pdo->exec(
+            'CREATE TABLE IF NOT EXISTS content_revisions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                type TEXT NOT NULL,
+                slug TEXT NOT NULL,
+                lang TEXT NOT NULL,
+                action TEXT NOT NULL,
+                actor TEXT,
+                title TEXT,
+                status TEXT,
+                checksum TEXT NOT NULL,
+                size INTEGER NOT NULL DEFAULT 0,
+                content BLOB NOT NULL,
+                created_at TEXT NOT NULL
+            )'
+        );
+        $pdo->exec('CREATE INDEX IF NOT EXISTS idx_revisions_item ON content_revisions (type, slug, lang, id)');
+        $pdo->exec('CREATE INDEX IF NOT EXISTS idx_revisions_created ON content_revisions (created_at)');
     }
 
     private function createRedirectTables(PDO $pdo): void
