@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-09-29 — A storage limit, and a quieter dashboard
+- **Storage limit** (Settings > Limits, super admin only, default 1 GB, 0 for none): a way to give a client a fixed amount of space and watch it. What counts is uploads, content, and the system database with its backups. The bar in the sidebar and on the dashboard shows use against the limit ("128 MB / 1 GB"), turns **orange from 80%** and **red from 90%**, and from 90% every person in the admin sees a message at the top of every page with a button to write to the super admin (a ready-made email with the site name and the figures; the super admin sees a button to change the limit instead). At 100% new uploads (the media library and a picture added while editing) are refused with the reason, while editing, saving, and backups carry on. The change is written to the activity log
+- New permission `limits.manage`, held only by the super admin and never grantable, so an admin cannot lift a limit that was set for them
+- Removed the **Quick actions** panel from the dashboard and the **+ New** button from the top bar
+
 ## 2026-09-29 — One title per admin page
 - The page title now appears once, in the top bar, and is specific to the page ("Edit Page", "Import Pages", "History of …", "Delete “…” (EL)"). The repeated heading inside the content is gone; the description and the buttons beside it stay. The grey line under it ("FarosCMS admin / Menus") is gone too. Every admin page has exactly one `<h1>`. A screen sets its title with `{% set page_heading = … %}` after `extends`
 

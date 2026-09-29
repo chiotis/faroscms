@@ -53,6 +53,8 @@ final class App
     private array $formStates = [];
     private array $menusCache = [];
     private ?Taxonomies $taxonomyStore = null;
+    /** @var array<string, mixed>|null */
+    private ?array $storageSummary = null;
     private array $themeSettings = [];
 
     public function __construct(string $basePath)
@@ -1265,32 +1267,90 @@ final class App
         ];
     }
 
+    /**
+     * What the site uses (content, the system database and backups, and uploads) against the limit the super admin set.
+     * `level` is ok, warn (from 80%), or danger (from 90%); without a limit it is always ok and the bar shows the share
+     * of the disk instead.
+     */
     private function buildStorageSummary(): array
     {
-        $paths = [
-            $this->contentDir,
-            $this->basePath . '/storage',
-            $this->basePath . '/public/uploads',
-        ];
-        $used = 0;
-        foreach ($paths as $path) {
-            $used += $this->directorySize($path);
+        if ($this->storageSummary !== null) {
+            return $this->storageSummary;
         }
+        $parts = [
+            'uploads' => $this->directorySize($this->basePath . '/public/uploads'),
+            'content' => $this->directorySize($this->contentDir),
+            'system' => $this->directorySize($this->basePath . '/storage'),
+        ];
+        $used = array_sum($parts);
         $diskFree = (int)(disk_free_space($this->basePath) ?: 0);
-        $total = $used + $diskFree;
-        $percent = $total > 0 ? (int)round(($used / $total) * 100) : 0;
+        $limit = $this->storageLimitBytes();
+        $base = $limit > 0 ? $limit : $used + $diskFree;
+        $ratio = $base > 0 ? $used / $base : 0.0;
+        $percent = (int)round($ratio * 100);
         if ($used > 0 && $percent === 0) {
             $percent = 1;
         }
+        $level = $limit <= 0 ? 'ok' : ($ratio >= 0.9 ? 'danger' : ($ratio >= 0.8 ? 'warn' : 'ok'));
 
-        return [
+        return $this->storageSummary = [
             'used' => $used,
             'used_human' => $this->formatFileSize($used),
+            'parts' => array_map(fn(int $bytes): string => $this->formatFileSize($bytes), $parts),
             'disk_free' => $diskFree,
             'disk_free_human' => $this->formatFileSize($diskFree),
+            'limit' => $limit,
+            'limit_human' => $limit > 0 ? $this->formatFileSize($limit) : '',
             'percent' => max(0, min(100, $percent)),
-            'label' => $this->formatFileSize($used),
+            'percent_of_limit' => $limit > 0 ? $percent : null,
+            'level' => $level,
+            'full' => $limit > 0 && $used >= $limit,
+            'label' => $limit > 0 ? $this->formatFileSize($used) . ' / ' . $this->formatFileSize($limit) : $this->formatFileSize($used),
         ];
+    }
+
+    /** The storage the site may use in bytes, or 0 for no limit. */
+    private function storageLimitBytes(): int
+    {
+        return max(0, (int)($this->settings['limits']['storage_mb'] ?? 1024)) * 1048576;
+    }
+
+    /** Whether a file of this size still fits, so uploads stop at the limit while everything else keeps working. */
+    private function storageAllows(int $bytes): bool
+    {
+        $limit = $this->storageLimitBytes();
+        return $limit <= 0 || $this->buildStorageSummary()['used'] + max(0, $bytes) <= $limit;
+    }
+
+    private function storageFullMessage(): string
+    {
+        $summary = $this->buildStorageSummary();
+        return 'The storage limit is reached (' . $summary['used_human'] . ' of ' . $summary['limit_human'] . '). Delete files you no longer need, or ask the super admin to raise the limit.';
+    }
+
+    /** The limit typed on the settings form in megabytes, or null when this person may not change it or left it empty. */
+    private function submittedStorageLimit(): ?int
+    {
+        if (!$this->permissions->can($this->auth->user(), 'limits.manage')) {
+            return null;
+        }
+        $value = str_replace(',', '.', trim((string)($_POST['storage_limit_value'] ?? '')));
+        if ($value === '' || !is_numeric($value) || (float)$value < 0) {
+            return null;
+        }
+        $megabytes = (float)$value * ((string)($_POST['storage_limit_unit'] ?? 'gb') === 'mb' ? 1 : 1024);
+        return (int)min(10485760, round($megabytes));
+    }
+
+    /** The active super admin people can write to when the storage is nearly full. @return array{name: string, email: string}|null */
+    private function storageContact(): ?array
+    {
+        foreach ($this->users->all(['role' => 'superadmin', 'status' => 'active']) as $account) {
+            if ((string)($account['email'] ?? '') !== '') {
+                return ['name' => (string)($account['display_name'] ?: $account['username']), 'email' => (string)$account['email']];
+            }
+        }
+        return null;
     }
 
     private function buildDashboardSystemChecks(array $storage): array
@@ -3255,11 +3315,14 @@ final class App
 
         // A main image uploaded with the form replaces the address typed in the field.
         $uploadedImage = null;
+        $storageBlocked = false;
         $mainImageUploads = $this->media->normalizeUploads($_FILES['main_image_upload'] ?? null);
         if ($mainImageUploads !== []) {
             $upload = $mainImageUploads[0];
             $uploadError = (int)($upload['error'] ?? UPLOAD_ERR_NO_FILE);
-            if ($uploadError === UPLOAD_ERR_OK) {
+            if ($uploadError === UPLOAD_ERR_OK && !$this->storageAllows((int)($upload['size'] ?? 0))) {
+                $storageBlocked = true;
+            } elseif ($uploadError === UPLOAD_ERR_OK) {
                 try {
                     $this->media->ensureDirectories();
                     $uploaded = $this->media->upload($upload, '', $this->currentUsername(), $this->maxUploadBytes());
@@ -3303,7 +3366,7 @@ final class App
             'translations_renamed' => $result['translations_renamed'],
         ]);
         $this->redirect('/admin/edit?type=' . urlencode($type) . '&slug=' . urlencode($slug) . '&lang=' . urlencode($lang) . '&saved=1'
-            . ($result['html_neutralized'] ? '&notice=html' : '')
+            . ($result['html_neutralized'] ? '&notice=html' : ($storageBlocked ? '&notice=storage' : ''))
             . ($result['moved'] ? '&address=changed' : '')
             . ($result['slug_taken'] !== '' ? '&address_taken=' . urlencode($result['slug_taken']) : ''));
     }
@@ -3468,6 +3531,7 @@ final class App
                 'theme' => (string)($_POST['theme'] ?? ''),
                 'home_page' => (string)($_POST['home_page'] ?? ''),
                 'date_format' => (string)($_POST['date_format'] ?? ''),
+                'storage_limit_mb' => $this->submittedStorageLimit(),
                 'languages_default' => (string)($_POST['languages_default'] ?? ''),
                 'languages_available' => (string)($_POST['languages_available'] ?? ''),
                 'mail_driver' => (string)($_POST['mail_driver'] ?? ''),
@@ -3510,6 +3574,7 @@ final class App
                 'update_github_token' => (string)($_POST['update_github_token'] ?? ''),
                 'clear_secrets' => is_array($_POST['clear_secret'] ?? null) ? array_map('strval', $_POST['clear_secret']) : [],
             ];
+            $limitBefore = (int)($this->settings['limits']['storage_mb'] ?? 1024);
             if (!$this->saveSettings($raw, $form)) {
                 $this->redirect('/admin/settings?' . http_build_query([
                     'tab' => $activeTab,
@@ -3518,6 +3583,10 @@ final class App
                 return;
             }
             $this->settings = $this->loadSettings();
+            $limitAfter = (int)($this->settings['limits']['storage_mb'] ?? 1024);
+            if ($limitAfter !== $limitBefore) {
+                $this->logActivity('limits.storage', 'warning', 'settings', 'storage_mb', 'Storage limit changed.', ['from_mb' => $limitBefore, 'to_mb' => $limitAfter]);
+            }
             $themeSave = $this->saveThemeSettings(is_array($_POST['theme_settings'] ?? null) ? $_POST['theme_settings'] : []);
             $this->themeSettings = $this->loadThemeSettings();
             if (($themeSave['ok'] ?? false) !== true) {
@@ -3601,6 +3670,7 @@ final class App
             'types' => $this->content->getTypes(),
             'admin_section' => 'settings',
             'settings_form' => $this->extractSettingsForm($parsed),
+            'storage' => $this->permissions->can($this->auth->user(), 'limits.manage') ? $this->buildStorageSummary() : [],
             'theme_schema' => $this->theme->settingsSchema(),
             'theme_values' => $this->themeSettings,
             'theme_info' => [
@@ -4016,6 +4086,11 @@ final class App
                 foreach ($uploads as $upload) {
                     $errorCode = (int)($upload['error'] ?? UPLOAD_ERR_NO_FILE);
                     if ($errorCode === UPLOAD_ERR_NO_FILE) {
+                        continue;
+                    }
+                    if (!$this->storageAllows((int)($upload['size'] ?? 0))) {
+                        $failedCount++;
+                        $lastError = $this->storageFullMessage();
                         continue;
                     }
                     try {
@@ -5345,6 +5420,14 @@ final class App
             if (!isset($data['admin_storage_summary'])) {
                 $defaults['admin_storage_summary'] = $this->buildStorageSummary();
             }
+            if (($defaults['admin_storage_summary']['level'] ?? $data['admin_storage_summary']['level'] ?? 'ok') === 'danger') {
+                $contact = $this->storageContact();
+                $summary = $defaults['admin_storage_summary'] ?? $data['admin_storage_summary'];
+                $siteName = (string)($this->settings['title'] ?? 'FarosCMS');
+                $defaults['admin_storage_contact'] = $contact === null ? null : $contact + ['href' => 'mailto:' . $contact['email']
+                    . '?subject=' . rawurlencode('Storage almost full: ' . $siteName)
+                    . '&body=' . rawurlencode("Hello,\n\nThe storage of " . $siteName . ' is ' . ($summary['percent_of_limit'] ?? $summary['percent']) . '% full (' . $summary['label'] . "). Could you raise the limit, or help me free some space?\n\nThank you")];
+            }
             if ($syncNotifications) {
                 $defaults['admin_notifications'] = $this->notifications->recent(6);
                 $defaults['admin_notification_unread_count'] = $this->notifications->unreadCount();
@@ -5643,6 +5726,10 @@ final class App
             'theme' => 'default',
             'home_page' => 'index',
             'date_format' => 'd/m/Y',
+            // What the site may use: set by the super admin only (Settings > Limits). 0 means no limit.
+            'limits' => [
+                'storage_mb' => 1024,
+            ],
             'languages' => [
                 'default' => 'el',
                 'available' => ['el', 'en'],
@@ -7081,6 +7168,7 @@ final class App
             'theme' => (string)($merged['theme'] ?? ''),
             'home_page' => (string)($merged['home_page'] ?? ''),
             'date_format' => (string)($merged['date_format'] ?? ''),
+            'storage_limit_mb' => max(0, (int)($merged['limits']['storage_mb'] ?? 1024)),
             'languages_default' => (string)($merged['languages']['default'] ?? 'el'),
             'languages_available' => implode(', ', $merged['languages']['available'] ?? []),
             'mail_driver' => (string)($merged['forms']['notifications']['driver'] ?? 'smtp'),
@@ -7184,6 +7272,10 @@ final class App
         $data['theme'] = $form['theme'] !== '' ? $form['theme'] : ($data['theme'] ?? 'default');
         $data['home_page'] = $form['home_page'] !== '' ? $form['home_page'] : ($data['home_page'] ?? 'index');
         $data['date_format'] = $form['date_format'] !== '' ? $form['date_format'] : ($data['date_format'] ?? 'd/m/Y');
+        // Every form value was turned into text above: an empty one means the field was not submitted.
+        if (is_numeric($form['storage_limit_mb'] ?? null)) {
+            $data['limits']['storage_mb'] = (int)$form['storage_limit_mb'];
+        }
 
         $available = $this->normalizeLanguageList($form['languages_available']);
         if (empty($available) && isset($data['languages']['available']) && is_array($data['languages']['available'])) {
@@ -7586,7 +7678,7 @@ final class App
     private function sanitizeSettingsTab(string $tab): string
     {
         $tab = strtolower(trim($tab));
-        $allowed = ['basics', 'menus', 'apis', 'theme', 'smtp', 'auth', 'backup', 'updates'];
+        $allowed = ['basics', 'menus', 'apis', 'theme', 'smtp', 'auth', 'backup', 'updates', 'limits'];
         if (!in_array($tab, $allowed, true)) {
             return 'basics';
         }

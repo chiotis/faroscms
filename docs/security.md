@@ -43,6 +43,10 @@ After adding or changing an admin action, run `php scripts/check-permissions.php
 
 **Raw HTML.** Raw HTML in Markdown can carry script, and an editor must not be able to script the public site. When someone without the `content.raw_html` capability saves, any HTML they type in the text or in a block's Markdown fields is shown as plain text and the editor is told so. HTML that is already in that content (put there by an administrator, for example an embed) is left alone, so an editor's edit never breaks it. `[text](javascript:…)` style links are neutralised for everybody. Uploads are checked separately (SVG files with scripts are refused).
 
+### Storage limit
+
+The super admin sets how much space the site may use (Settings > Limits, `limits.manage`, held only by the super admin and never grantable, stored as `limits.storage_mb` in the site settings, default 1024, 0 for none). A value sent by anyone else is ignored. Use is content, the system database and its backups, and uploads. Only new uploads are refused at the limit, so a full site can still be edited, saved, and backed up; the message everyone sees from 90% names the super admin's address as a `mailto:` link and nothing else leaves the server.
+
 ### Links and deleting
 
 Updating the links that still use an old address needs `content.manage` (it edits content) and only offers permanent redirects that are on. It changes nothing but the address in the text, files of types the person cannot edit (forms without `forms.manage`) are skipped, and every changed file gets a history entry ("Links updated") holding the earlier text. When a public entry is deleted, choosing where visitors go needs `redirects.manage`; without it the choice is ignored, so a permission that lets someone send visitors to another website cannot be used through the delete form. The target is checked like any redirect (no scripts, no loops), and an address on this site must exist. Deleting keeps the text in the history for 180 days, for bulk deletes too.

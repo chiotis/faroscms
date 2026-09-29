@@ -34,6 +34,9 @@
   {% if address_taken %}
     <template data-flash data-type="warning">The address "{{ address_taken }}" is already used or reserved, so "{{ slug }}" was used instead.</template>
   {% endif %}
+  {% if notice == 'storage' %}
+    <template data-flash data-type="warning">Saved, but the picture you uploaded was not stored: the storage limit is reached. Delete files you no longer need, or ask the super admin to raise the limit.</template>
+  {% endif %}
   {% if notice == 'html' %}
     <template data-flash data-type="warning">Saved. Raw HTML is only available to administrators, so the HTML you typed is shown as plain text. Use Markdown for formatting.</template>
   {% endif %}

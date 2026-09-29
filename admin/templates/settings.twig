@@ -69,8 +69,40 @@
           <button type="button" class="{{ tab_button_class }}{% if active_tab == 'backup' %} active{% endif %}" data-tab="backup">Backups</button>
           <button type="button" class="{{ tab_button_class }}{% if active_tab == 'updates' %} active{% endif %}" data-tab="updates">Updates</button>
           <button type="button" class="{{ tab_button_class }}{% if active_tab == 'apis' %} active{% endif %}" data-tab="apis">APIs</button>
+          {% if can('limits.manage') %}<button type="button" class="{{ tab_button_class }}{% if active_tab == 'limits' %} active{% endif %}" data-tab="limits">Limits</button>{% endif %}
         </div>
       </div>
+
+      {% if can('limits.manage') %}
+      <div class="{{ panel_class }}{% if active_tab != 'limits' %} hidden{% else %} active{% endif %}" data-panel="limits">
+        <div class="{{ section_class }}">
+          <div class="{{ section_header_class }}">
+            <h3 class="text-sm font-semibold text-slate-900">Storage</h3>
+            <p class="mt-0.5 text-xs text-slate-400">How much space this site may use. Only a super admin sees this. The bar in the sidebar and on the dashboard follows it: orange from 80%, red from 90%, when everyone in the admin is shown a message, and at 100% new uploads are blocked.</p>
+          </div>
+          {% set limit_mb = settings_form.storage_limit_mb %}
+          {% set as_gb = limit_mb >= 1024 and limit_mb % 1024 == 0 %}
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <label class="block">
+              <span class="mb-1 block text-sm font-medium text-slate-700">Storage limit</span>
+              <input type="number" name="storage_limit_value" value="{{ as_gb ? limit_mb // 1024 : limit_mb }}" min="0" step="any" class="{{ input_class }}" aria-describedby="storage-limit-help">
+            </label>
+            <label class="block">
+              <span class="mb-1 block text-sm font-medium text-slate-700">Unit</span>
+              <select name="storage_limit_unit" class="{{ select_class }}">
+                <option value="mb"{% if not as_gb %} selected{% endif %}>MB</option>
+                <option value="gb"{% if as_gb %} selected{% endif %}>GB</option>
+              </select>
+            </label>
+            <div class="text-sm">
+              <span class="mb-1 block font-medium text-slate-700">Used now</span>
+              <p class="rounded-md bg-slate-50 px-3 py-2 {{ storage.level == 'danger' ? 'text-red-700' : (storage.level == 'warn' ? 'text-orange-700' : 'text-slate-700') }}">{{ storage.used_human }}{% if storage.limit %} of {{ storage.limit_human }} ({{ storage.percent_of_limit }}%){% endif %}</p>
+            </div>
+          </div>
+          <p id="storage-limit-help" class="mt-2 text-xs text-slate-400">The default is 1 GB. Enter 0 for no limit. What counts: uploads {{ storage.parts.uploads }}, content {{ storage.parts.content }}, and the system database and backups {{ storage.parts.system }}.</p>
+        </div>
+      </div>
+      {% endif %}
 
       <div class="{{ panel_class }}{% if active_tab != 'basics' %} hidden{% else %} active{% endif %}" data-panel="basics">
         <div class="{{ section_class }}">

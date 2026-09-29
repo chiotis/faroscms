@@ -37,6 +37,7 @@ final class PermissionService
             'translations.manage',
             'users.manage',
             'roles.manage',
+            'limits.manage',
             'users.self',
             'activity.manage',
             'email_logs.manage',
@@ -220,6 +221,7 @@ final class PermissionService
             'backups.restore' => $c('System', 'Restore a backup', 'Replaces the whole site. Super admin only.', 'critical', false),
             'users.manage' => $c('System', 'Users', 'Creates users and sets their roles. Super admin only.', 'critical', false),
             'roles.manage' => $c('System', 'Roles and permissions', 'Changes what each role can do. Super admin only.', 'critical', false),
+            'limits.manage' => $c('System', 'Site limits', 'Sets how much storage the site may use. Super admin only.', 'critical', false),
         ];
     }
 
