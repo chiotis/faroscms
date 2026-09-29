@@ -84,12 +84,6 @@
             Menus
           </a>
         {% endif %}
-        {% if can('redirects.manage') %}
-          <a href="{{ url('admin/redirects') }}" class="{{ nav_base }} {{ section == 'redirects' ? nav_active : nav_idle }}">
-            <svg class="h-4 w-4 {{ section == 'redirects' ? 'text-white/80' : 'text-slate-400 group-hover:text-slate-600' }}" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 12h13M13 7l5 5-5 5M4 6v12"/></svg>
-            Redirects
-          </a>
-        {% endif %}
         {% if can('taxonomies.manage') %}
           <a href="{{ url('admin/taxonomies') }}" class="{{ nav_base }} {{ section == 'taxonomies' ? nav_active : nav_idle }}">
             <svg class="h-4 w-4 {{ section == 'taxonomies' ? 'text-white/80' : 'text-slate-400 group-hover:text-slate-600' }}" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 3H5a2 2 0 00-2 2v6l9 9a2 2 0 002.8 0l4.6-4.6a2 2 0 000-2.8L11 3zM7 7h.01"/></svg>
@@ -156,6 +150,12 @@
           <a href="{{ url('admin/content-types') }}" class="{{ nav_base }} {{ section == 'content-types' ? nav_active : nav_idle }}">
             <svg class="h-4 w-4 {{ section == 'content-types' ? 'text-white/80' : 'text-slate-400 group-hover:text-slate-600' }}" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3 3 8l9 5 9-5-9-5zM3 13l9 5 9-5M3 17.5l9 5 9-5"/></svg>
             Content types
+          </a>
+        {% endif %}
+        {% if can('redirects.manage') %}
+          <a href="{{ url('admin/redirects') }}" class="{{ nav_base }} {{ section == 'redirects' ? nav_active : nav_idle }}">
+            <svg class="h-4 w-4 {{ section == 'redirects' ? 'text-white/80' : 'text-slate-400 group-hover:text-slate-600' }}" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 12h13M13 7l5 5-5 5M4 6v12"/></svg>
+            Redirects
           </a>
         {% endif %}
         {% if can('translations.manage') %}
