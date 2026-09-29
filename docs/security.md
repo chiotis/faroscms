@@ -11,6 +11,29 @@ This page lists the protections built into the admin and what the server operato
 - The session id is regenerated on every sign-in and sign-out.
 - Every admin request re-reads the signed-in user from SQLite. Deactivating a user or changing their role takes effect on their next click, not when their session expires.
 
+### Roles and permissions
+
+Roles are defined in `PermissionService`. Each admin action needs a capability, and an action nobody mapped is for administrators only, so a new route is never open to a lower role by accident.
+
+| | Super admin | Admin | Editor | Basic user |
+|---|:-:|:-:|:-:|:-:|
+| Dashboard (content figures) | yes | yes | yes | no |
+| Pages, posts, projects: write, publish, delete | yes | yes | yes | no |
+| Media, categories and tags | yes | yes | yes | no |
+| Raw HTML in content | yes | yes | no | no |
+| Forms and their submissions, menus | yes | yes | no | no |
+| Settings, content types, translations, system | yes | yes | no | no |
+| Activity and email logs, notifications | yes | yes | no | no |
+| Backups, updates, import, export | yes | yes | no | no |
+| Users and roles | yes | no | no | no |
+| Own profile and password | yes | yes | yes | yes |
+
+An editor's dashboard shows only content: the user count, backups, system checks, storage, logs, and notifications are not sent to them. Forms are out of their reach entirely (they hold visitors' personal data and decide where notifications go), including by address, bulk actions, and search. Every refused request is written to the activity log.
+
+After adding or changing an admin action, run `php scripts/check-permissions.php`: it lists every action with the roles that may use it and fails when the rules drift.
+
+**Raw HTML.** Raw HTML in Markdown can carry script, and an editor must not be able to script the public site. When someone without the `content.raw_html` capability saves, any HTML they type in the text or in a block's Markdown fields is shown as plain text and the editor is told so. HTML that is already in that content (put there by an administrator, for example an embed) is left alone, so an editor's edit never breaks it. `[text](javascript:…)` style links are neutralised for everybody. Uploads are checked separately (SVG files with scripts are refused).
+
 ### CSRF
 
 - Every admin `POST` must carry the per-session token (`_csrf` field or `X-CSRF-Token` header). This includes the sign-in form.

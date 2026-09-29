@@ -43,8 +43,8 @@
         <span class="mb-1 block text-sm font-medium text-slate-700">Role</span>
         <select name="role" class="{{ select_class }}">
           <option value="">All roles</option>
-          {% for role in ['superadmin', 'admin', 'user'] %}
-            <option value="{{ role }}" {% if filters.role == role %}selected{% endif %}>{{ role }}</option>
+          {% for key, role in roles %}
+            <option value="{{ key }}" {% if filters.role == key %}selected{% endif %}>{{ role.label }}</option>
           {% endfor %}
         </select>
       </label>
@@ -108,7 +108,7 @@
                 </td>
                 <td class="px-4 py-2.5 text-slate-600">{{ account.email ?: '—' }}</td>
                 <td class="px-4 py-2.5">
-                  {{ ui.badge(account.role, account.role == 'superadmin' ? 'violet' : (account.role == 'admin' ? 'blue' : 'slate')) }}
+                  {{ ui.badge(roles[account.role].label|default(account.role), account.role == 'superadmin' ? 'violet' : (account.role == 'admin' ? 'blue' : (account.role == 'editor' ? 'green' : 'slate'))) }}
                 </td>
                 <td class="px-4 py-2.5">
                   {{ ui.status_badge(account.status) }}

@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-09-29 — Editor role
+- New role **Editor**: writes, edits, publishes, and deletes pages, posts, and projects, and manages media, categories, and tags. It cannot open forms, menus, settings, content types, translations, users, logs, backups, updates, or import/export, and it gets a content-only dashboard without system figures or notifications
+- Raw HTML is an administrator privilege: an editor's HTML is shown as plain text (with a notice), while HTML an administrator placed in a page stays intact when an editor saves it; this covers the text, block Markdown fields, and raw front matter
+- Markdown links with script addresses (`javascript:`) lose their address for everyone
+- Admin actions with no explicit permission are now administrator-only instead of open to anyone who can edit content
+- Users screens list all roles with descriptions; new users default to Editor, and an unknown or missing role can no longer turn into Admin
+- Refused requests for forms are written to the activity log
+
 ## 2026-09-29 — Demo content, accessibility pass, and developer guide (phase 7)
 - Demo content: Services, Design & Build, Project Management, Careers, and FAQ are built from blocks (pricing, tabs, timeline, FAQ, cards) in Greek and English; Privacy, Terms, and Cookies use the sidebar template with a contents list; posts and projects are full articles and case studies with results, gallery, and a quote; project excerpts describe web work for each client
 - Accessibility (checked with axe-core on every page in light and dark, plus the mobile menu, image and video viewers, and open FAQ): blocks without a heading give their items `<h2>`; contact details are a real list; the slider follows the WAI-ARIA carousel pattern (no duplicate landmark); submenus close with Escape; the sidebar layout no longer widens on phones

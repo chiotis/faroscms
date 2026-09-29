@@ -17,6 +17,7 @@
       </div>
       <p class="mt-1 text-xs text-slate-400">{{ dashboard.content_draft }} drafts</p>
     </div>
+    {% if can('users.manage') %}
     <div class="rounded-lg border border-slate-200 bg-white p-4">
       <p class="text-xs font-medium uppercase tracking-wide text-slate-400">Users</p>
       <div class="mt-1.5 flex items-end justify-between">
@@ -25,6 +26,8 @@
       </div>
       <p class="mt-1 text-xs text-slate-400">SQLite user store</p>
     </div>
+    {% endif %}
+    {% if can('backups.manage') %}
     <div class="rounded-lg border border-slate-200 bg-white p-4">
       <p class="text-xs font-medium uppercase tracking-wide text-slate-400">Backups</p>
       <div class="mt-1.5 flex items-end justify-between">
@@ -33,6 +36,8 @@
       </div>
       <p class="mt-1 truncate text-xs text-slate-400">{{ dashboard.last_backup ? dashboard.last_backup.created_at : 'Never created' }}</p>
     </div>
+    {% endif %}
+    {% if can('settings.manage') %}
     <div class="rounded-lg border border-slate-200 bg-white p-4">
       <p class="text-xs font-medium uppercase tracking-wide text-slate-400">System status</p>
       <div class="mt-1.5 flex items-end justify-between">
@@ -41,9 +46,12 @@
       </div>
       <p class="mt-1 text-xs text-slate-400">{{ dashboard.system_status.detail }}</p>
     </div>
+    {% endif %}
   </div>
 
+  {% if can('activity.manage') or can('email_logs.manage') or can('settings.manage') %}
   <div class="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-3">
+    {% if can('activity.manage') %}
     <div class="rounded-lg border border-slate-200 bg-white xl:col-span-2">
       <div class="flex items-center justify-between border-b border-slate-200 px-4 py-3">
         <h2 class="text-sm font-semibold text-slate-900">Recent activity</h2>
@@ -82,8 +90,10 @@
         </div>
       {% endif %}
     </div>
+    {% endif %}
 
     <div class="space-y-4">
+      {% if can('email_logs.manage') %}
       <div class="rounded-lg border border-slate-200 bg-white">
         <div class="flex items-center justify-between border-b border-slate-200 px-4 py-3">
           <h2 class="text-sm font-semibold text-slate-900">Recent emails</h2>
@@ -107,7 +117,9 @@
           </ul>
         {% endif %}
       </div>
+      {% endif %}
 
+      {% if can('settings.manage') %}
       <div class="rounded-lg border border-slate-200 bg-white p-4">
         <div class="flex items-center justify-between">
           <h2 class="text-sm font-semibold text-slate-900">Storage</h2>
@@ -121,8 +133,10 @@
           <div class="flex justify-between"><dt class="text-slate-500">Free disk</dt><dd class="font-medium text-slate-900">{{ dashboard.storage.disk_free_human }}</dd></div>
         </dl>
       </div>
+      {% endif %}
     </div>
   </div>
+  {% endif %}
 
   <div class="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-3">
     <div class="rounded-lg border border-slate-200 bg-white">
@@ -174,6 +188,7 @@
       {% endif %}
     </div>
 
+    {% if can('settings.manage') %}
     <div class="rounded-lg border border-slate-200 bg-white">
       <div class="border-b border-slate-200 px-4 py-3">
         <h2 class="text-sm font-semibold text-slate-900">System checks</h2>
@@ -197,6 +212,7 @@
         {% endif %}
       </dl>
     </div>
+    {% endif %}
   </div>
 
   <div class="mt-4 rounded-lg border border-slate-200 bg-white p-4">
@@ -207,7 +223,11 @@
           <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
           New page
         </a>
+        <a class="{{ btn_secondary }}" href="{{ url('admin/new?type=posts&lang=' ~ default_lang) }}">New post</a>
         <a class="{{ btn_secondary }}" href="{{ url('admin/content') }}">Content</a>
+      {% endif %}
+      {% if can('taxonomies.manage') %}
+        <a class="{{ btn_secondary }}" href="{{ url('admin/taxonomies') }}">Categories and tags</a>
       {% endif %}
       {% if can('media.manage') %}
         <a class="{{ btn_secondary }}" href="{{ url('admin/media') }}">Media</a>

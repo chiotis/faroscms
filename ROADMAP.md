@@ -7,7 +7,8 @@ Direction: one all-purpose theme (`themes/default`) that grows with blocks and v
 - Phase 3 (done): admin block editor; second block family (gallery, team, timeline, contact, map); header layouts and options; footer layouts
 - Phase 4 (done): page templates (standard, landing, with sidebar); ready-made sections and page layouts; saving sections from the editor
 - Phase 5 (done): third block family (latest content in 8 layouts, video with large viewer, slider, pricing, tabs, banner); five more ready-made sections
-- Next candidates: comparison table and before/after blocks, draft preview links, revision history, editor role
+- Editor role (done): see `docs/security.md`
+- Next candidates: comparison table and before/after blocks, draft preview links, revision history, custom role permissions
 - Style references from the owner can refine the design system at any point (tokens and block CSS)
 - Phase 6 (done): content types with declared fields, an admin screen for them, archive layouts, filters, and pagination
 - Phase 7 (done): demo content rebuilt with blocks, accessibility pass with axe-core, theme developer guide and audit script
@@ -93,7 +94,7 @@ Direction: one all-purpose theme (`themes/default`) that grows with blocks and v
 - Draft preview links (no publish required)
 - Search improvements (weighted + highlights)
 - Slug changes with redirect map
-- Roles (admin/editor) via YAML
+- Custom roles with chosen permissions (the built-in roles are fixed in code)
 - Runtime page/data cache implementation (filesystem backend + targeted invalidation)
 - Theme switcher in settings + preview mode
 - Theme settings for OpenAI/API credentials (for future excerpt/content generation)

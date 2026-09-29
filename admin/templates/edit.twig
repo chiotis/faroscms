@@ -18,6 +18,9 @@
   {% if deleted %}
     <template data-flash data-type="success">Deleted.</template>
   {% endif %}
+  {% if notice == 'html' %}
+    <template data-flash data-type="warning">Saved. Raw HTML is only available to administrators, so the HTML you typed is shown as plain text. Use Markdown for formatting.</template>
+  {% endif %}
 
   <form method="post" action="{{ url('admin/save') }}" class="editor space-y-4" enctype="multipart/form-data">
     {{ csrf_field() }}

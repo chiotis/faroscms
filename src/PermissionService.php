@@ -12,6 +12,7 @@ final class PermissionService
             'admin.access',
             'dashboard.view',
             'content.manage',
+            'content.raw_html',
             'forms.manage',
             'media.manage',
             'menus.manage',
@@ -33,6 +34,7 @@ final class PermissionService
             'admin.access',
             'dashboard.view',
             'content.manage',
+            'content.raw_html',
             'forms.manage',
             'media.manage',
             'menus.manage',
@@ -48,11 +50,37 @@ final class PermissionService
             'backups.manage',
             'updates.manage',
         ],
+        // Writes and publishes content and manages media and taxonomies. No forms (their submissions hold
+        // visitors' personal data), menus, settings, users, logs, backups, updates, or import/export, and no
+        // raw HTML in content (see content.raw_html), so an editor cannot script the public site.
+        'editor' => [
+            'admin.access',
+            'dashboard.view',
+            'content.manage',
+            'media.manage',
+            'taxonomies.manage',
+            'users.self',
+        ],
         'user' => [
             'admin.access',
             'users.self',
         ],
     ];
+
+    /**
+     * Roles in order of power, for the users screens.
+     *
+     * @return array<string, array{label: string, description: string}>
+     */
+    public static function roles(): array
+    {
+        return [
+            'superadmin' => ['label' => 'Super admin', 'description' => 'Everything, including users and roles. Keep at least one.'],
+            'admin' => ['label' => 'Admin', 'description' => 'Everything except managing users: content, forms, menus, settings, backups, and updates.'],
+            'editor' => ['label' => 'Editor', 'description' => 'Writes, edits, and publishes pages, posts, and projects, and manages media and categories. Cannot change settings, forms, menus, or users, and cannot add raw HTML.'],
+            'user' => ['label' => 'Basic user', 'description' => 'Can sign in and edit their own profile only.'],
+        ];
+    }
 
     /** @return array<int, string> */
     public function capabilitiesForRole(string $role): array
@@ -89,8 +117,9 @@ final class PermissionService
             'updates' => 'updates.manage',
             'users', 'users-delete' => 'users.manage',
             'users-edit' => null,
-            'edit', 'save', 'delete', 'new', 'block-presets' => 'content.manage',
-            default => 'content.manage',
+            'edit', 'save', 'delete', 'new', 'block-presets', 'content-bulk', 'search' => 'content.manage',
+            // An action nobody mapped is for administrators only, never for a lower role by accident.
+            default => 'settings.manage',
         };
 
         if ($capability === null) {

@@ -10,7 +10,7 @@ use Symfony\Component\Yaml\Yaml;
 final class UserRepository
 {
     /** @var array<string, string> */
-    private array $roles = ['superadmin' => 'superadmin', 'admin' => 'admin', 'user' => 'user'];
+    private array $roles = ['superadmin' => 'superadmin', 'admin' => 'admin', 'editor' => 'editor', 'user' => 'user'];
     /** @var array<string, string> */
     private array $statuses = ['active' => 'active', 'inactive' => 'inactive'];
 
@@ -165,7 +165,7 @@ final class UserRepository
             'email' => $this->normalizeEmail((string)($data['email'] ?? '')),
             'display_name' => trim((string)($data['display_name'] ?? '')),
             'password_hash' => (string)($data['password_hash'] ?? ''),
-            'role' => $this->normalizeRole((string)($data['role'] ?? 'admin')) ?: 'admin',
+            'role' => $this->normalizeRole((string)($data['role'] ?? 'user')) ?: 'user',
             'status' => $this->normalizeStatus((string)($data['status'] ?? 'active')) ?: 'active',
             'source' => (string)($data['source'] ?? 'sqlite'),
             'google_sub' => trim((string)($data['google_sub'] ?? '')) ?: null,
@@ -182,7 +182,7 @@ final class UserRepository
             'username' => $this->normalizeUsername((string)($data['username'] ?? '')),
             'email' => $this->normalizeEmail((string)($data['email'] ?? '')),
             'display_name' => trim((string)($data['display_name'] ?? '')),
-            'role' => $this->normalizeRole((string)($data['role'] ?? 'admin')) ?: 'admin',
+            'role' => $this->normalizeRole((string)($data['role'] ?? 'user')) ?: 'user',
             'status' => $this->normalizeStatus((string)($data['status'] ?? 'active')) ?: 'active',
             'google_sub' => trim((string)($data['google_sub'] ?? '')) ?: null,
             'google_email' => $this->normalizeEmail((string)($data['google_email'] ?? '')) ?: null,
