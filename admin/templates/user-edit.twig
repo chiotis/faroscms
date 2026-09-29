@@ -98,11 +98,13 @@
           <div class="space-y-3">
             <label class="block">
               <span class="mb-1 block text-sm font-medium text-slate-700">Role</span>
-              <select name="role" class="{{ select_class }}" {% if not can_change_access %}disabled{% endif %}>
-                {% for role in ['superadmin', 'admin', 'user'] %}
-                  <option value="{{ role }}" {% if edited_user.role == role %}selected{% endif %}>{{ role }}</option>
+              <select name="role" class="{{ select_class }}" {% if not can_change_access %}disabled{% endif %} aria-describedby="role-help" data-role-select>
+                {% for key, role in roles %}
+                  <option value="{{ key }}" {% if edited_user.role == key %}selected{% endif %}>{{ role.label }}</option>
                 {% endfor %}
               </select>
+              <span id="role-help" class="mt-1 block text-xs text-slate-500" data-role-help>{{ roles[edited_user.role].description|default('') }}</span>
+              <script type="application/json" data-role-descriptions>{{ roles|map(r => r.description)|json_encode|raw }}</script>
             </label>
             <label class="block">
               <span class="mb-1 block text-sm font-medium text-slate-700">Status</span>
@@ -134,4 +136,16 @@
       </div>
     </div>
   </form>
+
+  <script>
+    (() => {
+      const select = document.querySelector('[data-role-select]');
+      const help = document.querySelector('[data-role-help]');
+      const source = document.querySelector('[data-role-descriptions]');
+      if (!select || !help || !source) return;
+      let descriptions = {};
+      try { descriptions = JSON.parse(source.textContent); } catch (e) { /* keep the text that is there */ }
+      select.addEventListener('change', () => { help.textContent = descriptions[select.value] || ''; });
+    })();
+  </script>
 {% endblock %}

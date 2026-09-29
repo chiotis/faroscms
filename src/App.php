@@ -6,7 +6,11 @@ namespace FarosCMS;
 
 use League\CommonMark\Environment\Environment;
 use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
+use League\CommonMark\Extension\CommonMark\Node\Block\HtmlBlock;
+use League\CommonMark\Extension\CommonMark\Node\Inline\HtmlInline;
 use League\CommonMark\Extension\Table\TableExtension;
+use League\CommonMark\Node\Block\AbstractBlock;
+use League\CommonMark\Parser\MarkdownParser;
 use League\CommonMark\MarkdownConverter;
 use Symfony\Component\Yaml\Yaml;
 use Twig\Environment as TwigEnvironment;
@@ -109,14 +113,142 @@ final class App
 
     private function markdownConverter(): MarkdownConverter
     {
+        return new MarkdownConverter($this->markdownEnvironment());
+    }
+
+    private function markdownEnvironment(): Environment
+    {
         $environment = new Environment([
             'renderer' => ['soft_break' => "<br />\n"],
+            // [text](javascript:…) and similar links lose their address instead of running script when clicked.
+            'allow_unsafe_links' => false,
             // A wide table scrolls inside its own box; tabindex lets keyboard users scroll it.
             'table' => ['wrap' => ['enabled' => true, 'tag' => 'div', 'attributes' => ['class' => 'table-wrap', 'tabindex' => '0']]],
         ]);
         $environment->addExtension(new CommonMarkCoreExtension());
         $environment->addExtension(new TableExtension());
-        return new MarkdownConverter($environment);
+        return $environment;
+    }
+
+    /**
+     * Raw HTML the Markdown contains, with the lines it sits on. Used to keep raw HTML (which can carry
+     * script) out of content written by people who may not add it.
+     *
+     * @return array<int, array{kind: string, literal: string, start: ?int, end: ?int}>
+     */
+    private function rawHtmlNodes(string $markdown): array
+    {
+        if (!str_contains($markdown, '<')) {
+            return [];
+        }
+        $document = (new MarkdownParser($this->markdownEnvironment()))->parse($markdown);
+        $found = [];
+        foreach ($document->iterator() as $node) {
+            if ($node instanceof HtmlBlock) {
+                $found[] = ['kind' => 'block', 'literal' => $node->getLiteral(), 'start' => $node->getStartLine(), 'end' => $node->getEndLine()];
+            } elseif ($node instanceof HtmlInline) {
+                $parent = $node->parent();
+                while ($parent !== null && !$parent instanceof AbstractBlock) {
+                    $parent = $parent->parent();
+                }
+                $found[] = ['kind' => 'inline', 'literal' => $node->getLiteral(), 'start' => $parent?->getStartLine(), 'end' => $parent?->getEndLine()];
+            }
+        }
+        return $found;
+    }
+
+    /**
+     * Shows raw HTML as plain text instead of letting it through, except HTML that is already in the
+     * content being edited (placed there by someone allowed to), so an edit never breaks an embed.
+     *
+     * @param string[] $allowed HTML fragments to leave as they are
+     */
+    private function neutralizeRawHtml(string $markdown, array $allowed = []): string
+    {
+        $body = str_replace(["\r\n", "\r"], "\n", $markdown);
+        for ($pass = 0; $pass < 3; $pass++) {
+            $blocked = array_values(array_filter($this->rawHtmlNodes($body), static fn(array $n): bool => !in_array($n['literal'], $allowed, true)));
+            if ($blocked === []) {
+                return $body;
+            }
+            $lines = explode("\n", $body);
+            foreach ($blocked as $node) {
+                if ($node['start'] === null || $node['end'] === null) {
+                    return str_replace('<', '&lt;', $body);
+                }
+                for ($i = $node['start'] - 1; $i <= $node['end'] - 1 && isset($lines[$i]); $i++) {
+                    $lines[$i] = $node['kind'] === 'block'
+                        ? str_replace('<', '&lt;', $lines[$i])
+                        : str_replace($node['literal'], str_replace('<', '&lt;', $node['literal']), $lines[$i]);
+                }
+            }
+            $body = implode("\n", $lines);
+        }
+        // Still something left after three passes (an unusual construct): escape every tag opener.
+        return str_replace('<', '&lt;', $body);
+    }
+
+    /**
+     * Raw HTML fragments in the Markdown of an existing content file (its body and its blocks' Markdown fields).
+     *
+     * @return string[]
+     */
+    private function storedHtmlFragments(string $path): array
+    {
+        if ($path === '' || !is_file($path)) {
+            return [];
+        }
+        [$frontmatter, $body] = $this->splitFrontMatter((string)file_get_contents($path));
+        $texts = [$body];
+        try {
+            $meta = $frontmatter !== '' ? Yaml::parse($frontmatter) : [];
+        } catch (\Throwable) {
+            $meta = [];
+        }
+        if (is_array($meta) && is_array($meta['blocks'] ?? null)) {
+            $this->eachMarkdownField($meta['blocks'], static function (string $value) use (&$texts): string {
+                $texts[] = $value;
+                return $value;
+            });
+        }
+        $fragments = [];
+        foreach ($texts as $text) {
+            foreach ($this->rawHtmlNodes((string)$text) as $node) {
+                $fragments[] = $node['literal'];
+            }
+        }
+        return array_values(array_unique($fragments));
+    }
+
+    /**
+     * Applies $change to every Markdown field of the blocks (including items inside repeaters) and returns the blocks.
+     *
+     * @param array<int, mixed> $blocks
+     * @param \Closure(string): string $change
+     * @return array<int, mixed>
+     */
+    private function eachMarkdownField(array $blocks, \Closure $change): array
+    {
+        foreach ($blocks as $i => $block) {
+            $definition = is_array($block) && is_string($block['type'] ?? null) ? $this->blockRegistry()->get($block['type']) : null;
+            if ($definition === null) {
+                continue;
+            }
+            foreach ($definition['fields'] as $key => $field) {
+                if ($field['type'] === 'markdown' && is_string($block[$key] ?? null)) {
+                    $blocks[$i][$key] = $change($block[$key]);
+                } elseif ($field['type'] === 'repeater' && is_array($block[$key] ?? null)) {
+                    foreach ($block[$key] as $r => $row) {
+                        foreach ($field['fields'] as $subKey => $subField) {
+                            if ($subField['type'] === 'markdown' && is_array($row) && is_string($row[$subKey] ?? null)) {
+                                $blocks[$i][$key][$r][$subKey] = $change($row[$subKey]);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return $blocks;
     }
 
     private function configureSession(): void
@@ -1078,7 +1210,9 @@ final class App
 
     private function buildDashboardData(): array
     {
-        $types = $this->content->getTypes();
+        // Only compute what the signed-in role may see: an editor's dashboard is about content.
+        $can = fn(string $capability): bool => $this->permissions->can($this->auth->user(), $capability);
+        $types = array_values(array_filter($this->content->getTypes(), fn(string $type): bool => $this->canAccessContentType($type)));
         $contentTypes = [];
         $contentTotal = 0;
         $publishedTotal = 0;
@@ -1122,14 +1256,15 @@ final class App
         usort($recentContent, fn(array $a, array $b): int => ((int)$b['mtime']) <=> ((int)$a['mtime']));
         $recentContent = array_slice($recentContent, 0, 5);
 
-        $users = $this->users->all();
+        $users = $can('users.manage') ? $this->users->all() : [];
         $activeUsers = array_values(array_filter($users, fn(array $user): bool => (string)($user['status'] ?? '') === 'active'));
-        $backups = $this->listBackupSnapshots();
+        $backups = $can('backups.manage') ? $this->listBackupSnapshots() : [];
         $storage = $this->buildStorageSummary();
-        $systemChecks = $this->buildDashboardSystemChecks($storage);
-        $systemStatus = $this->summarizeSystemStatus($systemChecks);
-        $recentActivity = $this->activityLogs->all([], 5, 0);
-        $recentEmails = $this->emailLogs->all([], 5, 0);
+        $canSeeSystem = $can('settings.manage');
+        $systemChecks = $canSeeSystem ? $this->buildDashboardSystemChecks($storage) : [];
+        $systemStatus = $canSeeSystem ? $this->summarizeSystemStatus($systemChecks) : ['status' => 'ok', 'label' => '', 'detail' => ''];
+        $recentActivity = $can('activity.manage') ? $this->activityLogs->all([], 5, 0) : [];
+        $recentEmails = $can('email_logs.manage') ? $this->emailLogs->all([], 5, 0) : [];
 
         return [
             'content_total' => $contentTotal,
@@ -1142,16 +1277,16 @@ final class App
             'backups_total' => count($backups),
             'last_backup' => $backups[0] ?? null,
             'recent_activity' => $recentActivity,
-            'activity_total' => $this->activityLogs->count(),
+            'activity_total' => $can('activity.manage') ? $this->activityLogs->count() : 0,
             'recent_emails' => $recentEmails,
-            'email_total' => $this->emailLogs->count(),
-            'failed_emails' => $this->emailLogs->count(['status' => 'failed']),
+            'email_total' => $can('email_logs.manage') ? $this->emailLogs->count() : 0,
+            'failed_emails' => $can('email_logs.manage') ? $this->emailLogs->count(['status' => 'failed']) : 0,
             'storage' => $storage,
             'system_checks' => $systemChecks,
             'system_status' => $systemStatus,
-            'php_version' => PHP_VERSION,
-            'upload_limit' => ini_get('upload_max_filesize') ?: '',
-            'memory_limit' => ini_get('memory_limit') ?: '',
+            'php_version' => $canSeeSystem ? PHP_VERSION : '',
+            'upload_limit' => $canSeeSystem ? (ini_get('upload_max_filesize') ?: '') : '',
+            'memory_limit' => $canSeeSystem ? (ini_get('memory_limit') ?: '') : '',
         ];
     }
 
@@ -1311,6 +1446,7 @@ final class App
             'status' => trim((string)($_GET['status'] ?? '')),
         ];
         $this->render('@admin/users.twig', [
+            'roles' => PermissionService::roles(),
             'users' => $this->users->all($filters),
             'filters' => $filters,
             'types' => $this->content->getTypes(),
@@ -1863,7 +1999,7 @@ final class App
                 'username' => trim((string)($_POST['username'] ?? '')),
                 'email' => trim((string)($_POST['email'] ?? '')),
                 'display_name' => trim((string)($_POST['display_name'] ?? '')),
-                'role' => trim((string)($_POST['role'] ?? 'admin')),
+                'role' => trim((string)($_POST['role'] ?? 'editor')),
                 'status' => trim((string)($_POST['status'] ?? 'active')),
                 'google_sub' => trim((string)($_POST['google_sub'] ?? '')),
                 'google_email' => trim((string)($_POST['google_email'] ?? '')),
@@ -1927,7 +2063,7 @@ final class App
                 'username' => '',
                 'email' => '',
                 'display_name' => '',
-                'role' => 'admin',
+                'role' => 'editor',
                 'status' => 'active',
                 'google_sub' => '',
                 'google_email' => '',
@@ -1935,6 +2071,7 @@ final class App
                 'updated_at' => '',
                 'last_login_at' => '',
             ],
+            'roles' => PermissionService::roles(),
             'is_new' => $id === 0,
             'error' => $error,
             'saved' => $saved,
@@ -2097,6 +2234,10 @@ final class App
     private function handleEdit(): void
     {
         $type = $this->sanitizeType((string)($_GET['type'] ?? 'pages'));
+        if (!$this->canAccessContentType($type)) {
+            $this->denyContentType($type);
+            return;
+        }
         $slug = $this->slugify((string)($_GET['slug'] ?? ''));
         $lang = $this->slugify((string)($_GET['lang'] ?? ($this->settings['languages']['default'] ?? 'en')));
         $saved = isset($_GET['saved']);
@@ -2278,6 +2419,7 @@ final class App
             'languages' => $this->settings['languages']['available'] ?? [],
             'user' => $this->auth->user(),
             'saved' => $saved,
+            'notice' => (string)($_GET['notice'] ?? ''),
             'deleted' => $deleted,
             'admin_section' => $type === 'forms' ? 'forms' : 'content',
             'current_type' => $type,
@@ -2318,6 +2460,24 @@ final class App
     private function contentTypes(): ContentTypes
     {
         return $this->contentTypes ??= new ContentTypes($this->theme);
+    }
+
+    /**
+     * Content of some types needs more than content.manage: forms hold visitors' personal data and decide
+     * where notifications are sent, so only those who manage forms may open, change, or delete them.
+     */
+    private function canAccessContentType(string $type): bool
+    {
+        return $type !== 'forms' || $this->permissions->can($this->auth->user(), 'forms.manage');
+    }
+
+    private function denyContentType(string $type): void
+    {
+        $this->logActivity('auth.forbidden', 'warning', 'content_type', $type, 'Blocked access to a content type that needs more permission.', [
+            'type' => $type,
+            'uri' => (string)($_SERVER['REQUEST_URI'] ?? ''),
+        ]);
+        $this->renderForbidden();
     }
 
     private function defaultLanguage(): string
@@ -2404,6 +2564,10 @@ final class App
     private function handleSave(): void
     {
         $type = $this->sanitizeType((string)($_POST['type'] ?? 'pages'));
+        if (!$this->canAccessContentType($type)) {
+            $this->denyContentType($type);
+            return;
+        }
         $slug = $this->slugify((string)($_POST['slug'] ?? ''));
         $lang = $this->slugify((string)($_POST['lang'] ?? ($this->settings['languages']['default'] ?? 'en')));
         $frontmatter = trim((string)($_POST['frontmatter'] ?? ''));
@@ -2488,6 +2652,7 @@ final class App
             }
         }
 
+        $blocksFromRawYaml = array_key_exists('blocks', $data);
         if ($type !== 'forms') {
             $editorBlocks = ($_POST['blocks_editor'] ?? '') === '1'
                 ? json_decode((string)($_POST['blocks_json'] ?? ''), true)
@@ -2505,6 +2670,27 @@ final class App
                 if ($existing !== null) {
                     $data['blocks'] = $existing;
                 }
+            }
+        }
+
+        // Raw HTML can carry script, so it is a privilege of administrators. Anyone else writes Markdown: HTML they
+        // type is shown as text, while HTML already in the content (put there by an administrator) stays.
+        $htmlNeutralized = false;
+        if ($type !== 'forms' && !$this->permissions->can($this->auth->user(), 'content.raw_html')) {
+            $allowedHtml = $this->storedHtmlFragments($oldPath !== '' && is_file($oldPath) ? $oldPath : $path);
+            $plainBody = str_replace(["\r\n", "\r"], "\n", $body);
+            $body = $this->neutralizeRawHtml($body, $allowedHtml);
+            $htmlNeutralized = $body !== $plainBody;
+            if (isset($data['blocks']) && is_array($data['blocks'])) {
+                if ($blocksFromRawYaml && !is_array($editorBlocks ?? null)) {
+                    // Blocks typed into the raw front matter get the same checks as blocks from the editor.
+                    $data['blocks'] = $this->blockRegistry()->sanitizeForStorage(array_values($data['blocks']));
+                }
+                $data['blocks'] = $this->eachMarkdownField(array_values($data['blocks']), function (string $value) use ($allowedHtml, &$htmlNeutralized): string {
+                    $clean = $this->neutralizeRawHtml($value, $allowedHtml);
+                    $htmlNeutralized = $htmlNeutralized || $clean !== str_replace(["\r\n", "\r"], "\n", $value);
+                    return $clean;
+                });
             }
         }
 
@@ -2750,7 +2936,7 @@ final class App
             'status' => (string)($data['status'] ?? ''),
             'renamed_from' => $oldPath !== '' && $oldPath !== $path ? $originalSlug . ':' . $originalLang : '',
         ]);
-        $this->redirect('/admin/edit?type=' . urlencode($type) . '&slug=' . urlencode($slug) . '&lang=' . urlencode($lang) . '&saved=1');
+        $this->redirect('/admin/edit?type=' . urlencode($type) . '&slug=' . urlencode($slug) . '&lang=' . urlencode($lang) . '&saved=1' . ($htmlNeutralized ? '&notice=html' : ''));
     }
 
     private function handleDelete(): void
@@ -2761,6 +2947,10 @@ final class App
         }
 
         $type = $this->sanitizeType((string)($_POST['type'] ?? 'pages'));
+        if (!$this->canAccessContentType($type)) {
+            $this->denyContentType($type);
+            return;
+        }
         $slug = $this->slugify((string)($_POST['slug'] ?? ''));
         $lang = $this->slugify((string)($_POST['lang'] ?? ($this->settings['languages']['default'] ?? 'en')));
         $defaultLang = $this->settings['languages']['default'] ?? 'en';
@@ -2796,6 +2986,10 @@ final class App
     private function handleNew(): void
     {
         $type = $this->sanitizeType((string)($_GET['type'] ?? 'pages'));
+        if (!$this->canAccessContentType($type)) {
+            $this->denyContentType($type);
+            return;
+        }
         $slug = $this->slugify((string)($_GET['slug'] ?? ''));
         $lang = $this->slugify((string)($_GET['lang'] ?? ($this->settings['languages']['default'] ?? 'en')));
 
@@ -3627,6 +3821,9 @@ final class App
         if ($query !== '') {
             $this->ensureContentIndexFresh();
             foreach ($this->contentIndex->search($query, 100) as $row) {
+                if (!$this->canAccessContentType((string)$row['type'])) {
+                    continue;
+                }
                 $row['edit_url'] = '/admin/edit?' . http_build_query(['type' => $row['type'], 'slug' => $row['slug'], 'lang' => $row['lang']]);
                 $results[] = $row;
             }
@@ -4651,6 +4848,11 @@ final class App
             'is_admin' => $this->auth->check(),
         ];
         if (str_starts_with($template, '@admin/') && $this->auth->check()) {
+            // System notices (updates, failed backups, security) are for those who manage the site.
+            $seesNotifications = $this->permissions->can($this->auth->user(), 'notifications.manage');
+            if (!$seesNotifications) {
+                $data += ['admin_notifications' => [], 'admin_notification_unread_count' => 0];
+            }
             $syncNotifications = !isset($data['admin_notifications']) || !isset($data['admin_notification_unread_count']);
             if ($syncNotifications) {
                 $this->syncSystemNotifications();
