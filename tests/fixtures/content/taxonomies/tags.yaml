@@ -1,0 +1,17 @@
+title: Tags
+terms:
+  - id: design
+    slug: design
+    labels:
+      el: Σχεδιασμός
+      en: Design
+  - id: strategy
+    slug: strategy
+    labels:
+      el: Στρατηγική
+      en: Strategy
+  - id: growth
+    slug: growth
+    labels:
+      el: Ανάπτυξη
+      en: Growth

@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+#
+# Runs the checks:
+#   tests/run.sh            everything
+#   tests/run.sh unit       the PHP checks only (fast, no server)
+#   tests/run.sh http       the browser-level tests only
+#   tests/run.sh redirects  one HTTP test by name (editor, roles, import, redirects)
+#
+# The HTTP tests never touch your site: they run against a temporary copy of the code with the small
+# content set in tests/fixtures, on a free local port, and remove it afterwards. They need PHP and Python 3
+# (standard library only).
+set -u
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+MODE="${1:-all}"
+FAILED=()
+TOTAL_OK=0
+
+report() { # name output
+  local ok bad
+  ok=$(printf '%s\n' "$2" | grep -c '^ok')
+  bad=$(printf '%s\n' "$2" | grep -c '^FAIL')
+  if [ "$bad" -eq 0 ] && printf '%s\n' "$2" | grep -q 'ALL PASSED'; then
+    printf '  pass  %-28s %s checks\n' "$1" "$ok"
+    TOTAL_OK=$((TOTAL_OK + ok))
+  else
+    printf '  FAIL  %-28s %s failed\n' "$1" "$bad"
+    printf '%s\n' "$2" | grep -E '^FAIL|Fatal|Warning|Error' | sed 's/^/          /' | head -20
+    FAILED+=("$1")
+  fi
+}
+
+run_unit() {
+  echo "Unit checks"
+  for spec in "blocks:tests/unit/blocks.php" "content-types:tests/unit/content-types.php" "permissions:scripts/check-permissions.php" "slugs-and-redirects:scripts/check-slugs.php" "content-blocks:scripts/check-blocks.php"; do
+    local name="${spec%%:*}" file="${spec#*:}" out
+    out=$(cd "$ROOT" && php "$file" 2>&1)
+    if [ "$name" = "content-blocks" ]; then
+      # This one prints a summary instead of "ALL PASSED".
+      if printf '%s\n' "$out" | tail -1 | grep -q ' 0 problems'; then printf '  pass  %-28s %s\n' "$name" "$(printf '%s\n' "$out" | tail -1)"; else printf '  FAIL  %-28s\n' "$name"; printf '%s\n' "$out" | tail -5 | sed 's/^/          /'; FAILED+=("$name"); fi
+    else
+      report "$name" "$out"
+    fi
+  done
+}
+
+run_http() {
+  local only="${1:-}"
+  command -v python3 >/dev/null 2>&1 || { echo "python3 is needed for the HTTP tests"; FAILED+=("python3 missing"); return; }
+  local work port pid
+  work="$(mktemp -d)"
+  mkdir -p "$work/app"
+  (cd "$ROOT" && tar cf - --exclude=.git --exclude=node_modules --exclude=./storage --exclude=./custom --exclude=./content --exclude=./tests --exclude=./public/uploads .) | tar xf - -C "$work/app"
+  port="$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); print(s.getsockname()[1])')"
+  (cd "$work/app" && exec php -S "127.0.0.1:$port" -t public public/index.php >"$work/server.log" 2>&1) &
+  pid=$!
+  trap 'kill '"$pid"' 2>/dev/null; wait '"$pid"' 2>/dev/null; rm -rf '"$work" EXIT
+  for _ in $(seq 1 50); do curl -s -o /dev/null "http://127.0.0.1:$port/" && break; sleep 0.1; done
+
+  echo "HTTP tests (temporary copy on port $port)"
+  for name in editor roles import redirects; do
+    [ -n "$only" ] && [ "$only" != "$name" ] && continue
+    # Every test starts from the same clean site.
+    rm -rf "$work/app/content" "$work/app/storage" "$work/app/custom" "$work/app/public/uploads"
+    mkdir -p "$work/app/storage/db" "$work/app/storage/backups" "$work/app/custom" "$work/app/public/uploads"
+    cp -R "$ROOT/tests/fixtures/content" "$work/app/content"
+    local out
+    out=$(cd "$work" && FAROS_TEST_BASE="http://127.0.0.1:$port" PYTHONPATH="$ROOT/tests/http" python3 "$ROOT/tests/http/${name}_test.py" 2>&1)
+    report "$name" "$out"
+  done
+  if grep -qiE 'fatal|warning:|deprecated' "$work/server.log" 2>/dev/null; then
+    echo "  note  the server log has PHP warnings or errors:"; grep -iE 'fatal|warning:|deprecated' "$work/server.log" | sort | uniq -c | head -5 | sed 's/^/          /'
+    FAILED+=("php warnings")
+  fi
+}
+
+case "$MODE" in
+  all) run_unit; echo; run_http ;;
+  unit) run_unit ;;
+  http) run_http ;;
+  editor|roles|import|redirects) run_http "$MODE" ;;
+  *) echo "Unknown option: $MODE"; exit 2 ;;
+esac
+
+echo
+if [ ${#FAILED[@]} -eq 0 ]; then echo "ALL GOOD ($TOTAL_OK checks)"; exit 0; fi
+echo "FAILED: ${FAILED[*]}"; exit 1
