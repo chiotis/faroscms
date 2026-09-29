@@ -15,6 +15,12 @@ final class PermissionService
     /** @var array<string, array<int, string>> Chosen by the super admin, only for roles that differ from the built-in set. */
     private array $overrides = [];
 
+    /** How many roles of their own a site can have. */
+    public const MAX_CUSTOM_ROLES = 20;
+
+    /** @var array<string, array{label: string, description: string, capabilities: array<int, string>}> Roles the super admin made. */
+    private array $customRoles = [];
+
     /** @var array<string, array<int, string>> The built-in capabilities of each role. */
     private array $roleCapabilities = [
         'superadmin' => [
@@ -79,10 +85,105 @@ final class PermissionService
         ],
     ];
 
-    /** @param array<string, mixed>|null $overrides The saved per-role capability lists (see saveable()), or null for the built-in roles. */
-    public function __construct(?array $overrides = null)
+    /**
+     * @param array<string, mixed>|null $overrides The saved per-role capability lists (see saveable()), or null for the built-in roles.
+     * @param array<string, mixed>|null $customRoles The roles the super admin made: key => label, description, capabilities.
+     */
+    public function __construct(?array $overrides = null, ?array $customRoles = null)
     {
         $this->overrides = $this->cleanOverrides($overrides ?? []);
+        $this->customRoles = $this->cleanCustomRoles($customRoles ?? []);
+    }
+
+    /**
+     * Roles of the site's own: a name, a description, and exactly the capabilities chosen (always-on ones added, the
+     * ones only the super admin can have never). Anything that is not a valid role is dropped.
+     *
+     * @param array<string, mixed> $raw
+     * @return array<string, array{label: string, description: string, capabilities: array<int, string>}>
+     */
+    private function cleanCustomRoles(array $raw): array
+    {
+        $out = [];
+        foreach ($raw as $key => $definition) {
+            if (!is_string($key) || !self::validCustomKey($key) || !is_array($definition) || count($out) >= self::MAX_CUSTOM_ROLES) {
+                continue;
+            }
+            $label = trim((string)preg_replace('/\s+/', ' ', (string)($definition['label'] ?? '')));
+            $out[$key] = [
+                'label' => $label !== '' ? mb_substr($label, 0, 60) : Slug::title($key),
+                'description' => mb_substr(trim((string)preg_replace('/\s+/', ' ', (string)($definition['description'] ?? ''))), 0, 200),
+                'capabilities' => $this->normalizeList(is_array($definition['capabilities'] ?? null) ? $definition['capabilities'] : []),
+            ];
+        }
+        return $out;
+    }
+
+    /** A key a custom role can have: lower case letters, digits, and dashes, and never the name of a built-in role. */
+    public static function validCustomKey(string $key): bool
+    {
+        return (bool)preg_match('/^[a-z][a-z0-9-]{1,29}$/', $key) && !isset(self::roles()[$key]);
+    }
+
+    /**
+     * A new key for a role, made from its name (Greek converted to Latin) and different from every role that exists.
+     *
+     * @param string[] $taken
+     */
+    public static function newCustomKey(string $label, array $taken): string
+    {
+        $base = trim(str_replace('_', '-', Slug::fromText($label)), '-');
+        $base = mb_substr($base, 0, 26);
+        if (!preg_match('/^[a-z]/', $base)) {
+            $base = 'role-' . $base;
+        }
+        $base = rtrim(mb_substr($base, 0, 26), '-');
+        if (strlen($base) < 2) {
+            $base = 'role';
+        }
+        $key = $base;
+        for ($n = 2; !self::validCustomKey($key) || in_array($key, $taken, true); $n++) {
+            $key = $base . '-' . $n;
+        }
+        return $key;
+    }
+
+    /** @return array<string, array{label: string, description: string, capabilities: array<int, string>}> */
+    public function customRoles(): array
+    {
+        return $this->customRoles;
+    }
+
+    public function isCustomRole(string $role): bool
+    {
+        return isset($this->customRoles[$this->normalizeRole($role)]);
+    }
+
+    /** The capabilities that would be stored for a list a form submitted. @param array<int|string, mixed> $list @return array<int, string> */
+    public function normalizeCapabilities(array $list): array
+    {
+        return $this->normalizeList($list);
+    }
+
+    /**
+     * Every role a person can have, most powerful first, the site's own roles last.
+     *
+     * @return array<string, array{label: string, description: string, custom: bool}>
+     */
+    public function allRoles(): array
+    {
+        $roles = [];
+        foreach (self::roles() as $key => $role) {
+            $roles[$key] = $role + ['custom' => false];
+        }
+        foreach ($this->customRoles as $key => $role) {
+            $roles[$key] = [
+                'label' => $role['label'],
+                'description' => $role['description'] !== '' ? $role['description'] : 'A role of this site.',
+                'custom' => true,
+            ];
+        }
+        return $roles;
     }
 
     /**
@@ -209,7 +310,7 @@ final class PermissionService
     public function capabilitiesForRole(string $role): array
     {
         $role = $this->normalizeRole($role);
-        return $this->overrides[$role] ?? $this->roleCapabilities[$role] ?? [];
+        return $this->overrides[$role] ?? $this->customRoles[$role]['capabilities'] ?? $this->roleCapabilities[$role] ?? [];
     }
 
     public function can(?array $user, string $capability): bool

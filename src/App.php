@@ -75,7 +75,8 @@ final class App
         $this->users = new UserRepository($this->systemDatabase, $this->contentDir . '/users/users.yaml');
         $this->users->importYamlUsersIfEmpty();
         $this->users->ensureSuperadminExists();
-        $this->permissions = new PermissionService($this->systemMeta->getJson('role_permissions'));
+        $this->permissions = new PermissionService($this->systemMeta->getJson('role_permissions'), $this->systemMeta->getJson('custom_roles'));
+        $this->users->allowRoles(array_keys($this->permissions->customRoles()));
         $this->redirects = new RedirectRepository($this->systemDatabase);
         $this->revisions = new RevisionRepository($this->systemDatabase);
         $this->activityLogs = new ActivityLogRepository($this->systemDatabase);
@@ -1414,41 +1415,109 @@ final class App
             return;
         }
 
-        $roles = PermissionService::roles();
         $catalogue = PermissionService::catalogue();
+        $custom = $this->permissions->customRoles();
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!$this->systemMeta->isAvailable()) {
                 $this->redirect('/admin/roles?error=store');
                 return;
             }
-            $before = [];
-            foreach (PermissionService::CUSTOMIZABLE_ROLES as $role) {
-                $before[$role] = $this->permissions->capabilitiesForRole($role);
+            $action = (string)($_POST['action'] ?? 'save');
+            $key = strtolower(trim((string)($_POST['role'] ?? '')));
+
+            if ($action === 'create_role') {
+                $label = trim((string)preg_replace('/\s+/', ' ', (string)($_POST['label'] ?? '')));
+                if ($label === '') {
+                    $this->redirect('/admin/roles?error=label');
+                    return;
+                }
+                if (count($custom) >= PermissionService::MAX_CUSTOM_ROLES) {
+                    $this->redirect('/admin/roles?error=limit');
+                    return;
+                }
+                $from = (string)($_POST['from'] ?? 'blank');
+                $start = in_array($from, ['admin', 'editor', 'user'], true) ? $this->permissions->capabilitiesForRole($from) : [];
+                $newKey = PermissionService::newCustomKey($label, array_merge(array_keys($custom), array_keys(PermissionService::roles())));
+                $custom[$newKey] = [
+                    'label' => $label,
+                    'description' => trim((string)($_POST['description'] ?? '')),
+                    'capabilities' => $this->permissions->normalizeCapabilities($start),
+                ];
+                $this->systemMeta->setJson('custom_roles', $custom);
+                $made = new PermissionService(null, $custom);
+                $this->logActivity('roles.create', 'warning', 'role', $newKey, 'Role created.', [
+                    'label' => $made->customRoles()[$newKey]['label'],
+                    'copied_from' => in_array($from, ['admin', 'editor', 'user'], true) ? $from : '',
+                    'capabilities' => $made->customRoles()[$newKey]['capabilities'],
+                ]);
+                $this->redirect('/admin/roles?created=' . urlencode($newKey));
+                return;
             }
 
+            if ($action === 'update_role' || $action === 'delete_role') {
+                if (!isset($custom[$key])) {
+                    $this->redirect('/admin/roles?error=unknown');
+                    return;
+                }
+                if ($action === 'delete_role') {
+                    // People still holding the role would lose all access, so it has to be free first.
+                    if ($this->users->countByRole($key, false) > 0) {
+                        $this->redirect('/admin/roles?error=in_use&role=' . urlencode($key));
+                        return;
+                    }
+                    unset($custom[$key]);
+                    $this->systemMeta->setJson('custom_roles', $custom);
+                    $this->logActivity('roles.delete', 'warning', 'role', $key, 'Role deleted.');
+                    $this->redirect('/admin/roles?deleted=1');
+                    return;
+                }
+                $custom[$key]['label'] = trim((string)($_POST['label'] ?? '')) ?: $custom[$key]['label'];
+                $custom[$key]['description'] = trim((string)($_POST['description'] ?? ''));
+                $this->systemMeta->setJson('custom_roles', $custom);
+                $this->logActivity('roles.update', 'info', 'role', $key, 'Role renamed or described.');
+                $this->redirect('/admin/roles?saved=1');
+                return;
+            }
+
+            // The permission table, and the "back to the built-in set" of one built-in role.
+            $before = [];
+            foreach (array_merge(PermissionService::CUSTOMIZABLE_ROLES, array_keys($custom)) as $role) {
+                $before[$role] = $this->permissions->capabilitiesForRole($role);
+            }
+            $inForm = is_array($_POST['in_form'] ?? null) ? array_map('strval', $_POST['in_form']) : array_keys($before);
+
             $selected = [];
-            if ((string)($_POST['action'] ?? 'save') === 'reset') {
-                // Back to the built-in set for the chosen role; the others keep what is stored.
-                $resetRole = (string)($_POST['role'] ?? '');
-                foreach (PermissionService::CUSTOMIZABLE_ROLES as $role) {
-                    $selected[$role] = $role === $resetRole ? $this->permissions->defaultsForRole($role) : $before[$role];
+            $newCustom = $custom;
+            if ($action === 'reset') {
+                $selected = $before;
+                if (in_array($key, PermissionService::CUSTOMIZABLE_ROLES, true)) {
+                    $selected[$key] = $this->permissions->defaultsForRole($key);
                 }
             } else {
-                foreach (PermissionService::CUSTOMIZABLE_ROLES as $role) {
+                foreach ($before as $role => $caps) {
+                    // A role that was not on the form (made in another window meanwhile) keeps what it has.
                     $posted = $_POST['caps'][$role] ?? [];
-                    $selected[$role] = is_array($posted) ? array_keys(array_filter($posted, static fn($v): bool => (string)$v === '1')) : [];
+                    $selected[$role] = in_array($role, $inForm, true)
+                        ? (is_array($posted) ? array_keys(array_filter($posted, static fn($v): bool => (string)$v === '1')) : [])
+                        : $caps;
                 }
+            }
+            foreach ($custom as $role => $definition) {
+                $newCustom[$role]['capabilities'] = $this->permissions->normalizeCapabilities($selected[$role] ?? $before[$role]);
             }
 
             $document = $this->permissions->saveable($selected);
             $this->systemMeta->setJson('role_permissions', $document);
+            if ($newCustom !== $custom) {
+                $this->systemMeta->setJson('custom_roles', $newCustom);
+            }
 
-            $after = new PermissionService($document);
-            foreach (PermissionService::CUSTOMIZABLE_ROLES as $role) {
+            $after = new PermissionService($document, $newCustom);
+            foreach ($before as $role => $was) {
                 $now = $after->capabilitiesForRole($role);
-                $added = array_values(array_diff($now, $before[$role]));
-                $removed = array_values(array_diff($before[$role], $now));
+                $added = array_values(array_diff($now, $was));
+                $removed = array_values(array_diff($was, $now));
                 if ($added !== [] || $removed !== []) {
                     $this->logActivity('roles.update', 'warning', 'role', $role, 'Role permissions changed.', [
                         'added' => $added,
@@ -1460,13 +1529,16 @@ final class App
             return;
         }
 
+        $all = $this->permissions->allRoles();
         $columns = [];
-        foreach (PermissionService::CUSTOMIZABLE_ROLES as $role) {
+        foreach (array_merge(PermissionService::CUSTOMIZABLE_ROLES, array_keys($custom)) as $role) {
+            $isCustom = isset($custom[$role]);
             $columns[$role] = [
-                'label' => $roles[$role]['label'],
-                'customized' => $this->permissions->isCustomized($role),
+                'label' => $all[$role]['label'],
+                'custom' => $isCustom,
+                'customized' => !$isCustom && $this->permissions->isCustomized($role),
                 'caps' => $this->permissions->capabilitiesForRole($role),
-                'defaults' => $this->permissions->defaultsForRole($role),
+                'defaults' => $isCustom ? [] : $this->permissions->defaultsForRole($role),
                 'users' => $this->users->countByRole($role),
             ];
         }
@@ -1474,15 +1546,24 @@ final class App
         foreach ($catalogue as $key => $capability) {
             $groups[$capability['group']][$key] = $capability;
         }
+        $mine = [];
+        foreach ($custom as $key => $definition) {
+            $mine[] = $definition + ['key' => $key, 'users_total' => $this->users->countByRole($key, false)];
+        }
 
         $this->render('@admin/roles.twig', [
-            'roles' => $roles,
+            'roles' => $all,
             'columns' => $columns,
             'groups' => $groups,
+            'custom_roles' => $mine,
+            'can_add_role' => count($custom) < PermissionService::MAX_CUSTOM_ROLES,
             'super_caps' => $this->permissions->capabilitiesForRole('superadmin'),
             'locked' => ['admin.access', 'users.self'],
             'saved' => isset($_GET['saved']),
+            'created' => (string)($_GET['created'] ?? ''),
+            'deleted' => isset($_GET['deleted']),
             'error' => (string)($_GET['error'] ?? ''),
+            'error_role' => (string)($_GET['role'] ?? ''),
             'types' => $this->content->getTypes(),
             'user' => $this->auth->user(),
             'admin_section' => 'roles',
@@ -2022,7 +2103,7 @@ final class App
             'status' => trim((string)($_GET['status'] ?? '')),
         ];
         $this->render('@admin/users.twig', [
-            'roles' => PermissionService::roles(),
+            'roles' => $this->permissions->allRoles(),
             'users' => $this->users->all($filters),
             'filters' => $filters,
             'types' => $this->content->getTypes(),
@@ -2647,7 +2728,7 @@ final class App
                 'updated_at' => '',
                 'last_login_at' => '',
             ],
-            'roles' => PermissionService::roles(),
+            'roles' => $this->permissions->allRoles(),
             'is_new' => $id === 0,
             'error' => $error,
             'saved' => $saved,

@@ -60,4 +60,36 @@ check('saveable: change is stored without the ungrantable', $p->saveable(['edito
 check('saveable: superadmin never stored', $p->saveable(['superadmin' => ['content.manage']]), []);
 check('catalogue covers every capability a role has', array_values(array_diff(array_merge(...array_map([$p, 'capabilitiesForRole'], ['superadmin', 'admin', 'editor', 'user'])), array_keys(PermissionService::catalogue()))), []);
 check('junk stored data is ignored', (new PermissionService(['editor' => 'x', 'admin' => null]))->capabilitiesForRole('editor'), $p->defaultsForRole('editor'));
+
+// Roles the super admin made (stored in system_meta as custom_roles).
+$mine = new PermissionService(null, [
+    'photographer' => ['label' => 'Photographer', 'description' => 'Photos only', 'capabilities' => ['media.manage', 'users.manage', 'roles.manage', 'backups.restore', 'nonsense']],
+    'editor' => ['label' => 'Fake editor', 'capabilities' => ['settings.manage']],
+    'Bad Key' => ['label' => 'x', 'capabilities' => ['media.manage']],
+    'a' => ['label' => 'too short', 'capabilities' => []],
+    'translator' => 'not an array',
+    'writer' => ['capabilities' => ['content.manage']],
+]);
+check('custom role: only valid ones are kept', array_keys($mine->customRoles()), ['photographer', 'writer']);
+check('custom role: cannot take the name of a built-in role', $mine->isCustomRole('editor'), false);
+check('custom role: the built-in role is untouched by a clash', $mine->capabilitiesForRole('editor'), $p->capabilitiesForRole('editor'));
+check('custom role: gets what was chosen, plus sign-in and profile', $mine->capabilitiesForRole('photographer'), ['admin.access', 'users.self', 'media.manage']);
+check('custom role: never gets what only the super admin has', [$mine->can($u('photographer'), 'users.manage'), $mine->can($u('photographer'), 'roles.manage'), $mine->can($u('photographer'), 'backups.restore')], [false, false, false]);
+check('custom role: reaches only its own screens', [$mine->canAccessAction($u('photographer'), 'media'), $mine->canAccessAction($u('photographer'), 'content'), $mine->canAccessAction($u('photographer'), 'settings'), $mine->canAccessAction($u('photographer'), 'roles'), $mine->canAccessAction($u('photographer'), 'users')], [true, false, false, false, false]);
+check('custom role: an unnamed role is named from its key', $mine->customRoles()['writer']['label'], 'Writer');
+check('custom role: inactive person denied', $mine->can(['id' => 1, 'role' => 'photographer', 'status' => 'inactive'], 'media.manage'), false);
+check('custom role: listed after the built-in ones', array_keys($mine->allRoles()), ['superadmin', 'admin', 'editor', 'user', 'photographer', 'writer']);
+check('custom role: marked as custom', [$mine->allRoles()['photographer']['custom'], $mine->allRoles()['admin']['custom']], [true, false]);
+check('custom role: an unknown role still has nothing', $mine->capabilitiesForRole('wizard'), []);
+check('custom role: a built-in role can still be customised alongside', (new PermissionService(['editor' => ['media.manage']], ['photographer' => ['capabilities' => []]]))->capabilitiesForRole('editor'), ['admin.access', 'users.self', 'media.manage']);
+check('custom role: more than the limit are ignored', count((new PermissionService(null, array_combine(array_map(fn($n) => "role-$n", range(1, 30)), array_fill(0, 30, ['label' => 'r']))))->customRoles()), PermissionService::MAX_CUSTOM_ROLES);
+check('custom role: junk stored data is ignored', (new PermissionService(null, ['x' => 5, 'photographer' => null]))->customRoles(), []);
+check('key: valid and invalid', array_map([PermissionService::class, 'validCustomKey'], ['photographer', 'a', 'Photographer', 'has space', 'admin', 'editor', 'ok-2', '9lives', str_repeat('a', 31)]), [true, false, false, false, false, false, true, false, false]);
+check('key: from a Greek name', PermissionService::newCustomKey('Φωτογράφος', []), 'fotografos');
+check('key: from an English name', PermissionService::newCustomKey('Junior Editor', []), 'junior-editor');
+check('key: never a built-in name', PermissionService::newCustomKey('Editor', []), 'editor-2');
+check('key: never one that exists', PermissionService::newCustomKey('Writer', ['writer', 'writer-2']), 'writer-3');
+check('key: a name that cannot be converted still gets a key', PermissionService::validCustomKey(PermissionService::newCustomKey('日本語', [])), true);
+check('key: a name starting with a digit', PermissionService::newCustomKey('24h support', []), 'role-24h-support');
+check('key: a very long name is cut', strlen(PermissionService::newCustomKey(str_repeat('abc ', 30), [])) <= 30, true);
 echo $fail === 0 ? "\nALL PASSED\n" : "\n$fail FAILED\n";

@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-09-29 — Roles of your own
+- **Admin > Roles** can now make roles beyond Admin, Editor, and Basic user (a photographer, a translator, an intern): a name, a description, and a starting point (only signing in, or a copy of Basic user, Editor, or Admin). A new role becomes a column in the permission table, where you tick exactly what it may do; it appears in Users for giving to people, with its own badge, and can be renamed. Up to 20 per site
+- The same limits as the built-in roles: signing in and the own profile stay on, and managing users, roles, and restoring backups can never be given. A role cannot be deleted while someone has it. A form that names a role that does not exist gives the person Basic user
+- Permission changes to your own roles are written to the activity log with what was added and removed
+- The permission table now also ignores a role that was created in another window after the page was opened, instead of clearing it
+
 ## 2026-09-29 — Messages take over the action bar
 - On every screen with the bottom action bar, messages (saved, warnings, errors) no longer appear as separate boxes: the bar turns into the message. The buttons slide up and away, the message comes up from below, and the bar takes its colour (green, amber, red) with a thin countdown line. It goes back by itself after three seconds (longer only for a long message); an error stays until it is dismissed (Dismiss or Escape). Several messages show one after another. Screen readers get the message through a live region, and with reduced motion there is no movement. Screens without a bar keep the small box at the bottom right
 

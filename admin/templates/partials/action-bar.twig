@@ -9,9 +9,10 @@
 
   The colours (black bar, white Save, see-through everything else) are in public/assets/css/app.css, so the buttons
   keep the classes the screens give them. It sits to the right of the sidebar on wide screens and across the whole window on small ones. The empty block
-  before it keeps the end of the page from hiding behind it.
+  before it keeps the end of the page from hiding behind it (pass `with {spacer: false}` when more content follows the
+  form, and end the page with a `h-20` block yourself).
 #}
-<div class="col-span-full h-20" aria-hidden="true"></div>
+{% if spacer|default(true) %}<div class="col-span-full h-20" aria-hidden="true"></div>{% endif %}
 <div data-action-bar class="fixed inset-x-0 bottom-0 z-20 lg:left-64">
   <div class="ab-stage">
     <div class="ab-layer ab-content flex flex-wrap items-center justify-between gap-2 px-4 py-3 lg:px-6" role="group" aria-label="Actions" data-action-bar-content>

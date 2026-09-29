@@ -11,11 +11,19 @@ final class UserRepository
 {
     /** @var array<string, string> */
     private array $roles = ['superadmin' => 'superadmin', 'admin' => 'admin', 'editor' => 'editor', 'user' => 'user'];
+    /** @var string[] Roles the super admin made, which a person can also have. */
+    private array $extraRoles = [];
     /** @var array<string, string> */
     private array $statuses = ['active' => 'active', 'inactive' => 'inactive'];
 
     public function __construct(private SystemDatabase $database, private string $usersFile)
     {
+    }
+
+    /** @param string[] $keys the keys of the site's own roles */
+    public function allowRoles(array $keys): void
+    {
+        $this->extraRoles = array_values(array_map('strval', $keys));
     }
 
     public function isAvailable(): bool
@@ -91,9 +99,9 @@ final class UserRepository
     }
 
     /** Active users with a role, to show how many people a permission change reaches. */
-    public function countByRole(string $role): int
+    public function countByRole(string $role, bool $activeOnly = true): int
     {
-        $stmt = $this->pdo()->prepare("SELECT COUNT(*) FROM users WHERE role = :role AND status = 'active'");
+        $stmt = $this->pdo()->prepare('SELECT COUNT(*) FROM users WHERE role = :role' . ($activeOnly ? " AND status = 'active'" : ''));
         $stmt->execute(['role' => $role]);
         return (int)$stmt->fetchColumn();
     }
@@ -277,7 +285,7 @@ final class UserRepository
     private function normalizeRole(string $value): string
     {
         $value = strtolower(trim($value));
-        return $this->roles[$value] ?? '';
+        return $this->roles[$value] ?? (in_array($value, $this->extraRoles, true) ? $value : '');
     }
 
     private function normalizeStatus(string $value): string

@@ -108,7 +108,7 @@
                 </td>
                 <td class="px-4 py-2.5 text-slate-600">{{ account.email ?: '—' }}</td>
                 <td class="px-4 py-2.5">
-                  {{ ui.badge(roles[account.role].label|default(account.role), account.role == 'superadmin' ? 'violet' : (account.role == 'admin' ? 'blue' : (account.role == 'editor' ? 'green' : 'slate'))) }}
+                  {{ ui.badge(roles[account.role].label|default(account.role), account.role == 'superadmin' ? 'violet' : (account.role == 'admin' ? 'blue' : (account.role == 'editor' ? 'green' : (roles[account.role].custom|default(false) ? 'amber' : 'slate')))) }}
                 </td>
                 <td class="px-4 py-2.5">
                   {{ ui.status_badge(account.status) }}
