@@ -2,6 +2,8 @@
 
 FarosCMS has one all-purpose theme, `themes/default`. It grows over time: new blocks, header and footer variants, and page templates are added to it, and every site picks what it needs through settings. Sites are not meant to switch themes.
 
+For step-by-step recipes (a new block, a page template, a brand colour, a content type) and the testing checklist, see [theme-developer-guide.md](theme-developer-guide.md). This page is the reference.
+
 Two rules follow from that:
 
 1. **Updates must never break a site.** The theme is replaced on every update, so anything a site stores or overrides has to keep working with newer theme versions.
@@ -36,6 +38,7 @@ themes/default/
 custom/                   site-specific, never touched by updates
 ├── assets/css/custom.css loaded after the theme CSS when present
 ├── assets/js/custom.js   loaded after the theme JS when present
+├── page-templates.yaml   the site's own page templates (each needs custom/templates/<name>.twig)
 ├── lang/<lang>.yaml      string overrides (written by Admin > Translations)
 ├── blocks/<type>/        new block types, or block.css added after a theme block's styles
 ├── content-types/<type>.yaml  fields and archive settings of a type (written by Admin > Content types)
@@ -212,7 +215,7 @@ Pages and posts choose a template in Admin > Edit > Publish (stored as `template
 - **Landing** (`landing`): no title header; the page is its blocks. Without an opening hero the title is still the (visually hidden) `<h1>`.
 - **With sidebar** (`sidebar`): title header, then the text beside a sticky sidebar with "On this page" contents (from the text's `##` headings, which get ids), the related pages from the main-menu branch the page belongs to, and a card from Theme settings > Sidebar template (text, button, phone and email). Blocks follow below at full width; a Page content block does not repeat the text.
 
-Add a template by creating `templates/<name>.twig` (in the theme or `custom/`) and listing it under `page_templates`.
+Add a template by creating `templates/<name>.twig` and listing it under `page_templates` in the theme manifest. A site adds its own the same way without touching the theme: put `custom/templates/<name>.twig` next to a `custom/page-templates.yaml` (`name: {label: …, description: …}`); both are kept across updates.
 
 ## Ready-made sections
 
@@ -289,6 +292,10 @@ Structured data is one JSON-LD graph per page: `Organization` (with logo and soc
 - Cards and feature items have one link each (the title), stretched over the item.
 - Forms: labels for every control, `aria-describedby` for help and errors, `aria-invalid`, announced status messages, and `autocomplete` hints.
 - Social links render only when set in Theme settings (no `#` placeholders).
+- Submenus open on hover and focus and close with Escape (focus returns to the parent link); overlays (viewers, the mobile menu) return focus to what opened them.
+- Markdown tables are supported and sit in a keyboard-focusable box that scrolls sideways on narrow screens, so no page needs horizontal scrolling at 320 px.
+- Blocks without their own heading give their items `<h2>`, so levels never skip.
+- `scripts/theme-audit.js` checks pages with axe-core (WCAG 2.2 AA), reflow at 320 px, and the contrast of the theme's colour pairs in all palettes; see the developer guide. The showcase page `/blocks`, every content page, and the interactive states (mobile menu, viewers, open FAQ) were checked in light and dark.
 
 ## Server configuration
 

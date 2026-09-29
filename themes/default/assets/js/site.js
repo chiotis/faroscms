@@ -79,6 +79,25 @@
     });
   }
 
+  // Escape closes an open submenu and puts focus back on its parent link (WCAG 1.4.13).
+  menuItems.forEach((item) => {
+    item.addEventListener('keydown', (event) => {
+      const list = item.querySelector(':scope > .nav-list');
+      // The submenu can be shown by hover, focus, or the is-open class; Escape closes it in every case.
+      if (event.key !== 'Escape' || !list || window.getComputedStyle(list).display === 'none') return;
+      item.classList.remove('is-open');
+      item.classList.add('is-dismissed');
+      const parent = item.querySelector(':scope > .nav-link');
+      if (parent && item.contains(document.activeElement)) parent.focus();
+      event.stopPropagation();
+    });
+    const rearm = () => item.classList.remove('is-dismissed');
+    item.addEventListener('mouseleave', rearm);
+    item.addEventListener('focusout', (event) => {
+      if (!item.contains(event.relatedTarget)) rearm();
+    });
+  });
+
   /* Mobile drawer: dialog semantics, focus moves in, stays in, and returns to the opener. */
 
   const openButtons = document.querySelectorAll('[data-mobile-open]');

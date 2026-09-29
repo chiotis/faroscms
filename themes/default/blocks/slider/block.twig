@@ -7,15 +7,16 @@
 {% set label = block.heading ?: t('slider.label', 'Slides') %}
 <div class="container">
   {{ ui.section_header(block, heading_tag, block_uid, 'left') }}
+  {# The block's own section is already the landmark; the slider is a group inside it. #}
   <div class="slider slider-{{ block.variant }} per-{{ block.per_view }}" data-slider{% if autoplay %} data-autoplay="{{ autoplay }}"{% endif %}
-       role="region" aria-roledescription="{{ t('slider.carousel', 'carousel') }}" aria-label="{{ label }}"
+       role="group" aria-roledescription="{{ t('slider.carousel', 'carousel') }}" aria-label="{{ label }}"
        data-label-prev="{{ t('slider.previous', 'Previous slide') }}" data-label-next="{{ t('slider.next', 'Next slide') }}"
        data-label-pause="{{ t('slider.pause', 'Pause automatic movement') }}" data-label-play="{{ t('slider.play', 'Start automatic movement') }}"
        data-label-goto="{{ t('slider.goto', 'Go to slide') }}">
-    <ul class="slider-track" role="list" tabindex="0" aria-label="{{ label }}">
+    <div class="slider-track" role="group" tabindex="0" aria-label="{{ label }}">
       {% for slide in slides %}
         {% set href = link_url(slide.url, prefix) %}
-        <li class="slider-slide{% if not slide.image %} no-image{% endif %}" role="group" aria-roledescription="{{ t('slider.slide', 'slide') }}" aria-label="{{ loop.index }} / {{ total }}">
+        <div class="slider-slide{% if not slide.image %} no-image{% endif %}" role="group" aria-roledescription="{{ t('slider.slide', 'slide') }}" aria-label="{{ loop.index }} / {{ total }}">
           <article class="slide">
             {% if slide.image %}
               <div class="slide-media">{{ image(slide.image, {alt: '', sizes: sizes, max_width: block.variant == 'full' ? 2000 : 1100, loading: loop.first and block_first ? 'eager' : null}) }}</div>
@@ -33,8 +34,8 @@
               {% endif %}
             </div>
           </article>
-        </li>
+        </div>
       {% endfor %}
-    </ul>
+    </div>
   </div>
 </div>

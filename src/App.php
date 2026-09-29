@@ -6,6 +6,7 @@ namespace FarosCMS;
 
 use League\CommonMark\Environment\Environment;
 use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
+use League\CommonMark\Extension\Table\TableExtension;
 use League\CommonMark\MarkdownConverter;
 use Symfony\Component\Yaml\Yaml;
 use Twig\Environment as TwigEnvironment;
@@ -108,8 +109,13 @@ final class App
 
     private function markdownConverter(): MarkdownConverter
     {
-        $environment = new Environment(['renderer' => ['soft_break' => "<br />\n"]]);
+        $environment = new Environment([
+            'renderer' => ['soft_break' => "<br />\n"],
+            // A wide table scrolls inside its own box; tabindex lets keyboard users scroll it.
+            'table' => ['wrap' => ['enabled' => true, 'tag' => 'div', 'attributes' => ['class' => 'table-wrap', 'tabindex' => '0']]],
+        ]);
         $environment->addExtension(new CommonMarkCoreExtension());
+        $environment->addExtension(new TableExtension());
         return new MarkdownConverter($environment);
     }
 

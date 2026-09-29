@@ -156,7 +156,20 @@ final class Theme
     {
         $templates = ['default' => ['label' => 'Standard', 'description' => '']];
         $raw = $this->manifest()['page_templates'] ?? [];
-        foreach (is_array($raw) ? $raw : [] as $key => $template) {
+        $raw = is_array($raw) ? $raw : [];
+        // A site lists its own templates in custom/page-templates.yaml (same shape as the manifest's list).
+        $customFile = $this->customPath() . '/page-templates.yaml';
+        if (is_file($customFile)) {
+            try {
+                $custom = Yaml::parseFile($customFile);
+            } catch (\Throwable) {
+                $custom = null;
+            }
+            if (is_array($custom)) {
+                $raw = array_replace($raw, $custom);
+            }
+        }
+        foreach ($raw as $key => $template) {
             $key = (string)$key;
             if (!preg_match('/^[a-z][a-z0-9-]*$/', $key) || !is_array($template)) {
                 continue;

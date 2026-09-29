@@ -76,7 +76,8 @@ final class BlockRenderer
                 'block_first' => $isFirst,
                 // The hero that opens the page is the page title; everything else is a section.
                 'heading_tag' => $isFirst && $type === 'hero' ? 'h1' : 'h2',
-                'item_heading_tag' => $isFirst && $type === 'hero' ? 'h2' : 'h3',
+                // Items sit one level below their block's heading; a block without a heading has none to sit under.
+                'item_heading_tag' => $isFirst && $type === 'hero' ? 'h2' : (trim((string)($values['heading'] ?? '')) !== '' ? 'h3' : 'h2'),
                 'block_labelled' => trim((string)($values['heading'] ?? '')) !== '',
             ]);
             $types[$type] = true;

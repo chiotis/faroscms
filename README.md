@@ -26,7 +26,7 @@ npm install
 npm run build:css
 ```
 
-See [docs/architecture.md](docs/architecture.md) for the code map and [docs/theming.md](docs/theming.md) for the theme contract. Site-specific CSS, JS, template, and string overrides go in `custom/`, which updates never touch.
+See [docs/architecture.md](docs/architecture.md) for the code map, [docs/theming.md](docs/theming.md) for the theme contract, and [docs/theme-developer-guide.md](docs/theme-developer-guide.md) for how to build on it. Site-specific CSS, JS, template, and string overrides go in `custom/`, which updates never touch.
 
 The imported development admin account is:
 

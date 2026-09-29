@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-09-29 — Demo content, accessibility pass, and developer guide (phase 7)
+- Demo content: Services, Design & Build, Project Management, Careers, and FAQ are built from blocks (pricing, tabs, timeline, FAQ, cards) in Greek and English; Privacy, Terms, and Cookies use the sidebar template with a contents list; posts and projects are full articles and case studies with results, gallery, and a quote; project excerpts describe web work for each client
+- Accessibility (checked with axe-core on every page in light and dark, plus the mobile menu, image and video viewers, and open FAQ): blocks without a heading give their items `<h2>`; contact details are a real list; the slider follows the WAI-ARIA carousel pattern (no duplicate landmark); submenus close with Escape; the sidebar layout no longer widens on phones
+- Markdown tables are supported and scroll in a keyboard-focusable box on narrow screens
+- Sites can add their own page templates in `custom/page-templates.yaml`
+- `docs/theme-developer-guide.md` (recipes, quality checklist, troubleshooting) and `scripts/theme-audit.js` (axe-core scan, 320 px reflow, palette contrast)
+- Theme version 1.7.0
+
 ## 2026-09-29 — Content types with declared fields (phase 6)
 - Content types: definitions in `themes/default/content-types/` (projects and posts ship with one) and `custom/content-types/`, merged per field; fields use the same schema as theme settings and blocks, plus a new `date` type
 - Admin > Content types: create a type, set its title and archive layout, and add, reuse, or retire fields; the site's file records only differences from the theme

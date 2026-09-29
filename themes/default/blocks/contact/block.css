@@ -9,6 +9,8 @@
   display: grid;
   gap: var(--space-m);
   margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 .contact-item {
@@ -22,12 +24,14 @@
 }
 
 .contact-label {
+  display: block;
   color: var(--color-muted);
   font-size: var(--step--1);
   font-weight: 600;
 }
 
 .contact-value {
+  display: block;
   margin: 0.15rem 0 0;
   font-size: var(--step-1);
   line-height: 1.45;

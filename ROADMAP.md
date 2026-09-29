@@ -10,7 +10,7 @@ Direction: one all-purpose theme (`themes/default`) that grows with blocks and v
 - Next candidates: comparison table and before/after blocks, draft preview links, revision history, editor role
 - Style references from the owner can refine the design system at any point (tokens and block CSS)
 - Phase 6 (done): content types with declared fields, an admin screen for them, archive layouts, filters, and pagination
-- Phase 7: demo content rebuilt with blocks, accessibility pass, theme developer guide
+- Phase 7 (done): demo content rebuilt with blocks, accessibility pass with axe-core, theme developer guide and audit script
 - Earlier baseline completed:
   - starter bilingual content + contact form seeded
   - responsive header navigation (desktop + mobile off-canvas + nested levels)

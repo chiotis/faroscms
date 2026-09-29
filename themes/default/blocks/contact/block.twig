@@ -6,18 +6,18 @@
   <div class="contact-info">
     {{ ui.section_header(block, heading_tag, block_uid, block.variant == 'cards' and not has_form ? 'center' : 'left') }}
     {% if details is not empty %}
-      <dl class="contact-list">
+      <ul class="contact-list" role="list">
         {% for detail in details %}
           {% set href = link_url(detail.url, prefix) %}
-          <div class="contact-item">
+          <li class="contact-item">
             {% if detail.icon %}<span class="icon-badge contact-icon">{{ icon(detail.icon) }}</span>{% endif %}
             <div>
-              {% if detail.label %}<dt class="contact-label">{{ detail.label }}</dt>{% endif %}
-              <dd class="contact-value">{% if href %}<a href="{{ href }}">{{ detail.value|nl2br }}</a>{% else %}{{ detail.value|nl2br }}{% endif %}</dd>
+              {% if detail.label %}<span class="contact-label">{{ detail.label }}</span>{% endif %}
+              <span class="contact-value">{% if href %}<a href="{{ href }}">{{ detail.value|nl2br }}</a>{% else %}{{ detail.value|nl2br }}{% endif %}</span>
             </div>
-          </div>
+          </li>
         {% endfor %}
-      </dl>
+      </ul>
     {% endif %}
   </div>
   {% if has_form %}
