@@ -134,8 +134,87 @@
     info:    'border-slate-200 bg-white text-slate-700'
   };
   var TOAST_BARS = { success: 'bg-emerald-400', warning: 'bg-amber-400', info: 'bg-slate-300', error: 'bg-red-400' };
+  /* On a screen with an action bar every message shows in the bar: the bar changes colour, the buttons slide away,
+   * and the message takes their place. Messages queue, so two flashes on one page show one after the other.
+   * Errors stay until dismissed; the rest go back by themselves once there was time to read them. */
+  var BAR_ICONS = {
+    success: '<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>',
+    warning: '<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.3 3.9L2.4 18a2 2 0 001.7 3h15.8a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/>',
+    error: '<path stroke-linecap="round" stroke-linejoin="round" d="M6 6l12 12M18 6L6 18"/>',
+    info: '<path stroke-linecap="round" stroke-linejoin="round" d="M12 8h.01M11 12h1v5h1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>'
+  };
+  var barQueue = [];
+  var barBusy = false;
+
+  function showBarMessage(bar, msg, type) {
+    barQueue.push({ bar: bar, msg: msg, type: type });
+    if (!barBusy) nextBarMessage();
+  }
+
+  function nextBarMessage() {
+    var item = barQueue.shift();
+    if (!item) { barBusy = false; return; }
+    barBusy = true;
+    var bar = item.bar;
+    var content = bar.querySelector('[data-action-bar-content]');
+    var text = bar.querySelector('[data-action-bar-text]');
+    var icon = bar.querySelector('[data-action-bar-icon]');
+    var progress = bar.querySelector('[data-action-bar-progress]');
+    var live = bar.querySelector('[data-action-bar-live]');
+    var dismiss = bar.querySelector('[data-action-bar-dismiss]');
+    var timer = null;
+    var done = false;
+
+    text.textContent = item.msg;
+    icon.innerHTML = '<svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">' + BAR_ICONS[item.type] + '</svg>';
+    ['success', 'warning', 'error', 'info'].forEach(function (t) { bar.classList.remove('tone-' + t); });
+    bar.classList.add('tone-' + item.type);
+    // Screen readers get the message from a live region; the visible layer is hidden from them.
+    live.setAttribute('aria-live', item.type === 'error' ? 'assertive' : 'polite');
+    live.textContent = '';
+    setTimeout(function () { live.textContent = item.msg; }, 50);
+    if (content) content.setAttribute('inert', '');
+    dismiss.removeAttribute('tabindex');
+    bar.classList.add('is-notifying');
+
+    function finish() {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      document.removeEventListener('keydown', onKey);
+      bar.classList.remove('is-notifying');
+      if (content) content.removeAttribute('inert');
+      dismiss.setAttribute('tabindex', '-1');
+      progress.style.transition = 'none';
+      progress.style.width = '0';
+      setTimeout(function () {
+        if (!barQueue.length) bar.classList.remove('tone-' + item.type);
+        nextBarMessage();
+      }, 450);
+    }
+    function onKey(event) { if (event.key === 'Escape') finish(); }
+    dismiss.onclick = finish;
+    document.addEventListener('keydown', onKey);
+
+    if (item.type === 'error') {
+      progress.style.width = '0';
+      dismiss.focus();
+      return;
+    }
+    // Three seconds, longer only when the message is too long to read in that time.
+    var duration = Math.max(3000, 1000 + item.msg.length * 40);
+    progress.style.transition = 'none';
+    progress.style.width = '100%';
+    void progress.offsetWidth;
+    progress.style.transition = 'width ' + duration + 'ms linear';
+    progress.style.width = '0';
+    timer = setTimeout(finish, duration);
+  }
+
   window.adminToast = function (msg, type) {
     type = TOAST_TONES[type] ? type : 'info';
+    var bar = document.querySelector('[data-action-bar]');
+    if (bar) { showBarMessage(bar, String(msg), type); return; }
     var host = document.querySelector('[data-toast-host]');
     if (!host) return;
     var t = document.createElement('div');
