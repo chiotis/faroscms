@@ -98,6 +98,7 @@ final class SystemDatabase
         $this->applyMigration($pdo, '202607060002_users_google_auth', fn(PDO $db) => $this->addGoogleAuthColumns($db));
         $this->applyMigration($pdo, '202609280001_login_attempts', fn(PDO $db) => $this->createLoginAttemptsTable($db));
         $this->applyMigration($pdo, '202609280002_content_index_search', fn(PDO $db) => $this->addContentIndexSearchColumns($db));
+        $this->applyMigration($pdo, '202609290001_redirects', fn(PDO $db) => $this->createRedirectTables($db));
     }
 
     private function addContentIndexSearchColumns(PDO $pdo): void
@@ -112,6 +113,40 @@ final class SystemDatabase
         if (!in_array('search_text', $columns, true)) {
             $pdo->exec('ALTER TABLE content_index ADD COLUMN search_text TEXT');
         }
+    }
+
+    private function createRedirectTables(PDO $pdo): void
+    {
+        // source is the normalised path a visitor asks for (no leading or trailing slash, lower case).
+        $pdo->exec(
+            'CREATE TABLE IF NOT EXISTS redirects (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                source TEXT NOT NULL UNIQUE,
+                target TEXT NOT NULL,
+                status_code INTEGER NOT NULL DEFAULT 301,
+                origin TEXT NOT NULL DEFAULT \'manual\',
+                enabled INTEGER NOT NULL DEFAULT 1,
+                note TEXT,
+                content_type TEXT,
+                hits INTEGER NOT NULL DEFAULT 0,
+                last_hit_at TEXT,
+                created_by TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )'
+        );
+        $pdo->exec('CREATE INDEX IF NOT EXISTS idx_redirects_target ON redirects (target)');
+        // Addresses visitors asked for that do not exist, so they can be fixed with a redirect.
+        $pdo->exec(
+            'CREATE TABLE IF NOT EXISTS not_found_log (
+                path TEXT PRIMARY KEY,
+                hits INTEGER NOT NULL DEFAULT 1,
+                first_seen_at TEXT NOT NULL,
+                last_seen_at TEXT NOT NULL,
+                last_referrer TEXT
+            )'
+        );
+        $pdo->exec('CREATE INDEX IF NOT EXISTS idx_not_found_last_seen ON not_found_log (last_seen_at)');
     }
 
     private function createLoginAttemptsTable(PDO $pdo): void

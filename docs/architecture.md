@@ -20,6 +20,8 @@ Before the application boots, `public/index.php` hands `/_themes/…` and `/_cus
 | `Auth` | Session sign-in (SQLite users, YAML fallback), session rotation, per-request user refresh, shipped-password detection. |
 | `UserRepository` | SQLite users: CRUD, YAML import, superadmin guarantee. |
 | `PermissionService` | Role capabilities (`superadmin`, `admin`, `editor`, `user`), the capability catalogue, the super admin's per-role changes (`system_meta.role_permissions`), and route-to-capability mapping; unmapped routes are administrator-only. |
+| `Slug` | Turns text into a web address: Greek to Latin (ELOT 743 rules), accents dropped, length cap, reserved root words. `admin/templates/edit.twig` has a JavaScript copy for the live preview only; the server decides. |
+| `RedirectRepository` | `redirects` (old path to new path or full address, 301/302, origin, hits) and `not_found_log`; path normalising, validation (no loops, no `javascript:`), following redirects that lead to redirects. Consulted only when a request matches nothing. |
 | `LoginThrottle` | Failed sign-in counting and blocking (`login_attempts`). |
 | `SystemDatabase` | SQLite connection, migrations, and close/reopen for restores. |
 | `SystemMetaRepository` | `system_meta` key/value storage (settings YAML, cached status JSON). |

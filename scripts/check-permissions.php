@@ -25,7 +25,7 @@ $actions = [
     'settings' => [1,1,0,0], 'system' => [1,1,0,0], 'content-types' => [1,1,0,0], 'translations' => [1,1,0,0],
     'activity-logs' => [1,1,0,0], 'email-logs' => [1,1,0,0], 'backups' => [1,1,0,0], 'updates' => [1,1,0,0],
     'notification-read' => [1,1,0,0], 'notifications-read-all' => [1,1,0,0],
-    'users' => [1,0,0,0], 'users-delete' => [1,0,0,0], 'roles' => [1,0,0,0],
+    'users' => [1,0,0,0], 'users-delete' => [1,0,0,0], 'roles' => [1,0,0,0], 'redirects' => [1,1,0,0],
     'users-edit' => [1,1,1,1],
     'some-future-action' => [1,1,0,0],
 ];

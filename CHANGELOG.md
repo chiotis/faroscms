@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-09-29 — Web addresses and redirects
+- New content gets its address from the title, with Greek converted to Latin by the ELOT rules (`ου` → `ou`, `μπ` → `b`, `ευ` → `ev`/`ef`, …); the editor shows it live and nobody types a slug. A title that is already used gets `-2`, and a page cannot take a word the site uses itself (`admin`, `search`, a content type, a language code). Before, saving a new item with a used address silently overwrote the other one
+- Changing an address is a deliberate step ("Change" beside the address): the old address becomes a permanent (301) redirect, the other languages can move with it, menu links follow, and redirects that already pointed at the old address are repointed so nobody goes through a chain. The home page and forms keep their address. Drafts that were never public leave no redirect
+- New screen **Admin > Redirects** (permission `redirects.manage`, admin and super admin by default): every redirect with its visits, whether the target still exists, and whether a page already sits at the old address; add, edit, turn off, delete, bulk add from a list, filter by origin or use. A pasted full address of this site becomes a path
+- **Not found** tab: addresses visitors asked for that do not exist, most asked first, with the referring site and a suggested page; one click makes a redirect. Files and probes (`.php`, `/uploads/`) and POST requests are not recorded, and the list is capped
+- Redirects keep the query string, are case-insensitive, stop after six hops, and treat a loop as Not found. Targets are paths on this site or `http(s)` addresses only
+- `scripts/check-slugs.php` checks the conversion and the redirect store
+
 ## 2026-09-29 — Permissions per role
 - New screen **Admin > Roles** (super admin only): a matrix of every permission against Admin, Editor, and Basic user, with a description and a Sensitive or Critical label on the ones that can expose personal data or change the site itself; switching one of those on asks for confirmation
 - Changes apply on the person's next click, are stored in the system database (`role_permissions`, only for roles that differ from the built-in set), are written to the activity log with what was added and removed, and can be undone per role with "Reset"
