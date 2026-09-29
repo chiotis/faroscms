@@ -8,7 +8,17 @@
   {% set icon_button = 'rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700' %}
   {% set icon_danger = 'rounded-md p-1.5 text-red-500 hover:bg-red-50 hover:text-red-600' %}
 
-  {{ ui.flash(deleted ? 'Deleted.' : '', 'success') }}
+  {% if deleted and deleted_to %}
+    {{ ui.flash('Deleted. Visitors who ask for ' ~ deleted_from ~ ' are sent to ' ~ deleted_to ~ '.', 'success') }}
+  {% else %}
+    {{ ui.flash(deleted ? 'Deleted.' : '', 'success') }}
+  {% endif %}
+  {% if deleted and deleted_gone %}
+    <div class="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900" role="status">
+      Visitors who still ask for <code>{{ deleted_gone }}</code> will see a "not found" page.
+      {% if can_redirects %}<a class="font-semibold underline" href="{{ url('admin/redirects?source=' ~ deleted_gone|url_encode) }}#add">Send them somewhere</a>{% endif %}
+    </div>
+  {% endif %}
   {{ ui.flash(bulk_message, bulk_status == 'ok' ? 'success' : 'error') }}
 
   <header class="mb-4 flex flex-col gap-3 border-b border-slate-200 pb-4 lg:flex-row lg:items-center lg:justify-between">
@@ -163,9 +173,16 @@
                       <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
                     </a>
                     {% if not is_home %}
-                      <button type="submit" form="delete-{{ item.slug }}" class="{{ icon_danger }}" title="Delete {{ item.meta.title ?: item.slug }}" aria-label="Delete {{ item.meta.title ?: item.slug }}">
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V6"/></svg>
-                      </button>
+                      {% if (item.meta.status ?? 'published') == 'published' %}
+                        {# A public entry: the next page asks where its visitors should go. #}
+                        <a class="{{ icon_danger }}" href="{{ url('admin/delete?type=' ~ current_type ~ '&slug=' ~ item.slug ~ '&lang=' ~ item.lang) }}" title="Delete {{ item.meta.title ?: item.slug }}" aria-label="Delete {{ item.meta.title ?: item.slug }}">
+                          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V6"/></svg>
+                        </a>
+                      {% else %}
+                        <button type="submit" form="delete-{{ item.slug }}" class="{{ icon_danger }}" title="Delete {{ item.meta.title ?: item.slug }}" aria-label="Delete {{ item.meta.title ?: item.slug }}">
+                          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V6"/></svg>
+                        </button>
+                      {% endif %}
                     {% endif %}
                   </div>
                 </td>

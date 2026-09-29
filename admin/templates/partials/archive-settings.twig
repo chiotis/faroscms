@@ -29,11 +29,11 @@
       <input type="number" name="archive[per_page]" min="0" max="60" value="{{ archive.per_page }}" class="{{ input_soft }}">
       <span class="text-xs font-normal text-slate-400">0 shows everything on one page.</span>
     </label>
-    <label class="grid gap-1 text-sm font-medium text-slate-700 md:col-span-2">Page title
+    <label class="grid content-start gap-1 text-sm font-medium text-slate-700 md:col-span-2">Page title
       <input type="text" name="archive[title]" value="{{ archive.title }}" placeholder="{{ title_placeholder|default("Default: the theme's text") }}" class="{{ input_soft }}">
       {% if title_hint %}<span class="text-xs font-normal text-slate-400">{{ title_hint }}</span>{% endif %}
     </label>
-    <label class="grid gap-1 text-sm font-medium text-slate-700 md:col-span-2">Subtitle
+    <label class="grid content-start gap-1 text-sm font-medium text-slate-700 md:col-span-2">Subtitle
       <input type="text" name="archive[subtitle]" value="{{ archive.subtitle }}" class="{{ input_soft }}">
     </label>
   </div>

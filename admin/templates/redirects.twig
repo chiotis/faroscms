@@ -154,6 +154,7 @@
                 <th scope="col" class="px-3 py-2 font-medium">Goes to</th>
                 <th scope="col" class="px-3 py-2 font-medium">Type</th>
                 <th scope="col" class="px-3 py-2 font-medium">Visits</th>
+                {% if rows and rows[0].links is not null %}<th scope="col" class="px-3 py-2 font-medium" title="Links inside content that still use the old address">Links</th>{% endif %}
                 <th scope="col" class="px-3 py-2 text-right font-medium">Actions</th>
               </tr>
             </thead>
@@ -181,6 +182,11 @@
                   </td>
                   <td class="px-3 py-2.5 align-top text-slate-600">{{ r.status_code == 301 ? 'Permanent' : 'Temporary' }}</td>
                   <td class="px-3 py-2.5 align-top text-slate-600">{{ r.hits }}{% if r.last_hit_at %}<div class="text-xs text-slate-400">last {{ r.last_hit_at|slice(0, 10) }}</div>{% endif %}</td>
+                  {% if rows[0].links is not null %}
+                    <td class="px-3 py-2.5 align-top text-slate-600">
+                      {% if r.links %}<a class="font-medium text-amber-700 hover:underline" href="{{ url('admin/links?ids=' ~ r.id) }}" title="Review and update the links that still use this address">{{ r.links }} {{ r.links == 1 ? 'link' : 'links' }}</a>{% elseif r.enabled and r.status_code == 301 %}<span class="text-slate-300">none</span>{% endif %}
+                    </td>
+                  {% endif %}
                   <td class="whitespace-nowrap px-3 py-2.5 text-right align-top">
                     <a class="{{ btn_small }} text-blue-600 hover:bg-blue-50" href="{{ url('admin/redirects?edit=' ~ r.id) }}#add">Edit</a>
                     <button type="submit" form="rf{{ r.id }}" name="do" value="toggle" class="{{ btn_small }} text-slate-600 hover:bg-slate-100">{{ r.enabled ? 'Turn off' : 'Turn on' }}</button>

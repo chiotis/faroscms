@@ -1,0 +1,77 @@
+{% extends '@admin/base.twig' %}
+
+{% block content %}
+  {% set btn_primary = 'inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700' %}
+  {% set btn_secondary = 'inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50' %}
+
+  <header class="mb-4 flex flex-col gap-3 border-b border-slate-200 pb-4">
+    <div class="min-w-0">
+      <h1 class="truncate text-[15px] font-semibold leading-tight text-slate-900">Links to old addresses</h1>
+      <p class="text-xs text-slate-400">Texts and blocks that still link to an address that has been changed. They keep working through the redirect, but visitors take a detour, so pointing them at the new address is better.</p>
+    </div>
+    <div class="flex flex-wrap gap-2">
+      <a class="{{ btn_secondary }}" href="{{ url('admin/redirects') }}">All redirects</a>
+    </div>
+  </header>
+
+  {% if done %}
+    <template data-flash data-type="{{ done.failed ? 'warning' : 'success' }}">{{ done.links }} {{ done.links == 1 ? 'link' : 'links' }} updated in {{ done.entries }} {{ done.entries == 1 ? 'entry' : 'entries' }}.{% if done.failed %} {{ done.failed }} could not be written; check that the content folder is writable.{% endif %} Earlier versions are in the history.</template>
+  {% endif %}
+
+  {% if not fixes %}
+    <div class="rounded-lg border border-slate-200 bg-white p-6 text-sm text-slate-600">
+      There is nothing to update here. Only permanent redirects that are turned on can be used to update links.
+    </div>
+  {% else %}
+    <section class="mb-4 rounded-lg border border-slate-200 bg-white p-4">
+      <h2 class="mb-2 text-sm font-semibold text-slate-900">Addresses</h2>
+      <ul class="space-y-1 text-sm text-slate-700">
+        {% for fix in fixes %}
+          <li><code class="rounded bg-slate-100 px-1 py-0.5 text-xs">/{{ fix.source }}</code> <span class="text-slate-400">now goes to</span> <code class="rounded bg-slate-100 px-1 py-0.5 text-xs">{{ fix.target }}</code></li>
+        {% endfor %}
+      </ul>
+      {% if skipped %}<p class="mt-2 text-xs text-slate-400">{{ skipped }} redirect{{ skipped == 1 ? ' was' : 's were' }} left out because {{ skipped == 1 ? 'it is' : 'they are' }} temporary, turned off, or gone.</p>{% endif %}
+    </section>
+
+    {% if entries %}
+      <section class="mb-4 overflow-hidden rounded-lg border border-slate-200 bg-white">
+        <div class="border-b border-slate-200 px-4 py-3">
+          <h2 class="text-sm font-semibold text-slate-900">{{ total }} {{ total == 1 ? 'link' : 'links' }} in {{ entries|length }} {{ entries|length == 1 ? 'entry' : 'entries' }}</h2>
+        </div>
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-slate-100 bg-slate-50/50 text-left text-xs font-medium text-slate-400">
+              <th class="px-4 py-2 font-medium">Entry</th>
+              <th class="px-4 py-2 font-medium">Language</th>
+              <th class="px-4 py-2 font-medium">Links to</th>
+              <th class="px-4 py-2 text-right font-medium"></th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-50">
+            {% for entry in entries %}
+              <tr>
+                <td class="px-4 py-2.5"><span class="font-medium text-slate-900">{{ entry.title }}</span> <span class="ml-1 text-xs text-slate-400">{{ entry.type }}</span></td>
+                <td class="px-4 py-2.5"><span class="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-slate-500">{{ entry.lang }}</span></td>
+                <td class="px-4 py-2.5 text-slate-600">
+                  {% for source, n in entry.by_source %}<code class="mr-1 rounded bg-slate-100 px-1 py-0.5 text-xs">/{{ source }}</code>{% if n > 1 %}<span class="mr-2 text-xs text-slate-400">×{{ n }}</span>{% endif %}{% endfor %}
+                </td>
+                <td class="px-4 py-2.5 text-right"><a class="text-xs font-medium text-blue-700 hover:underline" href="{{ url(entry.edit_url|trim('/')) }}">Open</a></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </section>
+
+      <form method="post" class="flex flex-wrap items-center gap-3">
+        {{ csrf_field() }}
+        <input type="hidden" name="ids" value="{{ ids }}">
+        <button type="submit" class="{{ btn_primary }}" data-confirm="Point {{ total }} {{ total == 1 ? 'link' : 'links' }} in {{ entries|length }} {{ entries|length == 1 ? 'entry' : 'entries' }} at the new {{ fixes|length == 1 ? 'address' : 'addresses' }}? Only the address in the text changes, and the earlier versions stay in the history." data-confirm-button="Update links">Update {{ total }} {{ total == 1 ? 'link' : 'links' }}</button>
+        <p class="text-xs text-slate-400">Menus and theme settings (header button, footer links) are not changed here.</p>
+      </form>
+    {% else %}
+      <div class="rounded-lg border border-slate-200 bg-white p-6 text-sm text-slate-600">
+        No text or block links to {{ fixes|length == 1 ? 'this old address' : 'these old addresses' }} any more.
+      </div>
+    {% endif %}
+  {% endif %}
+{% endblock %}

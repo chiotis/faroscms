@@ -956,6 +956,11 @@ final class App
             return;
         }
 
+        if ($action === 'links') {
+            $this->handleLinks();
+            return;
+        }
+
         if ($action === 'users') {
             $this->handleUsersList();
             return;
@@ -1709,6 +1714,15 @@ final class App
             $row['shadowed'] = $this->publicPathExists((string)$row['source']);
             $rows[] = $row;
         }
+        // Links inside content that still use an old address (only for permanent redirects that are on).
+        $linkCounts = null;
+        if ($this->permissions->can($this->auth->user(), 'content.manage')) {
+            $usable = array_column(array_filter($rows, static fn(array $r): bool => (bool)$r['enabled'] && (int)$r['status_code'] === 301), 'source');
+            $linkCounts = $usable !== [] ? $this->linkScanner()->countBySource($usable) : [];
+        }
+        foreach ($rows as $i => $row) {
+            $rows[$i]['links'] = $linkCounts === null ? null : ($linkCounts[$row['source']] ?? 0);
+        }
 
         $missing = [];
         if ($tab === 'missing') {
@@ -1742,12 +1756,100 @@ final class App
         ]);
     }
 
+    private function linkScanner(): LinkScanner
+    {
+        $hosts = [
+            (string)(parse_url($this->getBaseUrl(), PHP_URL_HOST) ?? ''),
+            explode(':', (string)($_SERVER['HTTP_HOST'] ?? ''))[0],
+        ];
+        return new LinkScanner(
+            $this->contentDir,
+            array_map('strval', $this->settings['languages']['available'] ?? [$this->defaultLanguage()]),
+            $this->defaultLanguage(),
+            $hosts
+        );
+    }
+
+    /**
+     * Where each redirect's old address should now be linked to, for redirects that are permanent and on.
+     *
+     * @param int[] $ids
+     * @return array<string, string> normalised source => target
+     */
+    private function linkFixes(array $ids): array
+    {
+        $map = [];
+        foreach ($ids as $id) {
+            $row = $this->redirects->find($id);
+            if ($row === null || !(bool)$row['enabled'] || (int)$row['status_code'] !== 301) {
+                continue;
+            }
+            // The end of a chain, so a link never goes through two redirects.
+            $resolved = $this->redirects->resolve((string)$row['source']);
+            if ($resolved !== null && $resolved['code'] === 301) {
+                $map[(string)$row['source']] = $resolved['target'];
+            }
+        }
+        return $map;
+    }
+
+    /**
+     * Links inside content that still use an old address. Lists where they are and, on request, points them at the
+     * redirect's target, so visitors no longer take the detour. Only the address in the text changes.
+     */
+    private function handleLinks(): void
+    {
+        $raw = (string)($_POST['ids'] ?? $_GET['ids'] ?? '');
+        $ids = array_values(array_unique(array_filter(array_map('intval', explode(',', $raw)), static fn(int $id): bool => $id > 0)));
+        $map = $this->linkFixes(array_slice($ids, 0, 50));
+        $scanner = $this->linkScanner();
+        $may = fn(string $type): bool => $this->canAccessContentType($type);
+
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && $map !== []) {
+            $result = $this->contentEditor()->updateLinks($scanner, $map, $this->currentUsername(), $may);
+            $this->logActivity('content.links_updated', 'info', 'links', implode(',', array_keys($map)), 'Links to changed addresses updated.', [
+                'entries' => $result['files'],
+                'links' => $result['links'],
+                'addresses' => array_keys($map),
+            ]);
+            $this->redirect('/admin/links?ids=' . implode(',', $ids) . '&done=' . $result['files'] . '-' . $result['links'] . '-' . $result['failed']);
+            return;
+        }
+
+        $entries = [];
+        $total = 0;
+        foreach ($scanner->find(array_keys($map)) as $found) {
+            if (!$may($found['type'])) {
+                continue;
+            }
+            $item = $this->content->find($found['type'], $found['slug'], $found['lang'], true, false);
+            $found['title'] = $item !== null ? (string)($item->meta['title'] ?? $found['slug']) : $found['slug'];
+            $found['edit_url'] = '/admin/edit?type=' . urlencode($found['type']) . '&slug=' . urlencode($found['slug']) . '&lang=' . urlencode($found['lang']);
+            $entries[] = $found;
+            $total += $found['count'];
+        }
+        $done = array_map('intval', explode('-', (string)($_GET['done'] ?? '')) + [0, 0, 0]);
+        $this->render('@admin/links.twig', [
+            'fixes' => array_map(fn(string $source, string $target): array => ['source' => $source, 'target' => $target], array_keys($map), array_values($map)),
+            'skipped' => count($ids) - count($map),
+            'ids' => implode(',', $ids),
+            'entries' => $entries,
+            'total' => $total,
+            'done' => isset($_GET['done']) ? ['entries' => $done[0], 'links' => $done[1], 'failed' => $done[2]] : null,
+            'types' => $this->content->getTypes(),
+            'user' => $this->auth->user(),
+            'admin_section' => 'redirects',
+            'current_type' => 'pages',
+        ]);
+    }
+
     /** Shown for each kind of change in the history screens. */
     private const REVISION_ACTIONS = [
         'create' => 'Created',
         'save' => 'Saved',
         'import' => 'Imported',
         'restore' => 'Restored',
+        'links' => 'Links updated',
         'delete' => 'Deleted',
         'external' => 'Changed outside the editor',
         'baseline' => 'Earlier version',
@@ -2626,6 +2728,10 @@ final class App
             'status_options' => $statusOptions,
             'bulk_status' => (string)($_GET['bulk'] ?? ''),
             'bulk_message' => trim((string)($_GET['bulk_msg'] ?? '')),
+            'deleted_from' => trim((string)($_GET['from'] ?? '')),
+            'deleted_to' => trim((string)($_GET['to'] ?? '')),
+            'deleted_gone' => trim((string)($_GET['gone'] ?? '')),
+            'can_redirects' => $this->permissions->can($this->auth->user(), 'redirects.manage'),
         ]);
     }
 
@@ -2652,6 +2758,7 @@ final class App
         $defaultLang = (string)($this->settings['languages']['default'] ?? 'en');
         $changed = 0;
         $skipped = 0;
+        $publicDeleted = 0;
         foreach ($slugs as $slug) {
             $path = $this->contentDir . '/' . $type . '/' . $this->buildFilename($slug, $lang);
             if (!is_file($path)) {
@@ -2664,9 +2771,14 @@ final class App
                     $skipped++;
                     continue;
                 }
+                $wasPublic = $type !== 'forms' && $this->content->find($type, $slug, $lang, false, false) !== null;
+                // Same as deleting one: the text stays in the history so it can be brought back.
+                $this->revisions->baseline($type, $slug, $lang, $path, $this->currentUsername());
+                $this->revisions->capture($type, $slug, $lang, (string)file_get_contents($path), 'delete', $this->currentUsername());
                 if (@unlink($path)) {
                     $this->unindexContent($type, $slug, $lang);
                     $changed++;
+                    $publicDeleted += $wasPublic ? 1 : 0;
                 }
                 continue;
             }
@@ -2702,6 +2814,10 @@ final class App
             'skipped' => $skipped,
         ]);
         $message = $changed . ' item' . ($changed === 1 ? '' : 's') . ' ' . $verb . '.' . ($skipped > 0 ? ' ' . $skipped . ' skipped.' : '');
+        if ($publicDeleted > 0) {
+            $message .= ' ' . $publicDeleted . ' of them ' . ($publicDeleted === 1 ? 'was' : 'were') . ' public: visitors of ' . ($publicDeleted === 1 ? 'its address' : 'their addresses') . ' will see "not found".'
+                . ($this->permissions->can($this->auth->user(), 'redirects.manage') ? ' Add redirects in Admin > Redirects, or delete them one at a time to choose where visitors go.' : '');
+        }
         $this->redirect($back . '&' . http_build_query(['bulk' => $changed > 0 ? 'ok' : 'fail', 'bulk_msg' => $message]));
     }
 
@@ -2867,6 +2983,7 @@ final class App
             ]), 0, 120);
         }
         $frontUrl = '';
+        $linkFix = null;
         $itemExists = $slug !== '' && is_file($path);
         $homeSlug = $this->settings['home_page'] ?? 'index';
         $defaultLang = $this->settings['languages']['default'] ?? 'en';
@@ -2883,6 +3000,14 @@ final class App
             $frontUrl = $this->buildAbsoluteUrl($publicPath);
             if ($itemExists && $this->permissions->can($this->auth->user(), 'redirects.manage')) {
                 $address['old_addresses'] = $this->redirects->pointingTo($publicPath);
+            }
+            // Just after an address changed: are there links in other content that still use the old one?
+            if ($itemExists && (string)($_GET['address'] ?? '') === 'changed') {
+                $permanent = array_values(array_filter($this->redirects->pointingTo($publicPath), static fn(array $r): bool => (bool)$r['enabled'] && (int)$r['status_code'] === 301));
+                $counts = $permanent !== [] ? $this->linkScanner()->countBySource(array_column($permanent, 'source')) : null;
+                if ($counts !== null && array_sum($counts) > 0) {
+                    $linkFix = ['count' => array_sum($counts), 'ids' => implode(',', array_column($permanent, 'id'))];
+                }
             }
         }
 
@@ -2908,6 +3033,7 @@ final class App
             'notice' => (string)($_GET['notice'] ?? ''),
             'address' => $address,
             'address_changed' => (string)($_GET['address'] ?? '') === 'changed',
+            'link_fix' => $linkFix,
             'restored' => isset($_GET['restored']),
             'history' => $itemExists ? $this->decorateRevisions($this->revisions->forItem($type, $slug, $lang, 8)) : [],
             'history_total' => $itemExists ? $this->revisions->countForItem($type, $slug, $lang) : 0,
@@ -3101,51 +3227,124 @@ final class App
             . ($result['slug_taken'] !== '' ? '&address_taken=' . urlencode($result['slug_taken']) : ''));
     }
 
+    /**
+     * Deleting one entry. A public one goes through a page of its own first, which asks whether visitors of its address
+     * should be sent somewhere (a redirect) instead of finding nothing. A draft, which nobody could have visited, is
+     * deleted straight away after the confirmation in the list.
+     */
     private function handleDelete(): void
     {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            $this->redirect('/admin');
-            return;
-        }
-
-        $type = $this->sanitizeType((string)($_POST['type'] ?? 'pages'));
+        $post = $_SERVER['REQUEST_METHOD'] === 'POST';
+        $source = $post ? $_POST : $_GET;
+        $type = $this->sanitizeType((string)($source['type'] ?? 'pages'));
         if (!$this->canAccessContentType($type)) {
             $this->denyContentType($type);
             return;
         }
-        $slug = $this->slugify((string)($_POST['slug'] ?? ''));
-        $lang = $this->slugify((string)($_POST['lang'] ?? ($this->settings['languages']['default'] ?? 'en')));
-        $defaultLang = $this->settings['languages']['default'] ?? 'en';
+        $slug = $this->slugify((string)($source['slug'] ?? ''));
+        $lang = $this->slugify((string)($source['lang'] ?? ($this->settings['languages']['default'] ?? 'en')));
+        $defaultLang = $this->defaultLanguage();
         $homeSlug = trim((string)($this->settings['home_page'] ?? 'index'));
         if ($homeSlug === '') {
             $homeSlug = 'index';
         }
+        $back = '/admin/content?type=' . urlencode($type) . '&lang=' . urlencode($lang);
 
-        if ($slug === '') {
-            $this->redirect('/admin/content?type=' . urlencode($type) . '&lang=' . urlencode($lang));
-            return;
-        }
-
-        if ($type === 'pages' && $slug === $homeSlug && $lang === $defaultLang) {
-            $this->redirect('/admin/content?type=' . urlencode($type) . '&lang=' . urlencode($lang));
+        if ($slug === '' || ($type === 'pages' && $slug === $homeSlug && $lang === $defaultLang)) {
+            $this->redirect($back);
             return;
         }
 
         $path = $this->contentDir . '/' . $type . '/' . $this->buildFilename($slug, $lang);
-        if (file_exists($path)) {
+        $isPublic = is_file($path) && $type !== 'forms' && $this->content->find($type, $slug, $lang, false, false) !== null;
+        $publicPath = $this->buildContentPath($type, $slug, $lang, $homeSlug, $defaultLang);
+        $mayRedirect = $isPublic && $this->permissions->can($this->auth->user(), 'redirects.manage') && $this->redirects->isAvailable();
+
+        // Where visitors go instead, when the person chose to send them somewhere.
+        $target = '';
+        $error = '';
+        $choice = (string)($_POST['after'] ?? '');
+        if ($post && $mayRedirect && in_array($choice, ['archive', 'home', 'custom'], true)) {
+            $target = match ($choice) {
+                'archive' => $type === 'pages' ? '' : '/' . $this->buildArchivePath($type, $lang, $defaultLang),
+                'home' => '/' . ($lang === $defaultLang ? '' : $lang),
+                default => $this->localizeTarget((string)($_POST['after_target'] ?? '')),
+            };
+            $error = $target === '' ? 'target_empty' : (string)$this->redirects->validate($publicPath, $target, 301);
+            if ($error === '' && !RedirectRepository::isExternal($target) && !$this->publicPathExists(RedirectRepository::normalizePath($target))) {
+                $error = 'target_missing';
+            }
+        }
+
+        if (!$post || $error !== '') {
+            if (!is_file($path)) {
+                $this->redirect($back);
+                return;
+            }
+            $this->renderDeleteConfirm($type, $slug, $lang, $publicPath, $isPublic, $mayRedirect, $error, $choice, (string)($_POST['after_target'] ?? ''));
+            return;
+        }
+
+        $by = $this->currentUsername();
+        if (is_file($path)) {
             // The text is kept in the history so the item can be brought back from Admin > History.
-            $this->revisions->baseline($type, $slug, $lang, $path, $this->currentUsername());
-            $this->revisions->capture($type, $slug, $lang, (string)file_get_contents($path), 'delete', $this->currentUsername());
+            $this->revisions->baseline($type, $slug, $lang, $path, $by);
+            $this->revisions->capture($type, $slug, $lang, (string)file_get_contents($path), 'delete', $by);
             unlink($path);
             $this->unindexContent($type, $slug, $lang);
+            if ($target !== '') {
+                $this->redirects->replacedBy($publicPath, $target, $by, $type);
+            }
             $this->logActivity('content.delete', 'warning', $type, $slug . ':' . $lang, 'Content deleted.', [
                 'type' => $type,
                 'slug' => $slug,
                 'lang' => $lang,
+                'redirect_to' => $target,
             ]);
         }
 
-        $this->redirect('/admin/content?type=' . urlencode($type) . '&lang=' . urlencode($lang) . '&deleted=1');
+        $query = '&deleted=1';
+        if ($target !== '') {
+            $query .= '&from=' . urlencode('/' . $publicPath) . '&to=' . urlencode($target);
+        } elseif ($isPublic) {
+            $query .= '&gone=' . urlencode('/' . $publicPath);
+        }
+        $this->redirect($back . $query);
+    }
+
+    /** The page that asks what should happen to visitors of a public entry that is about to be deleted. */
+    private function renderDeleteConfirm(string $type, string $slug, string $lang, string $publicPath, bool $isPublic, bool $mayRedirect, string $error, string $choice, string $custom): void
+    {
+        $defaultLang = $this->defaultLanguage();
+        $item = $this->content->find($type, $slug, $lang, true, false);
+        $known = $this->contentPathMap();
+        unset($known[$publicPath]);
+        $counts = $this->permissions->can($this->auth->user(), 'content.manage')
+            ? $this->linkScanner()->countBySource([RedirectRepository::normalizePath($publicPath)])
+            : null;
+        $siblings = array_column($this->translationSiblings($type, $slug, $lang), 'lang');
+        $this->render('@admin/delete.twig', [
+            'type' => $type,
+            'slug' => $slug,
+            'lang' => $lang,
+            'entry_title' => $item !== null ? (string)($item->meta['title'] ?? $slug) : $slug,
+            'public_path' => '/' . $publicPath,
+            'is_public' => $isPublic,
+            'may_redirect' => $mayRedirect,
+            'archive_path' => $type === 'pages' ? '' : '/' . $this->buildArchivePath($type, $lang, $defaultLang),
+            'archive_label' => $this->contentTypes()->definition($type, 'en', $defaultLang)['label'],
+            'home_path' => '/' . ($lang === $defaultLang ? '' : $lang),
+            'known_paths' => array_slice($known, 0, 500, true),
+            'links' => $counts !== null ? array_sum($counts) : null,
+            'siblings' => $siblings,
+            'choice' => $choice !== '' ? $choice : ($type === 'pages' ? 'none' : 'archive'),
+            'custom_target' => $custom,
+            'error' => $error,
+            'types' => $this->content->getTypes(),
+            'user' => $this->auth->user(),
+            'admin_section' => 'content',
+            'current_type' => $type,
+        ]);
     }
 
     private function handleNew(): void

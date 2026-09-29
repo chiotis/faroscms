@@ -4,7 +4,7 @@
 #   tests/run.sh            everything
 #   tests/run.sh unit       the PHP checks only (fast, no server)
 #   tests/run.sh http       the browser-level tests only
-#   tests/run.sh redirects  one HTTP test by name (editor, roles, import, redirects, save, history, taxonomies)
+#   tests/run.sh redirects  one HTTP test by name (editor, roles, import, redirects, save, history, taxonomies, links, delete)
 #
 # The HTTP tests never touch your site: they run against a temporary copy of the code with the small
 # content set in tests/fixtures, on a free local port, and remove it afterwards. They need PHP and Python 3
@@ -31,7 +31,7 @@ report() { # name output
 
 run_unit() {
   echo "Unit checks"
-  for spec in "blocks:tests/unit/blocks.php" "content-types:tests/unit/content-types.php" "revisions:tests/unit/revisions.php" "taxonomies:tests/unit/taxonomies.php" "permissions:scripts/check-permissions.php" "slugs-and-redirects:scripts/check-slugs.php" "content-blocks:scripts/check-blocks.php"; do
+  for spec in "blocks:tests/unit/blocks.php" "content-types:tests/unit/content-types.php" "revisions:tests/unit/revisions.php" "taxonomies:tests/unit/taxonomies.php" "links:tests/unit/links.php" "permissions:scripts/check-permissions.php" "slugs-and-redirects:scripts/check-slugs.php" "content-blocks:scripts/check-blocks.php"; do
     local name="${spec%%:*}" file="${spec#*:}" out
     out=$(cd "$ROOT" && php "$file" 2>&1)
     if [ "$name" = "content-blocks" ]; then
@@ -66,7 +66,7 @@ PYCOPY
   for _ in $(seq 1 50); do curl -s -o /dev/null "http://127.0.0.1:$port/" && break; sleep 0.1; done
 
   echo "HTTP tests (temporary copy on port $port)"
-  for name in editor roles import redirects save history taxonomies; do
+  for name in editor roles import redirects save history taxonomies links delete; do
     [ -n "$only" ] && [ "$only" != "$name" ] && continue
     # Every test starts from the same clean site.
     rm -rf "$work/app/content" "$work/app/storage" "$work/app/custom" "$work/app/public/uploads"
@@ -86,7 +86,7 @@ case "$MODE" in
   all) run_unit; echo; run_http ;;
   unit) run_unit ;;
   http) run_http ;;
-  editor|roles|import|redirects|save|history|taxonomies) run_http "$MODE" ;;
+  editor|roles|import|redirects|save|history|taxonomies|links|delete) run_http "$MODE" ;;
   *) echo "Unknown option: $MODE"; exit 2 ;;
 esac
 

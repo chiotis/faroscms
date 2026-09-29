@@ -282,6 +282,30 @@ final class RedirectRepository
         $this->create($from, $newTarget, 301, 'auto', 'Address changed', $by, $contentType);
     }
 
+    /**
+     * An entry was deleted and its visitors are sent somewhere else. Like moved(), but the target can be anywhere on
+     * this site or on another one. Redirects that led to the deleted address are pointed at the new place, so nobody
+     * goes through a chain.
+     */
+    public function replacedBy(string $from, string $target, string $by, ?string $contentType = null): void
+    {
+        $from = self::normalizePath($from);
+        if (!$this->isAvailable() || $from === '' || trim($target) === '') {
+            return;
+        }
+        $target = self::canonicalTarget($target);
+        $this->pdo()->prepare('UPDATE redirects SET target = :new, updated_at = :now WHERE target = :old AND source <> :from')
+            ->execute(['new' => $target, 'now' => gmdate('c'), 'old' => '/' . $from, 'from' => $from]);
+
+        $existing = $this->findBySource($from, false);
+        if ($existing !== null) {
+            $this->pdo()->prepare('UPDATE redirects SET target = :target, origin = \'auto\', status_code = 301, enabled = 1, content_type = :type, note = \'Deleted\', updated_at = :now WHERE id = :id')
+                ->execute(['target' => $target, 'type' => $contentType, 'now' => gmdate('c'), 'id' => $existing['id']]);
+            return;
+        }
+        $this->create($from, $target, 301, 'auto', 'Deleted', $by, $contentType);
+    }
+
     /** Content now lives at $path, so a redirect away from it would never be used and only confuse. */
     public function removeSource(string $path): void
     {

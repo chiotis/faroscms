@@ -24,6 +24,12 @@
   {% if address_changed %}
     <template data-flash data-type="success">Address changed. The old address now leads here.</template>
   {% endif %}
+  {% if link_fix %}
+    <div class="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900" role="status">
+      <span>{{ link_fix.count }} {{ link_fix.count == 1 ? 'link' : 'links' }} in other content still {{ link_fix.count == 1 ? 'uses' : 'use' }} the old address. {{ link_fix.count == 1 ? 'It works' : 'They work' }} through the redirect, but pointing {{ link_fix.count == 1 ? 'it' : 'them' }} at the new address is better.</span>
+      <a class="font-semibold text-amber-900 underline" href="{{ url('admin/links?ids=' ~ link_fix.ids) }}">Review and update</a>
+    </div>
+  {% endif %}
   {% if address_taken %}
     <template data-flash data-type="warning">The address "{{ address_taken }}" is already used or reserved, so "{{ slug }}" was used instead.</template>
   {% endif %}
@@ -55,7 +61,12 @@
           </a>
         {% endif %}
         {% if slug and not is_home %}
-          <button type="submit" class="{{ danger_button_class }}" formaction="{{ url('admin/delete') }}" formmethod="post" data-confirm="Delete this item?" data-confirm-button="Delete">Delete</button>
+          {% if address.exists and type != 'forms' and meta_form.status == 'published' %}
+            {# A public entry: the next page asks where its visitors should go. #}
+            <a class="{{ danger_button_class }}" href="{{ url('admin/delete?type=' ~ type ~ '&slug=' ~ slug ~ '&lang=' ~ lang) }}">Delete</a>
+          {% else %}
+            <button type="submit" class="{{ danger_button_class }}" formaction="{{ url('admin/delete') }}" formmethod="post" data-confirm="Delete this item?" data-confirm-button="Delete">Delete</button>
+          {% endif %}
         {% endif %}
         <button type="submit" class="{{ primary_button_class }}">
           <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
