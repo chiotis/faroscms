@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-09-29 — System in the account menu
+- **System** (health checks, scheduled tasks, environment) moved out of the sidebar into the account menu at the top right, under Settings. It only shows information, so it no longer takes a place among the things you work with
+
 ## 2026-09-29 — Roles of your own
 - **Admin > Roles** can now make roles beyond Admin, Editor, and Basic user (a photographer, a translator, an intern): a name, a description, and a starting point (only signing in, or a copy of Basic user, Editor, or Admin). A new role becomes a column in the permission table, where you tick exactly what it may do; it appears in Users for giving to people, with its own badge, and can be renamed. Up to 20 per site
 - The same limits as the built-in roles: signing in and the own profile stay on, and managing users, roles, and restoring backups can never be given. A role cannot be deleted while someone has it. A form that names a role that does not exist gives the person Basic user

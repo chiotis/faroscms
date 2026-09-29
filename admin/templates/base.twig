@@ -148,12 +148,6 @@
           </a>
         {% endif %}
         {% if can('settings.manage') %}
-          <a href="{{ url('admin/system') }}" class="{{ nav_base }} {{ section == 'system' ? nav_active : nav_idle }}">
-            <svg class="h-4 w-4 {{ section == 'system' ? 'text-white/80' : 'text-slate-400 group-hover:text-slate-600' }}" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 3v2m6-2v2M9 19v2m6-2v2M3 9h2m-2 6h2m14-6h2m-2 6h2M7 5h10a2 2 0 012 2v10a2 2 0 01-2 2H7a2 2 0 01-2-2V7a2 2 0 012-2zm3 5h4v4h-4z"/></svg>
-            System
-          </a>
-        {% endif %}
-        {% if can('settings.manage') %}
           <a href="{{ url('admin/content-types') }}" class="{{ nav_base }} {{ section == 'content-types' ? nav_active : nav_idle }}">
             <svg class="h-4 w-4 {{ section == 'content-types' ? 'text-white/80' : 'text-slate-400 group-hover:text-slate-600' }}" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3 3 8l9 5 9-5-9-5zM3 13l9 5 9-5M3 17.5l9 5 9-5"/></svg>
             Content types
@@ -302,6 +296,7 @@
               <a href="{{ url('admin/users-edit?id=' ~ current_user.id|default(0)) }}" class="block px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50">Your profile</a>
               {% if can('settings.manage') %}
                 <a href="{{ url('admin/settings') }}" class="block px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50">Settings</a>
+                <a href="{{ url('admin/system') }}" class="block px-3 py-1.5 text-sm hover:bg-slate-50 {{ section == 'system' ? 'font-medium text-slate-900' : 'text-slate-600' }}"{% if section == 'system' %} aria-current="page"{% endif %}>System</a>
               {% endif %}
               <div class="my-1 border-t border-slate-100"></div>
               <form method="post" action="{{ url('admin/logout') }}">
