@@ -206,6 +206,7 @@
 }
 
 .hero-step {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);
@@ -234,4 +235,41 @@
   margin: 0;
   color: var(--color-muted);
   font-size: var(--step-0);
+}
+
+/* A step with a link: the title link covers the whole step, as in Features. */
+.hero-step-title a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.hero-step-title a::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+.hero-step-title a:focus-visible {
+  outline: none;
+}
+
+.hero-step.has-link:focus-within {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 4px;
+}
+
+.hero-step-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: auto;
+  padding-top: var(--space-2xs);
+  color: var(--accent);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.hero-step.has-link:hover .btn-icon {
+  transform: translateX(3px);
 }

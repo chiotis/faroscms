@@ -55,11 +55,15 @@ hs = re.search(r'<section[^>]*block-hero[^>]*block--steps.*?</section>', html, r
 check('the steps hero renders', hs is not None)
 h = hs.group(0) if hs else ''
 check('it has the cover image behind', 'hero-cover-media' in h)
-check('the steps are an ordered list of four', h.count('class="hero-step"') == 4 and '<ol class="hero-steps"' in h, h.count('class="hero-step"'))
+check('the steps are an ordered list of four', h.count('<li class="hero-step') == 4 and '<ol class="hero-steps"' in h, h.count('<li class="hero-step'))
 check('they are numbered', all(n in h for n in ('>01<', '>02<', '>03<', '>04<')))
 check('numbers are hidden from screen readers', h.count('hero-step-number" aria-hidden="true"') == 4)
 check('titles are headings and texts are paragraphs', h.count('hero-step-title') == 4 and h.count('hero-step-text') == 4)
 check('the buttons stay', 'Ξεκινήστε ένα έργο' in h)
+check('a step can link, and only those with a link do', h.count('hero-step has-link') == 2 and h.count('class="hero-step"') == 2, (h.count('hero-step has-link'), h.count('class="hero-step"')))
+check('the title is the link', '<a href="/services">Ανάλυση</a>' in h and '<a href="/contact">Παράδοση</a>' in h)
+check('the link text is shown as a hint, hidden from screen readers', 'hero-step-more" aria-hidden="true">Οι υπηρεσίες μας' in h)
+check('a link without its own text gets the default', 'hero-step-more" aria-hidden="true">Μάθετε περισσότερα' in h or 'hero-step-more" aria-hidden="true">Learn more' in h, re.findall(r'hero-step-more[^>]*>[^<]*', h))
 check('it is not the page title unless it opens the page', '<h1' not in h)
 
 # ---- the editor offers both blocks

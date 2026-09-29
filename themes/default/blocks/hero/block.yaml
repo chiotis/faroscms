@@ -42,6 +42,8 @@ fields:
     fields:
       title: { type: text, label: Title }
       text: { type: textarea, label: Text }
+      link: { type: link, label: Link }
+      link_label: { type: text, label: Link text, placeholder: Learn more }
   image:
     type: image
     label: Image

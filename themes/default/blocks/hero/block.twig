@@ -28,10 +28,16 @@
   {% if variant == 'steps' and steps is not empty %}
     <ol class="hero-steps" role="list">
       {% for step in steps %}
-        <li class="hero-step">
+        {% set href = link_url(step.link|default(''), lang_prefix|default('')) %}
+        <li class="hero-step{% if href %} has-link{% endif %}">
           <span class="hero-step-number" aria-hidden="true">{{ '%02d'|format(loop.index) }}</span>
-          {% if step.title %}<{{ item_heading_tag }} class="hero-step-title">{{ step.title }}</{{ item_heading_tag }}>{% endif %}
+          {% if step.title %}
+            <{{ item_heading_tag }} class="hero-step-title">{% if href %}<a href="{{ href }}">{{ step.title }}</a>{% else %}{{ step.title }}{% endif %}</{{ item_heading_tag }}>
+          {% elseif href %}
+            <a class="hero-step-title" href="{{ href }}">{{ step.link_label ?: t('blocks.learn_more', 'Learn more') }}</a>
+          {% endif %}
           {% if step.text %}<p class="hero-step-text">{{ step.text|nl2br }}</p>{% endif %}
+          {% if href %}<span class="hero-step-more" aria-hidden="true">{{ step.link_label ?: t('blocks.learn_more', 'Learn more') }}{{ icon('arrow-right', 'btn-icon') }}</span>{% endif %}
         </li>
       {% endfor %}
     </ol>
