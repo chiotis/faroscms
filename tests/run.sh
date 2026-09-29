@@ -49,7 +49,16 @@ run_http() {
   local work port pid
   work="$(mktemp -d)"
   mkdir -p "$work/app"
-  (cd "$ROOT" && tar cf - --exclude=.git --exclude=node_modules --exclude=./storage --exclude=./custom --exclude=./content --exclude=./tests --exclude=./public/uploads .) | tar xf - -C "$work/app"
+  # Copy the code but not the site itself (content, storage, custom, uploads) or the tests.
+  python3 - "$ROOT" "$work/app" <<'PYCOPY'
+import os, shutil, sys
+root, dst = sys.argv[1:3]
+def ignore(directory, names):
+    rel = os.path.relpath(directory, root)
+    skip = {'.git', 'node_modules', 'storage', 'custom', 'content', 'tests'} if rel == '.' else ({'uploads'} if rel == 'public' else set())
+    return [n for n in names if n in skip]
+shutil.copytree(root, dst, ignore=ignore, dirs_exist_ok=True)
+PYCOPY
   port="$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); print(s.getsockname()[1])')"
   (cd "$work/app" && exec php -S "127.0.0.1:$port" -t public public/index.php >"$work/server.log" 2>&1) &
   pid=$!

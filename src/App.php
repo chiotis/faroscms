@@ -31,6 +31,7 @@ final class App
     private PermissionService $permissions;
     private RedirectRepository $redirects;
     private ?HtmlGuard $htmlGuard = null;
+    private ?ContentEditor $contentEditor = null;
     private ActivityLogRepository $activityLogs;
     private EmailLogRepository $emailLogs;
     private NotificationRepository $notifications;
@@ -112,6 +113,22 @@ final class App
         $this->sendSecurityHeaders(false);
 
         $this->handleFront($path);
+    }
+
+    private function contentEditor(): ContentEditor
+    {
+        return $this->contentEditor ??= new ContentEditor(
+            $this->contentDir,
+            $this->settings,
+            $this->content,
+            $this->contentIndex,
+            $this->contentTypes(),
+            $this->theme,
+            $this->redirects,
+            $this->htmlGuard(),
+            fn(): BlockRegistry => $this->blockRegistry(),
+            fn(): array => $this->listTaxonomyNames()
+        );
     }
 
     private function htmlGuard(): HtmlGuard
@@ -2831,21 +2848,6 @@ final class App
         echo json_encode(['ok' => false, 'message' => 'Unknown action.']);
     }
 
-    /** Blocks stored in an existing content file, used when the editor did not submit any. */
-    private function storedBlocks(string $path): ?array
-    {
-        if ($path === '' || !is_file($path)) {
-            return null;
-        }
-        [$frontmatter] = $this->splitFrontMatter((string)file_get_contents($path));
-        try {
-            $meta = $frontmatter !== '' ? Yaml::parse($frontmatter) : [];
-        } catch (\Throwable) {
-            return null;
-        }
-        return is_array($meta) && is_array($meta['blocks'] ?? null) ? $meta['blocks'] : null;
-    }
-
     private function handleSave(): void
     {
         $type = $this->sanitizeType((string)($_POST['type'] ?? 'pages'));
@@ -2853,42 +2855,10 @@ final class App
             $this->denyContentType($type);
             return;
         }
-        $postedSlug = $this->slugify((string)($_POST['slug'] ?? ''));
-        $slug = $postedSlug;
-        $lang = $this->slugify((string)($_POST['lang'] ?? ($this->settings['languages']['default'] ?? 'en')));
-        $frontmatter = trim((string)($_POST['frontmatter'] ?? ''));
-        $body = rtrim((string)($_POST['body'] ?? ''));
-        $title = trim((string)($_POST['title'] ?? ''));
-        $status = trim((string)($_POST['status'] ?? 'published'));
-        $visible = isset($_POST['visible']) && (string)($_POST['visible']) === '1';
-        $date = trim((string)($_POST['date'] ?? ''));
-        $author = trim((string)($_POST['author'] ?? ''));
-        $excerpt = trim((string)($_POST['excerpt'] ?? ''));
-        $seoTitle = trim((string)($_POST['seo_title'] ?? ''));
-        $seoDescription = trim((string)($_POST['seo_description'] ?? ''));
-        $seoCanonical = trim((string)($_POST['seo_canonical'] ?? ''));
-        $seoOgTitle = trim((string)($_POST['seo_og_title'] ?? ''));
-        $seoOgDescription = trim((string)($_POST['seo_og_description'] ?? ''));
-        $seoOgImage = trim((string)($_POST['seo_og_image'] ?? ''));
-        $seoNoindex = isset($_POST['seo_noindex']) && (string)($_POST['seo_noindex']) === '1';
-        $mainImage = trim((string)($_POST['main_image'] ?? ''));
-        $taxonomyTermsInput = $_POST['taxonomy_terms'] ?? [];
-        $customKeys = $_POST['custom_keys'] ?? [];
-        $customValues = $_POST['custom_values'] ?? [];
-        $formFieldsInput = $_POST['form_fields'] ?? [];
-        $formNotificationsInput = $_POST['form_notifications'] ?? [];
-        $formStoreSubmissions = isset($_POST['form_store_submissions']) && (string)($_POST['form_store_submissions']) === '1';
-        $formSubmitLabel = trim((string)($_POST['form_submit_label'] ?? ''));
-        $formSuccessMessage = trim((string)($_POST['form_success_message'] ?? ''));
-        $formRedirectUrl = trim((string)($_POST['form_redirect_url'] ?? ''));
-        $formHoneypot = trim((string)($_POST['form_honeypot'] ?? ''));
-        $formRateLimit = trim((string)($_POST['form_rate_limit_seconds'] ?? ''));
-        $translationId = trim((string)($_POST['translation_id'] ?? ''));
-        $originalSlug = $this->slugify((string)($_POST['original_slug'] ?? ''));
-        $originalLang = $this->slugify((string)($_POST['original_lang'] ?? ''));
 
-        $mainImageUploadRaw = $_FILES['main_image_upload'] ?? null;
-        $mainImageUploads = $this->media->normalizeUploads($mainImageUploadRaw);
+        // A main image uploaded with the form replaces the address typed in the field.
+        $uploadedImage = null;
+        $mainImageUploads = $this->media->normalizeUploads($_FILES['main_image_upload'] ?? null);
         if ($mainImageUploads !== []) {
             $upload = $mainImageUploads[0];
             $uploadError = (int)($upload['error'] ?? UPLOAD_ERR_NO_FILE);
@@ -2897,7 +2867,7 @@ final class App
                     $this->media->ensureDirectories();
                     $uploaded = $this->media->upload($upload, '', $this->currentUsername(), $this->maxUploadBytes());
                     if ((string)($uploaded['kind'] ?? '') === 'image') {
-                        $mainImage = (string)($uploaded['direct_url'] ?? $mainImage);
+                        $uploadedImage = isset($uploaded['direct_url']) ? (string)$uploaded['direct_url'] : null;
                     } else {
                         $uploadedId = (string)($uploaded['id'] ?? '');
                         if ($uploadedId !== '') {
@@ -2910,378 +2880,35 @@ final class App
             }
         }
 
-        $dir = $this->contentDir . '/' . $type;
-        if (!is_dir($dir)) {
-            mkdir($dir, 0775, true);
+        $result = $this->contentEditor()->save(
+            $type,
+            $_POST,
+            $uploadedImage,
+            $this->permissions->can($this->auth->user(), 'content.raw_html'),
+            $this->currentUsername()
+        );
+        $slug = $result['slug'];
+        $lang = $result['lang'];
+
+        if ($result['moved'] && $result['moved_together']) {
+            // Menu links follow a page whose address changed in every language.
+            $old = $result['original_slug'];
+            $this->relinkMenus($type === 'pages' ? $old : $type . '/' . $old, $type === 'pages' ? $slug : $type . '/' . $slug);
         }
 
-        $oldPath = '';
-        if ($originalSlug !== '' && $originalLang !== '') {
-            $oldPath = $dir . '/' . $this->buildFilename($originalSlug, $originalLang);
-        }
-        $sourceExists = $oldPath !== '' && is_file($oldPath);
-        $defaultLang = (string)($this->settings['languages']['default'] ?? 'en');
-        $homeSlug = (string)(($this->settings['home_page'] ?? '') !== '' ? $this->settings['home_page'] : 'index');
-
-        // The web address. New content gets it from the title (Greek is converted to Latin letters); a translation
-        // being created keeps the address it inherits; an existing item keeps its address unless it was changed on purpose.
-        $slugTaken = '';
-        if ($sourceExists) {
-            $isHome = $type === 'pages' && $originalSlug === $homeSlug && $originalLang === $defaultLang;
-            if ($postedSlug === '' || $postedSlug === $originalSlug || $type === 'forms' || $isHome) {
-                $slug = $originalSlug;
-            } else {
-                $slug = Slug::fromText((string)($_POST['slug'] ?? ''));
-                $slug = $slug !== '' ? $slug : $originalSlug;
-            }
-        } elseif ($postedSlug === '') {
-            $slug = Slug::fromText($title);
-            if ($slug === '') {
-                $slug = $this->slugify(rtrim($type, 's')) . '-' . date('Ymd-His');
-            }
-        }
-        $requestedSlug = $slug;
-        if (!$sourceExists || $slug !== $originalSlug || $lang !== $originalLang) {
-            $slug = $this->availableSlug($type, $slug, $lang, $sourceExists ? $oldPath : '');
-            $slugTaken = $slug !== $requestedSlug ? $requestedSlug : '';
-        }
-
-        $path = $dir . '/' . $this->buildFilename($slug, $lang);
-        $wasExisting = file_exists($path);
-        $moved = $sourceExists && $oldPath !== $path;
-        $oldStatus = $moved ? $this->storedStatus($oldPath) : '';
-        $siblings = $moved && $slug !== $originalSlug ? $this->translationSiblings($type, $originalSlug, $originalLang) : [];
-        $data = [];
-        if ($frontmatter !== '') {
-            $parsed = Yaml::parse($frontmatter) ?: [];
-            if (is_array($parsed)) {
-                $data = $parsed;
-            }
-        }
-
-        $blocksFromRawYaml = array_key_exists('blocks', $data);
-        if ($type !== 'forms') {
-            $editorBlocks = ($_POST['blocks_editor'] ?? '') === '1'
-                ? json_decode((string)($_POST['blocks_json'] ?? ''), true)
-                : null;
-            if (is_array($editorBlocks)) {
-                $blocks = $this->blockRegistry()->sanitizeForStorage(array_values($editorBlocks));
-                if ($blocks === []) {
-                    unset($data['blocks']);
-                } else {
-                    $data['blocks'] = $blocks;
-                }
-            } elseif (!array_key_exists('blocks', $data)) {
-                // No editor data (script not loaded): keep the blocks the file already has.
-                $existing = $this->storedBlocks($oldPath !== '' && is_file($oldPath) ? $oldPath : $path);
-                if ($existing !== null) {
-                    $data['blocks'] = $existing;
-                }
-            }
-        }
-
-        // Raw HTML can carry script, so it is a privilege of administrators. Anyone else writes Markdown: HTML they
-        // type is shown as text, while HTML already in the content (put there by an administrator) stays.
-        $htmlNeutralized = false;
-        if ($type !== 'forms' && !$this->permissions->can($this->auth->user(), 'content.raw_html')) {
-            $allowedHtml = $this->storedHtmlFragments($oldPath !== '' && is_file($oldPath) ? $oldPath : $path);
-            $plainBody = str_replace(["\r\n", "\r"], "\n", $body);
-            $body = $this->neutralizeRawHtml($body, $allowedHtml);
-            $htmlNeutralized = $body !== $plainBody;
-            if (isset($data['blocks']) && is_array($data['blocks'])) {
-                if ($blocksFromRawYaml && !is_array($editorBlocks ?? null)) {
-                    // Blocks typed into the raw front matter get the same checks as blocks from the editor.
-                    $data['blocks'] = $this->blockRegistry()->sanitizeForStorage(array_values($data['blocks']));
-                }
-                $data['blocks'] = $this->eachMarkdownField(array_values($data['blocks']), function (string $value) use ($allowedHtml, &$htmlNeutralized): string {
-                    $clean = $this->neutralizeRawHtml($value, $allowedHtml);
-                    $htmlNeutralized = $htmlNeutralized || $clean !== str_replace(["\r\n", "\r"], "\n", $value);
-                    return $clean;
-                });
-            }
-        }
-
-        $data['title'] = $title !== '' ? $title : $this->titleFromSlug($slug);
-        $data['status'] = $status !== '' ? $status : 'published';
-        $data['visible'] = $visible;
-
-        if ($date !== '') {
-            $data['date'] = $this->normalizeDateForStorage($date);
-        } else {
-            unset($data['date']);
-        }
-
-        if ($author !== '') {
-            $data['author'] = $author;
-        } else {
-            unset($data['author']);
-        }
-
-        if ($excerpt !== '') {
-            $data['excerpt'] = $excerpt;
-        } else {
-            unset($data['excerpt']);
-        }
-        unset($data['summary']);
-
-        if ($type !== 'forms' && array_key_exists('template', $_POST)) {
-            // Only templates the theme offers; "default" (or empty) means the normal hierarchy.
-            // An unknown value (e.g. a custom template file set by hand) is left as the front matter has it.
-            $template = trim((string)$_POST['template']);
-            if ($template === '' || $template === 'default') {
-                unset($data['template']);
-            } elseif (isset($this->theme->pageTemplates()[$template])) {
-                $data['template'] = $template;
-            }
-        }
-
-        if ($translationId === '') {
-            $translationId = $this->findTranslationIdBySlug($type, $slug);
-        }
-        if ($translationId === '') {
-            $translationId = $this->generateTranslationId();
-        }
-        $data['translation_id'] = $translationId;
-
-        $taxonomyTermsInput = is_array($taxonomyTermsInput) ? $taxonomyTermsInput : [];
-        $taxonomyNames = $this->listTaxonomyNames();
-        if ($type !== 'pages' && $type !== 'forms') {
-            foreach ($taxonomyNames as $taxonomyName) {
-                $selectedRaw = $taxonomyTermsInput[$taxonomyName] ?? [];
-                $selectedRaw = is_array($selectedRaw) ? $selectedRaw : [];
-                $selected = [];
-                foreach ($selectedRaw as $termId) {
-                    $termId = $this->slugify((string)$termId);
-                    if ($termId === '' || in_array($termId, $selected, true)) {
-                        continue;
-                    }
-                    $selected[] = $termId;
-                }
-                if (!empty($selected)) {
-                    $data[$taxonomyName] = $selected;
-                } else {
-                    unset($data[$taxonomyName]);
-                }
-            }
-        } else {
-            foreach ($taxonomyNames as $taxonomyName) {
-                unset($data[$taxonomyName]);
-            }
-        }
-
-        if (array_key_exists('main_image', $_POST)) {
-            if ($mainImage !== '') {
-                $data['main_image'] = $mainImage;
-            } else {
-                unset($data['main_image']);
-            }
-        }
-
-        if (isset($_POST['seo_title']) || isset($_POST['seo_description']) || isset($_POST['seo_canonical']) || isset($_POST['seo_og_title']) || isset($_POST['seo_og_description']) || isset($_POST['seo_og_image']) || isset($_POST['seo_noindex'])) {
-            $seo = is_array($data['seo'] ?? null) ? $data['seo'] : [];
-            if ($seoTitle !== '') {
-                $seo['title'] = $seoTitle;
-            } else {
-                unset($seo['title']);
-            }
-            if ($seoDescription !== '') {
-                $seo['description'] = $seoDescription;
-            } else {
-                unset($seo['description']);
-            }
-            if ($seoCanonical !== '') {
-                $seo['canonical'] = $seoCanonical;
-            } else {
-                unset($seo['canonical']);
-            }
-            if ($seoOgTitle !== '') {
-                $seo['og_title'] = $seoOgTitle;
-            } else {
-                unset($seo['og_title']);
-            }
-            if ($seoOgDescription !== '') {
-                $seo['og_description'] = $seoOgDescription;
-            } else {
-                unset($seo['og_description']);
-            }
-            if ($seoOgImage !== '') {
-                $seo['og_image'] = $seoOgImage;
-            } else {
-                unset($seo['og_image']);
-            }
-            if ($seoNoindex) {
-                $seo['noindex'] = true;
-            } else {
-                unset($seo['noindex']);
-            }
-            if (!empty($seo)) {
-                $data['seo'] = $seo;
-            } else {
-                unset($data['seo']);
-            }
-        }
-
-        foreach (array_keys($data) as $key) {
-            if (!$this->isReservedFrontmatterKey($key)) {
-                unset($data[$key]);
-            }
-        }
-
-        $customFields = [];
-        if (is_array($customKeys) && is_array($customValues)) {
-            foreach ($customKeys as $index => $key) {
-                $key = trim((string)$key);
-                if ($key === '' || $this->isReservedFrontmatterKey($key)) {
-                    continue;
-                }
-                $value = (string)($customValues[$index] ?? '');
-                $customFields[$key] = $this->parseCustomValue($value);
-            }
-        }
-
-        if ($type !== 'forms' && $this->contentTypes()->declaredKeys($type) !== []) {
-            // Fields the content type declares come from their own inputs, checked against the definition.
-            $declaredKeys = $this->contentTypes()->declaredKeys($type);
-            $customFields = array_diff_key($customFields, array_flip($declaredKeys));
-            $existingCustom = is_array($data['custom_fields'] ?? null) ? $data['custom_fields'] : [];
-            if (($_POST['details_present'] ?? '') === '1') {
-                $details = is_array($_POST['details'] ?? null) ? $_POST['details'] : [];
-                $declared = $this->contentTypes()->fromInput($type, $details, $existingCustom, 'en', $this->defaultLanguage());
-            } else {
-                $declared = array_intersect_key($existingCustom, array_flip($declaredKeys));
-            }
-            $customFields = $declared + $customFields;
-        }
-
-        if (!empty($customFields)) {
-            $data['custom_fields'] = $customFields;
-        } else {
-            unset($data['custom_fields']);
-        }
-
-        if ($type === 'forms') {
-            $fields = $this->parseFormFieldsInput($formFieldsInput);
-            if (!empty($fields)) {
-                $data['fields'] = $fields;
-            } else {
-                unset($data['fields']);
-            }
-
-            $notifications = [];
-            if (is_array($formNotificationsInput)) {
-                $notifications['enabled'] = $this->isTruthy($formNotificationsInput['enabled'] ?? false);
-                $notifications['to'] = trim((string)($formNotificationsInput['to'] ?? ''));
-                $notifications['subject'] = trim((string)($formNotificationsInput['subject'] ?? ''));
-                $notifications['reply_to_field'] = trim((string)($formNotificationsInput['reply_to_field'] ?? ''));
-                $notifications['cc'] = trim((string)($formNotificationsInput['cc'] ?? ''));
-                $notifications['bcc'] = trim((string)($formNotificationsInput['bcc'] ?? ''));
-                $notifications['auto_reply'] = $this->isTruthy($formNotificationsInput['auto_reply'] ?? false);
-                $notifications['auto_reply_include'] = $this->isTruthy($formNotificationsInput['auto_reply_include'] ?? false);
-                $notifications['auto_reply_subject'] = trim((string)($formNotificationsInput['auto_reply_subject'] ?? ''));
-                $notifications['auto_reply_message'] = trim((string)($formNotificationsInput['auto_reply_message'] ?? ''));
-            }
-            if (!empty(array_filter($notifications, function ($value): bool {
-                if (is_bool($value)) {
-                    return $value;
-                }
-                return (string)$value !== '';
-            }))) {
-                $data['notifications'] = $notifications;
-            } else {
-                unset($data['notifications']);
-            }
-
-            if ($formSuccessMessage !== '') {
-                $data['success_message'] = $formSuccessMessage;
-            } else {
-                unset($data['success_message']);
-            }
-
-            if ($formSubmitLabel !== '') {
-                $data['submit_label'] = $formSubmitLabel;
-            } else {
-                unset($data['submit_label']);
-            }
-
-            if ($formRedirectUrl !== '') {
-                $data['redirect_url'] = $formRedirectUrl;
-            } else {
-                unset($data['redirect_url']);
-            }
-
-            $data['store_submissions'] = $formStoreSubmissions;
-
-            $antispam = [];
-            if ($formHoneypot !== '') {
-                $antispam['honeypot'] = $formHoneypot;
-            }
-            if ($formRateLimit !== '') {
-                $antispam['rate_limit_seconds'] = (int)$formRateLimit;
-            }
-            if (!empty($antispam)) {
-                $data['antispam'] = $antispam;
-            } else {
-                unset($data['antispam']);
-            }
-        }
-
-        $frontmatter = trim(Yaml::dump($data, 10, 2, Yaml::DUMP_MULTI_LINE_LITERAL_BLOCK));
-        $payload = "---\n" . $frontmatter . "\n---\n\n" . $body . "\n";
-        file_put_contents($path, $payload);
-        $this->indexContentFile($type, $path);
-
-        if ($oldPath !== '' && $oldPath !== $path && file_exists($oldPath)) {
-            unlink($oldPath);
-            $this->unindexContent($type, $originalSlug, $originalLang);
-        }
-
-        // Addresses that changed leave a redirect behind, so links, bookmarks, and search results keep working.
-        $moves = [];
-        if ($moved) {
-            $moves[] = ['lang' => $originalLang, 'to_lang' => $lang, 'status' => $oldStatus];
-            if ($siblings !== [] && (string)($_POST['rename_translations'] ?? '') === '1') {
-                foreach ($siblings as $sibling) {
-                    $from = $dir . '/' . $this->buildFilename($originalSlug, $sibling['lang']);
-                    $to = $dir . '/' . $this->buildFilename($slug, $sibling['lang']);
-                    if (!is_file($from) || file_exists($to) || !@rename($from, $to)) {
-                        continue;
-                    }
-                    $this->unindexContent($type, $originalSlug, $sibling['lang']);
-                    $this->indexContentFile($type, $to);
-                    $moves[] = ['lang' => $sibling['lang'], 'to_lang' => $sibling['lang'], 'status' => $sibling['status']];
-                }
-            }
-            foreach ($moves as $move) {
-                if ($move['status'] !== 'published') {
-                    continue; // An address that was never public has nobody to redirect.
-                }
-                $this->redirects->moved(
-                    $this->buildContentPath($type, $originalSlug, $move['lang'], $homeSlug, $defaultLang),
-                    $this->buildContentPath($type, $slug, $move['to_lang'], $homeSlug, $defaultLang),
-                    $this->currentUsername(),
-                    $type
-                );
-            }
-            if (count($moves) === 1 + count($siblings)) {
-                $this->relinkMenus($type === 'pages' ? $originalSlug : $type . '/' . $originalSlug, $type === 'pages' ? $slug : $type . '/' . $slug);
-            }
-        }
-        // Content now lives here, so a redirect that starts from this address would never be used.
-        $this->redirects->removeSource($this->buildContentPath($type, $slug, $lang, $homeSlug, $defaultLang));
-
-        $this->logActivity($wasExisting ? 'content.update' : 'content.create', 'info', $type, $slug . ':' . $lang, ($wasExisting ? 'Content updated.' : 'Content created.'), [
+        $this->logActivity($result['was_existing'] ? 'content.update' : 'content.create', 'info', $type, $slug . ':' . $lang, ($result['was_existing'] ? 'Content updated.' : 'Content created.'), [
             'type' => $type,
             'slug' => $slug,
             'lang' => $lang,
-            'title' => (string)($data['title'] ?? ''),
-            'status' => (string)($data['status'] ?? ''),
-            'renamed_from' => $moved ? $originalSlug . ':' . $originalLang : '',
-            'translations_renamed' => $moved ? max(0, count($moves) - 1) : 0,
+            'title' => $result['title'],
+            'status' => $result['status'],
+            'renamed_from' => $result['moved'] ? $result['original_slug'] . ':' . $result['original_lang'] : '',
+            'translations_renamed' => $result['translations_renamed'],
         ]);
         $this->redirect('/admin/edit?type=' . urlencode($type) . '&slug=' . urlencode($slug) . '&lang=' . urlencode($lang) . '&saved=1'
-            . ($htmlNeutralized ? '&notice=html' : '')
-            . ($moved ? '&address=changed' : '')
-            . ($slugTaken !== '' ? '&address_taken=' . urlencode($slugTaken) : ''));
+            . ($result['html_neutralized'] ? '&notice=html' : '')
+            . ($result['moved'] ? '&address=changed' : '')
+            . ($result['slug_taken'] !== '' ? '&address_taken=' . urlencode($result['slug_taken']) : ''));
     }
 
     private function handleDelete(): void
@@ -6803,34 +6430,7 @@ final class App
 
     private function isReservedFrontmatterKey(string $key): bool
     {
-        $reserved = [
-            'title',
-            'status',
-            'visible',
-            'date',
-            'author',
-            'tags',
-            'categories',
-            'excerpt',
-            'summary',
-            'seo',
-            'main_image',
-            'custom_fields',
-            'template',
-            'blocks',
-            'translation_id',
-            'fields',
-            'notifications',
-            'success_message',
-            'submit_label',
-            'redirect_url',
-            'store_submissions',
-            'antispam',
-        ];
-        foreach ($this->listTaxonomyNames() as $taxonomyName) {
-            $reserved[] = $taxonomyName;
-        }
-        return in_array($key, $reserved, true);
+        return $this->contentEditor()->isReservedKey($key);
     }
 
     /**
@@ -6873,21 +6473,12 @@ final class App
 
     private function generateTranslationId(): string
     {
-        return bin2hex(random_bytes(8));
+        return ContentEditor::newTranslationId();
     }
 
     private function findTranslationIdBySlug(string $type, string $slug): string
     {
-        foreach ($this->content->getItems($type, null, true) as $item) {
-            if ($item->slug !== $slug) {
-                continue;
-            }
-            $id = (string)($item->meta['translation_id'] ?? '');
-            if ($id !== '') {
-                return $id;
-            }
-        }
-        return '';
+        return $this->contentEditor()->translationIdForSlug($type, $slug);
     }
 
     /** @return array<int, array{lang: string, exists: bool, slug: string, title: string, edit_url: string, create_url: string}> */
@@ -6988,35 +6579,6 @@ final class App
         return (string)$value;
     }
 
-    private function parseCustomValue(string $value): mixed
-    {
-        $trimmed = trim($value);
-        if ($trimmed === '') {
-            return '';
-        }
-        $lower = strtolower($trimmed);
-        if ($lower === 'true') {
-            return true;
-        }
-        if ($lower === 'false') {
-            return false;
-        }
-        if ($lower === 'null') {
-            return null;
-        }
-        if ((str_starts_with($trimmed, '{') && str_ends_with($trimmed, '}')) ||
-            (str_starts_with($trimmed, '[') && str_ends_with($trimmed, ']'))) {
-            $decoded = json_decode($trimmed, true);
-            if (json_last_error() === JSON_ERROR_NONE) {
-                return $decoded;
-            }
-        }
-        if (is_numeric($trimmed)) {
-            return str_contains($trimmed, '.') ? (float)$trimmed : (int)$trimmed;
-        }
-        return $value;
-    }
-
     private function normalizeAdminDate(mixed $value): string
     {
         if ($value === null || $value === '') {
@@ -7046,26 +6608,7 @@ final class App
 
     private function normalizeDateForStorage(string $value): string
     {
-        $trimmed = trim($value);
-        if ($trimmed === '') {
-            return '';
-        }
-        if (preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $trimmed)) {
-            return $trimmed;
-        }
-        if (ctype_digit($trimmed)) {
-            return date('Y-m-d', (int)$trimmed);
-        }
-        $format = (string)($this->settings['date_format'] ?? 'd/m/Y');
-        $dt = \DateTime::createFromFormat($format, $trimmed);
-        if ($dt instanceof \DateTime) {
-            return $dt->format('Y-m-d');
-        }
-        $timestamp = strtotime($trimmed);
-        if ($timestamp !== false) {
-            return date('Y-m-d', $timestamp);
-        }
-        return $trimmed;
+        return $this->contentEditor()->normalizeDate($value);
     }
 
     private function parseCommaList(string $value): array
@@ -7631,69 +7174,13 @@ final class App
     }
 
     /**
-     * A web address nobody else has: the requested one, or with -2, -3 ... added. Pages live at the root of the site,
-     * so they cannot take a word the site already uses (admin, search, a content type, a language code).
-     */
-    private function availableSlug(string $type, string $slug, string $lang, string $ownPath): string
-    {
-        $base = $slug;
-        if ($type === 'pages') {
-            $reserved = array_merge($this->content->getTypes(), (array)($this->settings['languages']['available'] ?? []));
-            if (Slug::isReserved($base, $reserved)) {
-                $base .= '-page';
-            }
-        }
-        $dir = $this->contentDir . '/' . $type;
-        $candidate = $base;
-        for ($n = 2; $n < 500; $n++) {
-            $candidatePath = $dir . '/' . $this->buildFilename($candidate, $lang);
-            if (!file_exists($candidatePath) || $candidatePath === $ownPath) {
-                break;
-            }
-            $candidate = $base . '-' . $n;
-        }
-        return $candidate;
-    }
-
-    private function storedStatus(string $path): string
-    {
-        if (!is_file($path)) {
-            return '';
-        }
-        [$front] = $this->splitFrontMatter((string)file_get_contents($path));
-        try {
-            $data = Yaml::parse($front);
-        } catch (\Throwable) {
-            return '';
-        }
-        return is_array($data) ? (string)($data['status'] ?? 'published') : '';
-    }
-
-    /**
      * The other languages of an item that share its address (translations kept together by translation_id).
      *
      * @return array<int, array{lang: string, status: string}>
      */
     private function translationSiblings(string $type, string $slug, string $lang): array
     {
-        $items = $this->content->getItems($type, null, true);
-        $id = '';
-        foreach ($items as $item) {
-            if ($item->slug === $slug && $item->lang === $lang) {
-                $id = (string)($item->meta['translation_id'] ?? '');
-            }
-        }
-        $siblings = [];
-        foreach ($items as $item) {
-            if ($item->slug !== $slug || $item->lang === $lang) {
-                continue;
-            }
-            $itemId = (string)($item->meta['translation_id'] ?? '');
-            if ($id !== '' ? $itemId === $id : $itemId === '') {
-                $siblings[] = ['lang' => $item->lang, 'status' => (string)($item->meta['status'] ?? 'published')];
-            }
-        }
-        return $siblings;
+        return $this->contentEditor()->translationSiblings($type, $slug, $lang);
     }
 
     /** Menu links follow a page whose address changed. Links are language-neutral ("about", "posts/my-post"). */
