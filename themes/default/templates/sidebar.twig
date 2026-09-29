@@ -3,6 +3,7 @@
   Blocks follow below at full width; the text is not repeated by a Page content block.
 #}
 {% extends 'layouts/base.twig' %}
+{% set title_header = not (page_blocks|default(null) and page_blocks.leads_with_hero) %}
 
 {% block content %}
   {% if not (page_blocks|default(null) and page_blocks.leads_with_hero) %}

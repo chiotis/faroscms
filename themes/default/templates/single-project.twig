@@ -1,4 +1,5 @@
 {% extends 'layouts/base.twig' %}
+{% set title_header = true %}
 
 {% block content %}
   {% set prefix = lang_prefix|default('') %}
@@ -13,6 +14,6 @@
       </span>
     {% endif %}
   {% endset %}
-  {% include 'components/page-header.twig' with {hero_type: item.type|default('projects'), hero_subtitle: item.meta.excerpt ?? item.meta.summary ?? '', hero_meta: hero_meta} %}
+  {% include 'components/page-header.twig' with {hero_subtitle: item.meta.excerpt ?? item.meta.summary ?? '', hero_meta: hero_meta} %}
   {% include 'components/page-body.twig' %}
 {% endblock %}

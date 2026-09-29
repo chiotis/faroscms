@@ -1,4 +1,5 @@
 {% extends 'layouts/base.twig' %}
+{% set title_header = true %}
 
 {% block content %}
   {% set prefix = lang_prefix|default('') %}
@@ -36,6 +37,6 @@
       <span>{{ t('post.on', 'on') }} {{ format_date(item.meta.date) }}</span>
     {% endif %}
   {% endset %}
-  {% include 'components/page-header.twig' with {hero_type: item.type|default('posts'), hero_subtitle: item.meta.excerpt|default(''), hero_meta: hero_meta, hero_meta_inline: hero_meta_inline} %}
+  {% include 'components/page-header.twig' with {hero_subtitle: item.meta.excerpt|default(''), hero_meta: hero_meta, hero_meta_inline: hero_meta_inline} %}
   {% include 'components/page-body.twig' %}
 {% endblock %}

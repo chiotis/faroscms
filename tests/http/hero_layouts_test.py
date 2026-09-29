@@ -1,6 +1,6 @@
 import re, sys, sqlite3
 sys.path.insert(0, '.')
-from client import Client
+from client import Client, has_field
 
 fails = []
 def check(label, ok, detail=''):
@@ -77,6 +77,83 @@ st, cls, inner, _ = header('/about')
 check('an unknown layout shows the default one', st == 200 and cls == 'single-hero', (st, cls))
 layouts(default='centered', pages='default')
 st, cls, _, _ = header('/about'); check('a type set to default beats the general choice', cls == 'single-hero', cls)
+
+# ---- one entry can choose its own layout
+def put(path, front, body='Text.'):
+    open('app/content/' + path, 'w', encoding='utf-8').write('---\n' + front + '---\n\n' + body + '\n')
+layouts(default='split')
+put('pages/own.md', "title: Own layout\nstatus: published\nvisible: true\nhero_layout: minimal\n")
+put('pages/wrong.md', "title: Wrong layout\nstatus: published\nvisible: true\nhero_layout: sideways\n")
+put('pages/plain.md', "title: Plain\nstatus: published\nvisible: true\n")
+check('an entry\'s own layout wins over its content type', 'single-hero-minimal' in header('/own')[1], header('/own')[1])
+check('a layout the theme does not know is ignored', 'single-hero-split' in header('/wrong')[1], header('/wrong')[1])
+check('an entry without a choice follows its content type', 'single-hero-split' in header('/plain')[1], header('/plain')[1])
+put('pages/own-cover.md', "title: Cover without a picture\nstatus: published\nvisible: true\nhero_layout: cover\n")
+check('an own cover without an image still falls back', header('/own-cover')[1] == 'single-hero', header('/own-cover')[1])
+
+# ---- the header over the opening hero, per content type and per entry
+def theme(**sections):
+    body = ''.join('%s:\n%s' % (name, ''.join('  %s: %s\n' % (k, v) for k, v in values.items())) for name, values in sections.items())
+    run("insert or replace into system_meta (key, value, updated_at) values ('theme_settings', ?, datetime('now'))", (body,))
+def over(path):
+    st, _, html = pub.get(path)
+    body = re.search(r'<body class="([^"]*)"', html)
+    return st == 200 and body is not None and 'has-transparent-header' in body.group(1), html
+put('pages/lead-hero.md', "title: Lead hero\nstatus: published\nvisible: true\nblocks:\n  - type: hero\n    variant: cover\n    heading: Opening\n")
+put('pages/lead-hero-off.md', "title: Lead hero off\nstatus: published\nvisible: true\nheader_transparent: 'off'\nblocks:\n  - type: hero\n    variant: cover\n    heading: Opening\n")
+theme(header={'transparent': 'false'})
+check('nothing asks for it: the header stays solid', not over('/plain')[0] and not over('/lead-hero')[0])
+theme(header={'transparent': 'true'})
+check('the site-wide setting reaches a title area now, and a Hero block as before', over('/plain')[0] and over('/lead-hero')[0])
+theme(header={'transparent': 'true'}, transparent_header={'default': 'site', 'pages': "'off'", 'posts': 'site', 'projects': 'site', 'forms': 'site'})
+check('a content type can switch it off', not over('/plain')[0] and not over('/lead-hero')[0] and over(plain)[0])
+theme(header={'transparent': 'false'}, transparent_header={'default': 'site', 'pages': "'on'", 'posts': 'site', 'projects': 'site', 'forms': 'site'})
+check('a content type can switch it on', over('/plain')[0] and over('/lead-hero')[0] and not over(plain)[0])
+check('an entry can switch it off', not over('/lead-hero-off')[0])
+put('pages/own-on.md', "title: Own on\nstatus: published\nvisible: true\nheader_transparent: 'on'\n")
+theme(header={'transparent': 'false'}, transparent_header={'default': 'site', 'pages': "'off'", 'posts': 'site', 'projects': 'site', 'forms': 'site'})
+check('an entry can switch it on against its content type', over('/own-on')[0] and not over('/plain')[0])
+put('pages/own-bool.md', "title: Own bool\nstatus: published\nvisible: true\nheader_transparent: true\n")
+check('a plain yes in the front matter counts as on', over('/own-bool')[0])
+theme(header={'transparent': 'true'}, transparent_header={'default': "'on'"}, hero_layouts={'pages': 'cover', 'default': 'default', 'posts': 'default', 'projects': 'default', 'forms': 'default'})
+put('pages/cover-img.md', "title: Cover with picture\nstatus: published\nvisible: true\nmain_image: /uploads/media/5e6915a67b9ceec5.jpg\n")
+ok, html = over('/cover-img')
+check('over a cover the header text turns light', ok and 'is-on-dark' in html, ok)
+theme(header={'transparent': 'true'}, hero_layouts={'pages': 'centered', 'default': 'default', 'posts': 'default', 'projects': 'default', 'forms': 'default'})
+ok, html = over('/cover-img')
+check('over a light title area it does not', ok and 'is-on-dark' not in html, ok)
+theme(header={'transparent': 'true'})
+st, _, html = pub.get('/en/search?q=test'); check('screens without an entry follow the site-wide setting', st == 200)
+
+# ---- the editor
+root = Client(); root.login()
+def form_fields(path):
+    return root.forms(path)
+for kind, url in (('a page', 'type=pages&slug=plain&lang=el'), ('a post', 'type=posts&slug=plain&lang=el'), ('a project', 'type=projects&slug=gamma-hospitality-rebrand&lang=en'), ('a form', 'type=forms&slug=contact&lang=el')):
+    st, _, html = root.get('/admin/edit?' + url)
+    check('the editor of ' + kind + ' offers both choices', st == 200 and 'name="hero_layout"' in html and 'name="header_transparent"' in html and 'Follow settings (' in html, st)
+st, _, html = root.get('/admin/edit?type=pages&slug=plain&lang=el')
+check('it says what the content type does now', 'Follow settings (Default)' in html or 'Follow settings (Split)' in html or 'Follow settings (Centered)' in html, re.findall(r'Follow settings \([^)]*\)', html))
+check('the choices are the theme\'s', all(('>%s<' % l) in html for l in ('Split', 'Cover', 'Minimal', 'Centered')) and '>On<' in html and '>Off<' in html)
+check('the "site default" choice is not offered per entry', '>Site default<' not in html)
+
+def save(url, **values):
+    return root.submit('/admin/edit?' + url, has_field('body'), values)
+def stored(path): return open('app/content/' + path, encoding='utf-8').read()
+save('type=pages&slug=plain&lang=el', hero_layout='cover', header_transparent='on')
+text = stored('pages/plain.md')
+check('saving keeps the entry\'s choices in the front matter', 'hero_layout: cover' in text and "header_transparent: 'on'" in text, text)
+st, _, html = root.get('/admin/edit?type=pages&slug=plain&lang=el')
+check('and the editor shows them', re.search(r'<option value="cover"\s+selected', html) is not None and re.search(r'<option value="on"\s+selected', html) is not None)
+check('they are not listed as custom fields', 'hero_layout' not in re.sub(r'name="hero_layout"|<option[^>]*>', '', html.split('data-custom')[-1]) if 'data-custom' in html else True)
+save('type=pages&slug=plain&lang=el', hero_layout='sideways', header_transparent='maybe')
+text = stored('pages/plain.md')
+check('a choice the theme does not offer changes nothing', 'hero_layout: cover' in text and "header_transparent: 'on'" in text, text)
+save('type=pages&slug=plain&lang=el', hero_layout='', header_transparent='')
+text = stored('pages/plain.md')
+check('"Follow settings" removes them again', 'hero_layout' not in text and 'header_transparent' not in text, text)
+save('type=forms&slug=contact&lang=el', hero_layout='minimal')
+check('a form can choose too', 'hero_layout: minimal' in stored('forms/contact.md'), stored('forms/contact.md')[:300])
 
 # ---- the form page and the sidebar template use the same header
 run("delete from system_meta where key='theme_settings'")

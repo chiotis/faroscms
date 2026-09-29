@@ -8,7 +8,7 @@
 #   - retire a field by marking it `hidden: true` (it keeps its stored value), not by deleting it.
 name: default
 label: FarosCMS Default
-version: 1.10.0
+version: 1.11.0
 description: All-purpose FarosCMS theme.
 
 menu_locations:
@@ -260,6 +260,40 @@ settings:
         label: Forms
         default: default
         options: *hero_layouts
+
+  transparent_header:
+    label: Transparent Header
+    description: Whether the header sits over the opening hero (a Hero block, or the title area) and turns solid on scroll. Site default follows Header > Transparent over an opening hero; a single page can override this in its editor.
+    columns: 5
+    fields:
+      default:
+        type: select
+        label: Other types
+        default: site
+        options: &transparent_choices
+          site: Site default
+          'on': 'On'
+          'off': 'Off'
+      pages:
+        type: select
+        label: Pages
+        default: site
+        options: *transparent_choices
+      posts:
+        type: select
+        label: Posts
+        default: site
+        options: *transparent_choices
+      projects:
+        type: select
+        label: Projects
+        default: site
+        options: *transparent_choices
+      forms:
+        type: select
+        label: Forms
+        default: site
+        options: *transparent_choices
 
   footer:
     label: Footer

@@ -3037,6 +3037,9 @@ final class App
             $metaForm['date'] = $this->normalizeAdminDate($rawDate);
             $metaForm['author'] = (string)($meta['author'] ?? '');
             $metaForm['template'] = (string)($meta['template'] ?? '');
+            $metaForm['hero_layout'] = (string)($meta['hero_layout'] ?? '');
+            $headerTransparent = $meta['header_transparent'] ?? '';
+            $metaForm['header_transparent'] = is_bool($headerTransparent) ? ($headerTransparent ? 'on' : 'off') : (string)$headerTransparent;
             foreach ($this->taxonomies()->names() as $taxonomyName) {
                 $metaForm['taxonomy_terms'][$taxonomyName] = $this->normalizeMetaList($meta[$taxonomyName] ?? null);
             }
@@ -3179,7 +3182,32 @@ final class App
             'media_picker_images' => $mediaPickerImages,
             'block_editor_json' => $type === 'forms' ? '' : $this->blockEditorJson($pageBlocks, $mediaPickerImages, $lang),
             'page_templates' => $type === 'forms' ? [] : $this->theme->pageTemplates(),
+            'opening' => $this->openingChoices($type),
         ]);
+    }
+
+    /**
+     * What the editor may choose about how an entry opens (title layout, transparent header), with what its
+     * content type does today so "follow the settings" can say what that is. Empty when the theme offers neither.
+     *
+     * @return array{layouts: array<string, string>, transparent: array<string, string>, type_layout: string, type_transparent: string}
+     */
+    private function openingChoices(string $type): array
+    {
+        $layouts = $this->theme->settingOptions('hero_layouts', 'default');
+        $transparent = array_diff_key($this->theme->settingOptions('transparent_header', 'default'), ['site' => true]);
+        $layoutSettings = is_array($this->themeSettings['hero_layouts'] ?? null) ? $this->themeSettings['hero_layouts'] : [];
+        $transparentSettings = is_array($this->themeSettings['transparent_header'] ?? null) ? $this->themeSettings['transparent_header'] : [];
+        $typeTransparent = (string)($transparentSettings[$type] ?? $transparentSettings['default'] ?? 'site');
+        if (!isset($transparent[$typeTransparent])) {
+            $typeTransparent = $this->isTruthy($this->themeSettings['header']['transparent'] ?? false) ? 'on' : 'off';
+        }
+        return [
+            'layouts' => $layouts,
+            'transparent' => $transparent,
+            'type_layout' => (string)($layoutSettings[$type] ?? $layoutSettings['default'] ?? 'default'),
+            'type_transparent' => $typeTransparent,
+        ];
     }
 
     /** Data for the admin block editor, safe to embed in a <script type="application/json">. */

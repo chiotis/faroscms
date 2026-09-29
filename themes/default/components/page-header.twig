@@ -1,21 +1,18 @@
 {#
-  Title header for a page, post, project or form. The layout comes from Theme settings > Hero Layouts and
-  follows the Hero block: default, centered, split, cover, minimal. Image and colour come from front matter.
-  A template can pass:
-    hero_type      content type to look the layout up for (default: the item's own type)
+  Title header for a page, post, project or form. The layout is the entry's own choice or the one from
+  Theme settings > Hero Layouts (see hero-layout.twig) and follows the Hero block: default, centered, split,
+  cover, minimal. Image and colour come from front matter. A template can pass:
     hero_subtitle  text under the title (default: the excerpt, then the site tagline)
     hero_meta      small line above the title, as HTML
     hero_meta_inline  the same line worded for the centred layouts (default: hero_meta)
 #}
-{% set hero_layouts = theme_settings.hero_layouts|default({}) %}
-{% set hero_layout = hero_layouts[hero_type|default(item.type|default('pages'))]|default(hero_layouts.default|default('default')) %}
+{% import 'components/hero-layout.twig' as opening %}
+{% set layout = opening.layout(item, theme_settings)|trim %}
 {% set hero_image = item.meta.hero_image ?? item.meta.main_image ?? '' %}
 {% set hero_bg = item.meta.hero_background ?? item.meta.hero_color ?? '' %}
 {% set hero_text = hero_subtitle is defined ? hero_subtitle : (item.meta.excerpt|default('') ?: site.tagline|default('')) %}
 {% set meta_html = hero_meta|default('') %}
 {% set meta_inline = hero_meta_inline|default('')|trim ? hero_meta_inline : meta_html %}
-{# A cover needs a picture, and a minimal header is text only; without one they fall back to the default look. #}
-{% set layout = hero_layout == 'cover' and not hero_image ? 'default' : hero_layout %}
 {% set bg_style = hero_bg ? ' style="--hero-bg:' ~ hero_bg|e('html_attr') ~ ';"' : '' %}
 {% if layout == 'centered' %}
   <section class="single-hero single-hero-centered"{{ bg_style|raw }}>

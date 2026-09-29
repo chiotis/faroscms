@@ -226,6 +226,36 @@
               </label>
             </div>
           </div>
+          {% if opening.layouts|default([]) is not empty or opening.transparent|default([]) is not empty %}
+            <div class="{{ section_class }}" data-opening>
+              <h3 class="text-sm font-semibold text-slate-900">How it opens</h3>
+              <p class="mb-3 mt-0.5 text-xs text-slate-400">For this entry only. Leave both on “Follow settings” to use what Theme settings say for its content type. A page that starts with a Hero block uses that block as its opening.</p>
+              <div class="grid gap-3">
+                {% if opening.layouts is not empty %}
+                  <label class="block">
+                    <span class="mb-1 block text-sm font-medium text-slate-700">Title layout</span>
+                    <select name="hero_layout" class="{{ select_class }}">
+                      <option value="">Follow settings ({{ opening.layouts[opening.type_layout]|default(opening.type_layout) }})</option>
+                      {% for key, label in opening.layouts %}
+                        <option value="{{ key }}" {% if meta_form.hero_layout|default('') == key %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                {% endif %}
+                {% if opening.transparent is not empty %}
+                  <label class="block">
+                    <span class="mb-1 block text-sm font-medium text-slate-700">Transparent over an opening hero</span>
+                    <select name="header_transparent" class="{{ select_class }}">
+                      <option value="">Follow settings ({{ opening.transparent[opening.type_transparent]|default(opening.type_transparent) }})</option>
+                      {% for key, label in opening.transparent %}
+                        <option value="{{ key }}" {% if meta_form.header_transparent|default('') == key %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                {% endif %}
+              </div>
+            </div>
+          {% endif %}
         </div>
       </div>
     </div>

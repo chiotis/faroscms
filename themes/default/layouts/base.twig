@@ -15,11 +15,20 @@
 {% set mode = appearance.mode|default('system') %}
 {% set font = appearance.font|default('sans') %}
 {% set shape = appearance.shape|default('soft') %}
-{# The header sits over an opening hero when Theme settings > Header asks for it. #}
+{# The header sits over an opening hero (a Hero block, or the title area of the page) when the entry, its content type, or Theme settings > Header ask for it. #}
+{% import 'components/hero-layout.twig' as opening %}
 {% set header_settings = theme_settings.header|default({}) %}
 {% set lead_block = page_blocks.lead ?? null %}
-{% set transparent_header = header_settings.transparent|default(false) and lead_block and lead_block.type == 'hero' %}
-{% set transparent_on_dark = transparent_header and (lead_block.variant in ['cover', 'steps'] or lead_block.tone in ['contrast', 'accent']) %}
+{# Templates that show the title area set title_header; the layout is then the entry's own or its type's. #}
+{% set title_layout = title_header|default(false) and item is defined and item ? opening.layout(item, theme_settings)|trim : '' %}
+{% set wants_transparent = (item is defined and item ? opening.transparent(item, theme_settings)|trim : (header_settings.transparent|default(false) ? '1' : '')) != '' %}
+{% set transparent_header = wants_transparent and (title_layout != '' or (lead_block and lead_block.type == 'hero')) %}
+{% if title_layout != '' %}
+  {% set title_image = item.meta.hero_image|default(item.meta.main_image|default('')) %}
+  {% set transparent_on_dark = transparent_header and (title_layout == 'cover' or (title_layout == 'default' and title_image)) %}
+{% else %}
+  {% set transparent_on_dark = transparent_header and (lead_block.variant in ['cover', 'steps'] or lead_block.tone in ['contrast', 'accent']) %}
+{% endif %}
 {% set og_locales = {'el': 'el_GR', 'en': 'en_US', 'de': 'de_DE', 'fr': 'fr_FR', 'it': 'it_IT', 'es': 'es_ES'} %}
 <html lang="{{ current_language }}" data-theme="{{ palette }}" data-mode="{{ mode }}" data-font="{{ font }}" data-shape="{{ shape }}">
 

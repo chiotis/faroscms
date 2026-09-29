@@ -1432,6 +1432,27 @@ body.has-transparent-header:not(.header-solid) .site-header.is-on-dark[data-stic
   padding-top: calc(var(--header-height, 4.5rem) + clamp(5rem, 10vw, 9rem));
 }
 
+/* The same when the page opens with its title area: room for the header on top of each layout's own space. */
+.has-transparent-header .main-shell > .single-hero:first-child .single-hero-inner {
+  padding-top: calc(var(--header-height, 4.5rem) + clamp(4.5rem, 12vw, 9rem));
+}
+
+.has-transparent-header .main-shell > .single-hero-centered:first-child .single-hero-inner {
+  padding-top: calc(var(--header-height, 4.5rem) + clamp(3rem, 8vw, 5.5rem));
+}
+
+.has-transparent-header .main-shell > .single-hero-split:first-child .single-hero-inner {
+  padding-top: calc(var(--header-height, 4.5rem) + clamp(3rem, 8vw, 6rem));
+}
+
+.has-transparent-header .main-shell > .single-hero-minimal:first-child .single-hero-inner {
+  padding-top: calc(var(--header-height, 4.5rem) + clamp(3.5rem, 9vw, 7rem));
+}
+
+.has-transparent-header .main-shell > .single-hero-cover:first-child .single-hero-inner {
+  padding-top: calc(var(--header-height, 4.5rem) + clamp(6rem, 12vw, 10rem));
+}
+
 /* Bottom bar on phones: menu, call, email, and the header CTA within thumb reach. */
 .mobile-bar {
   display: none;
