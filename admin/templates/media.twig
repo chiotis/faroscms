@@ -1,4 +1,5 @@
 {% extends '@admin/base.twig' %}
+{% set page_heading = 'Files' %}
 
 {% block content %}
   {% set primary_btn = 'inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm no-underline hover:bg-blue-700' %}
@@ -13,7 +14,6 @@
 
   <header class="mb-4 flex flex-wrap items-start justify-between gap-3">
     <div class="min-w-0">
-      <h1 class="truncate text-2xl font-semibold tracking-tight text-slate-900">Files</h1>
       <p class="mt-1 text-sm text-slate-500">Uploads and media library.</p>
     </div>
     <button type="button" class="{{ primary_btn }}" data-upload-focus>

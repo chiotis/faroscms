@@ -1,4 +1,5 @@
 {% extends '@admin/base.twig' %}
+{% set page_heading = 'Roles and permissions' %}
 
 {% block content %}
   {% set btn_primary = 'inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700' %}
@@ -6,17 +7,23 @@
 
   <header class="mb-4 flex flex-col gap-3 border-b border-slate-200 pb-4">
     <div class="min-w-0">
-      <h1 class="truncate text-[15px] font-semibold leading-tight text-slate-900">Roles and permissions</h1>
-      <p class="text-xs text-slate-400">Choose what Admin, Editor, and Basic user can do. Changes apply on the person's next click. Only a super admin sees this page, and the super admin always has every permission.</p>
+      <p class="text-xs text-slate-400">Choose what each role can do, and make roles of your own (a photographer, a translator, an intern). Changes apply on the person's next click. Only a super admin sees this page, and the super admin always has every permission.</p>
     </div>
   </header>
 
   {% if saved %}<template data-flash data-type="success">Saved. The new permissions are already in effect.</template>{% endif %}
+  {% if created %}<template data-flash data-type="success">Role created. Tick what it may do below, then give it to someone in Users.</template>{% endif %}
+  {% if deleted %}<template data-flash data-type="success">Role deleted.</template>{% endif %}
+  {% if error == 'label' %}<template data-flash data-type="error">Give the new role a name.</template>{% endif %}
+  {% if error == 'limit' %}<template data-flash data-type="error">A site can have at most 20 roles of its own.</template>{% endif %}
+  {% if error == 'unknown' %}<template data-flash data-type="error">That role does not exist.</template>{% endif %}
+  {% if error == 'in_use' %}<template data-flash data-type="error">{{ roles[error_role].label|default('That role') }} is still given to people. Give them another role in Users first.</template>{% endif %}
   {% if error == 'store' %}<template data-flash data-type="error">The system database is not available, so nothing was saved.</template>{% endif %}
 
   <form method="post" action="{{ url('admin/roles') }}" id="rolesForm" class="mb-4">
     {{ csrf_field() }}
     <input type="hidden" name="action" value="save">
+    {% for role, column in columns %}<input type="hidden" name="in_form[]" value="{{ role }}">{% endfor %}
 
     <div class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
       <table class="w-full min-w-[640px] text-sm">
@@ -27,7 +34,7 @@
             {% for role, column in columns %}
               <th scope="col" class="w-24 px-3 py-2.5 text-center font-medium">
                 {{ column.label }}
-                <span class="block text-[10px] font-normal text-slate-400">{{ column.users }} {{ column.users == 1 ? 'person' : 'people' }}{% if column.customized %} · <span class="font-medium text-amber-700">changed</span>{% endif %}</span>
+                <span class="block text-[10px] font-normal text-slate-400">{{ column.users }} {{ column.users == 1 ? 'person' : 'people' }}{% if column.customized %} · <span class="font-medium text-amber-700">changed</span>{% endif %}{% if column.custom %} · <span class="font-medium text-violet-700">yours</span>{% endif %}</span>
               </th>
             {% endfor %}
           </tr>
@@ -63,7 +70,7 @@
     </div>
 
     <p class="mt-4 text-xs text-slate-500">Users, roles, and restoring backups can never be given away. Your own access is not affected by anything on this page.</p>
-    {% embed '@admin/partials/action-bar.twig' %}
+    {% embed '@admin/partials/action-bar.twig' with {spacer: false} %}
       {% block leading %}      {% endblock %}
       {% block actions %}
       <button type="submit" class="{{ btn_primary }}">Save permissions</button>
@@ -75,16 +82,69 @@
     <h2 class="text-sm font-semibold text-slate-900">Back to the built-in permissions</h2>
     <p class="mb-3 mt-0.5 text-xs text-slate-500">Removes your changes for one role. Unsaved edits above are discarded.</p>
     <div class="flex flex-wrap gap-2">
-      {% for role, column in columns %}
+      {% for role, column in columns %}{% if not column.custom %}
         <form method="post" action="{{ url('admin/roles') }}">
           {{ csrf_field() }}
           <input type="hidden" name="action" value="reset">
           <input type="hidden" name="role" value="{{ role }}">
           <button type="submit" class="{{ btn_secondary }}" {% if not column.customized %}disabled{% endif %} data-confirm="Reset {{ column.label }} to its built-in permissions? {{ column.users }} {{ column.users == 1 ? 'person' : 'people' }} will be affected on their next click.">Reset {{ column.label }}</button>
         </form>
-      {% endfor %}
+      {% endif %}{% endfor %}
     </div>
   </section>
+
+  <section class="mt-4 rounded-lg border border-slate-200 bg-white p-4">
+    <h2 class="text-sm font-semibold text-slate-900">Your own roles</h2>
+    <p class="mb-3 mt-0.5 text-xs text-slate-500">A role for a job that is not Admin, Editor, or Basic user. It appears as a column above, where you choose exactly what it may do, and in Users, where you give it to people. A role can only be deleted once nobody has it.</p>
+    {% if custom_roles %}
+      <ul class="mb-4 divide-y divide-slate-100 rounded-md border border-slate-200">
+        {% for role in custom_roles %}
+          <li class="p-3">
+            <form method="post" action="{{ url('admin/roles') }}" class="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto] md:items-end">
+              {{ csrf_field() }}
+              <input type="hidden" name="role" value="{{ role.key }}">
+              <label class="grid gap-1 text-xs font-medium text-slate-600">Name <code class="font-normal text-slate-400">{{ role.key }}</code>
+                <input type="text" name="label" value="{{ role.label }}" maxlength="60" required class="w-full rounded-md border border-slate-200 px-2.5 py-1.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+              </label>
+              <label class="grid gap-1 text-xs font-medium text-slate-600">Description
+                <input type="text" name="description" value="{{ role.description }}" maxlength="200" placeholder="What this role is for" class="w-full rounded-md border border-slate-200 px-2.5 py-1.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+              </label>
+              <div class="flex items-center gap-2">
+                <button type="submit" name="action" value="update_role" class="{{ btn_secondary }}">Save details</button>
+                <button type="submit" name="action" value="delete_role" class="{{ btn_secondary }} text-red-600" {% if role.users_total %}disabled title="{{ role.users_total }} {{ role.users_total == 1 ? 'person has' : 'people have' }} this role"{% endif %} data-confirm="Delete the role {{ role.label }}? It cannot be brought back, but you can make it again.">Delete</button>
+              </div>
+            </form>
+            <p class="mt-1 text-xs text-slate-400">{{ role.users_total }} {{ role.users_total == 1 ? 'person has' : 'people have' }} this role.</p>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+    {% if can_add_role %}
+      <form method="post" action="{{ url('admin/roles') }}" class="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
+        {{ csrf_field() }}
+        <input type="hidden" name="action" value="create_role">
+        <label class="grid gap-1 text-xs font-medium text-slate-600">New role
+          <input type="text" name="label" maxlength="60" required placeholder="Photographer" class="w-full rounded-md border border-slate-200 px-2.5 py-1.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+        </label>
+        <label class="grid gap-1 text-xs font-medium text-slate-600">Description
+          <input type="text" name="description" maxlength="200" placeholder="Uploads and organises photos" class="w-full rounded-md border border-slate-200 px-2.5 py-1.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+        </label>
+        <label class="grid gap-1 text-xs font-medium text-slate-600">Start from
+          <select name="from" class="w-full rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+            <option value="blank">Only signing in</option>
+            <option value="user">A copy of Basic user</option>
+            <option value="editor">A copy of Editor</option>
+            <option value="admin">A copy of Admin</option>
+          </select>
+        </label>
+        <button type="submit" class="{{ btn_secondary }}">Add role</button>
+      </form>
+    {% else %}
+      <p class="text-xs text-slate-500">A site can have at most 20 roles of its own.</p>
+    {% endif %}
+  </section>
+
+  <div class="h-20" aria-hidden="true"></div>
 
   <script>
     (function () {

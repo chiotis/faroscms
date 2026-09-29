@@ -148,12 +148,6 @@
           </a>
         {% endif %}
         {% if can('settings.manage') %}
-          <a href="{{ url('admin/system') }}" class="{{ nav_base }} {{ section == 'system' ? nav_active : nav_idle }}">
-            <svg class="h-4 w-4 {{ section == 'system' ? 'text-white/80' : 'text-slate-400 group-hover:text-slate-600' }}" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 3v2m6-2v2M9 19v2m6-2v2M3 9h2m-2 6h2m14-6h2m-2 6h2M7 5h10a2 2 0 012 2v10a2 2 0 01-2 2H7a2 2 0 01-2-2V7a2 2 0 012-2zm3 5h4v4h-4z"/></svg>
-            System
-          </a>
-        {% endif %}
-        {% if can('settings.manage') %}
           <a href="{{ url('admin/content-types') }}" class="{{ nav_base }} {{ section == 'content-types' ? nav_active : nav_idle }}">
             <svg class="h-4 w-4 {{ section == 'content-types' ? 'text-white/80' : 'text-slate-400 group-hover:text-slate-600' }}" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3 3 8l9 5 9-5-9-5zM3 13l9 5 9-5M3 17.5l9 5 9-5"/></svg>
             Content types
@@ -177,10 +171,10 @@
         <a href="{{ url('') }}" target="_blank" rel="noopener" class="mb-2 flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50">View site</a>
         <div class="rounded-md bg-slate-50 p-2.5">
           <div class="flex items-center justify-between text-[11px] font-medium text-slate-500">
-            <span>Storage</span><span>{{ storage_summary.label }}</span>
+            <span>Storage</span><span class="{{ storage_summary.level|default('ok') == 'danger' ? 'font-semibold text-red-600' : (storage_summary.level|default('ok') == 'warn' ? 'font-semibold text-orange-600' : '') }}">{{ storage_summary.label }}</span>
           </div>
-          <div class="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
-            <div class="h-full rounded-full bg-slate-900" style="width: {{ storage_summary.percent|default(0) }}%"></div>
+          <div class="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-200" role="progressbar" aria-label="Storage used" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ storage_summary.percent|default(0) }}">
+            <div class="h-full rounded-full transition-all {{ storage_summary.level|default('ok') == 'danger' ? 'bg-red-500' : (storage_summary.level|default('ok') == 'warn' ? 'bg-orange-500' : 'bg-slate-900') }}" style="width: {{ storage_summary.percent|default(0) }}%"></div>
           </div>
         </div>
       </div>
@@ -193,8 +187,7 @@
         </button>
 
         <div class="min-w-0">
-          <h1 class="truncate text-[15px] font-semibold leading-tight text-slate-900">{{ title|default(page_context) }}</h1>
-          <p class="truncate text-xs text-slate-400">FarosCMS admin / {{ page_context }}</p>
+          <h1 class="truncate text-[15px] font-semibold leading-tight text-slate-900">{{ page_heading|default(title|default(page_context)) }}</h1>
         </div>
 
         <div class="ml-auto flex items-center gap-2">
@@ -207,13 +200,6 @@
               </label>
             </form>
           {% endif %}
-          {% if (is_content_section or section == 'dashboard') and can('content.manage') %}
-            <a href="{{ url('admin/new?type=' ~ current_type ~ '&lang=' ~ (lang|default(site.languages.default|default('en')))) }}" class="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-2.5 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-blue-700 sm:px-3" aria-label="New {{ current_type|title }}">
-              <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
-              <span class="hidden sm:inline">New</span>
-            </a>
-          {% endif %}
-
           {% if can('notifications.manage') %}
             <div data-dropdown class="relative">
               <button type="button" data-dropdown-trigger class="relative rounded-md p-1.5 text-slate-500 hover:bg-slate-100" aria-label="Notifications">
@@ -302,6 +288,7 @@
               <a href="{{ url('admin/users-edit?id=' ~ current_user.id|default(0)) }}" class="block px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50">Your profile</a>
               {% if can('settings.manage') %}
                 <a href="{{ url('admin/settings') }}" class="block px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50">Settings</a>
+                <a href="{{ url('admin/system') }}" class="block px-3 py-1.5 text-sm hover:bg-slate-50 {{ section == 'system' ? 'font-medium text-slate-900' : 'text-slate-600' }}"{% if section == 'system' %} aria-current="page"{% endif %}>System</a>
               {% endif %}
               <div class="my-1 border-t border-slate-100"></div>
               <form method="post" action="{{ url('admin/logout') }}">
@@ -318,6 +305,16 @@
           <div class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
             <span><strong class="font-semibold">Default password in use.</strong> This account still uses the password shipped with FarosCMS. Change it before this site is reachable by anyone else.</span>
             <a href="{{ url('admin/users-edit?id=' ~ current_user.id|default(0)) }}" class="shrink-0 rounded-md bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700">Change password</a>
+          </div>
+        {% endif %}
+        {% if storage_summary.level|default('ok') == 'danger' %}
+          <div class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert" data-storage-alert>
+            <span><strong class="font-semibold">Storage {{ storage_summary.full ? 'is full' : 'is almost full' }}.</strong> {{ storage_summary.label }} is in use ({{ storage_summary.percent_of_limit }}% of the limit).{% if storage_summary.full %} New uploads are blocked until space is freed{% if can('limits.manage') %} or the limit is raised{% else %} or the limit is raised by the super admin{% endif %}.{% else %} Free some space{% if can('limits.manage') %} or raise the limit{% else %} or ask the super admin to raise the limit{% endif %} before it runs out.{% endif %}</span>
+            {% if can('limits.manage') %}
+              <a href="{{ url('admin/settings?tab=limits') }}" class="shrink-0 rounded-md bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700">Change the limit</a>
+            {% elseif admin_storage_contact %}
+              <a href="{{ admin_storage_contact.href }}" class="shrink-0 rounded-md bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700">Contact {{ admin_storage_contact.name }}</a>
+            {% endif %}
           </div>
         {% endif %}
         {% set input_class = 'w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-300' %}

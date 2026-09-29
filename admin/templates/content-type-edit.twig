@@ -1,4 +1,5 @@
 {% extends '@admin/base.twig' %}
+{% set page_heading = definition.label %}
 
 {% block content %}
   {% set btn_primary = 'inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700' %}
@@ -10,8 +11,7 @@
   <header class="mb-4 flex flex-col gap-3 border-b border-slate-200 pb-4 lg:flex-row lg:items-center lg:justify-between">
     <div class="min-w-0">
       <p class="text-xs text-slate-400"><a class="hover:text-slate-700" href="{{ url('admin/content-types') }}">Content types</a> /</p>
-      <h1 class="truncate text-[15px] font-semibold leading-tight text-slate-900">{{ definition.label }} <code class="ml-1 text-xs font-normal text-slate-400">{{ type }}</code></h1>
-      <p class="text-xs text-slate-400">{{ item_count }} {{ item_count == 1 ? 'entry' : 'entries' }}. Changes are saved as differences from the theme in <code>{{ custom_file }}{{ type }}.yaml</code>.</p>
+      <p class="text-xs text-slate-400"><code>{{ type }}</code> · {{ item_count }} {{ item_count == 1 ? 'entry' : 'entries' }}. Changes are saved as differences from the theme in <code>{{ custom_file }}{{ type }}.yaml</code>.</p>
     </div>
     <a class="{{ btn_secondary }}" href="{{ url(type) }}" target="_blank" rel="noopener">View archive</a>
   </header>

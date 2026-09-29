@@ -1,4 +1,5 @@
 {% extends '@admin/base.twig' %}
+{% set page_heading = 'Edit ' ~ (type ends with 's' ? type|slice(0, -1) : type)|title %}
 
 {% block content %}
   {% set singular = type ends with 's' ? type|slice(0, -1) : type %}
@@ -33,6 +34,9 @@
   {% if address_taken %}
     <template data-flash data-type="warning">The address "{{ address_taken }}" is already used or reserved, so "{{ slug }}" was used instead.</template>
   {% endif %}
+  {% if notice == 'storage' %}
+    <template data-flash data-type="warning">Saved, but the picture you uploaded was not stored: the storage limit is reached. Delete files you no longer need, or ask the super admin to raise the limit.</template>
+  {% endif %}
   {% if notice == 'html' %}
     <template data-flash data-type="warning">Saved. Raw HTML is only available to administrators, so the HTML you typed is shown as plain text. Use Markdown for formatting.</template>
   {% endif %}
@@ -46,9 +50,8 @@
 
     <div class="flex flex-col gap-3 border-b border-slate-200 pb-4 lg:flex-row lg:items-center lg:justify-between">
       <div class="min-w-0">
-        <h1 class="truncate text-[15px] font-semibold leading-tight text-slate-900">Edit {{ singular|title }}</h1>
         <div class="mt-1 flex flex-wrap items-center gap-2">
-          <span class="truncate text-xs text-slate-400">{{ meta_form.title ?: title_from_slug }}</span>
+          <span class="truncate text-sm font-medium text-slate-700">{{ meta_form.title ?: title_from_slug }}</span>
           <span class="inline-flex items-center rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-slate-500">{{ lang }}</span>
           <span data-nonindex-pill class="{% if not meta_form.seo_noindex %}hidden {% endif %}inline-flex items-center rounded-full bg-pink-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-pink-700">Non-indexed</span>
         </div>

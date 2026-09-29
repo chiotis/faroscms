@@ -1,4 +1,5 @@
 {% extends '@admin/base.twig' %}
+{% set page_heading = 'System' %}
 {% import '@admin/partials/ui.twig' as ui %}
 
 {% block content %}
@@ -8,7 +9,6 @@
 
   <header class="mb-4 flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
     <div>
-      <h1 class="text-[15px] font-semibold leading-tight text-slate-900">System</h1>
       <p class="text-xs text-slate-400">Health checks, scheduled tasks, content index, and server environment.</p>
     </div>
     {{ ui.status_badge(system_status.status == 'ok' ? 'ok' : system_status.status) }}

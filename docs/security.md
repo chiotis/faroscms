@@ -32,6 +32,7 @@ An editor's dashboard shows only content: the user count, backups, system checks
 
 **Changing what a role can do.** The table shows the built-in permissions. The super admin can change them for Admin, Editor, and Basic user at **Admin > Roles**; nobody else can open that screen, and it cannot be delegated. The super admin's own permissions are fixed, so nobody can be locked out, and three are never switchable: managing users, managing roles, and restoring backups (each would let its holder gain everything else). Signing in and editing one's own profile stay on for every role.
 
+- **Roles of the site's own.** The super admin can also make roles (a photographer, a translator) at Admin > Roles: a name, a description, and exactly the permissions chosen, starting from nothing or from a copy of Admin, Editor, or Basic user. They are stored whole in `system_meta` (key `custom_roles`), at most 20, and follow the same rules: sign-in and the own profile are always on, and users, roles, and restoring backups can never be given. A key cannot be the name of a built-in role, is made from the name (Greek converted to Latin), and does not change. A person can only be given a role that exists, so a tampered form falls back to Basic user, and a role cannot be deleted while anyone has it (a person whose role is somehow missing can sign in but reach nothing).
 - Only differences from the built-in set are stored (`system_meta`, key `role_permissions`); a role left alone follows future defaults. Unknown or unreadable stored values are ignored, never turned into access.
 - Each permission is labelled Normal, Sensitive (personal data, bulk data, logs, backups, import) or Critical (raw HTML, settings including sign-in and email, updates). Turning on a Sensitive or Critical one asks for confirmation.
 - Every change is written to the activity log as a warning with the capabilities added and removed.
@@ -41,6 +42,10 @@ An editor's dashboard shows only content: the user count, backups, system checks
 After adding or changing an admin action, run `php scripts/check-permissions.php`: it lists every action with the roles that may use it and fails when the rules drift.
 
 **Raw HTML.** Raw HTML in Markdown can carry script, and an editor must not be able to script the public site. When someone without the `content.raw_html` capability saves, any HTML they type in the text or in a block's Markdown fields is shown as plain text and the editor is told so. HTML that is already in that content (put there by an administrator, for example an embed) is left alone, so an editor's edit never breaks it. `[text](javascript:…)` style links are neutralised for everybody. Uploads are checked separately (SVG files with scripts are refused).
+
+### Storage limit
+
+The super admin sets how much space the site may use (Settings > Limits, `limits.manage`, held only by the super admin and never grantable, stored as `limits.storage_mb` in the site settings, default 1024, 0 for none). A value sent by anyone else is ignored. Use is content, the system database and its backups, and uploads. Only new uploads are refused at the limit, so a full site can still be edited, saved, and backed up; the message everyone sees from 90% names the super admin's address as a `mailto:` link and nothing else leaves the server.
 
 ### Links and deleting
 
