@@ -52,7 +52,7 @@ final class App
     private array $translations = [];
     private array $formStates = [];
     private array $menusCache = [];
-    private array $taxonomiesCache = [];
+    private ?Taxonomies $taxonomyStore = null;
     private array $themeSettings = [];
 
     public function __construct(string $basePath)
@@ -67,7 +67,7 @@ final class App
         $this->theme = new Theme($this->basePath, (string)($this->settings['theme'] ?? Theme::DEFAULT_NAME));
         $this->themeSettings = $this->loadThemeSettings();
         $this->ensureDefaultMenus();
-        $this->ensureDefaultTaxonomies();
+        $this->taxonomies()->ensureDefaults();
 
         $markdown = $this->markdownConverter();
         $this->markdown = $markdown;
@@ -129,7 +129,7 @@ final class App
             $this->redirects,
             $this->htmlGuard(),
             fn(): BlockRegistry => $this->blockRegistry(),
-            fn(): array => $this->listTaxonomyNames(),
+            fn(): array => $this->taxonomies()->names(),
             $this->revisions
         );
     }
@@ -461,17 +461,31 @@ final class App
     private function archiveContext(string $type, string $lang, array $items): array
     {
         $definition = $this->contentTypes()->definition($type, $lang, $this->defaultLanguage());
-        $settings = $definition['archive'];
+        return $this->buildArchive($definition['archive'], $definition['fields'], $definition, $lang, $items);
+    }
 
+    /**
+     * The archive of any list of entries (a content type, or the entries of a category or tag): filters, order, and pages
+     * from settings that a content type or a taxonomy chose. Filters come from the chosen taxonomies and, for a content
+     * type, from its filterable select fields.
+     *
+     * @param array<string, mixed> $settings resolved archive settings
+     * @param array<string, array<string, mixed>> $fields the declared fields of the type (none for a taxonomy)
+     * @param array<string, mixed>|null $definition the type's definition, when there is one
+     * @param ContentItem[] $items
+     * @return array<string, mixed>
+     */
+    private function buildArchive(array $settings, array $fields, ?array $definition, string $lang, array $items): array
+    {
         // Facets: name => label, options (value => label), how to read an item's values.
         $facets = [];
-        $taxonomyNames = $this->listTaxonomyNames();
+        $taxonomyNames = $this->taxonomies()->names();
         foreach ($settings['taxonomies'] as $taxonomy) {
             if (in_array($taxonomy, $taxonomyNames, true)) {
                 $facets[$taxonomy] = ['label' => $this->titleFromSlug($taxonomy), 'kind' => 'taxonomy', 'labels' => []];
             }
         }
-        foreach ($definition['fields'] as $key => $field) {
+        foreach ($fields as $key => $field) {
             if ($field['filterable'] && !$field['hidden']) {
                 $facets[$key] = ['label' => $field['label'], 'kind' => 'field', 'labels' => $field['options']];
             }
@@ -523,7 +537,7 @@ final class App
         if (preg_match('/^field:([a-z][a-z0-9_]*):(asc|desc)$/', (string)$settings['order'], $m)) {
             // By a declared field; items without a value go last in either direction.
             [$key, $direction] = [$m[1], $m[2]];
-            $type_ = $definition['fields'][$key]['type'] ?? 'text';
+            $type_ = $fields[$key]['type'] ?? 'text';
             $sortKey = static function (ContentItem $item) use ($key, $type_): string|float|null {
                 $value = $item->meta['custom_fields'][$key] ?? null;
                 if ($value === null || $value === '') {
@@ -1505,7 +1519,7 @@ final class App
             return true;
         }
         if (in_array($first, ['tag', 'tags', 'category', 'categories'], true)) {
-            return isset($segments[1]) && $this->findTaxonomyTermBySlug(in_array($first, ['category', 'categories'], true) ? 'categories' : 'tags', $segments[1]) !== null;
+            return isset($segments[1]) && $this->taxonomies()->findBySlug(in_array($first, ['category', 'categories'], true) ? 'categories' : 'tags', $segments[1]) !== null;
         }
         if (in_array($first, $this->content->getTypes(), true)) {
             if (count($segments) === 1) {
@@ -2260,7 +2274,7 @@ final class App
         $this->settings = $this->loadSettings();
         $this->themeSettings = $this->loadThemeSettings();
         $this->menusCache = [];
-        $this->taxonomiesCache = [];
+        $this->taxonomies()->forget();
         $this->recordBackupRun($safety);
         if ($result['ok']) {
             $this->rebuildContentIndex();
@@ -2778,7 +2792,7 @@ final class App
             $metaForm['date'] = $this->normalizeAdminDate($rawDate);
             $metaForm['author'] = (string)($meta['author'] ?? '');
             $metaForm['template'] = (string)($meta['template'] ?? '');
-            foreach ($this->listTaxonomyNames() as $taxonomyName) {
+            foreach ($this->taxonomies()->names() as $taxonomyName) {
                 $metaForm['taxonomy_terms'][$taxonomyName] = $this->normalizeMetaList($meta[$taxonomyName] ?? null);
             }
             $seo = $meta['seo'] ?? [];
@@ -3496,72 +3510,126 @@ final class App
 
     private function handleTaxonomies(): void
     {
-        $languages = $this->settings['languages']['available'] ?? [(string)($this->settings['languages']['default'] ?? 'el')];
-        $taxonomyNames = $this->listTaxonomyNames();
+        $default = $this->defaultLanguage();
+        $languages = array_map('strval', $this->settings['languages']['available'] ?? [$default]);
+        $store = $this->taxonomies();
+        $taxonomyNames = $store->names();
         $taxonomy = $this->slugify((string)($_GET['taxonomy'] ?? $_POST['taxonomy'] ?? ($taxonomyNames[0] ?? 'tags')));
         if (!in_array($taxonomy, $taxonomyNames, true)) {
             $taxonomy = $taxonomyNames[0] ?? 'tags';
         }
-
-        $saved = isset($_GET['saved']);
-        $error = '';
-        $current = $this->loadTaxonomy($taxonomy);
+        $current = $store->load($taxonomy);
+        $listable = array_values(array_filter($this->content->getTypes(), static fn(string $t): bool => !in_array($t, ['pages', 'forms'], true)));
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $title = trim((string)($_POST['taxonomy_title'] ?? $current['title']));
-            $ids = $_POST['term_id'] ?? [];
-            $slugs = $_POST['term_slug'] ?? [];
-            $labels = $_POST['term_label'] ?? [];
-            $terms = [];
-            $ids = is_array($ids) ? $ids : [];
-            $slugs = is_array($slugs) ? $slugs : [];
-            $labels = is_array($labels) ? $labels : [];
-            $count = max(count($ids), count($slugs));
-            for ($i = 0; $i < $count; $i++) {
-                $id = $this->slugify((string)($ids[$i] ?? ''));
-                $slug = $this->slugify((string)($slugs[$i] ?? ''));
-                if ($id === '' && $slug === '') {
-                    continue;
-                }
-                if ($id === '') {
-                    $id = $slug;
-                }
-                if ($slug === '') {
-                    $slug = $id;
-                }
-                $term = [
-                    'id' => $id,
-                    'slug' => $slug,
-                    'labels' => [],
-                ];
+            $post = static fn(string $key): array => is_array($_POST[$key] ?? null) ? $_POST[$key] : [];
+            $ids = $post('term_id');
+            $slugs = $post('term_slug');
+            $labels = $post('term_label');
+            $rows = [];
+            for ($i = 0, $count = max(count($ids), count($slugs)); $i < $count; $i++) {
+                $row = ['id' => trim((string)($ids[$i] ?? '')), 'slug' => (string)($slugs[$i] ?? ''), 'labels' => []];
                 foreach ($languages as $langCode) {
-                    $langCode = (string)$langCode;
-                    $term['labels'][$langCode] = trim((string)($labels[$langCode][$i] ?? ''));
+                    $row['labels'][$langCode] = trim((string)($labels[$langCode][$i] ?? ''));
                 }
-                $terms[] = $term;
+                $rows[] = $row;
+            }
+            $prepared = $store->prepare($taxonomy, $rows, $default);
+
+            // How the pages of this taxonomy look: only what differs from the defaults is written.
+            $submitted = is_array($_POST['archive'] ?? null) ? $_POST['archive'] : [];
+            $archive = ContentTypes::archiveFromInput(
+                $submitted,
+                $current['archive'],
+                ContentTypes::resolveArchive([], static fn(mixed $v): mixed => $v),
+                array_values(array_diff($taxonomyNames, [$taxonomy])),
+                false
+            );
+            $types = array_values(array_intersect($listable, Taxonomies::typeList($submitted['types'] ?? null)));
+            if ($types === [] || count($types) === count($listable)) {
+                unset($archive['types']);
+            } else {
+                $archive['types'] = $types;
             }
 
-            $this->saveTaxonomy($taxonomy, $title, $terms);
+            $store->save($taxonomy, $title, $prepared['terms'], $archive);
+
+            // A term whose address changed leaves the old one behind, in every language, like a page does.
+            $kind = Taxonomies::kind($taxonomy);
+            $by = $this->currentUsername();
+            foreach ($prepared['moved'] as $move) {
+                foreach ($languages as $langCode) {
+                    $prefix = $langCode === $default ? '' : $langCode . '/';
+                    $this->redirects->moved($prefix . $kind . '/' . $move['from'], $prefix . $kind . '/' . $move['to'], $by, $taxonomy);
+                }
+                $this->relinkMenus($kind . '/' . $move['from'], $kind . '/' . $move['to']);
+            }
+            foreach (array_merge($prepared['added'], array_column($prepared['moved'], 'id')) as $termId) {
+                foreach ($languages as $langCode) {
+                    $this->redirects->removeSource(($langCode === $default ? '' : $langCode . '/') . $kind . '/' . $store->slug($taxonomy, $termId));
+                }
+            }
+            $usage = $this->termUsage($taxonomy);
+            $orphaned = array_sum(array_map(static fn(string $id): int => $usage[$id] ?? 0, $prepared['removed']));
             $this->logActivity('taxonomies.update', 'info', 'taxonomy', $taxonomy, 'Taxonomy updated.', [
                 'title' => $title,
-                'terms' => count($terms),
+                'terms' => count($prepared['terms']),
+                'renamed' => count($prepared['moved']),
+                'removed' => count($prepared['removed']),
             ]);
-            $this->redirect('/admin/taxonomies?taxonomy=' . urlencode($taxonomy) . '&saved=1');
+            $this->redirect('/admin/taxonomies?taxonomy=' . urlencode($taxonomy) . '&saved=1'
+                . ($prepared['moved'] !== [] ? '&moved=' . count($prepared['moved']) : '')
+                . ($prepared['removed'] !== [] ? '&removed=' . count($prepared['removed']) . '&orphaned=' . $orphaned : ''));
             return;
         }
 
+        $usage = $this->termUsage($taxonomy);
+        $terms = [];
+        foreach ($current['terms'] as $term) {
+            $term['used'] = $usage[$term['id']] ?? 0;
+            $terms[] = $term;
+        }
+        $settings = $store->archive($taxonomy, $default, $default);
         $this->render('@admin/taxonomies.twig', [
             'types' => $this->content->getTypes(),
             'user' => $this->auth->user(),
             'admin_section' => 'taxonomies',
             'taxonomy_names' => $taxonomyNames,
             'taxonomy' => $taxonomy,
-            'taxonomy_title' => (string)($current['title'] ?? $this->titleFromSlug($taxonomy)),
-            'taxonomy_terms' => $current['terms'] ?? [],
+            'taxonomy_title' => $current['title'],
+            'taxonomy_terms' => $terms,
+            'taxonomy_kind' => Taxonomies::kind($taxonomy),
             'languages' => $languages,
-            'saved' => $saved,
-            'error' => $error,
+            'archive' => $settings,
+            'layouts' => ContentTypes::LAYOUTS,
+            'orders' => ContentTypes::ORDERS,
+            'other_taxonomies' => array_values(array_diff($taxonomyNames, [$taxonomy])),
+            'listable_types' => $listable,
+            'type_labels' => array_combine($listable, array_map(fn(string $t): string => $this->contentTypes()->definition($t, 'en', $default)['label'], $listable)),
+            'saved' => isset($_GET['saved']),
+            'moved' => (int)($_GET['moved'] ?? 0),
+            'removed' => (int)($_GET['removed'] ?? 0),
+            'orphaned' => (int)($_GET['orphaned'] ?? 0),
+            'error' => '',
         ]);
+    }
+
+    /** @return array<string, int> how many entries (any type, any language, drafts too) are filed under each term of a taxonomy */
+    private function termUsage(string $taxonomy): array
+    {
+        $counts = [];
+        foreach ($this->content->getTypes() as $type) {
+            if ($type === 'forms') {
+                continue;
+            }
+            foreach ($this->content->getItems($type, null, true, false) as $item) {
+                foreach ($this->normalizeMetaList($item->meta[$taxonomy] ?? null) as $termId) {
+                    $counts[$termId] = ($counts[$termId] ?? 0) + 1;
+                }
+            }
+        }
+        return $counts;
     }
 
     private function handleMedia(): void
@@ -4589,7 +4657,7 @@ final class App
                 'field_types' => ContentTypes::FIELD_TYPES,
                 'layouts' => ContentTypes::LAYOUTS,
                 'orders' => ContentTypes::orderOptions($definition['fields']),
-                'taxonomy_names' => $this->listTaxonomyNames(),
+                'taxonomy_names' => $this->taxonomies()->names(),
                 'item_count' => count($this->content->getItems($selected, null, true)),
             ] + $common);
             return;
@@ -4632,33 +4700,13 @@ final class App
         }
 
         // Archive: only what differs from the theme.
-        $schema = ContentTypes::archiveSchema();
-        $archive = is_array($out['archive'] ?? null) ? $out['archive'] : [];
-        $input = is_array($_POST['archive'] ?? null) ? $_POST['archive'] : [];
-        $submitted = [];
-        foreach (['layout', 'columns'] as $key) {
-            $submitted[$key] = FieldSchema::clean($schema[$key], $input[$key] ?? null);
-        }
-        $order = (string)($input['order'] ?? '');
-        $submitted['order'] = isset(ContentTypes::ORDERS[$order]) || preg_match('/^field:[a-z][a-z0-9_]*:(asc|desc)$/', $order)
-            ? $order
-            : $theme['archive']['order'];
-        $submitted['per_page'] = FieldSchema::clean($schema['per_page'], $input['per_page'] ?? null);
-        foreach (['show_image', 'show_excerpt', 'show_date', 'show_meta'] as $key) {
-            $submitted[$key] = FieldSchema::isTruthy($input[$key] ?? false);
-        }
-        $taxonomies = array_map('strval', is_array($input['taxonomies'] ?? null) ? $input['taxonomies'] : []);
-        $submitted['taxonomies'] = array_values(array_intersect($this->listTaxonomyNames(), $taxonomies));
-        foreach (['title', 'subtitle'] as $key) {
-            $submitted[$key] = trim((string)preg_replace('/\s+/', ' ', (string)($input[$key] ?? '')));
-        }
-        foreach ($submitted as $key => $value) {
-            if ($value === $theme['archive'][$key]) {
-                unset($archive[$key]);
-            } else {
-                $archive[$key] = $value;
-            }
-        }
+        $archive = ContentTypes::archiveFromInput(
+            is_array($_POST['archive'] ?? null) ? $_POST['archive'] : [],
+            is_array($out['archive'] ?? null) ? $out['archive'] : [],
+            $theme['archive'],
+            $this->taxonomies()->names(),
+            true
+        );
         if ($archive === []) {
             unset($out['archive']);
         } else {
@@ -5563,69 +5611,12 @@ final class App
         }
     }
 
-    private function taxonomyDir(): string
-    {
-        return $this->contentDir . '/taxonomies';
-    }
-
-    private function ensureDefaultTaxonomies(): void
-    {
-        $dir = $this->taxonomyDir();
-        if (!is_dir($dir)) {
-            mkdir($dir, 0775, true);
-        }
-
-        $defaultTaxonomies = [
-            'tags' => [
-                'title' => 'Tags',
-                'terms' => [
-                    ['id' => 'news', 'slug' => 'news', 'labels' => ['el' => 'Νέα', 'en' => 'News']],
-                    ['id' => 'design', 'slug' => 'design', 'labels' => ['el' => 'Σχεδιασμός', 'en' => 'Design']],
-                ],
-            ],
-            'categories' => [
-                'title' => 'Categories',
-                'terms' => [
-                    ['id' => 'announcements', 'slug' => 'announcements', 'labels' => ['el' => 'Ανακοινώσεις', 'en' => 'Announcements']],
-                    ['id' => 'insights', 'slug' => 'insights', 'labels' => ['el' => 'Ιδέες', 'en' => 'Insights']],
-                ],
-            ],
-        ];
-
-        foreach ($defaultTaxonomies as $name => $payload) {
-            $path = $dir . '/' . $name . '.yaml';
-            if (is_file($path)) {
-                continue;
-            }
-            $title = (string)($payload['title'] ?? $this->titleFromSlug($name));
-            $terms = $payload['terms'] ?? [];
-            $this->saveTaxonomy($name, $title, is_array($terms) ? $terms : []);
-        }
-    }
-
-    /** @return string[] */
-    private function listTaxonomyNames(): array
-    {
-        $names = ['tags', 'categories'];
-        foreach (glob($this->taxonomyDir() . '/*.yaml') ?: [] as $path) {
-            $name = $this->slugify(basename($path, '.yaml'));
-            if ($name === '') {
-                continue;
-            }
-            if (!in_array($name, $names, true)) {
-                $names[] = $name;
-            }
-        }
-        sort($names);
-        return $names;
-    }
-
     /** @return array<int, array{name: string, title: string, terms: array<int, array{id: string, slug: string, labels: array<string, string>}>}> */
     private function listTaxonomiesForAdmin(): array
     {
         $rows = [];
-        foreach ($this->listTaxonomyNames() as $name) {
-            $taxonomy = $this->loadTaxonomy($name);
+        foreach ($this->taxonomies()->names() as $name) {
+            $taxonomy = $this->taxonomies()->load($name);
             $rows[] = [
                 'name' => $name,
                 'title' => (string)$taxonomy['title'],
@@ -5635,159 +5626,14 @@ final class App
         return $rows;
     }
 
-    /** @return array{title: string, terms: array<int, array{id: string, slug: string, labels: array<string, string>}>} */
-    private function loadTaxonomy(string $name): array
-    {
-        $name = $this->slugify($name);
-        if ($name === '') {
-            $name = 'tags';
-        }
-        if (isset($this->taxonomiesCache[$name])) {
-            return $this->taxonomiesCache[$name];
-        }
-
-        $path = $this->taxonomyDir() . '/' . $name . '.yaml';
-        $data = [];
-        if (is_file($path)) {
-            $parsed = Yaml::parseFile($path);
-            if (is_array($parsed)) {
-                $data = $parsed;
-            }
-        }
-
-        $title = trim((string)($data['title'] ?? $this->titleFromSlug($name)));
-        if ($title === '') {
-            $title = $this->titleFromSlug($name);
-        }
-        $terms = $this->normalizeTaxonomyTerms($data['terms'] ?? []);
-        $taxonomy = [
-            'title' => $title,
-            'terms' => $terms,
-        ];
-        $this->taxonomiesCache[$name] = $taxonomy;
-        return $taxonomy;
-    }
-
-    /** @return array<int, array{id: string, slug: string, labels: array<string, string>}> */
-    private function normalizeTaxonomyTerms(mixed $terms): array
-    {
-        if (!is_array($terms)) {
-            return [];
-        }
-        $languages = $this->settings['languages']['available'] ?? [(string)($this->settings['languages']['default'] ?? 'el')];
-        $rows = [];
-        $seenIds = [];
-        foreach ($terms as $term) {
-            if (!is_array($term)) {
-                continue;
-            }
-            $id = $this->slugify((string)($term['id'] ?? ''));
-            $slug = $this->slugify((string)($term['slug'] ?? ''));
-            if ($id === '' && $slug !== '') {
-                $id = $slug;
-            }
-            if ($slug === '' && $id !== '') {
-                $slug = $id;
-            }
-            if ($id === '' || $slug === '' || in_array($id, $seenIds, true)) {
-                continue;
-            }
-            $labels = [];
-            $sourceLabels = is_array($term['labels'] ?? null) ? $term['labels'] : [];
-            foreach ($languages as $langCode) {
-                $langCode = (string)$langCode;
-                $labels[$langCode] = trim((string)($sourceLabels[$langCode] ?? ''));
-            }
-            $rows[] = [
-                'id' => $id,
-                'slug' => $slug,
-                'labels' => $labels,
-            ];
-            $seenIds[] = $id;
-        }
-        return $rows;
-    }
-
-    /** @param array<int, array{id: string, slug: string, labels: array<string, string>}> $terms */
-    private function saveTaxonomy(string $name, string $title, array $terms): void
-    {
-        $name = $this->slugify($name);
-        if ($name === '') {
-            return;
-        }
-        $dir = $this->taxonomyDir();
-        if (!is_dir($dir)) {
-            mkdir($dir, 0775, true);
-        }
-        $payload = [
-            'title' => trim($title) !== '' ? trim($title) : $this->titleFromSlug($name),
-            'terms' => $this->normalizeTaxonomyTerms($terms),
-        ];
-        file_put_contents($dir . '/' . $name . '.yaml', Yaml::dump($payload, 6, 2));
-        $this->taxonomiesCache = [];
-    }
-
-    /** @return array{id: string, slug: string, labels: array<string, string>}|null */
-    private function findTaxonomyTermBySlug(string $taxonomy, string $slug): ?array
-    {
-        $slug = $this->slugify($slug);
-        if ($slug === '') {
-            return null;
-        }
-        $terms = $this->loadTaxonomy($taxonomy)['terms'] ?? [];
-        foreach ($terms as $term) {
-            if ($this->slugify((string)($term['slug'] ?? '')) === $slug) {
-                return $term;
-            }
-        }
-        return null;
-    }
-
     private function taxonomyTermLabel(string $taxonomy, string $termId, ?string $lang = null): string
     {
-        $termId = $this->slugify($termId);
-        if ($termId === '') {
-            return '';
-        }
-        if ($lang === null || $lang === '') {
-            $lang = $this->currentLang;
-        }
-        $terms = $this->loadTaxonomy($taxonomy)['terms'] ?? [];
-        foreach ($terms as $term) {
-            if ((string)($term['id'] ?? '') !== $termId) {
-                continue;
-            }
-            $labels = is_array($term['labels'] ?? null) ? $term['labels'] : [];
-            $label = trim((string)($labels[$lang] ?? ''));
-            if ($label !== '') {
-                return $label;
-            }
-            foreach ($labels as $candidate) {
-                $candidate = trim((string)$candidate);
-                if ($candidate !== '') {
-                    return $candidate;
-                }
-            }
-            return $this->titleFromSlug($termId);
-        }
-        return $this->titleFromSlug($termId);
+        return $this->taxonomies()->label($taxonomy, $termId, $lang !== null && $lang !== '' ? $lang : $this->currentLang);
     }
 
-    private function taxonomyTermSlug(string $taxonomy, string $termId): string
+    private function taxonomies(): Taxonomies
     {
-        $termId = $this->slugify($termId);
-        if ($termId === '') {
-            return '';
-        }
-        $terms = $this->loadTaxonomy($taxonomy)['terms'] ?? [];
-        foreach ($terms as $term) {
-            if ((string)($term['id'] ?? '') !== $termId) {
-                continue;
-            }
-            $slug = $this->slugify((string)($term['slug'] ?? ''));
-            return $slug !== '' ? $slug : $termId;
-        }
-        return $termId;
+        return $this->taxonomyStore ??= new Taxonomies($this->contentDir, array_map('strval', $this->settings['languages']['available'] ?? [(string)($this->settings['languages']['default'] ?? 'el')]));
     }
 
     private function menuDir(): string
@@ -6357,40 +6203,54 @@ final class App
 
         $kind = in_array($kind, ['category', 'categories'], true) ? 'category' : 'tag';
         $key = $kind === 'category' ? 'categories' : 'tags';
-        $term = $this->findTaxonomyTermBySlug($key, $slug);
+        $term = $this->taxonomies()->findBySlug($key, $slug);
         if ($term === null) {
             $this->render404();
             return;
         }
-        $termId = (string)($term['id'] ?? '');
-        $termSlug = (string)($term['slug'] ?? $slug);
-        $titlePrefix = $kind === 'category'
-            ? $this->translate('taxonomy.category', 'Category')
-            : $this->translate('taxonomy.tag', 'Tag');
+        $termId = $term['id'];
+        $termSlug = $term['slug'];
         $label = $this->taxonomyTermLabel($key, $termId, $lang);
+
+        // How this taxonomy lists its entries is its own choice (Admin > Taxonomies), the same options a content type has.
+        $settings = $this->taxonomies()->archive($key, $lang, $this->defaultLanguage());
+        $settings['taxonomies'] = array_values(array_diff($settings['taxonomies'], [$key]));
+        $includeTypes = $settings['types'];
 
         $items = [];
         foreach ($this->content->getTypes() as $type) {
-            if ($type === 'pages') {
+            if (in_array($type, ['pages', 'forms'], true) || ($includeTypes !== [] && !in_array($type, $includeTypes, true))) {
                 continue;
             }
             foreach ($this->content->getItems($type, $lang, false, false) as $item) {
-                $values = $this->normalizeMetaList($item->meta[$key] ?? null);
-                if (in_array($termId, $values, true)) {
+                if (in_array($termId, $this->normalizeMetaList($item->meta[$key] ?? null), true)) {
                     $items[] = $item;
                 }
             }
         }
+        // Entries of several types come newest first, as within a single type.
+        $when = static fn(ContentItem $i): int => strtotime((string)($i->meta['date'] ?? '')) ?: $i->mtime;
+        usort($items, static fn(ContentItem $a, ContentItem $b): int => $when($b) <=> $when($a));
+        $archive = $this->buildArchive($settings, [], null, $lang, $items);
+        if ($archive['page'] > 1 && !$archive['filtered']) {
+            $viewDefaults['canonical_url'] = ($viewDefaults['canonical_url'] ?? '') . '?page=' . $archive['page'];
+        }
 
+        $fill = static fn(string $text): string => str_replace('{term}', $label, $text);
+        $titlePrefix = $kind === 'category'
+            ? $this->translate('taxonomy.category', 'Category')
+            : $this->translate('taxonomy.tag', 'Tag');
         $alternates = $this->buildAlternateUrlsForTaxonomy($kind, $termSlug);
         $this->render($this->resolveTaxonomyTemplate($kind, $slug), [
-            'items' => $items,
+            'items' => $archive['items'],
+            'archive' => $archive,
             'type' => $key,
-            'archive_title' => $titlePrefix . ': ' . $label,
-            'archive_subtitle' => '',
+            'archive_title' => $settings['title'] !== '' ? $fill($settings['title']) : $titlePrefix . ': ' . $label,
+            'archive_subtitle' => $fill($settings['subtitle']),
             'block_styles' => [$this->theme->blockStylesheetUrl(rtrim((string)($this->settings['base_url'] ?? ''), '/'), ['latest'])],
             'alternate_urls' => $alternates['urls'],
             'alternate_default' => $alternates['default'],
+            'noindex_page' => $archive['filtered'],
         ] + $viewDefaults);
     }
 
@@ -6408,7 +6268,7 @@ final class App
     private function buildTaxonomyPath(string $taxonomy, string $termId, string $prefix = ''): string
     {
         $kind = $taxonomy === 'categories' ? 'category' : 'tag';
-        $slug = $this->taxonomyTermSlug($taxonomy, $termId);
+        $slug = $this->taxonomies()->slug($taxonomy, $termId);
         if ($slug === '') {
             return '';
         }
@@ -6533,7 +6393,7 @@ final class App
 
     private function hasTaxonomyItems(string $key, string $slug, string $lang): bool
     {
-        $term = $this->findTaxonomyTermBySlug($key, $slug);
+        $term = $this->taxonomies()->findBySlug($key, $slug);
         if ($term === null) {
             return false;
         }
