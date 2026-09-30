@@ -43,6 +43,20 @@ check('the same options a content type has', all(k in html for k in ('archive[la
 check('filters offered are the other taxonomies', re.findall(r'name="archive\[taxonomies\]\[\]" value="([a-z-]+)"', html) == ['categories'], re.findall(r'name="archive\[taxonomies\]\[\]" value="([a-z-]+)"', html))
 check('content types can be chosen', 'archive[types][]' in html and 'value="posts"' in html and 'value="projects"' in html)
 check('existing terms show their usage', 'entr' in html and 'data-used=' in html)
+check('the screen is a list of terms with search, add, sort and a settings tab', all(k in html for k in ('data-term-rows', 'data-term-search', 'data-term-add', 'data-term-sort', 'data-tab="settings"', 'data-term-dialog', 'role="tablist"')))
+check('taxonomies are switched with links that show their size', 'href="/admin/taxonomies?taxonomy=categories"' in html.replace('http://127.0.0.1', '') or 'taxonomy=categories' in html)
+check('every row carries the fields the server reads', all(k in html for k in ('name="term_id[]"', 'name="term_slug[]"', 'name="term_label[el][]"', 'name="term_label[en][]"', 'name="term_description[el][]"', 'name="term_description[en][]"')))
+check('a term links to the entries filed under it', re.search(r'/admin/content\?type=posts&(amp;)?taxonomy=tags&(amp;)?term=strategy', html) is not None)
+check('the dialog fields are never submitted', not re.search(r'<dialog[^>]*data-term-dialog.*?name="', html, re.S))
+# ---- the entries under a term
+st, _, html = root.get('/admin/content?type=posts&lang=en&taxonomy=tags&term=strategy')
+check('the content list can be narrowed to a term', st == 200 and 'Filed under' in html and 'Tags: Strategy' in html and 'Rebrand' in html, st)
+st, _, html = root.get('/admin/content?type=posts&lang=en&taxonomy=tags&term=growth')
+check('a term nothing in that list uses gives an empty list', st == 200 and 'Filed under' in html and 'When Is It Time' not in html)
+st, _, html = root.get('/admin/content?type=posts&lang=en&taxonomy=tags&term=nonexistent')
+check('an unknown term is ignored, not an error', st == 200 and 'Filed under' not in html)
+st, _, html = root.get('/admin/content?type=posts&lang=en&taxonomy=nothing&term=strategy')
+check('so is an unknown taxonomy', st == 200 and 'Filed under' not in html)
 st, _, html = root.get('/admin/content-types?type=posts')
 check('content type screen still has its archive options', all(k in html for k in ('archive[layout]', 'archive[columns]', 'archive[order]', 'archive[taxonomies][]')))
 st, hdr, _ = root.submit('/admin/content-types?type=posts', lambda f: any(x[0] == 'label' for x in f['fields']), {'archive[per_page]': '7'})
@@ -143,6 +157,30 @@ check('and the address works again', pub.get('/tag/strategy')[0] == 200)
 rows = [(i, 'Στρατηγική' if i == 'strategy' else s, l['el'], l['en']) for i, s, l in terms_of('tags')]
 save_terms(root, 'tags', rows)
 check('an address typed in Greek is converted', pub.get('/tag/stratigiki')[0] == 200)
+
+# ---- descriptions
+def with_description(text, term='strategy'):
+    f = next(f for f in root.forms('/admin/taxonomies?taxonomy=tags') if is_tax_form(f))
+    ids = [v for k, v in f['fields'] if k == 'term_id[]']
+    el = [text if i == term else '' for i in ids]
+    return root.submit('/admin/taxonomies?taxonomy=tags', is_tax_form, {'term_description[el][]': el, 'term_description[en][]': [('About growth strategy' if i == term else '') for i in ids]})
+save(root, 'tags', {'archive[subtitle]': ''})
+st, hdr, _ = with_description('Ό,τι αφορά τη στρατηγική')
+check('a description saves', st == 302 and 'saved=1' in loc(hdr), loc(hdr))
+st, _, html = root.get('/admin/taxonomies?taxonomy=tags')
+check('and comes back in the form', 'value="Ό,τι αφορά τη στρατηγική"' in html or 'Ό,τι αφορά τη στρατηγική' in html)
+st, _, html = pub.get('/tag/stratigiki')
+check('the term page shows it under the title', 'Ό,τι αφορά τη στρατηγική' in html, re.findall(r'<h1>[^<]*</h1>', html))
+st, _, html = pub.get('/en/tag/stratigiki')
+check('in the language of the page', 'About growth strategy' in html)
+save(root, 'tags', {'archive[subtitle]': 'Own subtitle for {term}'})
+st, _, html = pub.get('/en/tag/stratigiki')
+check('a subtitle written for the taxonomy takes its place', 'Own subtitle for Strategy' in html and 'About growth strategy' not in html)
+save(root, 'tags', {'archive[subtitle]': ''})
+# a form with no description boxes at all does not wipe them
+f = next(f for f in root.forms('/admin/taxonomies?taxonomy=tags') if is_tax_form(f))
+save(root, 'tags', {}, drop=['term_description[el][]', 'term_description[en][]'])
+check('a form sent without description boxes leaves them', 'About growth strategy' in pub.get('/en/tag/stratigiki')[2])
 
 # ---- removing a term
 rows = [(i, s, l['el'], l['en']) for i, s, l in terms_of('tags') if i != 'growth']

@@ -11,14 +11,15 @@ use Symfony\Component\Yaml\Yaml;
  *
  * A taxonomy is a file in content/taxonomies/<name>.yaml:
  *   title:    what the admin calls it
- *   terms:    id (what content refers to, never changes), slug (the address, may change), labels per language
+ *   terms:    id (what content refers to, never changes), slug (the address, may change), labels per language, and
+ *             an optional description per language (kept only when one is written)
  *   archive:  only the layout choices that differ from the defaults, the same ones a content type has
  *             (layout, columns, per_page, order, show_*, title, subtitle, taxonomies), plus `types`: the
  *             content types listed on its pages (none chosen means all of them).
  */
 final class Taxonomies
 {
-    /** @var array<string, array{title: string, terms: array<int, array{id: string, slug: string, labels: array<string, string>}>, archive: array<string, mixed>}> */
+    /** @var array<string, array{title: string, terms: array<int, array{id: string, slug: string, labels: array<string, string>, descriptions: array<string, string>}>, archive: array<string, mixed>}> */
     private array $cache = [];
 
     /** @param string[] $languages every language of the site */
@@ -80,7 +81,7 @@ final class Taxonomies
         }
     }
 
-    /** @return array{title: string, terms: array<int, array{id: string, slug: string, labels: array<string, string>}>, archive: array<string, mixed>} */
+    /** @return array{title: string, terms: array<int, array{id: string, slug: string, labels: array<string, string>, descriptions: array<string, string>}>, archive: array<string, mixed>} */
     public function load(string $name): array
     {
         $name = Slug::plain($name) ?: 'tags';
@@ -120,7 +121,13 @@ final class Taxonomies
         }
         $payload = [
             'title' => trim($title) !== '' ? trim($title) : Slug::title($name),
-            'terms' => $this->normalizeTerms($terms),
+            'terms' => array_map(static function (array $term): array {
+                // A description is written only when there is one, so files stay as short as they were.
+                if (implode('', $term['descriptions']) === '') {
+                    unset($term['descriptions']);
+                }
+                return $term;
+            }, $this->normalizeTerms($terms)),
         ];
         $archive ??= $this->load($name)['archive'];
         if ($archive !== []) {
@@ -135,7 +142,7 @@ final class Taxonomies
         $this->cache = [];
     }
 
-    /** @return array<int, array{id: string, slug: string, labels: array<string, string>}> */
+    /** @return array<int, array{id: string, slug: string, labels: array<string, string>, descriptions: array<string, string>}> */
     private function normalizeTerms(mixed $terms): array
     {
         if (!is_array($terms)) {
@@ -155,17 +162,20 @@ final class Taxonomies
                 continue;
             }
             $source = is_array($term['labels'] ?? null) ? $term['labels'] : [];
+            $texts = is_array($term['descriptions'] ?? null) ? $term['descriptions'] : [];
             $labels = [];
+            $descriptions = [];
             foreach ($this->languages as $lang) {
                 $labels[(string)$lang] = trim((string)($source[(string)$lang] ?? ''));
+                $descriptions[(string)$lang] = trim(str_replace("\r\n", "\n", (string)($texts[(string)$lang] ?? '')));
             }
-            $rows[] = ['id' => $id, 'slug' => $slug, 'labels' => $labels];
+            $rows[] = ['id' => $id, 'slug' => $slug, 'labels' => $labels, 'descriptions' => $descriptions];
             $seen[$id] = true;
         }
         return $rows;
     }
 
-    /** @return array{id: string, slug: string, labels: array<string, string>}|null */
+    /** @return array{id: string, slug: string, labels: array<string, string>, descriptions: array<string, string>}|null */
     public function findBySlug(string $name, string $slug): ?array
     {
         $slug = Slug::plain($slug);
@@ -202,6 +212,19 @@ final class Taxonomies
             break;
         }
         return Slug::title($termId);
+    }
+
+    /** The description of a term in a language, or in the default language when this one has none; empty when there is none. */
+    public function description(string $name, string $termId, string $lang, string $defaultLang): string
+    {
+        $termId = Slug::plain($termId);
+        foreach ($this->load($name)['terms'] as $term) {
+            if ($term['id'] === $termId) {
+                $text = (string)($term['descriptions'][$lang] ?? '');
+                return $text !== '' ? $text : (string)($term['descriptions'][$defaultLang] ?? '');
+            }
+        }
+        return '';
     }
 
     public function slug(string $name, string $termId): string
@@ -245,8 +268,8 @@ final class Taxonomies
      * converted to Latin) unless one was typed; a term whose address field is empty keeps the one it has.
      *
      * @param string $name the taxonomy
-     * @param array<int, array{id: string, slug: string, labels: array<string, string>}> $rows in form order, `id` empty for a new term
-     * @return array{terms: array<int, array{id: string, slug: string, labels: array<string, string>}>, moved: array<int, array{id: string, from: string, to: string}>, removed: string[], added: string[]}
+     * @param array<int, array{id: string, slug: string, labels: array<string, string>, descriptions?: array<string, string>|null}> $rows in form order, `id` empty for a new term; `descriptions` left out (or null) keeps what the term has
+     * @return array{terms: array<int, array{id: string, slug: string, labels: array<string, string>, descriptions: array<string, string>}>, moved: array<int, array{id: string, from: string, to: string}>, removed: string[], added: string[]}
      */
     public function prepare(string $name, array $rows, string $defaultLang): array
     {
@@ -303,7 +326,8 @@ final class Taxonomies
             if ($existing === null) {
                 $added[] = $id;
             }
-            $terms[] = ['id' => $id, 'slug' => $slug, 'labels' => $row['labels']];
+            $descriptions = is_array($row['descriptions'] ?? null) ? $row['descriptions'] : ($existing['descriptions'] ?? []);
+            $terms[] = ['id' => $id, 'slug' => $slug, 'labels' => $row['labels'], 'descriptions' => $descriptions];
         }
         $kept = array_column($terms, 'id');
         // An address another term still uses is not gone, so nobody is sent away from it.

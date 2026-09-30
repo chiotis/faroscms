@@ -48,6 +48,7 @@
     <form method="get" action="{{ url('admin/content') }}" class="grid grid-cols-1 gap-3 sm:grid-cols-3">
       <input type="hidden" name="type" value="{{ current_type }}">
       <input type="hidden" name="lang" value="{{ lang }}">
+      {% if term_filter %}<input type="hidden" name="taxonomy" value="{{ term_filter.taxonomy }}"><input type="hidden" name="term" value="{{ term_filter.term }}">{% endif %}
       <label class="block sm:col-span-2">
         <span class="mb-1 block text-sm font-medium text-slate-700">Search</span>
         <input type="text" name="q" value="{{ filters.q }}" placeholder="Title or slug" class="{{ input_class }}">
@@ -67,6 +68,17 @@
       </div>
     </form>
   </div>
+
+  {% if term_filter %}
+    <p class="mb-4 flex flex-wrap items-center gap-2 text-sm text-slate-600">
+      Filed under
+      <span class="inline-flex items-center gap-1 rounded-full bg-blue-50 py-0.5 pl-2.5 pr-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-200">
+        {{ term_filter.taxonomy_title }}: {{ term_filter.label }}
+        <a href="{{ url('admin/content?' ~ {'type': current_type, 'lang': lang}|merge(filters|filter((v, k) => v != '' and k != 'taxonomy' and k != 'term'))|url_encode) }}" class="rounded-full p-0.5 hover:bg-blue-100" aria-label="Remove the {{ term_filter.taxonomy_title }} filter"><svg class="h-3 w-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/></svg></a>
+      </span>
+      <a href="{{ url('admin/taxonomies?taxonomy=' ~ term_filter.taxonomy) }}" class="text-xs font-medium text-slate-500 underline hover:text-slate-800">Back to {{ term_filter.taxonomy_title }}</a>
+    </p>
+  {% endif %}
 
   <form method="post" action="{{ url('admin/content-bulk') }}" class="rounded-lg border border-slate-200 bg-white" data-bulk-form>
     {{ csrf_field() }}

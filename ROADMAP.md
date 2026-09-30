@@ -33,8 +33,9 @@ Direction: one all-purpose theme (`themes/default`) that grows with blocks and v
   - full-width footer shell with constrained inner layout and footer icon set
 
 ## Taxonomies
-- Dedicated taxonomy UX for future custom taxonomies (create/remove taxonomy files from admin)
-- Optional taxonomy ordering, term descriptions, and term image/meta support
+- Current baseline: the Taxonomies screen is a term list (search, add and edit in a dialog, remove with undo, reorder, sort A–Z, entry counts linking to the filtered content list) with descriptions per language and a settings tab for the layout of the term pages
+- Dedicated taxonomy UX for future custom taxonomies (create/remove taxonomy files from admin; the public routes know only `category` and `tag` today)
+- Optional term image/meta support, and parent terms for categories
 - Optional per-content-type taxonomy assignment rules
 
 ## Menus
@@ -89,7 +90,7 @@ Direction: one all-purpose theme (`themes/default`) that grows with blocks and v
 
 ## Post-Theme Architecture
 - Refactor `src/App.php` into focused modules/services (in progress: BackupService, UpdateService, Mailer, MediaLibrary, ContentIndex, FormSubmissionRepository, LoginThrottle, SystemMetaRepository are extracted)
-- Split so far: menus, CSV import/export, structured data, robots.txt, form fields, site settings, taking backups (`App.php` went from 9,800 to about 7,400 lines, with unit tests for each). Next candidates: taxonomies handling, translations, the redirects and links screens (see `docs/architecture.md`)
+- Split so far: menus, CSV import/export, structured data, robots.txt, form fields, site settings, taking backups, the taxonomies screen (`App.php` went from 9,800 to about 7,400 lines, with unit tests for each). Next candidates: the public taxonomy pages, translations, the redirects and links screens (see `docs/architecture.md`)
 - Keep behavior identical during refactor (incremental extraction + regression checks)
 
 ## Later Development

@@ -84,6 +84,23 @@ $t->save('tags', 'Tags', [['id' => 'news', 'slug' => 'news', 'labels' => ['el' =
 check('saving an empty choice list resets to the defaults', $t->archive('tags', 'el', 'el')['layout'], 'cards');
 check('a broken file does not crash', (function () use ($dir, $t) { file_put_contents($dir . '/taxonomies/broken.yaml', "title: [unclosed\n"); $t->forget(); return $t->load('broken')['terms']; })(), []);
 
+// ---- descriptions
+$t->save('tags', 'Tags', [['id' => 'news', 'slug' => 'news', 'labels' => ['el' => 'Νέα', 'en' => 'News'], 'descriptions' => ['el' => "Τα νέα μας\r\nκάθε μέρα ", 'en' => '']], ['id' => 'design', 'slug' => 'design', 'labels' => ['el' => 'Σχεδιασμός', 'en' => 'Design']]]);
+check('a description is kept per language, trimmed', $t->load('tags')['terms'][0]['descriptions'], ['el' => "Τα νέα μας\nκάθε μέρα", 'en' => '']);
+check('a term without one has empty texts', $t->load('tags')['terms'][1]['descriptions'], ['el' => '', 'en' => '']);
+$yaml = file_get_contents($dir . '/taxonomies/tags.yaml');
+check('the file has a description only where one is written', substr_count($yaml, 'descriptions:'), 1);
+check('description in the language asked', $t->description('tags', 'news', 'el', 'el'), "Τα νέα μας\nκάθε μέρα");
+check('another language falls back to the default language', $t->description('tags', 'news', 'en', 'el'), "Τα νέα μας\nκάθε μέρα");
+check('no description gives nothing', [$t->description('tags', 'design', 'en', 'el'), $t->description('tags', 'ghost', 'en', 'el')], ['', '']);
+$p = $t->prepare('tags', [$row('news', 'news', 'Νέα'), $row('design', 'design', 'Σχεδιασμός')], 'el');
+check('rows sent without descriptions keep what the terms have', $p['terms'][0]['descriptions']['el'], "Τα νέα μας\nκάθε μέρα");
+$p = $t->prepare('tags', [['descriptions' => ['el' => '', 'en' => 'Only EN']] + $row('news', 'news', 'Νέα'), $row('', '', 'Νέος')], 'el');
+check('rows sent with descriptions replace them', $p['terms'][0]['descriptions'], ['el' => '', 'en' => 'Only EN']);
+check('a new term starts with none', $p['terms'][1]['descriptions'], []);
+$t->save('tags', 'Tags', $p['terms']);
+check('a new term saved without texts has empty ones', $t->load('tags')['terms'][1]['descriptions'], ['el' => '', 'en' => '']);
+
 exec('rm -rf ' . escapeshellarg($dir));
 echo $fail === 0 ? "\nALL PASSED\n" : "\n$fail FAILED\n";
 exit($fail ? 1 : 0);

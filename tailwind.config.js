@@ -5,6 +5,7 @@ module.exports = {
     './public/assets/js/admin.js',
     './public/assets/js/admin-blocks.js',
     './public/assets/js/admin-media-picker.js',
+    './public/assets/js/admin-taxonomies.js',
     './src/**/*.php',
   ],
   theme: {

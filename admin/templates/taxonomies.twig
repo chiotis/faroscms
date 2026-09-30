@@ -1,24 +1,99 @@
-{% macro term_row(term, languages, input_class, remove_btn, kind) %}
-  <tr class="hover:bg-slate-50" data-term-row data-used="{{ term.used|default(0) }}">
-    {% for langCode in languages %}
-      <td class="px-4 py-2.5 align-top">
-        <input type="text" name="term_label[{{ langCode }}][]" aria-label="{{ langCode|upper }} name" value="{{ term.labels[langCode]|default('') }}" placeholder="{{ langCode|upper }} name" class="{{ input_class }}">
-      </td>
-    {% endfor %}
-    <td class="px-4 py-2.5 align-top">
-      <input type="hidden" name="term_id[]" value="{{ term.id|default('') }}">
-      <input type="text" name="term_slug[]" value="{{ term.slug|default('') }}" placeholder="{{ term.id ? '' : 'made from the name' }}" class="{{ input_class }}" autocomplete="off" spellcheck="false" aria-label="Address of this term" data-term-slug data-original="{{ term.slug|default('') }}">
-      {% if term.id %}<p class="mt-1 hidden text-xs text-amber-700" data-term-slug-note>The old address /{{ kind }}/{{ term.slug }} will keep working and lead here.</p>{% endif %}
+{#
+  Taxonomies: the terms of one taxonomy as a list you search, reorder, edit in a dialog, and remove (removals wait
+  for Save, and can be undone), plus the taxonomy's name and how its pages look. The behaviour is in
+  public/assets/js/admin-taxonomies.js. Everything is still one form: each row carries the same hidden fields
+  (term_id[], term_slug[], term_label[lang][], term_description[lang][]) the server reads, in the order shown.
+#}
+{% macro icon(name) %}
+  {% set paths = {
+    'edit': 'M16.9 3.6a2.1 2.1 0 013 3L8 18.5 3.5 20l1.5-4.5L16.9 3.6z',
+    'up': 'M5 15l7-7 7 7',
+    'down': 'M19 9l-7 7-7-7',
+    'trash': 'M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2m2 0v14a1 1 0 01-1 1H7a1 1 0 01-1-1V6',
+    'undo': 'M3 10h11a5 5 0 010 10H9M3 10l4-4M3 10l4 4',
+    'plus': 'M12 5v14M5 12h14',
+    'search': 'M21 21l-4.3-4.3M17 10.5a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z',
+    'sort': 'M3 6h13M3 12h9M3 18h5M17 10l4 4 4-4M21 14V4',
+    'grip': 'M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01',
+    'external': 'M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1h5',
+    'tag': 'M11 3H5a2 2 0 00-2 2v6l9 9a2 2 0 002.8 0l4.6-4.6a2 2 0 000-2.8L11 3zM7 7h.01'
+  } %}
+  <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="{{ name == 'grip' ? 3 : 1.8 }}" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="{{ paths[name] }}"/></svg>
+{% endmacro %}
+
+{# One row. `term` is empty for the template JavaScript copies when a term is added. #}
+{% macro term_row(term, languages, default_language, kind, type_names, icon_btn, taxonomy) %}
+  {% import _self as me %}
+  {% set primary = term.labels[default_language]|default('') %}
+  {% if primary == '' %}{% for text in term.labels %}{% if primary == '' and text != '' %}{% set primary = text %}{% endif %}{% endfor %}{% endif %}
+  {% set search_text = ((term.labels|join(' ')) ~ ' ' ~ term.slug ~ ' ' ~ (term.descriptions|default({})|join(' ')))|lower %}
+  <tr data-term-row data-used="{{ term.used|default(0) }}" data-original-slug="{{ term.slug|default('') }}" data-search="{{ search_text }}" class="group hover:bg-slate-50">
+    <td class="w-10 px-3 py-3 align-top">
+      <input type="checkbox" data-term-select class="mt-1 h-4 w-4 rounded border-slate-300" aria-label="Select {{ primary|default('this term') }}">
     </td>
-    <td class="px-4 py-2.5 align-top text-xs text-slate-500">
-      {% if term.id %}{{ term.used|default(0) }} {{ term.used|default(0) == 1 ? 'entry' : 'entries' }}{% else %}<span class="text-slate-500">new</span>{% endif %}
+    <td class="px-2 py-3 align-top">
+      <div class="flex items-start gap-2">
+        <button type="button" data-term-grip class="mt-0.5 hidden shrink-0 cursor-grab touch-none rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 sm:inline-flex" aria-label="Drag to reorder" title="Drag to reorder">{{ me.icon('grip') }}</button>
+        <div class="min-w-0">
+          <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <button type="button" data-term-edit data-term-name class="text-left text-sm font-semibold text-slate-900 hover:text-blue-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 rounded">{{ primary|default(term.slug|default('')) }}</button>
+            <span data-term-badge class="hidden rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 ring-1 ring-inset ring-blue-200"></span>
+          </div>
+          <p data-term-langs class="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-slate-500">
+            {% for lang in languages %}
+              {% if lang != default_language %}
+                {% if term.labels[lang]|default('') != '' %}
+                  <span data-lang="{{ lang }}"><span class="font-medium uppercase">{{ lang }}</span> {{ term.labels[lang] }}</span>
+                {% elseif term.id|default('') != '' %}
+                  <span data-lang="{{ lang }}" class="text-amber-700"><span class="font-medium uppercase">{{ lang }}</span> not translated</span>
+                {% endif %}
+              {% endif %}
+            {% endfor %}
+          </p>
+          <p data-term-description class="mt-1 line-clamp-1 max-w-xl text-xs text-slate-500">{{ term.descriptions[default_language]|default('') }}</p>
+          <p data-term-removed-note class="mt-1 hidden text-xs font-medium text-rose-700"></p>
+        </div>
+      </div>
+      <input type="hidden" name="term_id[]" value="{{ term.id|default('') }}" data-field="id">
+      <input type="hidden" name="term_slug[]" value="{{ term.slug|default('') }}" data-field="slug">
+      {% for lang in languages %}
+        <input type="hidden" name="term_label[{{ lang }}][]" value="{{ term.labels[lang]|default('') }}" data-field="label" data-lang="{{ lang }}">
+        <input type="hidden" name="term_description[{{ lang }}][]" value="{{ term.descriptions[lang]|default('') }}" data-field="description" data-lang="{{ lang }}">
+      {% endfor %}
     </td>
-    <td class="px-4 py-2.5 text-right align-top">
-      <button type="button" class="{{ remove_btn }} js-remove-taxonomy-row" title="Remove term" aria-label="Remove term">
-        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2m2 0v14a1 1 0 01-1 1H7a1 1 0 01-1-1V6"/>
-        </svg>
-      </button>
+    <td class="hidden px-3 py-3 align-top md:table-cell">
+      <span data-term-address class="text-xs text-slate-600">
+        {% if term.slug|default('') != '' %}
+          <a href="{{ url(kind ~ '/' ~ term.slug) }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 font-mono hover:text-blue-700 hover:underline">/{{ kind }}/{{ term.slug }}<span class="sr-only"> (opens the public page in a new tab)</span></a>
+        {% else %}
+          <span class="text-slate-500">Made from the name</span>
+        {% endif %}
+      </span>
+    </td>
+    <td class="px-3 py-3 align-top text-xs text-slate-600">
+      <div data-term-entries>
+        {% if term.used|default(0) > 0 %}
+          <p class="font-medium text-slate-800">{{ term.used }} {{ term.used == 1 ? 'entry' : 'entries' }}</p>
+          <p class="flex flex-wrap gap-x-2">
+            {% for type, count in term.used_by_type|default({}) %}
+              <a class="inline-block py-1 text-slate-500 underline decoration-slate-300 hover:text-blue-700" href="{{ url('admin/content?type=' ~ type ~ '&taxonomy=' ~ taxonomy ~ '&term=' ~ term.id) }}">{{ type_names[type]|default(type|title) }} {{ count }}</a>
+            {% endfor %}
+          </p>
+        {% elseif term.id|default('') != '' %}
+          <span class="text-slate-500">Not used yet</span>
+        {% else %}
+          <span class="text-slate-500">New</span>
+        {% endif %}
+      </div>
+    </td>
+    <td class="whitespace-nowrap px-3 py-3 text-right align-top">
+      <span data-term-actions class="inline-flex items-center gap-0.5">
+        <button type="button" data-term-up class="{{ icon_btn }}" aria-label="Move up" title="Move up">{{ me.icon('up') }}</button>
+        <button type="button" data-term-down class="{{ icon_btn }}" aria-label="Move down" title="Move down">{{ me.icon('down') }}</button>
+        <button type="button" data-term-edit class="{{ icon_btn }}" aria-label="Edit term" title="Edit">{{ me.icon('edit') }}</button>
+        <button type="button" data-term-remove class="{{ icon_btn }} text-rose-500 hover:bg-rose-50 hover:text-rose-600" aria-label="Remove term" title="Remove">{{ me.icon('trash') }}</button>
+      </span>
+      <button type="button" data-term-restore class="hidden items-center gap-1 rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50">{{ me.icon('undo') }} Undo</button>
     </td>
   </tr>
 {% endmacro %}
@@ -27,166 +102,213 @@
 {% set page_heading = 'Taxonomies' %}
 
 {% block content %}
-  {% import _self as taxonomy_forms %}
+  {% import _self as me %}
   {% set primary_btn = 'inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm no-underline hover:bg-blue-700' %}
   {% set secondary_btn = 'inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm no-underline hover:bg-slate-50' %}
-  {% set remove_btn = 'inline-flex items-center justify-center rounded-md p-1.5 text-rose-500 hover:bg-rose-50 hover:text-rose-600' %}
+  {% set icon_btn = 'inline-flex items-center justify-center rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40' %}
   {% set input_class = 'w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20' %}
+  {% set tab_class = 'tab-button shrink-0 border-b-2 border-transparent px-3 py-2.5 text-sm font-medium text-slate-500 transition hover:text-slate-800' %}
+  {% set filed_total = taxonomy_tabs|filter(tab => tab.name == taxonomy)|first.filed|default(0) %}
 
-  <header class="mb-4 flex flex-wrap items-start justify-between gap-3">
-    <div class="min-w-0">
-      <p class="mt-1 text-sm text-slate-500">Terms, their names in each language, and how each taxonomy's pages look.</p>
-    </div>
-    <form method="get" class="flex flex-wrap items-center gap-2">
-      <label class="sr-only" for="taxonomy-select">Taxonomy</label>
-      <select id="taxonomy-select" name="taxonomy" class="{{ input_class }} min-w-44">
-        {% for name in taxonomy_names %}
-          <option value="{{ name }}" {% if name == taxonomy %}selected{% endif %}>{{ name|title }}</option>
-        {% endfor %}
-      </select>
-      <button type="submit" class="{{ secondary_btn }}">Apply</button>
-    </form>
-  </header>
-
-  {% if saved %}<template data-flash data-type="success">Saved.{% if moved %} {{ moved }} address{{ moved == 1 ? '' : 'es' }} changed: the old {{ moved == 1 ? 'one keeps' : 'ones keep' }} working (see Redirects).{% endif %}</template>{% endif %}
+  {% if saved %}<template data-flash data-type="success">Saved.{% if moved %} {{ moved }} address{{ moved == 1 ? '' : 'es' }} changed: the old {{ moved == 1 ? 'one keeps' : 'ones keep' }} working{% if can_redirects %} (see Redirects){% endif %}.{% endif %}</template>{% endif %}
   {% if removed and orphaned %}<template data-flash data-type="warning">{{ removed }} term{{ removed == 1 ? '' : 's' }} removed, but {{ orphaned }} {{ orphaned == 1 ? 'entry is' : 'entries are' }} still filed under {{ removed == 1 ? 'it' : 'them' }}. The entries keep the old term in their files, and the term no longer has a page.</template>{% endif %}
   {% if error %}
     <div class="mb-4 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{{ error }}</div>
   {% endif %}
 
-  <form method="post" class="grid gap-4">
+  <header class="mb-4 flex flex-wrap items-end justify-between gap-3">
+    <p class="text-sm text-slate-500">Group your content with categories and tags. Each term gets its own page listing what is filed under it.</p>
+    <nav aria-label="Taxonomies" class="flex flex-wrap gap-2">
+      {% for tab in taxonomy_tabs %}
+        <a href="{{ url('admin/taxonomies?taxonomy=' ~ tab.name) }}" class="inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm font-medium no-underline {{ tab.name == taxonomy ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50' }}"{% if tab.name == taxonomy %} aria-current="page"{% endif %}>
+          {{ me.icon('tag') }}
+          {{ tab.title }}
+          <span class="rounded-full px-1.5 text-xs {{ tab.name == taxonomy ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600' }}">{{ tab.terms }}</span>
+        </a>
+      {% endfor %}
+    </nav>
+  </header>
+
+  <form method="post" class="grid gap-4" data-taxonomy-form data-kind="{{ taxonomy_kind }}" data-default-language="{{ default_language }}" data-can-redirects="{{ can_redirects ? '1' : '' }}" novalidate>
     {{ csrf_field() }}
     <input type="hidden" name="taxonomy" value="{{ taxonomy }}">
 
-    <section class="rounded-lg border border-slate-200 bg-white">
-      <div class="border-b border-slate-200 px-4 py-3">
-        <h2 class="text-sm font-semibold text-slate-900">Taxonomy details</h2>
-      </div>
-      <div class="grid gap-4 p-4 md:grid-cols-2">
-        <label class="grid gap-1 text-sm font-medium text-slate-700">
-          Taxonomy key
-          <input type="text" value="{{ taxonomy }}" readonly class="{{ input_class }} bg-slate-100">
-        </label>
-        <label class="grid gap-1 text-sm font-medium text-slate-700">
-          Taxonomy title
-          <input type="text" name="taxonomy_title" value="{{ taxonomy_title }}" class="{{ input_class }}">
-        </label>
-      </div>
-    </section>
-
-    <section class="rounded-lg border border-slate-200 bg-white">
-      <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
-        <div>
-          <h2 class="text-sm font-semibold text-slate-900">Terms</h2>
-          <p class="mt-0.5 text-xs text-slate-400">Type the name in each language. The address is made from it (Greek letters become Latin), and you can change it later: the old address keeps working. Entries are filed under a term by an internal id that never changes.</p>
+    <div class="rounded-lg border border-slate-200 bg-white" data-tabs>
+      <div class="flex flex-wrap items-start justify-between gap-3 px-4 pt-4">
+        <div class="min-w-0">
+          <h2 class="truncate text-base font-semibold text-slate-900" data-taxonomy-heading>{{ taxonomy_title }}</h2>
+          <p class="mt-0.5 text-xs text-slate-500">
+            <span data-term-count>{{ taxonomy_terms|length }}</span> <span data-term-count-word>{{ taxonomy_terms|length == 1 ? 'term' : 'terms' }}</span>
+            · used {{ filed_total }} {{ filed_total == 1 ? 'time' : 'times' }}
+            · pages at <span class="font-mono">/{{ taxonomy_kind }}/…</span>
+          </p>
         </div>
-        <button type="button" class="{{ secondary_btn }} js-add-taxonomy-row">
-          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
-            <path stroke-linecap="round" d="M12 5v14M5 12h14"/>
-          </svg>
-          Add term
-        </button>
       </div>
 
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-          <thead>
-            <tr class="border-b border-slate-100 bg-slate-50/50 text-left text-xs font-medium text-slate-400">
-              {% for langCode in languages %}
-                <th class="px-4 py-2 font-medium">Name {{ langCode|upper }}</th>
-              {% endfor %}
-              <th class="px-4 py-2 font-medium">Address (/{{ taxonomy_kind }}/…)</th>
-              <th class="px-4 py-2 font-medium">Used by</th>
-              <th class="px-4 py-2 text-right font-medium">Actions</th>
-            </tr>
-          </thead>
-          <tbody data-taxonomy-rows class="divide-y divide-slate-50">
-            {% if taxonomy_terms is empty %}
-              {% set empty_term = { id: '', slug: '', labels: {} } %}
-              {{ taxonomy_forms.term_row(empty_term, languages, input_class, remove_btn, taxonomy_kind) }}
-            {% else %}
+      <div class="mt-2 overflow-x-auto border-b border-slate-200 px-2">
+        <div class="flex min-w-max gap-1" role="tablist" aria-label="Taxonomy sections">
+          <button type="button" class="{{ tab_class }} active" data-tab="terms">Terms</button>
+          <button type="button" class="{{ tab_class }}" data-tab="settings">Settings and pages</button>
+        </div>
+      </div>
+
+      {# ---- Terms ---- #}
+      <div data-tab-panel="terms">
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-3">
+          <div class="relative min-w-52 flex-1 sm:max-w-xs">
+            <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-400">{{ me.icon('search') }}</span>
+            <input type="search" data-term-search placeholder="Search terms…" aria-label="Search terms" autocomplete="off" class="{{ input_class }} pl-9">
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <button type="button" data-term-sort class="{{ secondary_btn }}" title="Put the terms in alphabetical order">{{ me.icon('sort') }} Sort A–Z</button>
+            <button type="button" data-term-add class="{{ primary_btn }}">{{ me.icon('plus') }} Add term</button>
+          </div>
+        </div>
+
+        <div data-term-selection class="hidden items-center justify-between gap-3 border-b border-blue-100 bg-blue-50 px-4 py-2 text-sm text-blue-900" role="group" aria-label="Selected terms">
+          <span><span data-selected-count>0</span> selected</span>
+          <span class="flex items-center gap-2">
+            <button type="button" data-term-remove-selected class="inline-flex items-center gap-1.5 rounded-md border border-rose-200 bg-white px-2.5 py-1 text-xs font-medium text-rose-700 hover:bg-rose-50">{{ me.icon('trash') }} Remove selected</button>
+            <button type="button" data-term-clear-selection class="rounded-md px-2.5 py-1 text-xs font-medium text-blue-900 hover:bg-blue-100">Clear</button>
+          </span>
+        </div>
+
+        <div class="overflow-x-auto" data-term-table{% if taxonomy_terms is empty %} hidden{% endif %}>
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-slate-100 bg-slate-50/60 text-left text-xs font-medium text-slate-500">
+                <th scope="col" class="w-10 px-3 py-2"><input type="checkbox" data-term-select-all class="h-4 w-4 rounded border-slate-300" aria-label="Select all terms"></th>
+                <th scope="col" class="px-2 py-2 font-medium">Name</th>
+                <th scope="col" class="hidden px-3 py-2 font-medium md:table-cell">Page address</th>
+                <th scope="col" class="px-3 py-2 font-medium">Filed under it</th>
+                <th scope="col" class="px-3 py-2 text-right font-medium"><span class="sr-only">Actions</span></th>
+              </tr>
+            </thead>
+            <tbody data-term-rows class="divide-y divide-slate-100">
               {% for term in taxonomy_terms %}
-                {{ taxonomy_forms.term_row(term, languages, input_class, remove_btn, taxonomy_kind) }}
+                {{ me.term_row(term, languages, default_language, taxonomy_kind, type_names, icon_btn, taxonomy) }}
               {% endfor %}
-            {% endif %}
-          </tbody>
-        </table>
-      </div>
-    </section>
+            </tbody>
+          </table>
+        </div>
 
-    <section class="rounded-lg border border-slate-200 bg-white">
-      <div class="border-b border-slate-200 px-4 py-3">
-        <h2 class="text-sm font-semibold text-slate-900">How its pages look</h2>
-        <p class="mt-0.5 text-xs text-slate-400">Applies to the page of every {{ taxonomy_kind }} in this taxonomy (for example /{{ taxonomy_kind }}/{{ (taxonomy_terms|first).slug|default('name') }}). Only what you change is stored; the rest follows the defaults.</p>
+        <div data-term-nomatch class="hidden px-6 py-12 text-center text-sm text-slate-500">No term matches “<span data-term-nomatch-query></span>”.</div>
+
+        <div data-term-empty class="{{ taxonomy_terms is empty ? 'flex' : 'hidden' }} flex-col items-center justify-center px-6 py-14 text-center">
+          <div class="flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-400">{{ me.icon('tag') }}</div>
+          <h3 class="mt-3 text-sm font-semibold text-slate-900">No {{ taxonomy_title|lower }} yet</h3>
+          <p class="mt-1 max-w-sm text-sm text-slate-500">Add the first term, then file entries under it from their editor. Each term gets a page of its own.</p>
+          <button type="button" data-term-add class="{{ primary_btn }} mt-4">{{ me.icon('plus') }} Add term</button>
+        </div>
+
+        <p class="border-t border-slate-100 px-4 py-3 text-xs text-slate-500">
+          The page address is made from the name (Greek letters become Latin) and can be changed: the old address keeps working and leads to the new one. Entries are filed under a term by an internal id that never changes. Changes here, including removals, are applied when you press Save. Removing a term does not remove it from the entries that use it.
+        </p>
       </div>
-      <div class="p-4">
-        {% include '@admin/partials/archive-settings.twig' with {
-          archive: archive, layouts: layouts, orders: orders, filter_names: other_taxonomies,
-          title_placeholder: 'Default: "' ~ (taxonomy_kind == 'category' ? 'Category' : 'Tag') ~ ': Name"',
-          title_hint: 'Write {term} where the name should appear, for example "Articles about {term}".',
-          filter_note: 'Visitors can narrow the list of a ' ~ taxonomy_kind ~ ' page by these.'
-        } only %}
-        {% if listable_types|length > 1 %}
-          <fieldset class="mt-3">
-            <legend class="text-sm font-medium text-slate-700">Content listed</legend>
-            <div class="mt-1 flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-700">
-              {% for type in listable_types %}
-                <label class="inline-flex items-center gap-2"><input type="checkbox" name="archive[types][]" value="{{ type }}"{% if not archive.types or type in archive.types %} checked{% endif %} class="h-4 w-4 rounded border-slate-300"> {{ type_labels[type] }}</label>
-              {% endfor %}
-            </div>
-            <p class="mt-1 text-xs text-slate-400">Which kinds of content appear on these pages. All of them by default.</p>
-          </fieldset>
-        {% endif %}
+
+      {# ---- Settings ---- #}
+      <div data-tab-panel="settings" class="hidden">
+        <div class="grid gap-4 p-4 md:grid-cols-2">
+          <label class="grid gap-1 text-sm font-medium text-slate-700">
+            Name
+            <input type="text" name="taxonomy_title" value="{{ taxonomy_title }}" class="{{ input_class }}" data-taxonomy-title>
+            <span class="text-xs font-normal text-slate-500">What the admin calls it.</span>
+          </label>
+          <label class="grid gap-1 text-sm font-medium text-slate-700">
+            Key
+            <input type="text" value="{{ taxonomy }}" readonly class="{{ input_class }} bg-slate-100">
+            <span class="text-xs font-normal text-slate-500">The field entries use in their files. It cannot change.</span>
+          </label>
+        </div>
+
+        <div class="border-t border-slate-200 px-4 py-4">
+          <h3 class="text-sm font-semibold text-slate-900">How its pages look</h3>
+          <p class="mt-0.5 text-xs text-slate-500">Applies to the page of every {{ taxonomy_kind }} in this taxonomy (for example /{{ taxonomy_kind }}/{{ (taxonomy_terms|first).slug|default('name') }}). Only what you change is stored; the rest follows the defaults. A term's description is shown under the title unless you write a subtitle here.</p>
+          <div class="mt-4">
+            {% include '@admin/partials/archive-settings.twig' with {
+              archive: archive, layouts: layouts, orders: orders, filter_names: other_taxonomies,
+              title_placeholder: 'Default: "' ~ (taxonomy_kind == 'category' ? 'Category' : 'Tag') ~ ': Name"',
+              title_hint: 'Write {term} where the name should appear, for example "Articles about {term}".',
+              filter_note: 'Visitors can narrow the list of a ' ~ taxonomy_kind ~ ' page by these.'
+            } only %}
+            {% if listable_types|length > 1 %}
+              <fieldset class="mt-3">
+                <legend class="text-sm font-medium text-slate-700">Content listed</legend>
+                <div class="mt-1 flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-700">
+                  {% for type in listable_types %}
+                    <label class="inline-flex items-center gap-2"><input type="checkbox" name="archive[types][]" value="{{ type }}"{% if not archive.types or type in archive.types %} checked{% endif %} class="h-4 w-4 rounded border-slate-300"> {{ type_labels[type] }}</label>
+                  {% endfor %}
+                </div>
+                <p class="mt-1 text-xs text-slate-500">Which kinds of content appear on these pages. All of them by default.</p>
+              </fieldset>
+            {% endif %}
+          </div>
+        </div>
       </div>
-    </section>
+    </div>
+
+    <div class="sr-only" role="status" aria-live="polite" data-taxonomy-live></div>
 
     {% embed '@admin/partials/action-bar.twig' %}
-      {% block leading %}      {% endblock %}
+      {% block leading %}
+        <span data-dirty-note class="hidden items-center gap-2 text-sm text-white/90"><span class="h-2 w-2 rounded-full bg-amber-400" aria-hidden="true"></span> Unsaved changes</span>
+      {% endblock %}
       {% block actions %}
-      <button type="submit" class="{{ primary_btn }}">
-        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
-        </svg>
-        Save taxonomy
-      </button>
+        <button type="submit" class="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm no-underline hover:bg-blue-700">
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+          Save changes
+        </button>
       {% endblock %}
     {% endembed %}
   </form>
 
-  <template data-taxonomy-row-template>
-    {% set empty_term = { id: '', slug: '', labels: {} } %}
-    {{ taxonomy_forms.term_row(empty_term, languages, input_class, remove_btn, taxonomy_kind) }}
+  {# What JavaScript copies when a term is added. #}
+  <template data-term-row-template>
+    {{ me.term_row({id: '', slug: '', labels: {}, descriptions: {}}, languages, default_language, taxonomy_kind, type_names, icon_btn, taxonomy) }}
   </template>
 
-  <script>
-    (function () {
-      const body = document.querySelector('[data-taxonomy-rows]');
-      const template = document.querySelector('[data-taxonomy-row-template]');
-      const add = document.querySelector('.js-add-taxonomy-row');
-      if (!body || !template || !add) return;
+  {# The dialog for adding or editing one term. Its fields have no names, so they are never submitted: Apply copies them into the row. #}
+  <dialog data-term-dialog aria-labelledby="term-dialog-title" class="w-[min(94vw,36rem)] rounded-lg border border-slate-200 p-0 shadow-xl backdrop:bg-slate-900/40">
+    <form method="dialog" novalidate data-term-dialog-form>
+      <div class="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-4">
+        <div>
+          <h2 id="term-dialog-title" class="text-base font-semibold text-slate-900" data-dialog-title>Add term</h2>
+          <p class="mt-0.5 text-xs text-slate-500" data-dialog-sub>Give it a name in each language you use.</p>
+        </div>
+        <button type="button" data-dialog-close class="{{ icon_btn }}" aria-label="Close">
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+      <div class="grid max-h-[62vh] gap-5 overflow-y-auto px-5 py-4">
+        {% for lang in languages %}
+          <fieldset class="grid gap-2">
+            <legend class="mb-1 flex items-center gap-2 text-sm font-semibold text-slate-800"><span class="uppercase">{{ lang }}</span>{% if lang == default_language %}<span class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">Default language</span>{% endif %}</legend>
+            <label class="grid gap-1 text-sm font-medium text-slate-700">
+              Name
+              <input type="text" data-dialog-label="{{ lang }}" class="{{ input_class }}" autocomplete="off">
+            </label>
+            <label class="grid gap-1 text-sm font-medium text-slate-700">
+              <span>Description <span class="text-xs font-normal text-slate-500">(optional, shown on the term's page)</span></span>
+              <textarea data-dialog-description="{{ lang }}" rows="2" class="{{ input_class }}"></textarea>
+            </label>
+          </fieldset>
+        {% endfor %}
+        <div class="grid gap-1 border-t border-slate-100 pt-4">
+          <label for="term-dialog-slug" class="text-sm font-medium text-slate-700">Page address</label>
+          <div class="flex items-center rounded-md border border-slate-300 bg-white focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20">
+            <span class="select-none pl-3 text-sm text-slate-500">/{{ taxonomy_kind }}/</span>
+            <input id="term-dialog-slug" type="text" data-dialog-slug autocomplete="off" spellcheck="false" placeholder="made from the name" class="min-w-0 flex-1 border-0 bg-transparent py-2 pl-0.5 pr-3 font-mono text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-0">
+          </div>
+          <p class="hidden text-xs text-amber-700" data-dialog-slug-note>The old address <span class="font-mono" data-dialog-old-slug></span> will keep working and lead here.</p>
+        </div>
+        <p class="hidden rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700" role="alert" data-dialog-error></p>
+      </div>
+      <div class="flex items-center justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-3">
+        <button type="button" data-dialog-close class="{{ secondary_btn }}">Cancel</button>
+        <button type="submit" class="{{ primary_btn }}" data-dialog-apply>Add term</button>
+      </div>
+    </form>
+  </dialog>
 
-      const bindRemove = (button) => {
-        button.addEventListener('click', () => {
-          const row = button.closest('tr');
-          if (!row) return;
-          const used = parseInt(row.dataset.used || '0', 10);
-          if (used > 0 && !window.confirm('This term is used by ' + used + ' ' + (used === 1 ? 'entry' : 'entries') + '. Remove it anyway? The entries keep the old term in their files, and its page disappears.')) return;
-          row.remove();
-        });
-      };
-      body.addEventListener('input', (event) => {
-        const field = event.target.closest('[data-term-slug]');
-        const note = field && field.closest('td').querySelector('[data-term-slug-note]');
-        if (note) note.classList.toggle('hidden', field.value.trim() === '' || field.value.trim() === field.dataset.original);
-      });
-
-      body.querySelectorAll('.js-remove-taxonomy-row').forEach(bindRemove);
-      add.addEventListener('click', () => {
-        const fragment = template.content.cloneNode(true);
-        const removeButton = fragment.querySelector('.js-remove-taxonomy-row');
-        if (removeButton) bindRemove(removeButton);
-        body.appendChild(fragment);
-      });
-    })();
-  </script>
+  <script src="{{ url('assets/js/admin-taxonomies.js') }}" defer></script>
 {% endblock %}
