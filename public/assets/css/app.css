@@ -268,6 +268,17 @@ html.dark body.bg-slate-100 { background-color: #0b1120; }
   height: 2px;
   background: rgba(255, 255, 255, 0.55);
 }
+/* A bar made only to carry messages (screens without Save): out of sight until there is one. */
+[data-action-bar-floating][data-action-bar-floating] {
+  transform: translateY(100%);
+  visibility: hidden;
+  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0s linear 0.35s, background-color 0.35s ease;
+}
+[data-action-bar-floating].is-notifying {
+  transform: none;
+  visibility: visible;
+  transition-delay: 0s;
+}
 @media (prefers-reduced-motion: reduce) {
   [data-action-bar][data-action-bar], [data-action-bar] .ab-layer { transition: none !important; }
 }

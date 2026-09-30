@@ -19,16 +19,10 @@
   </header>
 
   {% if success %}
-    <div class="toast toast-success fixed right-6 top-5 z-[999] flex items-center gap-3 rounded-md border border-emerald-300 bg-emerald-50 px-3.5 py-2.5 text-emerald-800 shadow">
-      <span>{{ success }}</span>
-      <button type="button" class="toast-close border-0 bg-transparent text-lg leading-none text-current" onclick="this.parentElement.remove()">x</button>
-    </div>
+    <template data-flash data-type="success">{{ success }}</template>
   {% endif %}
   {% if error %}
-    <div class="toast fixed right-6 top-5 z-[999] flex items-center gap-3 rounded-md border border-rose-300 bg-rose-50 px-3.5 py-2.5 text-rose-800 shadow">
-      <span>{{ error }}</span>
-      <button type="button" class="toast-close border-0 bg-transparent text-lg leading-none text-current" onclick="this.parentElement.remove()">x</button>
-    </div>
+    <template data-flash data-type="error">{{ error }}</template>
   {% endif %}
 
   {# One compact row: what it is, the files, tags, and the button. Files can also be dropped anywhere on the row. #}
@@ -422,9 +416,6 @@
     </div>
   </div>
 
-  <div id="media-copy-toast" class="pointer-events-none fixed right-6 top-16 z-[999] hidden rounded-md border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800 shadow">
-    URL copied
-  </div>
 
   <script>
     (function () {
@@ -449,7 +440,6 @@
         });
       }
 
-      const copyToast = document.getElementById('media-copy-toast');
       document.querySelectorAll('[data-copy-url]').forEach((button) => {
         button.addEventListener('click', async () => {
           const value = button.getAttribute('data-copy-url') || '';
@@ -465,10 +455,7 @@
               document.execCommand('copy');
               tmp.remove();
             }
-            if (copyToast) {
-              copyToast.classList.remove('hidden');
-              setTimeout(() => copyToast.classList.add('hidden'), 1100);
-            }
+            window.adminToast('URL copied', 'success');
           } catch (_) {}
         });
       });

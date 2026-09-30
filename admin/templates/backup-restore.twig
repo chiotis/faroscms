@@ -15,7 +15,7 @@
   </div>
 
   {% if error %}
-    <div class="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{{ error }}</div>
+    <template data-flash data-type="error">{{ error }}</template>
   {% endif %}
 
   <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">

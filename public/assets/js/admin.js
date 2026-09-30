@@ -10,9 +10,8 @@
  *   data-offcanvas-close             -> close nearest open off-canvas
  *   data-modal-open="id"             -> open modal #id
  *   data-modal-close                 -> close nearest modal
- *   data-toast-dismiss               -> remove nearest [data-toast]
- *   window.adminToast(msg, type)     -> spawn a toast programmatically (text only)
- *   <template data-flash data-type>  -> server flash message, shown as a toast on load
+ *   window.adminToast(msg, type)     -> show a message in the bottom bar (text only)
+ *   <template data-flash data-type>  -> server flash message, shown in the bottom bar on load
  *   table[data-sortable] th[data-sort] -> client-side column sorting (td[data-sort-value] optional)
  *   form[data-confirm="message"]     -> confirmation modal before submitting
  *   [data-copy="text"]               -> copy text to the clipboard
@@ -121,19 +120,13 @@
   function openModal(id) { var m = document.getElementById(id); if (m) m.removeAttribute('hidden'); }
   function closeModal(m) { if (m) m.setAttribute('hidden', ''); }
 
-  /* ---- Toasts ----
-   * One placement for every screen (bottom right, as in the admin template). Success and info
-   * toasts hide after 5s and warnings after 8s, with a countdown bar; errors stay until dismissed. */
-  var TOAST_TONES = {
-    success: 'border-emerald-200 bg-emerald-50 text-emerald-800',
-    error:   'border-red-200 bg-red-50 text-red-800',
-    warning: 'border-amber-200 bg-amber-50 text-amber-800',
-    info:    'border-slate-200 bg-white text-slate-700'
-  };
-  var TOAST_BARS = { success: 'bg-emerald-400', warning: 'bg-amber-400', info: 'bg-slate-300', error: 'bg-red-400' };
-  /* On a screen with an action bar every message shows in the bar: the bar changes colour, the buttons slide away,
-   * and the message takes their place. Messages queue, so two flashes on one page show one after the other.
-   * Errors stay until dismissed; the rest go back by themselves once there was time to read them. */
+  /* ---- Messages ----
+   * Every message in the admin shows in the fixed bar at the bottom of the window: the bar changes colour, its buttons
+   * slide away, and the message takes their place. On a screen with an action bar (Save and friends) that is the same
+   * bar; on any other screen a bar with no buttons slides up for the message and away again. Messages queue, so two
+   * flashes on one page show one after the other. Errors stay until dismissed; the rest go back by themselves once
+   * there was time to read them. */
+  var MESSAGE_TYPES = ['success', 'warning', 'error', 'info'];
   var BAR_ICONS = {
     success: '<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>',
     warning: '<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.3 3.9L2.4 18a2 2 0 001.7 3h15.8a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/>',
@@ -208,41 +201,32 @@
     timer = setTimeout(finish, duration);
   }
 
-  window.adminToast = function (msg, type) {
-    type = TOAST_TONES[type] ? type : 'info';
+  /* The bar messages use: the screen's action bar, or a buttonless one made on the spot. */
+  function messageBar() {
     var bar = document.querySelector('[data-action-bar]');
-    if (bar) { showBarMessage(bar, String(msg), type); return; }
-    var host = document.querySelector('[data-toast-host]');
-    if (!host) return;
-    var t = document.createElement('div');
-    t.setAttribute('data-toast', '');
-    t.setAttribute('role', type === 'error' ? 'alert' : 'status');
-    t.className = 'pointer-events-auto relative overflow-hidden rounded-md border shadow-sm text-sm ' + TOAST_TONES[type];
-    var row = document.createElement('div');
-    row.className = 'flex items-start gap-3 px-3.5 py-2.5';
-    var text = document.createElement('span');
-    text.className = 'mt-px flex-1 break-words';
-    text.textContent = msg;
-    var close = document.createElement('button');
-    close.type = 'button';
-    close.setAttribute('data-toast-dismiss', '');
-    close.setAttribute('aria-label', 'Dismiss');
-    close.className = 'opacity-60 hover:opacity-100';
-    close.textContent = '\u00d7';
-    row.appendChild(text);
-    row.appendChild(close);
-    t.appendChild(row);
-    host.appendChild(t);
-    var duration = type === 'error' ? 0 : (type === 'warning' ? 8000 : 5000);
-    if (duration > 0) {
-      var bar = document.createElement('div');
-      bar.className = 'absolute bottom-0 left-0 h-0.5 ' + TOAST_BARS[type];
-      bar.style.width = '100%';
-      bar.style.transition = 'width ' + duration + 'ms linear';
-      t.appendChild(bar);
-      requestAnimationFrame(function () { requestAnimationFrame(function () { bar.style.width = '0%'; }); });
-      setTimeout(function () { t.remove(); }, duration);
-    }
+    if (bar) return bar;
+    bar = document.createElement('div');
+    bar.setAttribute('data-action-bar', '');
+    bar.setAttribute('data-action-bar-floating', '');
+    bar.className = 'fixed inset-x-0 bottom-0 z-50' + (document.querySelector('[data-sidebar]') ? ' lg:left-64' : '');
+    bar.innerHTML =
+      '<div class="ab-stage">' +
+        '<div class="ab-layer ab-content px-4 py-3 lg:px-6" aria-hidden="true" data-action-bar-content><span class="block h-8"></span></div>' +
+        '<div class="ab-layer ab-message flex items-center gap-3 px-4 py-3 lg:px-6" aria-hidden="true" data-action-bar-message>' +
+          '<span class="shrink-0" data-action-bar-icon></span>' +
+          '<p class="min-w-0 flex-1 text-sm font-medium" data-action-bar-text></p>' +
+          '<button type="button" class="shrink-0 rounded-md px-3 py-1.5 text-sm font-medium" data-action-bar-dismiss tabindex="-1">Dismiss</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="ab-progress" data-action-bar-progress></div>' +
+      '<div class="sr-only" role="status" aria-live="polite" data-action-bar-live></div>';
+    document.body.appendChild(bar);
+    return bar;
+  }
+
+  window.adminToast = function (msg, type) {
+    type = MESSAGE_TYPES.indexOf(type) !== -1 ? type : 'info';
+    showBarMessage(messageBar(), String(msg), type);
   };
 
   function showServerFlashes() {
@@ -391,8 +375,6 @@
       closeModal(closest(t, '[data-modal]')); return;
     }
 
-    var tDismiss = closest(t, '[data-toast-dismiss]');
-    if (tDismiss) { var toast = closest(tDismiss, '[data-toast]'); if (toast) toast.remove(); return; }
 
     var sortHeader = closest(t, 'table[data-sortable] th[data-sort]');
     if (sortHeader) { sortTable(sortHeader); return; }
