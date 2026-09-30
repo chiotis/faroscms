@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2 — 2026-09-30 — The version is visible on GitHub
+- Every time the `VERSION` file changes on `main`, a GitHub Actions workflow (`.github/workflows/release.yml`) tags it (`v0.1.2`) and publishes a **Release** whose notes are that version's entry from this changelog. The repository page now shows the latest version and the list of releases, and the README has a version badge. Until now the number lived only in the `VERSION` file, so nothing on the repository page showed it
+- The site's own update check is unchanged: it compares its local `VERSION` with the `VERSION` file on the configured branch. It reports an update only when the site is older than GitHub, so a site running this very code (such as the development copy) is always "up to date"
+
 ## 0.1.1 — 2026-09-30 — Line endings, roadmap, and the Actions warnings
 - Saving content from the editor now writes line breaks as LF. Browsers send a text box's line breaks as CRLF, so a page edited in the admin came out with some lines ending in CRLF and Git warned about it on every commit (and would show whole files as changed). Applies to the Markdown body and to raw front matter typed in the Advanced tab. `.gitattributes` also keeps code, docs, and tests LF on every machine, and marks fonts and images as binary
 - The GitHub Actions workflow uses `actions/checkout@v7` (v4 ran on Node 20, which is being retired) and a fixed `ubuntu-24.04` runner instead of `ubuntu-latest`, which changes version on 19 October
