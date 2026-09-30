@@ -65,7 +65,7 @@
           <button type="button" class="{{ tab_class }}" data-tab="details">{{ type_definition.singular }} details</button>
         {% endif %}
         {% if block_editor_json %}
-          <button type="button" class="{{ tab_class }}" data-tab="blocks">Blocks <span data-block-count class="ml-1 rounded-full bg-slate-100 px-1.5 text-[11px] font-semibold text-slate-600"></span></button>
+          <button type="button" class="{{ tab_class }}" data-tab="blocks">Blocks <span data-block-count class="tab-count"></span></button>
         {% endif %}
         {% if is_form %}
           <button type="button" class="{{ tab_class }}" data-tab="fields">Fields</button>
@@ -81,7 +81,7 @@
         <button type="button" class="{{ tab_class }}" data-tab="seo">SEO</button>
         <button type="button" class="{{ tab_class }}" data-tab="translations">Translations</button>
         {% if address.exists %}
-          <button type="button" class="{{ tab_class }}" data-tab="history">History{% if history_total %} <span class="ml-1 rounded-full bg-slate-100 px-1.5 text-[11px] font-semibold text-slate-600">{{ history_total }}</span>{% endif %}</button>
+          <button type="button" class="{{ tab_class }}" data-tab="history">History{% if history_total %} <span class="tab-count">{{ history_total }}</span>{% endif %}</button>
         {% endif %}
         <button type="button" class="{{ tab_class }}" data-tab="advanced">Advanced</button>
       </div>
