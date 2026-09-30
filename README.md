@@ -6,6 +6,7 @@
 
 Markdown and YAML content · Twig themes with a block editor · multilingual · no database server
 
+[![Version](https://img.shields.io/github/v/release/chiotis/faroscms?label=version&color=4f46e5)](https://github.com/chiotis/faroscms/releases)
 [![PHP 8.1+](https://img.shields.io/badge/PHP-8.1%2B-777bb4?logo=php&logoColor=white)](#requirements)
 [![License: MIT](https://img.shields.io/badge/license-MIT-2ea44f)](LICENSE)
 [![Tests](https://github.com/chiotis/faroscms/actions/workflows/tests.yml/badge.svg)](https://github.com/chiotis/faroscms/actions/workflows/tests.yml)
@@ -172,7 +173,7 @@ npm install && npm run build:css
 
 ## Status
 
-FarosCMS is under active development and is **pre-1.0** (see [VERSION](VERSION)). It runs real sites, and the content format (Markdown and YAML) is deliberately simple and stable, but the code is still moving quickly: read the [changelog](CHANGELOG.md) before updating and take a backup first. Issues and ideas are welcome.
+FarosCMS is under active development and is **pre-1.0** (see [VERSION](VERSION) and the [releases](https://github.com/chiotis/faroscms/releases)). It runs real sites, and the content format (Markdown and YAML) is deliberately simple and stable, but the code is still moving quickly: read the [changelog](CHANGELOG.md) before updating and take a backup first. Issues and ideas are welcome.
 
 ## License
 
