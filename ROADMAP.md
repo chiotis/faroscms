@@ -65,7 +65,7 @@ Direction: one all-purpose theme (`themes/default`) that grows with blocks and v
 
 ## SEO
 - JSON-LD (done): `Organization` (with contact point), `WebSite` with `SearchAction` on the home page, `BlogPosting` for posts, `Article` for projects, `WebPage`, breadcrumbs; see `docs/theming.md`
-- robots.txt extra disallow rules (settings)
+- robots.txt rules (done): Settings > General > Search engines
 
 ## Caching
 - Runtime cache mode only (no static export pipeline)

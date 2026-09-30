@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.7 — 2026-09-30 — Keep paths out of search engines' reach (robots.txt)
+- **Settings > General > Search engines**: a box for paths crawlers should not visit, one per line (`/private/`, `/thank-you`, `/*.pdf$`). They become `Disallow` lines in `/robots.txt`, between `Allow: /` and the sitemap. With nothing listed the file is exactly what it was before. A line typed as a whole rule (`Disallow: /x`) is accepted; comments, full addresses, paths with spaces, and anything that is not a path are dropped, duplicates are removed, and at most 100 rules of 200 characters are kept, so nothing typed can add a line of its own to the file. A rule of `/` closes the whole site to crawlers (useful for a staging copy). The text says that robots.txt only asks well-behaved crawlers to stay away and is not protection, and points to the per-page "No index" setting for keeping a page out of results
+- The file is written by a small class (`src/RobotsTxt.php`), with unit tests (19) and an HTTP test (19): the default file, saving, checking, that a form sent without the box does not clear the rules, and that only who may change settings can
+
 ## 0.1.6 — 2026-09-30 — Fuller structured data for search engines
 - **Posts and projects**: a post is a `BlogPosting` and a project is now an `Article` (before, projects had none). Each names its **author** (the person typed in the editor; before, it was always the organization), the **date published** (a date that the YAML reader had turned into a Unix time was ignored before, so posts written that way had no date), the date modified, the summary, and a **picture**: the entry's main image, then its SEO share image, then the first picture in its blocks, then the site's default share image, always as a full address. The headline is cut at 110 characters, which search engines require
 - **Every other page** is a `WebPage` (name, address, language, summary) that points to the site
