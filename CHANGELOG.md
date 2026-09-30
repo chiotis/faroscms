@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-09-30 — Content as a section of the menu
+- In the admin sidebar **Content** is now a section heading, like Manage and System. Under it, **Pages**, **Posts**, **Projects** (and any other content type) are ordinary menu items with their own icons, and **Media** moved there from Manage. The old "Content" link to the list of everything and the small indented list under it are gone (the address `admin/content` still works). Every sidebar item now also tells screen readers when it is the current page
+## 2026-09-30 — Users & Roles in one section
+- **Users** and **Roles** are now the two tabs of one **Users & Roles** section: one entry in the sidebar instead of two, and a tab strip at the top of each screen. Editing or adding a person keeps the Users tab and the sidebar entry current. The addresses and permissions did not change (`users.manage` for Users, `roles.manage` for Roles, both only for the super admin). A person editing only their own profile sees no tabs
 ## 2026-09-30 — One Logs section
 - **Activity** and **Email logs** are now the two tabs of one **Logs** section: one entry in the sidebar (System group) instead of two, and a tab strip at the top of each screen to switch between them. The addresses, filters, and permissions did not change: a person who may read only one of them sees only that tab, and the sidebar entry opens the first one they may use. The top bar says "Logs" on both
 ## 2026-09-30 — A bottom bar you edit, and one icon picker

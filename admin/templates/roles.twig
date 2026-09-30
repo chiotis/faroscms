@@ -1,7 +1,8 @@
 {% extends '@admin/base.twig' %}
-{% set page_heading = 'Roles and permissions' %}
+{% set page_heading = 'Users & Roles' %}
 
 {% block content %}
+  {% include '@admin/partials/users-tabs.twig' with {current: 'roles'} %}
   {% set btn_primary = 'inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700' %}
   {% set btn_secondary = 'inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-40' %}
 

@@ -1,0 +1,14 @@
+{# The tabs of the Users & Roles section. Each is its own screen, so these are links. current: 'users' or 'roles'. Nothing is printed for someone who may use neither (a person editing only their own profile). #}
+{% set tab_class = 'tab-button shrink-0 border-b-2 border-transparent px-3 py-2.5 text-sm font-medium text-slate-500 transition hover:text-slate-800' %}
+{% if can('users.manage') or can('roles.manage') %}
+  <nav class="mb-4 overflow-x-auto border-b border-slate-200" aria-label="Users and roles">
+    <div class="flex min-w-max gap-1">
+      {% if can('users.manage') %}
+        <a href="{{ url('admin/users') }}" class="{{ tab_class }}{% if current == 'users' %} active{% endif %}"{% if current == 'users' %} aria-current="page"{% endif %}>Users</a>
+      {% endif %}
+      {% if can('roles.manage') %}
+        <a href="{{ url('admin/roles') }}" class="{{ tab_class }}{% if current == 'roles' %} active{% endif %}"{% if current == 'roles' %} aria-current="page"{% endif %}>Roles</a>
+      {% endif %}
+    </div>
+  </nav>
+{% endif %}
