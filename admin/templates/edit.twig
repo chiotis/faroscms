@@ -25,6 +25,13 @@
   {% if address_changed %}
     <template data-flash data-type="success">Address changed. The old address now leads here.</template>
   {% endif %}
+  {% if front_matter_error %}
+    <div class="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900" role="alert">
+      <strong class="font-semibold">The front matter of this file cannot be read.</strong>
+      Until it is fixed the page is treated as a draft and is not shown on the site. Correct the YAML in the <em>Advanced</em> tab and save.
+      <span class="mt-1 block font-mono text-xs text-red-800">{{ front_matter_error }}</span>
+    </div>
+  {% endif %}
   {% if link_fix %}
     <div class="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900" role="status">
       <span>{{ link_fix.count }} {{ link_fix.count == 1 ? 'link' : 'links' }} in other content still {{ link_fix.count == 1 ? 'uses' : 'use' }} the old address. {{ link_fix.count == 1 ? 'It works' : 'They work' }} through the redirect, but pointing {{ link_fix.count == 1 ? 'it' : 'them' }} at the new address is better.</span>
