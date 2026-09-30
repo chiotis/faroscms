@@ -3041,7 +3041,7 @@ final class App
             $metaForm['excerpt'] = (string)($meta['excerpt'] ?? '');
             $metaForm['custom_fields'] = $this->extractCustomFields($meta, $this->contentTypes()->declaredKeys($type));
             if ($type === 'forms') {
-                $formFields = $this->normalizeFormFieldsForAdmin($meta['fields'] ?? []);
+                $formFields = FormFields::forAdmin($meta['fields'] ?? []);
                 $notifications = $meta['notifications'] ?? [];
                 if (is_array($notifications)) {
                     $formNotifications['enabled'] = $this->isTruthy($notifications['enabled'] ?? false);
@@ -3156,7 +3156,7 @@ final class App
             'form_settings' => $formSettings,
             'form_submissions' => $formSubmissions,
             'form_submissions_total' => $formSubmissionsTotal,
-            'form_field_types' => $this->formFieldTypes(),
+            'form_field_types' => FormFields::types(),
             'block_editor_json' => $type === 'forms' ? '' : $this->blockEditorJson($pageBlocks, $lang),
             'page_templates' => $type === 'forms' ? [] : $this->theme->pageTemplates(),
             'opening' => $this->openingChoices($type),
@@ -4674,7 +4674,7 @@ final class App
                 'title' => (string)($primary->meta['title'] ?? $slug),
                 'status' => $status,
                 'lang' => $primary->lang,
-                'field_count' => count($this->normalizeFormFields($primary->meta['fields'] ?? [])),
+                'field_count' => count(FormFields::normalize($primary->meta['fields'] ?? [])),
                 'languages' => array_keys($versions),
                 'missing_languages' => array_values(array_diff($languages, array_keys($versions))),
                 'submissions' => $stats['total'],
@@ -4785,7 +4785,7 @@ final class App
         $page = min(max(1, (int)($_GET['page'] ?? 1)), $totalPages);
 
         $labels = [];
-        $formFields = $this->normalizeFormFields($form->meta['fields'] ?? []);
+        $formFields = FormFields::normalize($form->meta['fields'] ?? []);
         foreach ($formFields as $field) {
             $name = (string)($field['name'] ?? '');
             if ($name !== '') {
@@ -7618,160 +7618,10 @@ final class App
         $this->settings = $this->loadSettings();
     }
 
-    /** @return string[] */
-    private function formFieldTypes(): array
-    {
-        return FormFields::types();
-    }
-
-    /** @return array<int, array<string, mixed>> */
-    private function normalizeFormFields(mixed $fields): array
-    {
-        if (!is_array($fields)) {
-            return [];
-        }
-        $normalized = [];
-        $allowedTypes = $this->formFieldTypes();
-        foreach ($fields as $row) {
-            if (!is_array($row)) {
-                continue;
-            }
-            $type = strtolower(trim((string)($row['type'] ?? 'text')));
-            if (!in_array($type, $allowedTypes, true)) {
-                $type = 'text';
-            }
-            $name = $this->sanitizeFormFieldName((string)($row['name'] ?? ''));
-            if ($name === '') {
-                continue;
-            }
-            $label = trim((string)($row['label'] ?? ''));
-            if ($label === '') {
-                $label = $this->titleFromSlug($name);
-            }
-            $field = [
-                'type' => $type,
-                'name' => $name,
-                'label' => $label,
-                'required' => $this->isTruthy($row['required'] ?? false),
-                'placeholder' => (string)($row['placeholder'] ?? ''),
-                'help' => (string)($row['help'] ?? ''),
-                'default' => $row['default'] ?? '',
-                'options' => $this->normalizeFormOptions($row['options'] ?? []),
-                'rows' => (int)($row['rows'] ?? 4),
-                'min' => (string)($row['min'] ?? ''),
-                'max' => (string)($row['max'] ?? ''),
-                'step' => (string)($row['step'] ?? ''),
-            ];
-            $normalized[] = $field;
-        }
-        return $normalized;
-    }
-
-    /** @return array<int, array<string, mixed>> */
-    private function normalizeFormFieldsForAdmin(mixed $fields): array
-    {
-        if (!is_array($fields)) {
-            return [];
-        }
-        $normalized = [];
-        $allowedTypes = $this->formFieldTypes();
-        foreach ($fields as $index => $row) {
-            if (!is_array($row)) {
-                continue;
-            }
-            $type = strtolower(trim((string)($row['type'] ?? 'text')));
-            if (!in_array($type, $allowedTypes, true)) {
-                $type = 'text';
-            }
-            $name = $this->sanitizeFormFieldName((string)($row['name'] ?? ''));
-            if ($name === '') {
-                continue;
-            }
-            $label = trim((string)($row['label'] ?? ''));
-            if ($label === '') {
-                $label = $this->titleFromSlug($name);
-            }
-            $options = '';
-            if (isset($row['options'])) {
-                if (is_array($row['options'])) {
-                    $options = implode(', ', array_map('strval', $row['options']));
-                } else {
-                    $options = (string)$row['options'];
-                }
-            }
-            $normalized[] = [
-                'id' => 'field_' . $index,
-                'type' => $type,
-                'name' => $name,
-                'label' => $label,
-                'required' => $this->isTruthy($row['required'] ?? false),
-                'placeholder' => (string)($row['placeholder'] ?? ''),
-                'help' => (string)($row['help'] ?? ''),
-                'default' => (string)($row['default'] ?? ''),
-                'options' => $options,
-                'rows' => (string)($row['rows'] ?? 4),
-                'min' => (string)($row['min'] ?? ''),
-                'max' => (string)($row['max'] ?? ''),
-                'step' => (string)($row['step'] ?? ''),
-            ];
-        }
-        return $normalized;
-    }
-
-    /** @return array<int, array<string, mixed>> */
-    private function parseFormFieldsInput(mixed $input): array
-    {
-        return FormFields::parseInput($input);
-    }
-
-    private function sanitizeFormFieldName(string $value): string
-    {
-        return FormFields::sanitizeName($value);
-    }
-
-    /** @return string[] */
-    private function parseFormOptions(string $value): array
-    {
-        return FormFields::parseOptions($value);
-    }
-
-    /** @return array<int, array{value: string, label: string}> */
-    private function normalizeFormOptions(mixed $value): array
-    {
-        $raw = [];
-        if (is_array($value)) {
-            $raw = $value;
-        } elseif (is_string($value)) {
-            $raw = preg_split('/\R|,/', $value) ?: [];
-        }
-        $options = [];
-        foreach ($raw as $option) {
-            $option = trim((string)$option);
-            if ($option === '') {
-                continue;
-            }
-            $value = $option;
-            $label = $option;
-            if (str_contains($option, '|')) {
-                [$value, $label] = array_map('trim', explode('|', $option, 2));
-            } elseif (str_contains($option, ':')) {
-                [$value, $label] = array_map('trim', explode(':', $option, 2));
-            }
-            if ($label === '') {
-                $label = $value;
-            }
-            $options[] = [
-                'value' => $value,
-                'label' => $label,
-            ];
-        }
-        return $options;
-    }
-
     /** @return array{fields: array, values: array, errors: array, success: bool, message: string, action: string, honeypot: string, redirect: string} */
     private function handleFormRequest(ContentItem $form, string $lang, string $currentPath): array
     {
-        $fields = $this->normalizeFormFields($form->meta['fields'] ?? []);
+        $fields = FormFields::normalize($form->meta['fields'] ?? []);
         $values = $this->defaultFormValues($fields);
         $errors = [];
         $success = false;
@@ -7913,7 +7763,7 @@ final class App
                 if (is_array($default)) {
                     $values[$name] = $default;
                 } else {
-                    $values[$name] = $this->parseFormOptions((string)$default);
+                    $values[$name] = FormFields::parseOptions((string)$default);
                 }
                 continue;
             }
@@ -8230,7 +8080,7 @@ final class App
         if (!$form) {
             return '';
         }
-        $fields = $this->normalizeFormFields($form->meta['fields'] ?? []);
+        $fields = FormFields::normalize($form->meta['fields'] ?? []);
         $values = $this->defaultFormValues($fields);
         $errors = [];
         $success = isset($_GET['sent']) && (string)($_GET['form'] ?? '') === $form->slug;

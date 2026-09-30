@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace FarosCMS;
 
-/** The form editor's field definitions: which types exist and how submitted field rows are cleaned before they are stored. */
+/** The form editor's field definitions: which types exist, how submitted field rows are cleaned before they are stored, and how stored ones are read back for the form on the site and for the editor. */
 final class FormFields
 {
     /** @return string[] */
@@ -126,5 +126,132 @@ final class FormFields
             $fields[] = $field;
         }
         return $fields;
+    }
+
+    /** @return array<int, array<string, mixed>> */
+    public static function normalize(mixed $fields): array
+    {
+        if (!is_array($fields)) {
+            return [];
+        }
+        $normalized = [];
+        $allowedTypes = self::types();
+        foreach ($fields as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $type = strtolower(trim((string)($row['type'] ?? 'text')));
+            if (!in_array($type, $allowedTypes, true)) {
+                $type = 'text';
+            }
+            $name = self::sanitizeName((string)($row['name'] ?? ''));
+            if ($name === '') {
+                continue;
+            }
+            $label = trim((string)($row['label'] ?? ''));
+            if ($label === '') {
+                $label = Slug::title($name);
+            }
+            $field = [
+                'type' => $type,
+                'name' => $name,
+                'label' => $label,
+                'required' => Format::isTruthy($row['required'] ?? false),
+                'placeholder' => (string)($row['placeholder'] ?? ''),
+                'help' => (string)($row['help'] ?? ''),
+                'default' => $row['default'] ?? '',
+                'options' => self::normalizeOptions($row['options'] ?? []),
+                'rows' => (int)($row['rows'] ?? 4),
+                'min' => (string)($row['min'] ?? ''),
+                'max' => (string)($row['max'] ?? ''),
+                'step' => (string)($row['step'] ?? ''),
+            ];
+            $normalized[] = $field;
+        }
+        return $normalized;
+    }
+
+    /** @return array<int, array<string, mixed>> */
+    public static function forAdmin(mixed $fields): array
+    {
+        if (!is_array($fields)) {
+            return [];
+        }
+        $normalized = [];
+        $allowedTypes = self::types();
+        foreach ($fields as $index => $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $type = strtolower(trim((string)($row['type'] ?? 'text')));
+            if (!in_array($type, $allowedTypes, true)) {
+                $type = 'text';
+            }
+            $name = self::sanitizeName((string)($row['name'] ?? ''));
+            if ($name === '') {
+                continue;
+            }
+            $label = trim((string)($row['label'] ?? ''));
+            if ($label === '') {
+                $label = Slug::title($name);
+            }
+            $options = '';
+            if (isset($row['options'])) {
+                if (is_array($row['options'])) {
+                    $options = implode(', ', array_map('strval', $row['options']));
+                } else {
+                    $options = (string)$row['options'];
+                }
+            }
+            $normalized[] = [
+                'id' => 'field_' . $index,
+                'type' => $type,
+                'name' => $name,
+                'label' => $label,
+                'required' => Format::isTruthy($row['required'] ?? false),
+                'placeholder' => (string)($row['placeholder'] ?? ''),
+                'help' => (string)($row['help'] ?? ''),
+                'default' => (string)($row['default'] ?? ''),
+                'options' => $options,
+                'rows' => (string)($row['rows'] ?? 4),
+                'min' => (string)($row['min'] ?? ''),
+                'max' => (string)($row['max'] ?? ''),
+                'step' => (string)($row['step'] ?? ''),
+            ];
+        }
+        return $normalized;
+    }
+
+    /** @return array<int, array{value: string, label: string}> */
+    public static function normalizeOptions(mixed $value): array
+    {
+        $raw = [];
+        if (is_array($value)) {
+            $raw = $value;
+        } elseif (is_string($value)) {
+            $raw = preg_split('/\R|,/', $value) ?: [];
+        }
+        $options = [];
+        foreach ($raw as $option) {
+            $option = trim((string)$option);
+            if ($option === '') {
+                continue;
+            }
+            $value = $option;
+            $label = $option;
+            if (str_contains($option, '|')) {
+                [$value, $label] = array_map('trim', explode('|', $option, 2));
+            } elseif (str_contains($option, ':')) {
+                [$value, $label] = array_map('trim', explode(':', $option, 2));
+            }
+            if ($label === '') {
+                $label = $value;
+            }
+            $options[] = [
+                'value' => $value,
+                'label' => $label,
+            ];
+        }
+        return $options;
     }
 }
