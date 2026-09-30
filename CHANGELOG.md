@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-09-30 — Tests run on every push
+- A GitHub Actions workflow (`.github/workflows/tests.yml`) runs the whole suite (PHP unit checks and the HTTP tests) on PHP 8.1, 8.3 and 8.5 for every push to `main` and every pull request. The README's Tests badge is now the live result of that workflow
+
+## 2026-09-30 — The storage size is measured every 12 hours
+- Adding up every file in uploads, content and the system folder took about a minute on a large site, and it ran on the first admin page of each request that needed it. The result is now kept in the system database with the time it was measured and used for **12 hours**; after that the next admin page measures again. Uploads and deletions in Media adjust the kept size at once, so the storage limit still holds between measurements, and a kept value that is missing, damaged, incomplete, or dated in the future is simply measured again
+- **Settings > Limits > Storage** says when it was last measured, and a **Recalculate now** button (super admin only, written to the activity log) measures at once, for example after copying files in by hand. Content saved and backups taken change the size a little between measurements; the figure catches up at the next one
+
 ## 2026-09-30 — A typo in one file no longer takes the site down
 - A content file whose front matter cannot be read (for example an unquoted comma inside `{ … }`) used to make **every page** of the site fail with a fatal error. Now only that file is affected: it is treated as an unpublished draft (visitors do not see it, and it is not in the sitemap), shows an **Unreadable** badge in the content list, and every admin gets one notification (per file) with the file name, what the parser said, and a link to it. The rest of the site, the admin lists, search, and the dashboard carry on
 - The editor still opens such a file, with a red notice, the parser's message, and the raw front matter in the Advanced tab to correct. Saving front matter that still cannot be read writes nothing and returns to the editor with the reason (before, it was an error page). Once it reads again the page is public again and the badge is gone

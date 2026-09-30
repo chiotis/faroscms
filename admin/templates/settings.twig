@@ -44,6 +44,9 @@
   {% if settings_error %}
     {{ ui.flash(settings_error, 'error') }}
   {% endif %}
+  {% if storage_measured and storage.used_human is defined %}
+    {{ ui.flash('Storage measured again: ' ~ storage.used_human ~ ' used.', 'success') }}
+  {% endif %}
 
   <form method="post" class="space-y-4">
     {{ csrf_field() }}
@@ -96,6 +99,10 @@
             </div>
           </div>
           <p id="storage-limit-help" class="mt-2 text-xs text-slate-400">The default is 1 GB. Enter 0 for no limit. What counts: uploads {{ storage.parts.uploads }}, content {{ storage.parts.content }}, and the system database and backups {{ storage.parts.system }}.</p>
+          <p class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400" id="storage-measured">
+            <span>Measured {{ storage.measured_at|date('Y-m-d H:i') }}. Measured again automatically every 12 hours; uploads and deletions in Media count at once.</span>
+            <button type="submit" form="storage-recalculate" class="font-medium text-slate-600 underline hover:text-slate-900">Recalculate now</button>
+          </p>
         </div>
 
         <div class="{{ section_class }}">
@@ -518,6 +525,12 @@
       {% endblock %}
     {% endembed %}
   </form>
+  {% if can('limits.manage') %}
+  <form id="storage-recalculate" method="post" action="/admin/settings?tab=limits" hidden>
+    {{ csrf_field() }}
+    <input type="hidden" name="storage_action" value="recalculate">
+  </form>
+  {% endif %}
 
   <script>
     (function () {
