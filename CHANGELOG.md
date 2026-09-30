@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-09-30 — A compact upload row in Media
+- The upload area of **Media** is one row instead of a tall box: a small icon with "Drop files to upload / max 20 MB per file", the file field, the tags field, and the Upload button. On a phone the fields stack. Files can be dropped anywhere on the row (it turns blue while you drag over it), where before only the file field itself took a drop. The tags field keeps its label for screen readers
+
 ## 2026-09-30 — Clearer number pills on tabs
 - The small number on a tab (blocks in a page, versions in its history) has a darker grey background, so it stands out from the page; on the current tab it is a shade darker still. It is one `.tab-count` style in the stylesheet, with a dark-mode variant
 

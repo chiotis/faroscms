@@ -305,3 +305,6 @@ html.dark body.bg-slate-100 { background-color: #0b1120; }
 .icon-picker-tile-art { display: inline-grid; place-items: center; width: 2rem; height: 2rem; }
 .icon-picker-tile-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .icon-picker-empty { margin: 0; padding: 0.5rem; color: #64748b; font-size: 0.875rem; }
+
+/* Media upload row: highlights while files are dragged over it. */
+.media-dropzone.is-dragover { border-color: #3b82f6; background: #eff6ff; }
