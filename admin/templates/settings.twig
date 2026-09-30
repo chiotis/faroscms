@@ -97,6 +97,36 @@
           </div>
           <p id="storage-limit-help" class="mt-2 text-xs text-slate-400">The default is 1 GB. Enter 0 for no limit. What counts: uploads {{ storage.parts.uploads }}, content {{ storage.parts.content }}, and the system database and backups {{ storage.parts.system }}.</p>
         </div>
+
+        <div class="{{ section_class }}">
+          <div class="{{ section_header_class }}">
+            <h3 class="text-sm font-semibold text-slate-900">File uploads</h3>
+            <p class="mt-0.5 text-xs text-slate-400">What can be added to the media library (and as a main image while editing). A file that is too big or of a kind that is not ticked is refused with the reason.</p>
+          </div>
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <label class="block">
+              <span class="mb-1 block text-sm font-medium text-slate-700">Largest file (MB)</span>
+              <input type="number" name="upload_limit_mb" value="{{ settings_form.upload_limit_mb }}" min="0" step="1" class="{{ input_class }}" aria-describedby="upload-limit-help">
+            </label>
+            <p id="upload-limit-help" class="text-xs text-slate-400 sm:col-span-2 sm:self-end">The default is 20 MB. Enter 0 to allow what the server allows.{% if server_upload_mb %} This server takes at most <strong class="font-semibold text-slate-600">{{ server_upload_mb }} MB</strong> in one upload (PHP <code class="rounded bg-slate-100 px-1 py-0.5">upload_max_filesize</code> and <code class="rounded bg-slate-100 px-1 py-0.5">post_max_size</code>), so a higher number here does not go beyond that.{% endif %}</p>
+          </div>
+          <fieldset class="mt-4">
+            <legend class="mb-2 text-sm font-medium text-slate-700">Kinds of file allowed</legend>
+            <input type="hidden" name="upload_types_present" value="1">
+            <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {% for key, group in upload_groups %}
+                <label class="flex items-start gap-2.5 rounded-md border border-slate-200 px-3 py-2.5">
+                  <input type="checkbox" name="upload_types[]" value="{{ key }}" {% if key in settings_form.upload_types %}checked{% endif %} class="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+                  <span>
+                    <span class="block text-sm font-medium text-slate-800">{{ group.label }}</span>
+                    <span class="block text-xs text-slate-400">{{ group.help }}</span>
+                  </span>
+                </label>
+              {% endfor %}
+            </div>
+            <p class="mt-2 text-xs text-slate-400">Only harmless kinds of file can be allowed at all: programs, scripts, and web pages are never accepted, whatever is ticked. At least one kind stays ticked.</p>
+          </fieldset>
+        </div>
       </div>
       {% endif %}
 

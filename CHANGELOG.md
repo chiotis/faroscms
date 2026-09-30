@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-09-30 — Upload limits in Settings
+- **Settings > Limits > File uploads** (super admin only): the **largest file** (default 20 MB, 0 to let the server decide) and the **kinds of file allowed** as tick boxes: images, SVG drawings, documents, archives, audio, video. The page says what the server itself allows (PHP `upload_max_filesize` and `post_max_size`) and the real limit is never higher than that. The size used to be a hidden setting; a site that had set it keeps its value. A file that is too big or of an unticked kind is refused with the reason. Dangerous kinds (programs, scripts, web pages) can never be ticked, at least one kind always stays on, and changes are written to the activity log
+- The **Media** screen shows the real limit and the kinds under the drop text, and its file field only offers the allowed kinds. The extra **Upload files** buttons (at the top and in the empty library) are gone, since the upload row is always in view
+
 ## 2026-09-30 — A compact upload row in Media
 - The upload area of **Media** is one row instead of a tall box: a small icon with "Drop files to upload / max 20 MB per file", the file field, the tags field, and the Upload button. On a phone the fields stack. Files can be dropped anywhere on the row (it turns blue while you drag over it), where before only the file field itself took a drop. The tags field keeps its label for screen readers
 

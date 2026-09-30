@@ -90,6 +90,7 @@ final class App
         $this->formSubmissions = new FormSubmissionRepository($this->contentDir);
         $this->contentIndex = new ContentIndex($this->systemDatabase, $this->contentDir);
         $this->media = new MediaLibrary($this->contentDir, $this->basePath . '/public/uploads');
+        $this->media->restrictTo(is_array($this->settings['limits']['upload_types'] ?? null) ? $this->settings['limits']['upload_types'] : []);
         $this->images = new Images($this->basePath . '/public', $this->contentDir . '/media');
         $this->content = new ContentRepository($this->contentDir, $markdown, $this->settings);
         $this->auth = new Auth($this->contentDir . '/users/users.yaml', $this->users);
@@ -3556,6 +3557,8 @@ final class App
                 'home_page' => (string)($_POST['home_page'] ?? ''),
                 'date_format' => (string)($_POST['date_format'] ?? ''),
                 'storage_limit_mb' => $this->submittedStorageLimit(),
+                'upload_limit_mb' => $this->submittedUploadSettings()['mb'],
+                'upload_types' => $this->submittedUploadSettings()['types'],
                 'languages_default' => (string)($_POST['languages_default'] ?? ''),
                 'languages_available' => (string)($_POST['languages_available'] ?? ''),
                 'mail_driver' => (string)($_POST['mail_driver'] ?? ''),
@@ -3599,6 +3602,7 @@ final class App
                 'clear_secrets' => is_array($_POST['clear_secret'] ?? null) ? array_map('strval', $_POST['clear_secret']) : [],
             ];
             $limitBefore = (int)($this->settings['limits']['storage_mb'] ?? 1024);
+            $uploadBefore = [$this->uploadLimitMb(), $this->media->allowedGroups()];
             if (!$this->saveSettings($raw, $form)) {
                 $this->redirect('/admin/settings?' . http_build_query([
                     'tab' => $activeTab,
@@ -3608,6 +3612,11 @@ final class App
             }
             $this->settings = $this->loadSettings();
             $limitAfter = (int)($this->settings['limits']['storage_mb'] ?? 1024);
+            $this->media->restrictTo(is_array($this->settings['limits']['upload_types'] ?? null) ? $this->settings['limits']['upload_types'] : []);
+            $uploadAfter = [$this->uploadLimitMb(), $this->media->allowedGroups()];
+            if ($uploadAfter !== $uploadBefore) {
+                $this->logActivity('limits.upload', 'warning', 'settings', 'upload', 'Upload limits changed.', ['from_mb' => $uploadBefore[0], 'to_mb' => $uploadAfter[0], 'kinds' => $uploadAfter[1]]);
+            }
             if ($limitAfter !== $limitBefore) {
                 $this->logActivity('limits.storage', 'warning', 'settings', 'storage_mb', 'Storage limit changed.', ['from_mb' => $limitBefore, 'to_mb' => $limitAfter]);
             }
@@ -3695,6 +3704,8 @@ final class App
             'admin_section' => 'settings',
             'settings_form' => $this->extractSettingsForm($parsed),
             'storage' => $this->permissions->can($this->auth->user(), 'limits.manage') ? $this->buildStorageSummary() : [],
+            'upload_groups' => MediaLibrary::UPLOAD_GROUPS,
+            'server_upload_mb' => $this->serverUploadCap() > 0 ? (int)floor($this->serverUploadCap() / 1048576) : 0,
             'backup_snapshots' => $this->listBackupSnapshots(),
             'backup_status' => $backupStatus,
             'backup_message' => $backupMessage,
@@ -4317,7 +4328,9 @@ final class App
             'q' => $q,
             'view_mode' => $view,
             'available_tags' => $this->media->availableTags(),
-            'max_upload_mb' => max(1, (int)($this->settings['media']['max_upload_mb'] ?? 20)),
+            'max_upload_mb' => $this->maxUploadBytes() > 0 ? max(1, (int)floor($this->maxUploadBytes() / 1048576)) : 0,
+            'upload_accept' => implode(',', array_map(static fn(string $ext): string => '.' . $ext, $this->media->allowedExtensions())),
+            'upload_kinds' => implode(', ', array_map(static fn(string $group): string => strtolower(MediaLibrary::UPLOAD_GROUPS[$group]['label']), $this->media->allowedGroups())),
             'success' => trim((string)($_GET['success'] ?? '')),
             'error' => trim((string)($_GET['error'] ?? '')),
             'user' => $this->auth->user(),
@@ -7241,6 +7254,8 @@ final class App
             'home_page' => (string)($merged['home_page'] ?? ''),
             'date_format' => (string)($merged['date_format'] ?? ''),
             'storage_limit_mb' => max(0, (int)($merged['limits']['storage_mb'] ?? 1024)),
+            'upload_limit_mb' => max(0, (int)($merged['limits']['upload_mb'] ?? $merged['media']['max_upload_mb'] ?? 20)),
+            'upload_types' => is_array($merged['limits']['upload_types'] ?? null) ? array_values(array_intersect(array_keys(MediaLibrary::UPLOAD_GROUPS), array_map('strval', $merged['limits']['upload_types']))) : array_keys(MediaLibrary::UPLOAD_GROUPS),
             'languages_default' => (string)($merged['languages']['default'] ?? 'el'),
             'languages_available' => implode(', ', $merged['languages']['available'] ?? []),
             'mail_driver' => (string)($merged['forms']['notifications']['driver'] ?? 'smtp'),
@@ -7347,6 +7362,12 @@ final class App
         // Every form value was turned into text above: an empty one means the field was not submitted.
         if (is_numeric($form['storage_limit_mb'] ?? null)) {
             $data['limits']['storage_mb'] = (int)$form['storage_limit_mb'];
+        }
+        if (is_numeric($form['upload_limit_mb'] ?? null)) {
+            $data['limits']['upload_mb'] = (int)$form['upload_limit_mb'];
+        }
+        if (is_string($form['upload_types'] ?? null) && $form['upload_types'] !== '') {
+            $data['limits']['upload_types'] = explode(',', $form['upload_types']);
         }
 
         $available = $this->normalizeLanguageList($form['languages_available']);
@@ -8003,9 +8024,55 @@ final class App
         return (string)($this->auth->user()['username'] ?? '');
     }
 
+    /** The largest file the site allows, in MB (Settings > Limits); 0 means no limit of its own. */
+    private function uploadLimitMb(): int
+    {
+        return max(0, (int)($this->settings['limits']['upload_mb'] ?? $this->settings['media']['max_upload_mb'] ?? 20));
+    }
+
+    /** What the server itself lets through in one upload (upload_max_filesize and post_max_size), in bytes; 0 when unknown. */
+    private function serverUploadCap(): int
+    {
+        $sizes = array_filter(array_map(static function (string $name): int {
+            $raw = trim((string)ini_get($name));
+            if ($raw === '' || $raw === '-1') {
+                return 0;
+            }
+            $number = (int)$raw;
+            return match (strtolower(substr($raw, -1))) {
+                'g' => $number * 1024 ** 3,
+                'm' => $number * 1024 ** 2,
+                'k' => $number * 1024,
+                default => $number,
+            };
+        }, ['upload_max_filesize', 'post_max_size']), static fn(int $bytes): bool => $bytes > 0);
+        return $sizes === [] ? 0 : min($sizes);
+    }
+
+    /** The size limit that really applies: the site's, but never more than the server can take. In bytes, 0 for none. */
     private function maxUploadBytes(): int
     {
-        return max(0, (int)($this->settings['media']['max_upload_mb'] ?? 20)) * 1024 * 1024;
+        $mine = $this->uploadLimitMb() * 1024 * 1024;
+        $server = $this->serverUploadCap();
+        return $mine > 0 && $server > 0 ? min($mine, $server) : max($mine, $server);
+    }
+
+    /** The upload size and file kinds typed on the settings form, or null for what this person may not change or left out. @return array{mb: ?int, types: ?string} */
+    private function submittedUploadSettings(): array
+    {
+        if (!$this->permissions->can($this->auth->user(), 'limits.manage')) {
+            return ['mb' => null, 'types' => null];
+        }
+        $value = str_replace(',', '.', trim((string)($_POST['upload_limit_mb'] ?? '')));
+        $mb = $value !== '' && is_numeric($value) && (float)$value >= 0 ? (int)min(102400, round((float)$value)) : null;
+        $types = null;
+        if (isset($_POST['upload_types_present'])) {
+            $chosen = is_array($_POST['upload_types'] ?? null) ? array_map('strval', $_POST['upload_types']) : [];
+            $chosen = array_values(array_intersect(array_keys(MediaLibrary::UPLOAD_GROUPS), $chosen));
+            // Allowing nothing would lock everyone out of the media library, so an empty choice changes nothing.
+            $types = $chosen === [] ? null : implode(',', $chosen);
+        }
+        return ['mb' => $mb, 'types' => $types];
     }
 
     private function formatFileSize(int $bytes): string

@@ -86,7 +86,7 @@ Admin > History and the editor's History tab need `content.manage`. Restoring or
 
 ### Uploads
 
-- The media library only accepts inert file types: images, office documents, PDF, text/CSV/Markdown, ZIP, and common audio/video formats. Anything else, including `.php`, is rejected.
+- The media library only accepts inert file types: images, office documents, PDF, text/CSV/Markdown, ZIP, and common audio/video formats. Anything else, including `.php`, is rejected. A site can narrow this further in Settings > Limits (super admin only): by kind (images, SVG, documents, archives, audio, video) and by the size of one file (default 20 MB, never more than the server's `upload_max_filesize` and `post_max_size`). It can never widen it: the extension list is fixed in `MediaLibrary::UPLOAD_GROUPS`.
 - Raster images must be detected as `image/*`.
 - SVG files are rejected if they contain scripts, event handlers, `javascript:` URLs, `foreignObject`, embedded frames, entity declarations, or external/data references.
 

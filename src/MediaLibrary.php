@@ -12,10 +12,49 @@ use Symfony\Component\Yaml\Yaml;
  */
 final class MediaLibrary
 {
+    /**
+     * The kinds of file a site can allow (Settings > Limits). Uploads land inside the public web root, so every
+     * extension here is an inert one; a site can only narrow this list, never widen it.
+     */
+    public const UPLOAD_GROUPS = [
+        'images' => ['label' => 'Images', 'help' => 'JPG, PNG, GIF, WebP, AVIF, BMP, ICO', 'extensions' => ['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'bmp', 'ico']],
+        'svg' => ['label' => 'SVG drawings', 'help' => 'Checked for scripts and outside content before they are kept', 'extensions' => ['svg']],
+        'documents' => ['label' => 'Documents', 'help' => 'PDF, Word, Excel, PowerPoint, OpenDocument, RTF, TXT, CSV, Markdown', 'extensions' => ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods', 'odp', 'rtf', 'txt', 'csv', 'md']],
+        'archives' => ['label' => 'Archives', 'help' => 'ZIP', 'extensions' => ['zip']],
+        'audio' => ['label' => 'Audio', 'help' => 'MP3, WAV, OGG, M4A', 'extensions' => ['mp3', 'wav', 'ogg', 'm4a']],
+        'video' => ['label' => 'Video', 'help' => 'MP4, WebM, MOV', 'extensions' => ['mp4', 'webm', 'mov']],
+    ];
+
+    /** @var string[]|null the groups this site allows; null means all of them */
+    private ?array $allowedGroups = null;
+
     public function __construct(
         private string $contentDir,
         private string $uploadsDir
     ) {
+    }
+
+    /** Limits uploads to some of the groups in UPLOAD_GROUPS (unknown names are ignored; none valid means all). @param string[] $groups */
+    public function restrictTo(array $groups): void
+    {
+        $known = array_values(array_filter($groups, static fn($group): bool => is_string($group) && isset(self::UPLOAD_GROUPS[$group])));
+        $this->allowedGroups = $known === [] ? null : $known;
+    }
+
+    /** @return string[] the groups uploads are accepted in */
+    public function allowedGroups(): array
+    {
+        return $this->allowedGroups ?? array_keys(self::UPLOAD_GROUPS);
+    }
+
+    /** @return string[] file extensions accepted now, without the dot */
+    public function allowedExtensions(): array
+    {
+        $extensions = [];
+        foreach ($this->allowedGroups() as $group) {
+            $extensions = array_merge($extensions, self::UPLOAD_GROUPS[$group]['extensions']);
+        }
+        return $extensions;
     }
 
     /** @return string[] */
@@ -386,7 +425,7 @@ final class MediaLibrary
         $extension = preg_replace('/[^a-z0-9]/', '', $extension) ?? '';
         // Uploads land inside the public web root, so only inert file types are accepted.
         if (!in_array($extension, $this->allowedExtensions(), true)) {
-            throw new \RuntimeException('This file type is not allowed.');
+            throw new \RuntimeException('This kind of file is not allowed on this site.');
         }
         $detectedMime = $this->detectMimeType($tmpName, '');
         if (in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'bmp', 'ico'], true) && !str_starts_with($detectedMime, 'image/')) {
@@ -435,17 +474,6 @@ final class MediaLibrary
         ];
         $this->saveMeta($meta);
         return $this->find($id) ?? $meta;
-    }
-
-    /** @return string[] */
-    private function allowedExtensions(): array
-    {
-        return [
-            'jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'bmp', 'ico', 'svg',
-            'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods', 'odp', 'rtf', 'txt', 'csv', 'md',
-            'zip',
-            'mp3', 'wav', 'ogg', 'm4a', 'mp4', 'webm', 'mov',
-        ];
     }
 
     private function isSafeSvg(string $path): bool
