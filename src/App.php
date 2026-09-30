@@ -72,6 +72,7 @@ final class App
     private ?GoogleSignIn $googleSignInService = null;
     private ?RoleAdmin $roleAdminService = null;
     private ?UserAdmin $userAdminService = null;
+    private ?ContentTypeAdmin $contentTypeAdminService = null;
     private ?PublicPaths $publicPathsService = null;
     private ?Taxonomies $taxonomyStore = null;
     /** @var array<string, mixed>|null */
@@ -3798,45 +3799,10 @@ final class App
         $default = $this->defaultLanguage();
         $manageable = array_values(array_filter($this->content->getTypes(), static fn(string $t): bool => $t !== 'forms'));
         $types = $this->contentTypes();
+        $admin = $this->contentTypeAdmin();
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $action = (string)($_POST['action'] ?? 'save');
-            if ($action === 'create') {
-                $name = $this->slugify((string)($_POST['name'] ?? ''));
-                $reserved = ['pages', 'settings', 'users', 'media', 'menus', 'taxonomies', 'forms', 'forms-submissions', 'search', 'tag', 'tags', 'category', 'categories', 'admin', 'uploads', 'assets', 'robots', 'sitemap', 'custom'];
-                if ($name === '' || !preg_match('/^[a-z][a-z0-9-]*$/', $name) || in_array($name, $reserved, true) || in_array($name, $manageable, true)) {
-                    $this->redirect('/admin/content-types?error=name');
-                    return;
-                }
-                $label = trim((string)($_POST['label'] ?? ''));
-                $dir = $this->contentDir . '/' . $name;
-                if (!is_dir($dir) && !@mkdir($dir, 0775, true) && !is_dir($dir)) {
-                    $this->redirect('/admin/content-types?error=write');
-                    return;
-                }
-                if (!$types->saveCustom($name, ['label' => $label !== '' ? $label : $this->titleFromSlug($name)])) {
-                    $this->redirect('/admin/content-types?error=write');
-                    return;
-                }
-                $this->logActivity('content_types.create', 'info', 'content_type', $name, 'Content type created.');
-                $this->redirect('/admin/content-types?type=' . urlencode($name) . '&saved=1');
-                return;
-            }
-
-            $type = $this->slugify((string)($_POST['type'] ?? ''));
-            if (!in_array($type, $manageable, true)) {
-                $this->redirect('/admin/content-types');
-                return;
-            }
-            $definition = $this->contentTypeFromInput($type, $default);
-            if (!$types->saveCustom($type, $definition)) {
-                $this->redirect('/admin/content-types?type=' . urlencode($type) . '&error=write');
-                return;
-            }
-            $this->logActivity('content_types.update', 'info', 'content_type', $type, 'Content type updated.', [
-                'fields' => count($definition['fields'] ?? []),
-            ]);
-            $this->redirect('/admin/content-types?type=' . urlencode($type) . '&saved=1');
+            $this->redirect((string)($_POST['action'] ?? 'save') === 'create' ? $admin->create($_POST, $manageable) : $admin->update($_POST, $manageable, $default));
             return;
         }
 
@@ -3851,32 +3817,11 @@ final class App
         if ($selected !== '' && in_array($selected, $manageable, true)) {
             $definition = $types->definition($selected, $default, $default);
             $themeDefinition = $types->themeDefinition($selected, $default, $default);
-            $rows = [];
-            foreach ($definition['fields'] as $key => $field) {
-                $options = [];
-                foreach ($field['type'] === 'select' ? $field['options'] : [] as $value => $label) {
-                    if ((string)$value !== '') {
-                        $options[] = $value . '|' . $label;
-                    }
-                }
-                $rows[] = [
-                    'key' => (string)$key,
-                    'label' => $field['label'],
-                    'help' => $field['help'],
-                    'type' => $field['type'],
-                    'options' => implode("\n", $options),
-                    'filterable' => $field['filterable'],
-                    'card' => $field['card'],
-                    'show' => $field['show'],
-                    'retired' => $field['hidden'],
-                    'from_theme' => isset($themeDefinition['fields'][$key]),
-                ];
-            }
             $this->render('@admin/content-type-edit.twig', [
                 'type' => $selected,
                 'definition' => $definition,
                 'theme_definition' => $themeDefinition,
-                'rows' => $rows,
+                'rows' => $admin->fieldRows($definition, $themeDefinition),
                 'field_types' => ContentTypes::FIELD_TYPES,
                 'layouts' => ContentTypes::LAYOUTS,
                 'orders' => ContentTypes::orderOptions($definition['fields']),
@@ -3886,177 +3831,18 @@ final class App
             return;
         }
 
-        $rows = [];
-        foreach ($manageable as $type) {
-            $definition = $types->definition($type, $default, $default);
-            $rows[] = [
-                'type' => $type,
-                'label' => $definition['label'],
-                'fields' => count(array_filter($definition['fields'], static fn(array $f): bool => !$f['hidden'])),
-                'origin' => $definition['origin'],
-                'layout' => $definition['archive']['layout'],
-            ];
-        }
-        $this->render('@admin/content-types.twig', ['types_list' => $rows] + $common);
+        $this->render('@admin/content-types.twig', ['types_list' => $admin->overview($manageable, $default)] + $common);
     }
 
-    /**
-     * The site's definition file for a type after applying a submitted form. Starts from what the file
-     * holds now (so keys the form does not know are kept) and writes only differences from the theme.
-     *
-     * @return array<string, mixed>
-     */
-    private function contentTypeFromInput(string $type, string $default): array
+    private function contentTypeAdmin(): ContentTypeAdmin
     {
-        $types = $this->contentTypes();
-        $theme = $types->themeDefinition($type, $default, $default);
-        $out = $types->customRaw($type);
-        $text = static fn(string $key): string => trim((string)preg_replace('/\s+/', ' ', (string)($_POST[$key] ?? '')));
-
-        foreach (['label', 'singular', 'description'] as $key) {
-            $submitted = $text($key);
-            if ($submitted === '' || $submitted === $theme[$key]) {
-                unset($out[$key]);
-            } else {
-                $out[$key] = $submitted;
-            }
-        }
-
-        // Archive: only what differs from the theme.
-        $archive = ContentTypes::archiveFromInput(
-            is_array($_POST['archive'] ?? null) ? $_POST['archive'] : [],
-            is_array($out['archive'] ?? null) ? $out['archive'] : [],
-            $theme['archive'],
-            $this->taxonomies()->names(),
-            true
+        return $this->contentTypeAdminService ??= new ContentTypeAdmin(
+            $this->contentTypes(),
+            $this->contentDir,
+            fn(): array => $this->taxonomies()->names(),
+            fn(string $key): bool => $this->isReservedFrontmatterKey($key),
+            fn(string $action, string $level, ?string $type, ?string $id, string $message, array $context) => $this->logActivity($action, $level, $type, $id, $message, $context)
         );
-        if ($archive === []) {
-            unset($out['archive']);
-        } else {
-            $out['archive'] = $archive;
-        }
-
-        // Fields.
-        $fields = is_array($out['fields'] ?? null) ? $out['fields'] : [];
-        $themeKeys = array_keys($theme['fields']);
-        $seen = [];
-        foreach (is_array($_POST['fields'] ?? null) ? $_POST['fields'] : [] as $row) {
-            if (!is_array($row)) {
-                continue;
-            }
-            $key = strtolower(trim((string)($row['key'] ?? '')));
-            if (!preg_match('/^[a-z][a-z0-9_]{0,39}$/', $key) || isset($seen[$key]) || $this->isReservedFrontmatterKey($key)) {
-                continue;
-            }
-            $seen[$key] = true;
-            $retired = FieldSchema::isTruthy($row['retired'] ?? false);
-            $card = FieldSchema::isTruthy($row['card'] ?? false);
-            $show = FieldSchema::isTruthy($row['show'] ?? false);
-            $filterable = FieldSchema::isTruthy($row['filterable'] ?? false);
-
-            if (in_array($key, $themeKeys, true)) {
-                // A theme field: only how it is used can change.
-                $base = $theme['fields'][$key];
-                $entry = is_array($fields[$key] ?? null) ? $fields[$key] : [];
-                $flags = ['card' => $card, 'show' => $show, 'hidden' => $retired];
-                if ($base['type'] === 'select') {
-                    $flags['filterable'] = $filterable;
-                }
-                foreach ($flags as $flag => $value) {
-                    if ($value === $base[$flag]) {
-                        unset($entry[$flag]);
-                    } else {
-                        $entry[$flag] = $value;
-                    }
-                }
-                if ($entry === []) {
-                    unset($fields[$key]);
-                } else {
-                    $fields[$key] = $entry;
-                }
-                continue;
-            }
-
-            // A site field: everything can change. Details the form does not offer are kept.
-            $type_ = in_array((string)($row['type'] ?? ''), ContentTypes::FIELD_TYPES, true) ? (string)$row['type'] : 'text';
-            $entry = is_array($fields[$key] ?? null) ? $fields[$key] : [];
-            $entry['type'] = $type_;
-            $label = trim((string)preg_replace('/\s+/', ' ', (string)($row['label'] ?? '')));
-            $currentLabel = trim((string)ContentTypes::pick($entry['label'] ?? '', $default, $default));
-            if ($label === '') {
-                $label = ucfirst(str_replace('_', ' ', $key));
-            }
-            if ($label !== $currentLabel) {
-                $entry['label'] = $label;
-            }
-            $help = trim((string)preg_replace('/\s+/', ' ', (string)($row['help'] ?? '')));
-            if ($help !== trim((string)ContentTypes::pick($entry['help'] ?? '', $default, $default))) {
-                if ($help === '') {
-                    unset($entry['help']);
-                } else {
-                    $entry['help'] = $help;
-                }
-            }
-            if ($type_ === 'select') {
-                $options = ['' => '—'];
-                foreach (preg_split('/\R/', (string)($row['options'] ?? '')) ?: [] as $line) {
-                    $line = trim($line);
-                    if ($line === '') {
-                        continue;
-                    }
-                    [$value, $optionLabel] = str_contains($line, '|') ? array_map('trim', explode('|', $line, 2)) : [$this->slugify($line), $line];
-                    $value = preg_replace('/[^a-z0-9_-]+/', '-', strtolower($value)) ?? '';
-                    $value = trim($value, '-');
-                    if ($value !== '' && $optionLabel !== '') {
-                        $options[$value] = $optionLabel;
-                    }
-                }
-                $existing = is_array($entry['options'] ?? null) ? $entry['options'] : [];
-                $existingText = [];
-                foreach ($existing as $value => $optionLabel) {
-                    if ((string)$value !== '') {
-                        $existingText[(string)$value] = (string)ContentTypes::pick($optionLabel, $default, $default);
-                    }
-                }
-                $newText = $options;
-                unset($newText['']);
-                if ($existingText !== $newText) {
-                    $entry['options'] = $options;
-                }
-                if ($filterable) {
-                    $entry['filterable'] = true;
-                } else {
-                    unset($entry['filterable']);
-                }
-            } else {
-                unset($entry['options'], $entry['filterable']);
-            }
-            foreach (['card' => $card, 'hidden' => $retired] as $flag => $value) {
-                if ($value) {
-                    $entry[$flag] = true;
-                } else {
-                    unset($entry[$flag]);
-                }
-            }
-            if ($show) {
-                unset($entry['show']);
-            } else {
-                $entry['show'] = false;
-            }
-            $fields[$key] = $entry;
-        }
-        // Site fields whose row was removed leave the definition; their stored values stay in the content.
-        foreach (array_keys($fields) as $key) {
-            if (!isset($seen[$key]) && !in_array((string)$key, $themeKeys, true)) {
-                unset($fields[$key]);
-            }
-        }
-        if ($fields === []) {
-            unset($out['fields']);
-        } else {
-            $out['fields'] = $fields;
-        }
-        return $out;
     }
 
     private function handleTranslations(): void
