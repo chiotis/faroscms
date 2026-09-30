@@ -1123,6 +1123,105 @@ body.mobile-menu-open .mobile-drawer {
   transition: transform 0.3s var(--ease), visibility 0s;
 }
 
+/* Phone menu styles (Theme settings > Header > Phone menu). The side drawer from the left is the base above. */
+.mobile-drawer {
+  height: 100vh;
+  height: 100dvh;
+}
+
+.mobile-drawer--drawer_right {
+  inset: 0 0 0 auto;
+  border-right: 0;
+  border-left: 1px solid var(--color-border);
+  transform: translateX(100%);
+}
+
+.mobile-drawer--fullscreen {
+  inset: 0;
+  width: auto;
+  border: 0;
+  opacity: 0;
+  transform: none;
+  transition: opacity 0.25s var(--ease), visibility 0s linear 0.25s;
+}
+
+body.mobile-menu-open .mobile-drawer--fullscreen {
+  opacity: 1;
+  transition: opacity 0.25s var(--ease), visibility 0s;
+}
+
+.mobile-drawer--fullscreen .mobile-drawer-nav {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  justify-content: center;
+  padding: var(--space-m) var(--space-l);
+}
+
+.mobile-drawer--fullscreen .mobile-link {
+  padding: 0.45rem 0.25rem;
+  font-family: var(--font-heading);
+  font-size: clamp(1.6rem, 1rem + 3.5vw, 2.4rem);
+  font-weight: var(--heading-weight);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.mobile-drawer--fullscreen .mobile-item .mobile-menu .mobile-link {
+  font-family: var(--font-body);
+  font-size: var(--step-0);
+  font-weight: 550;
+  letter-spacing: 0;
+}
+
+.mobile-drawer--top_sheet,
+.mobile-drawer--bottom_sheet {
+  width: auto;
+  height: auto;
+  max-height: 88vh;
+  max-height: 88dvh;
+  border: 0;
+}
+
+.mobile-drawer--top_sheet {
+  inset: 0 0 auto;
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 0 0 var(--radius-l) var(--radius-l);
+  box-shadow: 0 24px 48px -24px rgb(11 18 32 / 0.5);
+  transform: translateY(-100%);
+}
+
+.mobile-drawer--bottom_sheet {
+  inset: auto 0 0;
+  padding-bottom: env(safe-area-inset-bottom);
+  border-top: 1px solid var(--color-border);
+  border-radius: var(--radius-l) var(--radius-l) 0 0;
+  box-shadow: 0 -24px 48px -24px rgb(11 18 32 / 0.5);
+  transform: translateY(100%);
+}
+
+/* The little handle that says "this comes from the bottom". */
+.mobile-drawer--bottom_sheet::before {
+  content: "";
+  flex: none;
+  align-self: center;
+  width: 2.75rem;
+  height: 0.3rem;
+  margin-top: 0.6rem;
+  border-radius: 999px;
+  background: var(--color-border-strong);
+}
+
+.mobile-drawer--bottom_sheet .mobile-drawer-header {
+  border-bottom: 0;
+  padding-bottom: 0.25rem;
+}
+
+body.mobile-menu-open .mobile-drawer--top_sheet,
+body.mobile-menu-open .mobile-drawer--bottom_sheet {
+  transform: translateY(0);
+}
+
 .mobile-drawer-header {
   display: flex;
   align-items: center;
@@ -1432,6 +1531,11 @@ body.has-transparent-header:not(.header-solid) .site-header.is-on-dark[data-stic
   padding-top: calc(var(--header-height, 4.5rem) + clamp(5rem, 10vw, 9rem));
 }
 
+/* A photo behind the title area: a darker top edge under the transparent header keeps its light text readable. */
+.has-transparent-header .main-shell > .single-hero.has-image:first-child::before {
+  background-image: linear-gradient(180deg, rgb(11 18 32 / 0.6), rgb(11 18 32 / 0.8)), var(--hero-image);
+}
+
 /* The same when the page opens with its title area: room for the header on top of each layout's own space. */
 .has-transparent-header .main-shell > .single-hero:first-child .single-hero-inner {
   padding-top: calc(var(--header-height, 4.5rem) + clamp(4.5rem, 12vw, 9rem));
@@ -1528,6 +1632,8 @@ body.has-transparent-header:not(.header-solid) .site-header.is-on-dark[data-stic
 }
 
 .single-hero.has-image {
+  /* Dark underneath the photo: the light text stays readable while the picture loads, or if it never does. */
+  background: var(--hero-bg, #0b1220);
   color: #f8fafc;
 }
 

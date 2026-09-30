@@ -110,11 +110,16 @@
 
   const drawerIsOpen = () => document.body.classList.contains('mobile-menu-open');
 
+  // While the menu is open the page behind it cannot be reached by keyboard, pointer, or screen reader.
+  const pageParts = () => document.querySelectorAll('.skip-link, .site-header, .header-spacer, main, .site-footer, .mobile-bar');
+  const setPageInert = (inert) => pageParts().forEach((part) => { part.inert = inert; });
+
   const openMobileMenu = (event) => {
     if (!mobileDrawer) return;
     opener = event && event.currentTarget ? event.currentTarget : openButtons[0];
     document.body.classList.add('mobile-menu-open');
     mobileDrawer.setAttribute('aria-hidden', 'false');
+    setPageInert(true);
     openButtons.forEach((button) => button.setAttribute('aria-expanded', 'true'));
     window.setTimeout(() => {
       (mobileClose || mobileDrawer).focus();
@@ -125,6 +130,7 @@
     if (!mobileDrawer || !drawerIsOpen()) return;
     document.body.classList.remove('mobile-menu-open');
     mobileDrawer.setAttribute('aria-hidden', 'true');
+    setPageInert(false);
     openButtons.forEach((button) => button.setAttribute('aria-expanded', 'false'));
     if (restoreFocus && opener) opener.focus();
   };

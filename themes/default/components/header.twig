@@ -1,7 +1,8 @@
 {#
   Site header. Theme settings > Header chooses the layout (classic, centered, minimal, stacked with a
   navigation bar underneath), transparency over an opening hero, stickiness, a CTA button, a top bar,
-  and a fixed bottom bar on phones. The layout sets transparent_header / transparent_on_dark.
+  a fixed bottom bar on phones, and how the phone menu opens (mobile_menu). The layout sets
+  transparent_header / transparent_on_dark.
 #}
 {% import 'components/menu-macros.twig' as menu_macros %}
 {% set menu = theme_menus.header ?? [] %}
@@ -12,6 +13,7 @@
 {% set has_cta = hs.cta_label|default('') != '' and cta_href != '' %}
 {% set show_topbar_contacts = hs.topbar_contacts|default(false) and (contact.phone|default('') or contact.email|default('')) %}
 {% set brand_logo = theme_settings.brand.logo|default('') %}
+{% set mobile_menu = hs.mobile_menu|default('drawer') in ['drawer', 'drawer_right', 'fullscreen', 'top_sheet', 'bottom_sheet'] ? hs.mobile_menu|default('drawer') : 'drawer' %}
 
 {% set nav_markup %}
   <nav id="site-menu" class="site-nav" aria-label="{{ t('nav.main_label', 'Main') }}">
@@ -87,40 +89,41 @@
       <div class="site-wrap">{{ nav_markup }}</div>
     </div>
   {% endif %}
-
-  <div class="mobile-drawer-overlay" data-mobile-overlay aria-hidden="true"></div>
-  <div class="mobile-drawer" id="mobile-drawer" data-mobile-drawer role="dialog" aria-modal="true" aria-label="{{ t('nav.menu', 'Menu') }}" aria-hidden="true" tabindex="-1">
-    <div class="mobile-drawer-header">
-      <span class="mobile-drawer-title">{{ site.title }}</span>
-      <button type="button" class="mobile-drawer-close" data-mobile-close aria-label="{{ t('nav.close', 'Close menu') }}"><span aria-hidden="true">×</span></button>
-    </div>
-
-    <nav class="mobile-drawer-nav" aria-label="{{ t('nav.main_label', 'Main') }}">
-      {% if menu is empty %}
-        <ul class="mobile-menu mobile-menu-1">
-          <li class="mobile-item"><a class="mobile-link" href="{{ url(prefix) }}">{{ t('nav.main.home') }}</a></li>
-          <li class="mobile-item"><a class="mobile-link" href="{{ url(prefix ~ 'about') }}">{{ t('nav.main.about') }}</a></li>
-          <li class="mobile-item"><a class="mobile-link" href="{{ url(prefix ~ 'services') }}">{{ t('nav.main.services') }}</a></li>
-          <li class="mobile-item"><a class="mobile-link" href="{{ url(prefix ~ 'projects') }}">{{ t('nav.main.projects') }}</a></li>
-          <li class="mobile-item"><a class="mobile-link" href="{{ url(prefix ~ 'category/news') }}">{{ t('nav.main.news') }}</a></li>
-          <li class="mobile-item"><a class="mobile-link" href="{{ url(prefix ~ 'contact') }}">{{ t('nav.main.contact') }}</a></li>
-        </ul>
-      {% else %}
-        {{ menu_macros.mobile_menu(menu, prefix, 1, 3) }}
-      {% endif %}
-      {% if has_cta %}<a class="btn btn-primary drawer-cta" href="{{ cta_href }}">{{ hs.cta_label }}</a>{% endif %}
-    </nav>
-
-    <div class="drawer-tools">
-      <a class="text-link" href="{{ url(prefix ~ 'search') }}">{{ t('search.title', 'Search') }}</a>
-      {% include 'components/language-links.twig' with {links_class: 'lang-switcher'} %}
-    </div>
-
-    <div class="drawer-icons-wrap">
-      {% include 'components/social-links.twig' with {list_class: 'drawer-icons'} %}
-    </div>
-  </div>
 </header>
+
+{# The menu panel sits outside the header: a sticky or blurred header would otherwise become its frame, and a header over a dark hero would hand it light-on-dark colours. #}
+<div class="mobile-drawer-overlay" data-mobile-overlay aria-hidden="true"></div>
+<div class="mobile-drawer mobile-drawer--{{ mobile_menu }}" id="mobile-drawer" data-mobile-drawer role="dialog" aria-modal="true" aria-label="{{ t('nav.menu', 'Menu') }}" aria-hidden="true" tabindex="-1">
+  <div class="mobile-drawer-header">
+    <span class="mobile-drawer-title">{{ site.title }}</span>
+    <button type="button" class="mobile-drawer-close" data-mobile-close aria-label="{{ t('nav.close', 'Close menu') }}"><span aria-hidden="true">×</span></button>
+  </div>
+
+  <nav class="mobile-drawer-nav" aria-label="{{ t('nav.main_label', 'Main') }}">
+    {% if menu is empty %}
+      <ul class="mobile-menu mobile-menu-1">
+        <li class="mobile-item"><a class="mobile-link" href="{{ url(prefix) }}">{{ t('nav.main.home') }}</a></li>
+        <li class="mobile-item"><a class="mobile-link" href="{{ url(prefix ~ 'about') }}">{{ t('nav.main.about') }}</a></li>
+        <li class="mobile-item"><a class="mobile-link" href="{{ url(prefix ~ 'services') }}">{{ t('nav.main.services') }}</a></li>
+        <li class="mobile-item"><a class="mobile-link" href="{{ url(prefix ~ 'projects') }}">{{ t('nav.main.projects') }}</a></li>
+        <li class="mobile-item"><a class="mobile-link" href="{{ url(prefix ~ 'category/news') }}">{{ t('nav.main.news') }}</a></li>
+        <li class="mobile-item"><a class="mobile-link" href="{{ url(prefix ~ 'contact') }}">{{ t('nav.main.contact') }}</a></li>
+      </ul>
+    {% else %}
+      {{ menu_macros.mobile_menu(menu, prefix, 1, 3) }}
+    {% endif %}
+    {% if has_cta %}<a class="btn btn-primary drawer-cta" href="{{ cta_href }}">{{ hs.cta_label }}</a>{% endif %}
+  </nav>
+
+  <div class="drawer-tools">
+    <a class="text-link" href="{{ url(prefix ~ 'search') }}">{{ t('search.title', 'Search') }}</a>
+    {% include 'components/language-links.twig' with {links_class: 'lang-switcher'} %}
+  </div>
+
+  <div class="drawer-icons-wrap">
+    {% include 'components/social-links.twig' with {list_class: 'drawer-icons'} %}
+  </div>
+</div>
 
 {% if hs.mobile_bar|default(false) %}
   <nav class="mobile-bar" aria-label="{{ t('nav.quick', 'Quick actions') }}">

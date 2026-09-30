@@ -8,7 +8,7 @@
 #   - retire a field by marking it `hidden: true` (it keeps its stored value), not by deleting it.
 name: default
 label: FarosCMS Default
-version: 1.11.0
+version: 1.12.0
 description: All-purpose FarosCMS theme.
 
 menu_locations:
@@ -111,6 +111,17 @@ settings:
         label: Transparent over an opening hero
         help: On pages that start with a Hero block the header sits over it and turns solid on scroll.
         default: false
+      mobile_menu:
+        type: select
+        label: Phone menu
+        default: drawer
+        help: How the menu opens on small screens. The bottom sheet suits the bottom bar; the full screen suits few, large links.
+        options:
+          drawer: 'Side drawer from the left'
+          drawer_right: 'Side drawer from the right'
+          fullscreen: 'Full screen with large links'
+          top_sheet: 'Sheet dropping from the top'
+          bottom_sheet: 'Sheet rising from the bottom'
       mobile_bar:
         type: toggle
         label: Bottom bar on phones

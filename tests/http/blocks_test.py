@@ -25,7 +25,7 @@ check('yes and no become a check and a cross with text for screen readers', t.co
 check('other text stays text', '3 ημέρες' in t and '4 ώρες' in t)
 check('the highlighted column is marked in the header and its cells', t.count('is-highlight') == 1 + 4, t.count('is-highlight'))
 check('a badge and a button in the header', 'compare-badge' in t and 'compare-button' in t and 'href="/contact"' in t)
-check('the table scrolls in a keyboard-focusable named region', re.search(r'class="compare-wrap" role="region" tabindex="0" aria-labelledby="[^"]+-title"', html) is not None)
+check('the table scrolls in a keyboard-focusable named group (a region would repeat the name of its section)', re.search(r'class="compare-wrap" role="group" tabindex="0" aria-labelledby="[^"]+-title"', html) is not None)
 check('the heading it is named by exists', re.search(r'id="([^"]+)-title">Τι περιλαμβάνει κάθε πακέτο', html) is not None)
 check('the note is shown', 'Τα χαρακτηριστικά είναι ενδεικτικά.' in html)
 check('the striped variant is used', 'block--striped' in html and 'block-compare' in html)

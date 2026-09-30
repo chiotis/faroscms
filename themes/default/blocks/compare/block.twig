@@ -9,7 +9,7 @@
 {% if cols is not empty and rows is not empty %}
   <div class="container">
     {{ ui.section_header(block, heading_tag, block_uid, 'left') }}
-    <div class="compare-wrap" role="region" tabindex="0" {% if block.heading %}aria-labelledby="{{ block_uid }}-title"{% else %}aria-label="{{ t('compare.label', 'Comparison table') }}"{% endif %}>
+    <div class="compare-wrap" role="group" tabindex="0" {% if block.heading %}aria-labelledby="{{ block_uid }}-title"{% else %}aria-label="{{ t('compare.label', 'Comparison table') }}"{% endif %}>
       <table class="compare-table">
         <caption class="visually-hidden">{{ block.heading ?: t('compare.label', 'Comparison table') }}</caption>
         <thead>

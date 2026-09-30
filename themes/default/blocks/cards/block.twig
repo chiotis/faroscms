@@ -9,13 +9,16 @@
     {% endif %}
   </div>
   {% set card_sizes = block.columns == '2' ? '(min-width: 900px) 45vw, 92vw' : '(min-width: 1100px) 30vw, (min-width: 700px) 45vw, 92vw' %}
+  {% set manual_cards = block.items|default([])|filter(c => c.title) %}
+  {# No empty list: a list with nothing in it is announced as a list by screen readers. #}
+  {% if block.source != 'manual' ? block.entries|default([]) is not empty : manual_cards is not empty %}
   <ul class="content-grid cards-grid cols-{{ block.columns }}" role="list">
     {% if block.source != 'manual' %}
       {% for entry in block.entries|default([]) %}
         <li>{% include 'components/card.twig' with {item: entry, prefix: prefix, card_heading_tag: item_heading_tag, card_sizes: card_sizes} only %}</li>
       {% endfor %}
     {% else %}
-      {% for card in block.items|filter(c => c.title) %}
+      {% for card in manual_cards %}
         {% set href = link_url(card.url, prefix) %}
         <li>
           <article class="content-item">
@@ -34,4 +37,5 @@
       {% endfor %}
     {% endif %}
   </ul>
+  {% endif %}
 </div>

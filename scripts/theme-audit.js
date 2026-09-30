@@ -6,6 +6,7 @@
  *      <script> by hand while you work; never leave it on a live site).
  *   3. Run one of:
  *        await themeAudit.pages(['/', '/en/', '/about'])          accessibility (axe-core), light and dark
+ *        await themeAudit.pages(['/'], {width: 375, menu: true})  the same on a phone, with the menu open
  *        await themeAudit.reflow(['/', '/en/services'])           no sideways scrolling at 320 px
  *        await themeAudit.tokens()                                contrast of the main colour pairs, all palettes
  *
@@ -36,18 +37,27 @@
     return { frame, win: frame.contentWindow, doc };
   }
 
-  /** Accessibility scan of pages with axe-core, in the modes given (default both). */
-  async function pages(paths, { modes = ['light', 'dark'] } = {}) {
+  /**
+   * Accessibility scan of pages with axe-core, in the modes given (default both), at a width (default 1280).
+   * menu: true opens the phone menu first and scans that state (use a width under 960).
+   */
+  async function pages(paths, { modes = ['light', 'dark'], width = 1280, menu = false } = {}) {
     const report = {};
     for (const path of paths) {
       for (const mode of modes) {
-        const { frame, win, doc } = await open(path, 1280, mode);
+        const { frame, win, doc } = await open(path, width, mode);
+        if (menu) {
+          const opener = doc.querySelector('[data-mobile-open]');
+          if (!opener || opener.offsetParent === null) throw new Error(`No phone menu button at ${width}px on ${path}`);
+          opener.click();
+          await wait(600);
+        }
         const script = doc.createElement('script');
         script.src = AXE;
         doc.head.appendChild(script);
         await new Promise((resolve, reject) => { script.onload = resolve; script.onerror = () => reject(new Error('Could not load axe-core (offline?)')); });
         const result = await win.axe.run(doc, { runOnly: { type: 'tag', values: RULES } });
-        report[`${path} (${mode})`] = {
+        report[`${path} (${mode}${width !== 1280 ? ', ' + width + 'px' : ''}${menu ? ', menu open' : ''})`] = {
           violations: result.violations.map((v) => `${v.id} [${v.impact}] x${v.nodes.length}: ${v.nodes[0].target.join(' ').slice(0, 90)}`),
           review: result.incomplete.map((v) => `${v.id} x${v.nodes.length}`),
         };
