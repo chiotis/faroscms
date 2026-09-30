@@ -438,7 +438,7 @@ final class App
             'block_styles' => $pageBlocks['styles'] ?? [],
             'block_scripts' => $pageBlocks['scripts'] ?? [],
             'structured_data' => array_merge(
-                $this->itemStructuredData($item, $lang, (string)($viewDefaults['canonical_url'] ?? ''), $isHome),
+                $this->itemStructuredData($item, $lang, (string)($viewDefaults['canonical_url'] ?? ''), $isHome, (string)($pageBlocks['image'] ?? '')),
                 $pageBlocks['structured_data'] ?? []
             ),
             'og_type' => $item->type === 'posts' ? 'article' : 'website',
@@ -666,11 +666,24 @@ final class App
         if ($sameAs !== []) {
             $organization['sameAs'] = $sameAs;
         }
+        // The phone and email of the footer are how people reach the business.
+        $phone = trim((string)($this->themeSettings['footer']['phone'] ?? ''));
+        $email = trim((string)($this->themeSettings['footer']['email'] ?? ''));
+        if ($phone !== '' || $email !== '') {
+            $contact = ['@type' => 'ContactPoint', 'contactType' => 'customer service'];
+            if ($phone !== '') {
+                $contact['telephone'] = $phone;
+            }
+            if ($email !== '') {
+                $contact['email'] = $email;
+            }
+            $organization['contactPoint'] = $contact;
+        }
         return [$organization];
     }
 
     /** @return array<int, array<string, mixed>> */
-    private function itemStructuredData(ContentItem $item, string $lang, string $canonical, bool $isHome): array
+    private function itemStructuredData(ContentItem $item, string $lang, string $canonical, bool $isHome, string $blockImage = ''): array
     {
         $graph = $this->baseStructuredData();
         $siteUrl = $this->buildAbsoluteUrl('');
@@ -696,29 +709,55 @@ final class App
         }
 
         $title = (string)($item->meta['title'] ?? $item->slug);
-        if ($item->type === 'posts') {
+        $seo = is_array($item->meta['seo'] ?? null) ? $item->meta['seo'] : [];
+        $description = trim((string)($seo['description'] ?? '')) ?: trim((string)($item->meta['excerpt'] ?? ''));
+        $absolute = fn(string $url): string => preg_match('#^https?://#i', $url) ? $url : $this->buildAbsoluteUrl($url);
+        $website = ['@type' => 'WebSite', '@id' => $siteUrl . '#website', 'url' => $homeUrl, 'name' => (string)($this->settings['title'] ?? 'FarosCMS')];
+
+        if ($item->type === 'posts' || $item->type === 'projects') {
+            // A post is a blog posting, a project an article; both name the author, the dates, and a picture.
             $article = [
-                '@type' => 'BlogPosting',
-                'headline' => $title,
-                'mainEntityOfPage' => $canonical,
+                '@type' => $item->type === 'posts' ? 'BlogPosting' : 'Article',
+                'headline' => mb_substr($title, 0, 110),
+                'mainEntityOfPage' => ['@type' => 'WebPage', '@id' => $canonical],
+                'url' => $canonical,
                 'inLanguage' => $lang,
-                'author' => $organization,
+                'isPartOf' => ['@id' => $siteUrl . '#website'],
                 'publisher' => $organization,
-                'dateModified' => gmdate('c', $item->mtime),
             ];
-            $published = strtotime((string)($item->meta['date'] ?? ''));
-            if ($published !== false) {
+            $author = trim((string)($item->meta['author'] ?? ''));
+            $article['author'] = $author !== '' ? ['@type' => 'Person', 'name' => $author] : $organization;
+            $published = $this->structuredDataTime($item->meta['date'] ?? null);
+            if ($published !== null) {
                 $article['datePublished'] = date('c', $published);
             }
-            $excerpt = trim((string)($item->meta['excerpt'] ?? ''));
-            if ($excerpt !== '') {
-                $article['description'] = $excerpt;
+            $article['dateModified'] = date('c', max($item->mtime, $published ?? 0));
+            if ($description !== '') {
+                $article['description'] = $description;
             }
-            $image = trim((string)($item->meta['main_image'] ?? ''));
-            if ($image !== '') {
-                $article['image'] = preg_match('#^https?://#i', $image) ? $image : $this->buildAbsoluteUrl($image);
+            // The picture people see when the link is shared: the entry's own, the share image of its SEO settings,
+            // the first picture in its blocks, then the site's default.
+            foreach ([$item->meta['main_image'] ?? '', $seo['og_image'] ?? '', $blockImage, $this->themeSettings['brand']['share_image'] ?? ''] as $candidate) {
+                $candidate = trim((string)$candidate);
+                if ($candidate !== '') {
+                    $article['image'] = $absolute($candidate);
+                    break;
+                }
             }
             $graph[] = $article;
+        } else {
+            $page = [
+                '@type' => 'WebPage',
+                '@id' => $canonical . '#webpage',
+                'url' => $canonical,
+                'name' => $title,
+                'inLanguage' => $lang,
+                'isPartOf' => $website,
+            ];
+            if ($description !== '') {
+                $page['description'] = $description;
+            }
+            $graph[] = $page;
         }
 
         $crumbs = [[$this->translate('nav.main.home', 'Home'), $homeUrl]];
@@ -732,6 +771,16 @@ final class App
         }
         $graph[] = ['@type' => 'BreadcrumbList', 'itemListElement' => $list];
         return $graph;
+    }
+
+    /** A date from front matter as a Unix time: a `2026-03-04` string, a timestamp the YAML reader made of it, or nothing. */
+    private function structuredDataTime(mixed $value): ?int
+    {
+        if (is_int($value) || (is_string($value) && ctype_digit($value) && strlen($value) >= 9)) {
+            return (int)$value;
+        }
+        $time = strtotime(trim((string)$value));
+        return $time === false ? null : $time;
     }
 
     /** JSON-LD graph as a script tag; `<`, `>` and `&` are escaped so content cannot close the tag. */

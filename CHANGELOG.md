@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.6 — 2026-09-30 — Fuller structured data for search engines
+- **Posts and projects**: a post is a `BlogPosting` and a project is now an `Article` (before, projects had none). Each names its **author** (the person typed in the editor; before, it was always the organization), the **date published** (a date that the YAML reader had turned into a Unix time was ignored before, so posts written that way had no date), the date modified, the summary, and a **picture**: the entry's main image, then its SEO share image, then the first picture in its blocks, then the site's default share image, always as a full address. The headline is cut at 110 characters, which search engines require
+- **Every other page** is a `WebPage` (name, address, language, summary) that points to the site
+- The **organization** carries a contact point when the Footer has a phone number or an email
+- The home page keeps its `WebSite` with the site search action, per language, and the search page it points at is checked by the tests. Text typed in the admin cannot end the script tag (checked with a title and an author made of markup)
+- New test `seo_jsonld_test.py` (31 checks)
+
 ## 0.1.5 — 2026-09-30 — The admin passes an accessibility audit
 - Every admin screen and every state that needs a click (the icon and image pickers, confirmation dialogs, messages in the bottom bar, the phone sidebar, the block editor with every block open, each tab of the editor, Settings, and Theme) was scanned with axe-core in light mode, dark mode, and at phone width. It found real problems, all fixed; the scan now reports none. Details and how to repeat it: `docs/admin-accessibility.md`
 - **Muted text was too pale**: the grey of helper text, table headers, and labels was 2.6:1 on white (4.5:1 is the minimum), and several other greys, the green and orange text, and some dark-mode greys were also short. The four Tailwind shades involved are nudged in `tailwind.config.js` (the markup is unchanged), the dark-mode shades are lightened, a few dark-mode gaps are filled (translucent panels, delete buttons, message text), and a few places that used near-invisible grey for meaningful text (a missing translation, "new" in taxonomies) are readable now
