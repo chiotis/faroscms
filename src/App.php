@@ -42,6 +42,7 @@ final class App
     private FormSubmissionRepository $formSubmissions;
     private ContentIndex $contentIndex;
     private MediaLibrary $media;
+    private MediaUsage $mediaUsage;
     private Theme $theme;
     private Images $images;
     private MarkdownConverter $markdown;
@@ -91,6 +92,7 @@ final class App
         $this->contentIndex = new ContentIndex($this->systemDatabase, $this->contentDir);
         $this->media = new MediaLibrary($this->contentDir, $this->basePath . '/public/uploads');
         $this->media->restrictTo(is_array($this->settings['limits']['upload_types'] ?? null) ? $this->settings['limits']['upload_types'] : []);
+        $this->mediaUsage = new MediaUsage($this->contentDir, fn(): array => $this->mediaUsageSettingsSources(), (string)($this->settings['languages']['default'] ?? 'en'));
         $this->images = new Images($this->basePath . '/public', $this->contentDir . '/media');
         $this->content = new ContentRepository($this->contentDir, $markdown, $this->settings);
         $this->content->onUnreadable(fn(string $type, string $path, string $message) => $this->reportUnreadableContent($type, $path, $message));
@@ -4147,6 +4149,28 @@ final class App
         return $counts;
     }
 
+    /** The settings texts that can point at uploads (logo, social image, and the like), for the usage scan. @return list<array{label: string, url: string, kind: string, text: string}> */
+    private function mediaUsageSettingsSources(): array
+    {
+        $sources = [];
+        foreach ([['site_settings', 'Site settings', '/admin/settings', 'settings'], ['theme_settings', 'Theme settings', '/admin/theme', 'theme']] as [$key, $label, $url, $kind]) {
+            $text = (string)$this->systemMeta->get($key);
+            if ($text !== '') {
+                $sources[] = ['label' => $label, 'url' => $url, 'kind' => $kind, 'text' => $text];
+            }
+        }
+        return $sources;
+    }
+
+    /** Where a media item is used, as names for a message: "About, Home page and 3 more". */
+    private function mediaPlacesSentence(array $places): string
+    {
+        $names = array_values(array_unique(array_map(static fn(array $place): string => $place['label'], $places)));
+        $shown = array_slice($names, 0, 3);
+        $more = count($names) - count($shown);
+        return implode(', ', $shown) . ($more > 0 ? ' and ' . $more . ' more' : '');
+    }
+
     private function handleMedia(): void
     {
         $this->media->ensureDirectories();
@@ -4162,6 +4186,10 @@ final class App
         }
         $tag = $this->media->sanitizeTag((string)($_GET['tag'] ?? ''));
         $q = trim((string)($_GET['q'] ?? ''));
+        $usageFilter = strtolower(trim((string)($_GET['usage'] ?? '')));
+        if (!in_array($usageFilter, ['used', 'unused'], true)) {
+            $usageFilter = '';
+        }
         $page = max(1, (int)($_GET['page'] ?? 1));
         $perPage = (int)($_GET['per_page'] ?? 20);
         if (!in_array($perPage, $perPageOptions, true)) {
@@ -4179,7 +4207,7 @@ final class App
             $view = $storedView;
         }
 
-        $stateFrom = function (array $source) use ($typeOptions, $viewOptions, $perPageOptions, $type, $tag, $q, $view, $perPage, $page): array {
+        $stateFrom = function (array $source) use ($typeOptions, $viewOptions, $perPageOptions, $type, $tag, $q, $view, $perPage, $page, $usageFilter): array {
             $stateType = strtolower(trim((string)($source['_state_type'] ?? $type)));
             if (!in_array($stateType, $typeOptions, true)) {
                 $stateType = 'all';
@@ -4195,7 +4223,9 @@ final class App
                 $statePerPage = 20;
             }
             $statePage = max(1, (int)($source['_state_page'] ?? $page));
+            $stateUsage = strtolower(trim((string)($source['_state_usage'] ?? $usageFilter)));
             return [
+                'usage' => in_array($stateUsage, ['used', 'unused'], true) ? $stateUsage : '',
                 'type' => $stateType,
                 'tag' => $stateTag,
                 'q' => $stateQ,
@@ -4218,6 +4248,9 @@ final class App
             }
             if ($state['q'] !== '') {
                 $query['q'] = $state['q'];
+            }
+            if ($state['usage'] !== '') {
+                $query['usage'] = $state['usage'];
             }
             foreach ($params as $key => $value) {
                 if ($value === null || $value === '') {
@@ -4320,11 +4353,18 @@ final class App
                     $redirectMedia(['error' => 'Invalid media item.']);
                     return;
                 }
+                $doomed = $this->media->find($id);
+                $places = $doomed !== null ? $this->mediaUsage->placesFor((string)($doomed['path'] ?? '')) : [];
+                if ($places !== [] && (string)($_POST['confirm_used'] ?? '') !== '1') {
+                    // The screen asks first and sends this flag; without it nothing is deleted.
+                    $redirectMedia(['error' => 'Not deleted: this file is used in ' . $this->mediaPlacesSentence($places) . '.']);
+                    return;
+                }
                 if (!$this->deleteMediaItem($id)) {
                     $redirectMedia(['error' => 'Media item not found.']);
                     return;
                 }
-                $this->logActivity('media.delete', 'warning', 'media', $id, 'Media item deleted.');
+                $this->logActivity('media.delete', 'warning', 'media', $id, 'Media item deleted.', $places !== [] ? ['was_used_in' => array_map(static fn(array $place): string => $place['label'], $places)] : []);
                 $redirectMedia(['success' => 'Media item deleted.']);
                 return;
             }
@@ -4339,11 +4379,16 @@ final class App
                     }
                     $filterTag = $this->media->sanitizeTag((string)($_POST['_filter_tag'] ?? ''));
                     $filterQ = trim((string)($_POST['_filter_q'] ?? ''));
+                    $filterUsage = strtolower(trim((string)($_POST['_filter_usage'] ?? '')));
                     $filtered = $this->media->list([
                         'type' => $filterType,
                         'tag' => $filterTag,
                         'q' => $filterQ,
                     ]);
+                    if (in_array($filterUsage, ['used', 'unused'], true)) {
+                        $inUse = $this->mediaUsage->all();
+                        $filtered = array_values(array_filter($filtered, static fn(array $item): bool => (($inUse[(string)($item['path'] ?? '')] ?? []) !== []) === ($filterUsage === 'used')));
+                    }
                     $selectedIds = array_values(array_unique(array_map(
                         fn(array $item): string => (string)($item['id'] ?? ''),
                         $filtered
@@ -4381,20 +4426,29 @@ final class App
                     return;
                 }
 
+                // Files that content still points at are kept: deleting them would leave broken images. They are deleted one at a time, after asking.
                 $deletedCount = 0;
+                $keptCount = 0;
                 foreach ($selectedIds as $id) {
+                    $doomed = $this->media->find($id);
+                    if ($doomed !== null && $this->mediaUsage->placesFor((string)($doomed['path'] ?? '')) !== []) {
+                        $keptCount++;
+                        continue;
+                    }
                     if ($this->deleteMediaItem($id)) {
                         $deletedCount++;
                     }
                 }
+                $keptNote = $keptCount > 0 ? ' ' . $keptCount . ($keptCount === 1 ? ' file was kept because it is' : ' files were kept because they are') . ' in use.' : '';
                 if ($deletedCount === 0) {
-                    $redirectMedia(['error' => 'No media items were deleted.']);
+                    $redirectMedia(['error' => ($keptCount > 0 ? 'Nothing deleted.' : 'No media items were deleted.') . $keptNote]);
                     return;
                 }
                 $this->logActivity('media.bulk_delete', 'warning', 'media', 'bulk', 'Bulk media items deleted.', [
                     'count' => $deletedCount,
+                    'kept_in_use' => $keptCount,
                 ]);
-                $redirectMedia(['success' => 'Deleted ' . $deletedCount . ' items.']);
+                $redirectMedia(['success' => 'Deleted ' . $deletedCount . ' items.' . $keptNote]);
                 return;
             }
         }
@@ -4404,6 +4458,17 @@ final class App
             'tag' => $tag,
             'q' => $q,
         ]);
+        $usageMap = $this->mediaUsage->all();
+        $unusedTotal = 0;
+        foreach ($allItems as $index => $item) {
+            $places = $usageMap[(string)($item['path'] ?? '')] ?? [];
+            $allItems[$index]['places'] = $places;
+            $allItems[$index]['places_sentence'] = $places !== [] ? $this->mediaPlacesSentence($places) : '';
+            $unusedTotal += $places === [] ? 1 : 0;
+        }
+        if ($usageFilter !== '') {
+            $allItems = array_values(array_filter($allItems, static fn(array $item): bool => ($item['places'] === []) === ($usageFilter === 'unused')));
+        }
         $totalItems = count($allItems);
         $totalPages = max(1, (int)ceil($totalItems / $perPage));
         $page = min($page, $totalPages);
@@ -4411,6 +4476,8 @@ final class App
         $items = array_slice($allItems, $offset, $perPage);
 
         $this->render('@admin/media.twig', [
+            'usage' => $usageFilter,
+            'unused_total' => $unusedTotal,
             'items' => $items,
             'total_items' => $totalItems,
             'total_pages' => $totalPages,

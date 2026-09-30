@@ -51,7 +51,7 @@ Direction: one all-purpose theme (`themes/default`) that grows with blocks and v
 - Current baseline: content edit screens can pick existing images from library or upload/assign a new main image in place
 - Add media picker search/filter inside edit-screen picker (name/tag filter)
 - Add paginated media picker modal/drawer for large libraries
-- Add usage/reference tracking (show where each media item is used before delete)
+- Usage tracking (done): where each file is used, a warning before deleting a used file, and an Unused filter
 
 ## Admin UI
 - Current baseline: fixed left sidebar (Overview, Content, Manage, System) that slides in on narrow screens, with one fixed Save bar that also carries messages

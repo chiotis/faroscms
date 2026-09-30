@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.3 — 2026-09-30 — Where each media file is used
+- **Media** shows, for every file, **where it is used**: "Unused", or "Used in 3 places" that opens a list of links to the pages, posts, projects, forms, menus, taxonomies, and the site and theme settings that point at it (in a list and in the grid). A file counts as used when its address appears in a content file (front matter, blocks, or text) or in the settings; it does not know about links people typed by hand elsewhere
+- **Deleting a used file asks first** and names the places ("This file is used in About, Home page and 2 more"); the server refuses if it is not confirmed. **Bulk delete keeps files in use** and says how many it kept. A new **Use** filter (Any, In use, Unused) and an "N unused" link in the toolbar find the files nothing points at; with "Apply to all filtered" this cleans up every unused file at once
+- The activity log records which places a deleted file was still used in. New test `media_usage_test.py` (26 checks)
+
 ## 0.1.2 — 2026-09-30 — The version is visible on GitHub
 - Every time the `VERSION` file changes on `main`, a GitHub Actions workflow (`.github/workflows/release.yml`) tags it (`v0.1.2`) and publishes a **Release** whose notes are that version's entry from this changelog. The repository page now shows the latest version and the list of releases, and the README has a version badge. Until now the number lived only in the `VERSION` file, so nothing on the repository page showed it
 - The site's own update check is unchanged: it compares its local `VERSION` with the `VERSION` file on the configured branch. It reports an update only when the site is older than GitHub, so a site running this very code (such as the development copy) is always "up to date"
