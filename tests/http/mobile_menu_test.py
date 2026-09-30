@@ -51,7 +51,7 @@ check('over a dark hero the header turns light, the panel is not inside it', 'is
 
 # ---- the theme settings offer the choices
 root = Client(); root.login()
-st, _, html = root.get('/admin/settings')
+st, _, html = root.get('/admin/theme')
 check('Theme settings list the phone menu styles', st == 200 and all(label in html for label in ('Side drawer from the left', 'Side drawer from the right', 'Full screen with large links', 'Sheet dropping from the top', 'Sheet rising from the bottom')), st)
 check('with a name and help text', 'Phone menu' in html and 'How the menu opens on small screens' in html)
 

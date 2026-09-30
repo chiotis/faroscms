@@ -41,9 +41,6 @@
   {% elseif backup_status == 'fail' %}
     {{ ui.flash(backup_message ?: 'Backup action failed.', 'error') }}
   {% endif %}
-  {% if theme_status == 'fail' %}
-    {{ ui.flash(theme_message ?: 'Theme settings could not be saved.', 'error') }}
-  {% endif %}
   {% if settings_error %}
     {{ ui.flash(settings_error, 'error') }}
   {% endif %}
@@ -62,7 +59,6 @@
       <div class="mb-4 overflow-x-auto border-b border-slate-200">
         <div class="flex min-w-max gap-1" role="tablist">
           <button type="button" class="{{ tab_button_class }}{% if active_tab == 'basics' %} active{% endif %}" data-tab="basics">General</button>
-          <button type="button" class="{{ tab_button_class }}{% if active_tab == 'theme' %} active{% endif %}" data-tab="theme">Theme</button>
           <button type="button" class="{{ tab_button_class }}{% if active_tab == 'menus' %} active{% endif %}" data-tab="menus">Menus</button>
           <button type="button" class="{{ tab_button_class }}{% if active_tab == 'smtp' %} active{% endif %}" data-tab="smtp">Email / SMTP</button>
           <button type="button" class="{{ tab_button_class }}{% if active_tab == 'auth' %} active{% endif %}" data-tab="auth">Auth</button>
@@ -150,32 +146,6 @@
             </label>
           </div>
         </div>
-      </div>
-
-      <div class="{{ panel_class }}{% if active_tab != 'theme' %} hidden{% else %} active{% endif %}" data-panel="theme">
-        <div class="flex flex-col gap-1 rounded-lg border border-slate-200 bg-white px-4 py-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-          <span><span class="font-semibold text-slate-800">{{ theme_info.label }}</span>{% if theme_info.version %} <span class="text-slate-400">v{{ theme_info.version }}</span>{% endif %} · options declared in <code class="rounded bg-slate-100 px-1 py-0.5 text-[11px]">themes/{{ theme_info.name }}/theme.yaml</code></span>
-          <span>Site overrides: <code class="rounded bg-slate-100 px-1 py-0.5 text-[11px]">custom/</code> {{ theme_info.custom_dir ? 'in use' : 'not created yet' }}</span>
-        </div>
-        {% set grid_columns = {1: '', 2: 'sm:grid-cols-2', 3: 'sm:grid-cols-3', 4: 'sm:grid-cols-2 lg:grid-cols-4', 5: 'sm:grid-cols-2 lg:grid-cols-5'} %}
-        {% for section in theme_schema %}
-          {% set visible_fields = section.fields|filter(field => not field.hidden) %}
-          {% if visible_fields is not empty %}
-            <div class="{{ section_class }}">
-              <div class="{{ section_header_class }}">
-                <h3 class="text-sm font-semibold text-slate-900">{{ section.label }}</h3>
-                {% if section.description %}
-                  <p class="mt-0.5 text-xs text-slate-400">{{ section.description }}</p>
-                {% endif %}
-              </div>
-              <div class="grid grid-cols-1 gap-3 {{ grid_columns[section.columns] ?? 'sm:grid-cols-2' }}">
-                {% for field in visible_fields %}
-                  {{ fields.field(field, 'theme_settings[' ~ section.key ~ '][' ~ field.key ~ ']', theme_values[section.key][field.key] ?? field.default) }}
-                {% endfor %}
-              </div>
-            </div>
-          {% endif %}
-        {% endfor %}
       </div>
 
       <div class="{{ panel_class }}{% if active_tab != 'menus' %} hidden{% else %} active{% endif %}" data-panel="menus">
@@ -518,7 +488,6 @@
       {% endblock %}
     {% endembed %}
   </form>
-  {% include '@admin/partials/icon-library.twig' %}
 
   <script>
     (function () {

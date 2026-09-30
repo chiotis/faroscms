@@ -23,9 +23,9 @@ def labels(bar_html):
 
 # ---- the settings screen: a list of rows, each with an icon chosen from a popup of pictures
 def theme_form():
-    return next(f for f in root.forms('/admin/settings') if any(x[0].startswith('theme_settings[header]') for x in f['fields']))
-st, _, html = root.get('/admin/settings')
-check('the settings screen has the bottom bar list', st == 200 and 'data-repeater' in html and 'Bottom bar links' in html and 'data-repeater-add' in html, st)
+    return next(f for f in root.forms('/admin/theme') if any(x[0].startswith('theme_settings[header]') for x in f['fields']))
+st, _, html = root.get('/admin/theme')
+check('the theme screen has the bottom bar list', st == 200 and 'data-repeater' in html and 'Bottom bar links' in html and 'data-repeater-add' in html, st)
 check('its rows can be added from a template', 'data-repeater-template' in html and '__INDEX__' in html)
 check('an empty list is sent as "none"', 'name="theme_settings[header][bar_items]" value=""' in html)
 check('the icon of a row is a select the picker takes over', 'data-icon-picker' in html)
@@ -46,7 +46,7 @@ def save_bar(rows, extra=None):
         overrides['theme_settings[header][bar_items][%d][label]' % i] = label
         overrides['theme_settings[header][bar_items][%d][url]' % i] = url
     if extra: overrides.update(extra)
-    return root.request('/admin/settings', data=[(k, v) for k, v in [tuple(f) for f in form['fields'] if f[0] not in overrides and f[0] not in drop]] + [(k, v) for k, v in overrides.items()])
+    return root.request('/admin/theme', data=[(k, v) for k, v in [tuple(f) for f in form['fields'] if f[0] not in overrides and f[0] not in drop]] + [(k, v) for k, v in overrides.items()])
 
 def stored():
     c = sqlite3.connect('app/storage/db/app.sqlite'); v = c.execute("select value from system_meta where key='theme_settings'").fetchone(); c.close()
@@ -82,7 +82,7 @@ check('the page knows the bar is on (the header button is hidden by it on phones
 
 # the list can be emptied again
 save_bar([])
-check('emptying the list brings back the automatic links', '<span>Call us</span>' not in bar()[1] and 'data-repeater' in root.get('/admin/settings')[2])
+check('emptying the list brings back the automatic links', '<span>Call us</span>' not in bar()[1] and 'data-repeater' in root.get('/admin/theme')[2])
 check('and the stored list is empty', re.search(r'bar_items:\s*(\[\]|\{\s*\})', stored()) is not None, stored()[:400])
 
 # ---- off: no bar

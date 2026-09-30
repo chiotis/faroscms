@@ -86,6 +86,12 @@
             Menus
           </a>
         {% endif %}
+        {% if can('settings.manage') %}
+          <a href="{{ url('admin/theme') }}" class="{{ nav_base }} {{ section == 'theme' ? nav_active : nav_idle }}"{% if section == 'theme' %} aria-current="page"{% endif %}>
+            <svg class="h-4 w-4 {{ section == 'theme' ? 'text-white/80' : 'text-slate-400 group-hover:text-slate-600' }}" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3a9 9 0 100 18 2 2 0 002-2 2 2 0 012-2h1.5A2.5 2.5 0 0020 14.5 9 9 0 0012 3zM7.5 11.5h.01M10 7.5h.01M14.5 7.5h.01M17 11.5h.01"/></svg>
+            Theme
+          </a>
+        {% endif %}
         {% if can('taxonomies.manage') %}
           <a href="{{ url('admin/taxonomies') }}" class="{{ nav_base }} {{ section == 'taxonomies' ? nav_active : nav_idle }}"{% if section == 'taxonomies' %} aria-current="page"{% endif %}>
             <svg class="h-4 w-4 {{ section == 'taxonomies' ? 'text-white/80' : 'text-slate-400 group-hover:text-slate-600' }}" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 3H5a2 2 0 00-2 2v6l9 9a2 2 0 002.8 0l4.6-4.6a2 2 0 000-2.8L11 3zM7 7h.01"/></svg>
