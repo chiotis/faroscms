@@ -11,9 +11,20 @@ namespace FarosCMS;
  *
  * A file is "used" when its address appears anywhere in that text. It does not know about links a visitor typed by
  * hand in a browser, or about files a theme or `custom/` folder points to.
+ *
+ * Reading every file is the slow part on a large site, so the result is kept in the system database together with a
+ * fingerprint of what it was made from (the name, size, and time of change of every content file, and the settings
+ * texts). Looking at the fingerprint only asks the file system for those facts, without reading anything; while it is
+ * the same the kept result is used, and any edit, addition, or deletion makes it differ, so the answer is never stale.
  */
 final class MediaUsage
 {
+    /** Bumped when what is kept changes shape, so an old copy is not trusted. */
+    private const FORMAT = 1;
+    private const CACHE_KEY = 'media_usage';
+    /** A result larger than this (as JSON) is not kept; it would cost more to load than to make. */
+    private const CACHE_MAX_BYTES = 4194304;
+
     /** @var array<string, list<array{label: string, url: string, kind: string}>>|null uploads-relative path => places */
     private ?array $map = null;
 
@@ -25,7 +36,8 @@ final class MediaUsage
     public function __construct(
         private string $contentDir,
         private $extraSources,
-        private string $defaultLang = 'en'
+        private string $defaultLang = 'en',
+        private ?SystemMetaRepository $cache = null
     ) {
     }
 
@@ -45,6 +57,48 @@ final class MediaUsage
         if ($this->map !== null) {
             return $this->map;
         }
+        $files = $this->contentFiles();
+        $sources = ($this->extraSources)();
+        $fingerprint = $this->fingerprint($files, $sources);
+        $kept = $this->cache?->getJson(self::CACHE_KEY);
+        if (is_array($kept) && ($kept['format'] ?? null) === self::FORMAT && ($kept['fingerprint'] ?? null) === $fingerprint && is_array($kept['map'] ?? null)) {
+            return $this->map = $kept['map'];
+        }
+
+        $map = $this->scan($files, $sources);
+        $payload = ['format' => self::FORMAT, 'fingerprint' => $fingerprint, 'map' => $map];
+        if ($this->cache !== null && strlen((string)json_encode($payload)) <= self::CACHE_MAX_BYTES) {
+            $this->cache->setJson(self::CACHE_KEY, $payload);
+        }
+        return $this->map = $map;
+    }
+
+    /**
+     * What the content and the settings are, without reading them: a hash of every content file's name, size, and time
+     * of change, and of the settings texts.
+     *
+     * @param list<array{path: string, mtime: int, size: int}> $files
+     * @param list<array{label: string, url: string, kind: string, text: string}> $sources
+     */
+    private function fingerprint(array $files, array $sources): string
+    {
+        $context = hash_init('sha256');
+        foreach ($files as $file) {
+            hash_update($context, $file['path'] . '|' . $file['mtime'] . '|' . $file['size'] . "\n");
+        }
+        foreach ($sources as $source) {
+            hash_update($context, $source['label'] . '|' . $source['url'] . '|' . md5((string)$source['text']) . "\n");
+        }
+        return hash_final($context);
+    }
+
+    /**
+     * @param list<array{path: string, mtime: int, size: int}> $files
+     * @param list<array{label: string, url: string, kind: string, text: string}> $sources
+     * @return array<string, list<array{label: string, url: string, kind: string}>>
+     */
+    private function scan(array $files, array $sources): array
+    {
         $map = [];
         $note = static function (string $text, array $place) use (&$map): void {
             if (!preg_match_all('#/?uploads/([A-Za-z0-9_\-./%]+)#', $text, $matches)) {
@@ -59,21 +113,20 @@ final class MediaUsage
             }
         };
 
-        foreach ($this->contentFiles() as $file) {
-            $text = @file_get_contents($file);
+        foreach ($files as $file) {
+            $text = @file_get_contents($file['path']);
             if (!is_string($text) || !str_contains($text, 'uploads/')) {
                 continue;
             }
-            $note($text, $this->placeOf($file, $text));
+            $note($text, $this->placeOf($file['path'], $text));
         }
-        foreach (($this->extraSources)() as $source) {
+        foreach ($sources as $source) {
             $note((string)$source['text'], ['label' => (string)$source['label'], 'url' => (string)$source['url'], 'kind' => (string)$source['kind']]);
         }
-
-        return $this->map = $map;
+        return $map;
     }
 
-    /** @return list<string> */
+    /** @return list<array{path: string, mtime: int, size: int}> */
     private function contentFiles(): array
     {
         if (!is_dir($this->contentDir)) {
@@ -90,9 +143,9 @@ final class MediaUsage
             if (str_starts_with($relative, 'media/') || str_starts_with($relative, 'users/')) {
                 continue;
             }
-            $files[] = $info->getPathname();
+            $files[] = ['path' => $info->getPathname(), 'mtime' => $info->getMTime(), 'size' => $info->getSize()];
         }
-        sort($files);
+        usort($files, static fn(array $a, array $b): int => strcmp($a['path'], $b['path']));
         return $files;
     }
 
