@@ -63,10 +63,12 @@ final class App
     private ?EntryTranslations $entryTranslationsService = null;
     private ?ThemeStrings $themeStringsService = null;
     private ?MediaAdmin $mediaAdminService = null;
+    private ?SiteLimits $siteLimitsService = null;
+    private ?SystemStatus $systemStatusService = null;
+    private ?DashboardData $dashboardDataService = null;
     private ?PublicPaths $publicPathsService = null;
     private ?Taxonomies $taxonomyStore = null;
     /** @var array<string, mixed>|null */
-    private ?array $storageSummary = null;
     private array $themeSettings = [];
 
     public function __construct(string $basePath)
@@ -1088,7 +1090,10 @@ final class App
 
     private function handleDashboard(): void
     {
-        $dashboard = $this->buildDashboardData();
+        $dashboard = $this->dashboardData()->build(
+            fn(string $capability): bool => $this->permissions->can($this->auth->user(), $capability),
+            fn(string $type): bool => $this->canAccessContentType($type)
+        );
         $this->render('@admin/dashboard.twig', [
             'title' => 'Dashboard',
             'dashboard' => $dashboard,
@@ -1100,212 +1105,10 @@ final class App
         ]);
     }
 
-    private function buildDashboardData(): array
-    {
-        // Only compute what the signed-in role may see: an editor's dashboard is about content.
-        $can = fn(string $capability): bool => $this->permissions->can($this->auth->user(), $capability);
-        $types = array_values(array_filter($this->content->getTypes(), fn(string $type): bool => $this->canAccessContentType($type)));
-        $contentTypes = [];
-        $contentTotal = 0;
-        $publishedTotal = 0;
-        $draftTotal = 0;
-        $recentContent = [];
-
-        foreach ($types as $type) {
-            $items = $this->content->getItems($type, null, true, false);
-            $published = 0;
-            $draft = 0;
-            foreach ($items as $item) {
-                $status = (string)($item->meta['status'] ?? 'published');
-                if ($status === 'draft') {
-                    $draft++;
-                } else {
-                    $published++;
-                }
-                $recentContent[] = [
-                    'type' => $type,
-                    'slug' => $item->slug,
-                    'lang' => $item->lang,
-                    'title' => (string)($item->meta['title'] ?? $item->slug),
-                    'status' => $status,
-                    'mtime' => $item->mtime,
-                    'updated_at' => date('Y-m-d H:i', $item->mtime),
-                ];
-            }
-
-            $count = count($items);
-            $contentTypes[] = [
-                'type' => $type,
-                'count' => $count,
-                'published' => $published,
-                'draft' => $draft,
-            ];
-            $contentTotal += $count;
-            $publishedTotal += $published;
-            $draftTotal += $draft;
-        }
-
-        usort($recentContent, fn(array $a, array $b): int => ((int)$b['mtime']) <=> ((int)$a['mtime']));
-        $recentContent = array_slice($recentContent, 0, 5);
-
-        $users = $can('users.manage') ? $this->users->all() : [];
-        $activeUsers = array_values(array_filter($users, fn(array $user): bool => (string)($user['status'] ?? '') === 'active'));
-        $backups = $can('backups.manage') ? $this->listBackupSnapshots() : [];
-        $storage = $this->buildStorageSummary();
-        $canSeeSystem = $can('settings.manage');
-        $systemChecks = $canSeeSystem ? $this->buildDashboardSystemChecks($storage) : [];
-        $systemStatus = $canSeeSystem ? $this->summarizeSystemStatus($systemChecks) : ['status' => 'ok', 'label' => '', 'detail' => ''];
-        $recentActivity = $can('activity.manage') ? $this->activityLogs->all([], 5, 0) : [];
-        $recentEmails = $can('email_logs.manage') ? $this->emailLogs->all([], 5, 0) : [];
-
-        return [
-            'content_total' => $contentTotal,
-            'content_published' => $publishedTotal,
-            'content_draft' => $draftTotal,
-            'content_types' => $contentTypes,
-            'recent_content' => $recentContent,
-            'users_total' => count($users),
-            'users_active' => count($activeUsers),
-            'backups_total' => count($backups),
-            'last_backup' => $backups[0] ?? null,
-            'recent_activity' => $recentActivity,
-            'activity_total' => $can('activity.manage') ? $this->activityLogs->count() : 0,
-            'recent_emails' => $recentEmails,
-            'email_total' => $can('email_logs.manage') ? $this->emailLogs->count() : 0,
-            'failed_emails' => $can('email_logs.manage') ? $this->emailLogs->count(['status' => 'failed']) : 0,
-            'storage' => $storage,
-            'system_checks' => $systemChecks,
-            'system_status' => $systemStatus,
-            'php_version' => $canSeeSystem ? PHP_VERSION : '',
-            'upload_limit' => $canSeeSystem ? (ini_get('upload_max_filesize') ?: '') : '',
-            'memory_limit' => $canSeeSystem ? (ini_get('memory_limit') ?: '') : '',
-        ];
-    }
-
-    /**
-     * What the site uses (content, the system database and backups, and uploads) against the limit the super admin set.
-     * `level` is ok, warn (from 80%), or danger (from 90%); without a limit it is always ok and the bar shows the share
-     * of the disk instead.
-     */
-    private function buildStorageSummary(): array
-    {
-        if ($this->storageSummary !== null) {
-            return $this->storageSummary;
-        }
-        $stored = $this->storageMeasurement();
-        $parts = $stored['parts'];
-        $used = array_sum($parts);
-        $diskFree = (int)(disk_free_space($this->basePath) ?: 0);
-        $limit = $this->storageLimitBytes();
-        $base = $limit > 0 ? $limit : $used + $diskFree;
-        $ratio = $base > 0 ? $used / $base : 0.0;
-        $percent = (int)round($ratio * 100);
-        if ($used > 0 && $percent === 0) {
-            $percent = 1;
-        }
-        $level = $limit <= 0 ? 'ok' : ($ratio >= 0.9 ? 'danger' : ($ratio >= 0.8 ? 'warn' : 'ok'));
-
-        return $this->storageSummary = [
-            'used' => $used,
-            'used_human' => $this->formatFileSize($used),
-            'parts' => array_map(fn(int $bytes): string => $this->formatFileSize($bytes), $parts),
-            'disk_free' => $diskFree,
-            'disk_free_human' => $this->formatFileSize($diskFree),
-            'limit' => $limit,
-            'limit_human' => $limit > 0 ? $this->formatFileSize($limit) : '',
-            'percent' => max(0, min(100, $percent)),
-            'percent_of_limit' => $limit > 0 ? $percent : null,
-            'level' => $level,
-            'measured_at' => $stored['measured_at'],
-            'full' => $limit > 0 && $used >= $limit,
-            'label' => $limit > 0 ? $this->formatFileSize($used) . ' / ' . $this->formatFileSize($limit) : $this->formatFileSize($used),
-        ];
-    }
-
-    /** How long a measurement of the folders is trusted, in seconds. Walking every file is slow on a big site. */
-    private const STORAGE_CACHE_SECONDS = 43200;
-
-    /**
-     * The size of uploads, content and the system folder, from the copy kept in the system database while it is
-     * younger than twelve hours, otherwise measured again (and kept). Uploads and deletions in the media library
-     * adjust the kept copy, so the limit still holds between measurements.
-     *
-     * @return array{parts: array{uploads: int, content: int, system: int}, measured_at: int}
-     */
-    private function storageMeasurement(): array
-    {
-        $kept = $this->systemMeta->getJson('storage_usage');
-        $keys = ['uploads', 'content', 'system'];
-        if (is_array($kept) && is_array($kept['parts'] ?? null)) {
-            $age = time() - (int)($kept['measured_at'] ?? 0);
-            $whole = count(array_filter($keys, static fn(string $key): bool => is_int($kept['parts'][$key] ?? null))) === count($keys);
-            // A clock that moved backwards (a negative age) counts as expired too.
-            if ($whole && $age >= 0 && $age < self::STORAGE_CACHE_SECONDS) {
-                return ['parts' => array_intersect_key($kept['parts'], array_flip($keys)), 'measured_at' => (int)$kept['measured_at']];
-            }
-        }
-        return $this->measureStorage();
-    }
-
-    /** Walks the folders now and keeps the result. @return array{parts: array{uploads: int, content: int, system: int}, measured_at: int} */
-    private function measureStorage(): array
-    {
-        $measured = [
-            'parts' => [
-                'uploads' => $this->directorySize($this->basePath . '/public/uploads'),
-                'content' => $this->directorySize($this->contentDir),
-                'system' => $this->directorySize($this->basePath . '/storage'),
-            ],
-            'measured_at' => time(),
-        ];
-        $this->systemMeta->setJson('storage_usage', $measured);
-        $this->storageSummary = null;
-        return $measured;
-    }
-
-    /** Adds or takes off bytes in the kept measurement of the uploads folder, so a new file counts at once. */
-    private function noteUploadsChange(int $bytes): void
-    {
-        $kept = $this->systemMeta->getJson('storage_usage');
-        if ($bytes === 0 || !is_array($kept) || !is_int($kept['parts']['uploads'] ?? null)) {
-            return;
-        }
-        $kept['parts']['uploads'] = max(0, $kept['parts']['uploads'] + $bytes);
-        $this->systemMeta->setJson('storage_usage', $kept);
-        $this->storageSummary = null;
-    }
-
-    /** The storage the site may use in bytes, or 0 for no limit. */
-    private function storageLimitBytes(): int
-    {
-        return max(0, (int)($this->settings['limits']['storage_mb'] ?? 1024)) * 1048576;
-    }
-
-    /** Whether a file of this size still fits, so uploads stop at the limit while everything else keeps working. */
-    private function storageAllows(int $bytes): bool
-    {
-        $limit = $this->storageLimitBytes();
-        return $limit <= 0 || $this->buildStorageSummary()['used'] + max(0, $bytes) <= $limit;
-    }
-
-    private function storageFullMessage(): string
-    {
-        $summary = $this->buildStorageSummary();
-        return 'The storage limit is reached (' . $summary['used_human'] . ' of ' . $summary['limit_human'] . '). Delete files you no longer need, or ask the super admin to raise the limit.';
-    }
-
-    /** The limit typed on the settings form in megabytes, or null when this person may not change it or left it empty. */
+    /** The storage limit typed on the settings form in megabytes, or null when this person may not change it or left it empty. */
     private function submittedStorageLimit(): ?int
     {
-        if (!$this->permissions->can($this->auth->user(), 'limits.manage')) {
-            return null;
-        }
-        $value = str_replace(',', '.', trim((string)($_POST['storage_limit_value'] ?? '')));
-        if ($value === '' || !is_numeric($value) || (float)$value < 0) {
-            return null;
-        }
-        $megabytes = (float)$value * ((string)($_POST['storage_limit_unit'] ?? 'gb') === 'mb' ? 1 : 1024);
-        return (int)min(10485760, round($megabytes));
+        return $this->permissions->can($this->auth->user(), 'limits.manage') ? SiteLimits::storageLimitFromForm($_POST) : null;
     }
 
     /** The active super admin people can write to when the storage is nearly full. @return array{name: string, email: string}|null */
@@ -1317,92 +1120,6 @@ final class App
             }
         }
         return null;
-    }
-
-    private function buildDashboardSystemChecks(array $storage): array
-    {
-        $mailProvider = $this->mailer()->provider();
-
-        return [
-            [
-                'label' => 'PHP',
-                'value' => PHP_VERSION,
-                'status' => version_compare(PHP_VERSION, '8.0.0', '>=') ? 'ok' : 'error',
-            ],
-            [
-                'label' => 'Upload limit',
-                'value' => ini_get('upload_max_filesize') ?: 'unknown',
-                'status' => (ini_get('upload_max_filesize') ?: '') !== '' ? 'ok' : 'warning',
-            ],
-            [
-                'label' => 'Memory limit',
-                'value' => ini_get('memory_limit') ?: 'unknown',
-                'status' => (ini_get('memory_limit') ?: '') !== '' ? 'ok' : 'warning',
-            ],
-            [
-                'label' => 'SQLite',
-                'value' => $this->systemDatabase->isAvailable() ? 'available' : ($this->systemDatabase->lastError() ?: 'unavailable'),
-                'status' => $this->systemDatabase->isAvailable() ? 'ok' : 'error',
-            ],
-            [
-                'label' => 'Content directory',
-                'value' => is_writable($this->contentDir) ? 'writable' : 'not writable',
-                'status' => is_writable($this->contentDir) ? 'ok' : 'error',
-            ],
-            [
-                'label' => 'Storage directory',
-                'value' => is_writable($this->basePath . '/storage') ? 'writable' : 'not writable',
-                'status' => is_writable($this->basePath . '/storage') ? 'ok' : 'error',
-            ],
-            [
-                'label' => 'Uploads directory',
-                'value' => is_writable($this->basePath . '/public/uploads') ? 'writable' : 'not writable',
-                'status' => is_writable($this->basePath . '/public/uploads') ? 'ok' : 'warning',
-            ],
-            [
-                'label' => 'Email provider',
-                'value' => $mailProvider === 'none' ? 'not configured' : strtoupper($mailProvider),
-                'status' => $mailProvider === 'none' ? 'warning' : 'ok',
-            ],
-            [
-                'label' => 'Disk free',
-                'value' => $storage['disk_free_human'],
-                'status' => ((int)$storage['percent']) > 90 ? 'warning' : 'ok',
-            ],
-            $this->contentIndexCheck(),
-            $this->backupManager()->scheduleStatus(),
-        ];
-    }
-
-    /** @return array{label: string, value: string, status: string} */
-    private function contentIndexCheck(): array
-    {
-        try {
-            $index = $this->ensureContentIndexFresh();
-        } catch (\Throwable) {
-            return ['label' => 'Content index', 'value' => 'unavailable', 'status' => 'warning'];
-        }
-        if (!$index['available']) {
-            return ['label' => 'Content index', 'value' => 'SQLite unavailable', 'status' => 'warning'];
-        }
-        return [
-            'label' => 'Content index',
-            'value' => $index['stale'] ? 'out of date' : $index['rows'] . ' entries',
-            'status' => $index['stale'] ? 'warning' : 'ok',
-        ];
-    }
-
-    private function summarizeSystemStatus(array $checks): array
-    {
-        $errors = count(array_filter($checks, fn(array $check): bool => (string)($check['status'] ?? '') === 'error'));
-        $warnings = count(array_filter($checks, fn(array $check): bool => (string)($check['status'] ?? '') === 'warning'));
-        if ($errors > 0) {
-            return ['label' => 'Needs attention', 'status' => 'error', 'detail' => $errors . ' critical checks'];
-        }
-        if ($warnings > 0) {
-            return ['label' => 'Warnings', 'status' => 'warning', 'detail' => $warnings . ' checks to review'];
-        }
-        return ['label' => 'Healthy', 'status' => 'ok', 'detail' => 'All checks passing'];
     }
 
     private function handleRoles(): void
@@ -2141,7 +1858,7 @@ final class App
             'delete_status' => (string)($_GET['deleted'] ?? ''),
             'backup_message' => trim((string)($_GET['backup_msg'] ?? '')),
             'backup_total' => count($snapshots),
-            'backup_storage_human' => $this->formatFileSize($storageBytes),
+            'backup_storage_human' => Format::bytes($storageBytes),
             'last_backup' => $snapshots[0] ?? null,
             'backup_schedule' => [
                 'enabled' => $this->isTruthy($schedule['enabled'] ?? false),
@@ -3101,13 +2818,13 @@ final class App
         if ($mainImageUploads !== []) {
             $upload = $mainImageUploads[0];
             $uploadError = (int)($upload['error'] ?? UPLOAD_ERR_NO_FILE);
-            if ($uploadError === UPLOAD_ERR_OK && !$this->storageAllows((int)($upload['size'] ?? 0))) {
+            if ($uploadError === UPLOAD_ERR_OK && !$this->siteLimits()->allows((int)($upload['size'] ?? 0))) {
                 $storageBlocked = true;
             } elseif ($uploadError === UPLOAD_ERR_OK) {
                 try {
                     $this->media->ensureDirectories();
-                    $uploaded = $this->media->upload($upload, '', $this->currentUsername(), $this->maxUploadBytes());
-                    $this->noteUploadsChange((int)($upload['size'] ?? 0));
+                    $uploaded = $this->media->upload($upload, '', $this->currentUsername(), $this->siteLimits()->maxUploadBytes());
+                    $this->siteLimits()->uploadsChanged((int)($upload['size'] ?? 0));
                     if ((string)($uploaded['kind'] ?? '') === 'image') {
                         $uploadedImage = isset($uploaded['direct_url']) ? (string)$uploaded['direct_url'] : null;
                     } else {
@@ -3318,7 +3035,7 @@ final class App
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['storage_action'] ?? '') === 'recalculate') {
             if ($this->permissions->can($this->auth->user(), 'limits.manage')) {
-                $this->measureStorage();
+                $this->siteLimits()->measure();
                 $this->logActivity('limits.storage_recalculate', 'info', 'settings', 'storage', 'Storage use measured again.');
                 $this->redirect('/admin/settings?tab=limits&storage=measured');
                 return;
@@ -3385,7 +3102,7 @@ final class App
                 'clear_secrets' => is_array($_POST['clear_secret'] ?? null) ? array_map('strval', $_POST['clear_secret']) : [],
             ];
             $limitBefore = (int)($this->settings['limits']['storage_mb'] ?? 1024);
-            $uploadBefore = [$this->uploadLimitMb(), $this->media->allowedGroups()];
+            $uploadBefore = [$this->siteLimits()->uploadLimitMb(), $this->media->allowedGroups()];
             if (!$this->siteSettings()->save($raw, $form)) {
                 $this->redirect('/admin/settings?' . http_build_query([
                     'tab' => $activeTab,
@@ -3396,7 +3113,7 @@ final class App
             $this->settings = $this->siteSettings()->load();
             $limitAfter = (int)($this->settings['limits']['storage_mb'] ?? 1024);
             $this->media->restrictTo(is_array($this->settings['limits']['upload_types'] ?? null) ? $this->settings['limits']['upload_types'] : []);
-            $uploadAfter = [$this->uploadLimitMb(), $this->media->allowedGroups()];
+            $uploadAfter = [$this->siteLimits()->uploadLimitMb(), $this->media->allowedGroups()];
             if ($uploadAfter !== $uploadBefore) {
                 $this->logActivity('limits.upload', 'warning', 'settings', 'upload', 'Upload limits changed.', ['from_mb' => $uploadBefore[0], 'to_mb' => $uploadAfter[0], 'kinds' => $uploadAfter[1]]);
             }
@@ -3487,9 +3204,9 @@ final class App
             'types' => $this->content->getTypes(),
             'admin_section' => 'settings',
             'settings_form' => $this->siteSettings()->formValues($parsed),
-            'storage' => $this->permissions->can($this->auth->user(), 'limits.manage') ? $this->buildStorageSummary() : [],
+            'storage' => $this->permissions->can($this->auth->user(), 'limits.manage') ? $this->siteLimits()->summary() : [],
             'upload_groups' => MediaLibrary::UPLOAD_GROUPS,
-            'server_upload_mb' => $this->serverUploadCap() > 0 ? (int)floor($this->serverUploadCap() / 1048576) : 0,
+            'server_upload_mb' => SiteLimits::serverUploadCap() > 0 ? (int)floor(SiteLimits::serverUploadCap() / 1048576) : 0,
             'backup_snapshots' => $this->listBackupSnapshots(),
             'backup_status' => $backupStatus,
             'backup_message' => $backupMessage,
@@ -3826,7 +3543,7 @@ final class App
         }
 
         $listing = $admin->listing($state);
-        $maxUpload = $this->maxUploadBytes();
+        $maxUpload = $this->siteLimits()->maxUploadBytes();
         $this->render('@admin/media.twig', $listing + [
             'usage' => $state['usage'],
             'per_page' => $state['per_page'],
@@ -3853,10 +3570,10 @@ final class App
         return $this->mediaAdminService ??= new MediaAdmin(
             $this->media,
             $this->mediaUsage,
-            fn(int $bytes): bool => $this->storageAllows($bytes),
-            fn(): string => $this->storageFullMessage(),
-            fn(int $bytes) => $this->noteUploadsChange($bytes),
-            fn(): int => $this->maxUploadBytes(),
+            fn(int $bytes): bool => $this->siteLimits()->allows($bytes),
+            fn(): string => $this->siteLimits()->fullMessage(),
+            fn(int $bytes) => $this->siteLimits()->uploadsChanged($bytes),
+            fn(): int => $this->siteLimits()->maxUploadBytes(),
             fn(string $action, string $level, ?string $type, ?string $id, string $message, array $context) => $this->logActivity($action, $level, $type, $id, $message, $context)
         );
     }
@@ -4020,43 +3737,18 @@ final class App
             return;
         }
 
-        $storage = $this->buildStorageSummary();
-        $checks = $this->buildDashboardSystemChecks($storage);
-        $extensions = [];
-        foreach (['pdo_sqlite' => 'System database', 'zip' => 'Backups', 'curl' => 'Remote backups, Google sign-in, SES', 'mbstring' => 'Text handling', 'fileinfo' => 'Upload type detection', 'openssl' => 'SMTP TLS, HTTPS', 'simplexml' => 'S3 listings', 'intl' => 'Optional'] as $extension => $purpose) {
-            $loaded = extension_loaded($extension);
-            $extensions[] = [
-                'name' => $extension,
-                'purpose' => $purpose,
-                'loaded' => $loaded,
-                'status' => $loaded ? 'ok' : ($extension === 'intl' ? 'warning' : 'error'),
-            ];
-        }
-        $sqliteVersion = '';
-        try {
-            $sqliteVersion = $this->systemDatabase->isAvailable() ? (string)$this->systemDatabase->connection()->query('SELECT sqlite_version()')->fetchColumn() : '';
-        } catch (\Throwable) {
-        }
+        $storage = $this->siteLimits()->summary();
+        $checks = $this->systemStatus()->checks($storage);
         $auto = is_array($this->settings['backup']['auto'] ?? null) ? $this->settings['backup']['auto'] : [];
         $update = $this->updates()->cachedStatus();
 
         $this->render('@admin/system.twig', [
             'title' => 'System',
             'checks' => $checks,
-            'system_status' => $this->summarizeSystemStatus($checks),
+            'system_status' => SystemStatus::summarize($checks),
             'index' => $this->contentIndex->status($this->content->getTypes()),
-            'extensions' => $extensions,
-            'environment' => [
-                'PHP' => PHP_VERSION . ' (' . PHP_SAPI . ')',
-                'SQLite' => $sqliteVersion ?: 'unavailable',
-                'FarosCMS' => $this->updates()->currentVersion() . ($this->updates()->currentGitCommit() !== '' ? ' @ ' . $this->updates()->currentGitCommit() : ''),
-                'Memory limit' => (string)ini_get('memory_limit'),
-                'Upload max / post max' => ini_get('upload_max_filesize') . ' / ' . ini_get('post_max_size'),
-                'Max execution time' => (string)ini_get('max_execution_time') . 's',
-                'Timezone' => date_default_timezone_get(),
-                'OPcache' => function_exists('opcache_get_status') && is_array(@opcache_get_status(false)) ? 'enabled' : 'disabled',
-                'HTTPS' => $this->isHttpsRequest() ? 'yes' : 'no',
-            ],
+            'extensions' => SystemStatus::extensions(),
+            'environment' => $this->systemStatus()->environment($this->updates()->currentVersion(), $this->updates()->currentGitCommit(), $this->isHttpsRequest()),
             'tasks' => [
                 ['name' => 'Automatic backups', 'schedule' => $this->isTruthy($auto['enabled'] ?? false) ? (string)($auto['schedule'] ?? 'daily') : 'off', 'last' => (string)($auto['last_run'] ?? ''), 'how' => 'Runs on the first admin page view after it is due.'],
                 ['name' => 'Update check', 'schedule' => 'every 12 hours', 'last' => (string)($update['checked_at'] ?? ''), 'how' => 'Runs on an admin page view for users who manage updates.'],
@@ -4928,7 +4620,7 @@ final class App
             $defaults['admin_update_latest'] = $cachedUpdate['latest_version'] ?? '';
             $defaults['admin_default_password'] = ($_SESSION['security_default_password'] ?? false) === true;
             if (!isset($data['admin_storage_summary'])) {
-                $defaults['admin_storage_summary'] = $this->buildStorageSummary();
+                $defaults['admin_storage_summary'] = $this->siteLimits()->summary();
             }
             if (($defaults['admin_storage_summary']['level'] ?? $data['admin_storage_summary']['level'] ?? 'ok') === 'danger') {
                 $contact = $this->storageContact();
@@ -5073,8 +4765,8 @@ final class App
             }
         }
         try {
-            $storage = $this->buildStorageSummary();
-            foreach ($this->buildDashboardSystemChecks($storage) as $check) {
+            $storage = $this->siteLimits()->summary();
+            foreach ($this->systemStatus()->checks($storage) as $check) {
                 $status = (string)($check['status'] ?? 'ok');
                 if (!in_array($status, ['warning', 'error'], true)) {
                     continue;
@@ -5307,6 +4999,36 @@ final class App
     private function themeStrings(): ThemeStrings
     {
         return $this->themeStringsService ??= new ThemeStrings($this->theme);
+    }
+
+    private function siteLimits(): SiteLimits
+    {
+        return $this->siteLimitsService ??= new SiteLimits($this->systemMeta, $this->basePath, $this->contentDir, fn(): array => $this->settings);
+    }
+
+    private function systemStatus(): SystemStatus
+    {
+        return $this->systemStatusService ??= new SystemStatus(
+            $this->basePath,
+            $this->contentDir,
+            $this->systemDatabase,
+            fn(): string => $this->mailer()->provider(),
+            fn(): array => $this->ensureContentIndexFresh(),
+            fn(): array => $this->backupManager()->scheduleStatus()
+        );
+    }
+
+    private function dashboardData(): DashboardData
+    {
+        return $this->dashboardDataService ??= new DashboardData(
+            $this->content,
+            $this->users,
+            $this->activityLogs,
+            $this->emailLogs,
+            fn(): array => $this->listBackupSnapshots(),
+            $this->siteLimits(),
+            $this->systemStatus()
+        );
     }
 
     private function contentCsv(): ContentCsv
@@ -5940,79 +5662,10 @@ final class App
         return (string)($this->auth->user()['username'] ?? '');
     }
 
-    /** The largest file the site allows, in MB (Settings > Limits); 0 means no limit of its own. */
-    private function uploadLimitMb(): int
-    {
-        return max(0, (int)($this->settings['limits']['upload_mb'] ?? $this->settings['media']['max_upload_mb'] ?? 20));
-    }
-
-    /** What the server itself lets through in one upload (upload_max_filesize and post_max_size), in bytes; 0 when unknown. */
-    private function serverUploadCap(): int
-    {
-        $sizes = array_filter(array_map(static function (string $name): int {
-            $raw = trim((string)ini_get($name));
-            if ($raw === '' || $raw === '-1') {
-                return 0;
-            }
-            $number = (int)$raw;
-            return match (strtolower(substr($raw, -1))) {
-                'g' => $number * 1024 ** 3,
-                'm' => $number * 1024 ** 2,
-                'k' => $number * 1024,
-                default => $number,
-            };
-        }, ['upload_max_filesize', 'post_max_size']), static fn(int $bytes): bool => $bytes > 0);
-        return $sizes === [] ? 0 : min($sizes);
-    }
-
-    /** The size limit that really applies: the site's, but never more than the server can take. In bytes, 0 for none. */
-    private function maxUploadBytes(): int
-    {
-        $mine = $this->uploadLimitMb() * 1024 * 1024;
-        $server = $this->serverUploadCap();
-        return $mine > 0 && $server > 0 ? min($mine, $server) : max($mine, $server);
-    }
-
-    /** The upload size and file kinds typed on the settings form, or null for what this person may not change or left out. @return array{mb: ?int, types: ?string} */
+    /** The upload size and file kinds typed on the settings form, or nothing for what this person may not change. @return array{mb: ?int, types: ?string} */
     private function submittedUploadSettings(): array
     {
-        if (!$this->permissions->can($this->auth->user(), 'limits.manage')) {
-            return ['mb' => null, 'types' => null];
-        }
-        $value = str_replace(',', '.', trim((string)($_POST['upload_limit_mb'] ?? '')));
-        $mb = $value !== '' && is_numeric($value) && (float)$value >= 0 ? (int)min(102400, round((float)$value)) : null;
-        $types = null;
-        if (isset($_POST['upload_types_present'])) {
-            $chosen = is_array($_POST['upload_types'] ?? null) ? array_map('strval', $_POST['upload_types']) : [];
-            $chosen = array_values(array_intersect(array_keys(MediaLibrary::UPLOAD_GROUPS), $chosen));
-            // Allowing nothing would lock everyone out of the media library, so an empty choice changes nothing.
-            $types = $chosen === [] ? null : implode(',', $chosen);
-        }
-        return ['mb' => $mb, 'types' => $types];
-    }
-
-    private function formatFileSize(int $bytes): string
-    {
-        return Format::bytes($bytes);
-    }
-
-    private function directorySize(string $path): int
-    {
-        if (!is_dir($path)) {
-            return 0;
-        }
-
-        $size = 0;
-        $iterator = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($path, \FilesystemIterator::SKIP_DOTS),
-            \RecursiveIteratorIterator::LEAVES_ONLY
-        );
-        foreach ($iterator as $fileInfo) {
-            if ($fileInfo->isFile()) {
-                $size += (int)$fileInfo->getSize();
-            }
-        }
-        return $size;
+        return $this->permissions->can($this->auth->user(), 'limits.manage') ? SiteLimits::uploadSettingsFromForm($_POST) : ['mb' => null, 'types' => null];
     }
 
     private function downloadBackupSnapshot(string $filename, string $failureBase = '/admin/settings?tab=backup'): void
