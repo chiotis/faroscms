@@ -126,16 +126,27 @@
 </div>
 
 {% if hs.mobile_bar|default(false) %}
+  {# The Menu button is always first (the header's own button is hidden on phones while this bar is on); the rest is the list chosen in Theme settings, or call, email, and the header button when none is chosen. #}
+  {% set bar_items = hs.bar_items|default([])|filter(i => i.url and (i.label or i.icon)) %}
   <nav class="mobile-bar" aria-label="{{ t('nav.quick', 'Quick actions') }}">
     <button type="button" class="mobile-bar-item" data-mobile-open aria-controls="mobile-drawer" aria-expanded="false">{{ icon('menu') }}<span>{{ t('nav.menu', 'Menu') }}</span></button>
-    {% if contact.phone|default('') %}
-      <a class="mobile-bar-item" href="tel:{{ contact.phone|replace({' ': ''}) }}">{{ icon('phone') }}<span>{{ t('nav.call', 'Call') }}</span></a>
-    {% endif %}
-    {% if contact.email|default('') %}
-      <a class="mobile-bar-item" href="mailto:{{ contact.email }}">{{ icon('mail') }}<span>Email</span></a>
-    {% endif %}
-    {% if has_cta %}
-      <a class="mobile-bar-item is-primary" href="{{ cta_href }}">{{ icon('arrow-right') }}<span>{{ hs.cta_label }}</span></a>
+    {% if bar_items is not empty %}
+      {% for bar_item in bar_items %}
+        {% set bar_href = link_url(bar_item.url, prefix) %}
+        {% if bar_href %}
+          <a class="mobile-bar-item" href="{{ bar_href }}">{{ icon(bar_item.icon|default('') ?: 'arrow-right') }}<span>{{ bar_item.label }}</span></a>
+        {% endif %}
+      {% endfor %}
+    {% else %}
+      {% if contact.phone|default('') %}
+        <a class="mobile-bar-item" href="tel:{{ contact.phone|replace({' ': ''}) }}">{{ icon('phone') }}<span>{{ t('nav.call', 'Call') }}</span></a>
+      {% endif %}
+      {% if contact.email|default('') %}
+        <a class="mobile-bar-item" href="mailto:{{ contact.email }}">{{ icon('mail') }}<span>Email</span></a>
+      {% endif %}
+      {% if has_cta %}
+        <a class="mobile-bar-item is-primary" href="{{ cta_href }}">{{ icon('arrow-right') }}<span>{{ hs.cta_label }}</span></a>
+      {% endif %}
     {% endif %}
   </nav>
 {% endif %}

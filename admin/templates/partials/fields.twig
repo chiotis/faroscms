@@ -3,9 +3,12 @@
   field: a normalized definition from FieldSchema::normalize(); name: the input name; value: current value.
 #}
 {% macro field(field, name, value) %}
+  {% import _self as m %}
   {% set control = 'w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-500 focus:ring-2 focus:ring-slate-300' %}
   {% set span = field.span == 'full' ? ' col-span-full' : '' %}
-  {% if field.type == 'toggle' %}
+  {% if field.type == 'repeater' %}
+    {{ m.repeater(field, name, value, span) }}
+  {% elseif field.type == 'toggle' %}
     <label class="flex items-start justify-between gap-4 rounded-md border border-slate-100 px-3 py-2.5{{ span }}">
       <span>
         <span class="block text-sm font-medium text-slate-800">{{ field.label }}</span>
@@ -16,8 +19,8 @@
   {% else %}
     <label class="block{{ span }}">
       <span class="mb-1 block text-sm font-medium text-slate-700">{{ field.label }}</span>
-      {% if field.type == 'select' %}
-        <select name="{{ name }}" class="{{ control }}">
+      {% if field.type == 'select' or field.type == 'icon' %}
+        <select name="{{ name }}" class="{{ control }}"{% if field.type == 'icon' %} data-icon-picker{% endif %}>
           {% for option_value, option_label in field.options %}
             <option value="{{ option_value }}" {% if value ~ '' == option_value ~ '' %}selected{% endif %}>{{ option_label }}</option>
           {% endfor %}
@@ -43,4 +46,45 @@
       {% if field.help %}<span class="mt-1 block text-xs text-slate-400">{{ field.help }}</span>{% endif %}
     </label>
   {% endif %}
+{% endmacro %}
+
+{#
+  A list of rows, each with the same fields (up to max rows). Rows are added, removed and moved in the browser
+  (data-repeater in admin.js); a new row is cloned from the template, so it starts empty.
+#}
+{% macro repeater(field, name, value, span) %}
+  {% import _self as m %}
+  {% set rows = value is iterable ? value : [] %}
+  <fieldset class="rounded-md border border-slate-200 p-3{{ span }}" data-repeater data-repeater-max="{{ field.max ?? 0 }}" data-repeater-item="{{ field.item_label }}">
+    <legend class="px-1 text-sm font-medium text-slate-700">{{ field.label }}</legend>
+    {% if field.help %}<p class="mb-2 text-xs text-slate-400">{{ field.help }}</p>{% endif %}
+    {# Sent first: with no rows it says "none"; rows after it replace it. #}
+    <input type="hidden" name="{{ name }}" value="">
+    <ol class="space-y-2" data-repeater-rows>
+      {% for row in rows %}
+        {{ m.repeater_row(field, name, loop.index0, row) }}
+      {% endfor %}
+    </ol>
+    <template data-repeater-template>{{ m.repeater_row(field, name, '__INDEX__', {}) }}</template>
+    <button type="button" class="mt-2 inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50" data-repeater-add>Add {{ field.item_label|lower }}</button>
+  </fieldset>
+{% endmacro %}
+
+{% macro repeater_row(field, name, index, row) %}
+  {% import _self as m %}
+  <li class="rounded-md border border-slate-200 bg-slate-50 p-3" data-repeater-row>
+    <div class="mb-2 flex items-center justify-between gap-2">
+      <span class="text-xs font-semibold uppercase tracking-wide text-slate-500" data-repeater-title>{{ field.item_label }}</span>
+      <span class="inline-flex gap-1">
+        <button type="button" class="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-600 hover:bg-slate-100" data-repeater-up aria-label="Move {{ field.item_label|lower }} up">↑</button>
+        <button type="button" class="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-600 hover:bg-slate-100" data-repeater-down aria-label="Move {{ field.item_label|lower }} down">↓</button>
+        <button type="button" class="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-red-600 hover:bg-red-50" data-repeater-remove aria-label="Remove {{ field.item_label|lower }}">Remove</button>
+      </span>
+    </div>
+    <div class="grid gap-3 sm:grid-cols-2">
+      {% for sub_key, sub in field.fields %}
+        {{ m.field(sub, name ~ '[' ~ index ~ '][' ~ sub_key ~ ']', row[sub_key]|default(sub.type == 'toggle' ? false : '')) }}
+      {% endfor %}
+    </div>
+  </li>
 {% endmacro %}

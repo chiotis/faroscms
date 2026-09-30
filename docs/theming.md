@@ -16,7 +16,7 @@ Two rules follow from that:
 | Theme contract | `themes/default/theme.yaml` | Done |
 | Design system: tokens, palettes, dark mode, fonts, corner shapes | `assets/css/site.css` | Done |
 | Content blocks per page or post | `themes/default/blocks/<block>/` + `blocks:` in front matter | 23 blocks in three families; admin block editor |
-| Site-level component variants (header, footer) | `components/`, Theme settings | Header: 4 layouts, transparent (per content type and per entry), sticky modes, top bar, CTA, phone bottom bar, 5 phone menu styles. Footer: 3 layouts |
+| Site-level component variants (header, footer) | `components/`, Theme settings | Header: 4 layouts, transparent (per content type and per entry), sticky modes, top bar, CTA, phone bottom bar with its own list of icon links, 5 phone menu styles. Footer: 3 layouts |
 | Page templates (standard, landing, with sidebar) | `templates/`, `page_templates` in the manifest | Done |
 | Ready-made sections and page layouts | `presets/`, `custom/presets/` | Done |
 | Field definitions and archive settings per content type | `themes/default/content-types/`, `custom/content-types/`, Admin > Content types | Done |
@@ -330,3 +330,7 @@ Admin > Translations saves only the strings that differ from what the theme prov
 ## Backups
 
 Full backups include `custom/`. The restore screen offers it as **Site customizations**.
+
+## Icons
+
+Icons are SVG files in `themes/<theme>/icons/` (and `custom/icons/`, which wins). A field of `type: icon` in `block.yaml` or in the `settings` of `theme.yaml` offers exactly that set, and the admin shows it as a popup of small pictures (`public/assets/js/admin-icons.js`). Use `{{ icon('name') }}` in templates; a name that does not exist prints nothing.

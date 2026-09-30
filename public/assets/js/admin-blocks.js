@@ -138,8 +138,10 @@
       ]);
     }
 
-    if (type === 'select') {
+    if (type === 'select' || type === 'icon') {
+      // An icon is a select the icon picker (admin-icons.js) turns into a popup of small pictures.
       control = el('select', { id: id, class: CLS.input });
+      if (type === 'icon') control.setAttribute('data-icon-picker', '');
       (field.options || []).forEach(function (pair) {
         control.appendChild(el('option', { value: pair[0], text: pair[1], selected: String(value) === pair[0] }));
       });
@@ -223,7 +225,7 @@
       var title = '';
       (field.fields || []).some(function (sub) {
         var v = row[sub.key];
-        if (typeof v === 'string' && v.trim() !== '' && sub.type !== 'image' && sub.type !== 'select') {
+        if (typeof v === 'string' && v.trim() !== '' && sub.type !== 'image' && sub.type !== 'select' && sub.type !== 'icon') {
           title = v.trim().replace(/\s+/g, ' ');
           return true;
         }

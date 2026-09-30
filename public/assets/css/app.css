@@ -235,3 +235,37 @@ html.dark body.bg-slate-100 { background-color: #0b1120; }
 @media (prefers-reduced-motion: reduce) {
   [data-action-bar][data-action-bar], [data-action-bar] .ab-layer { transition: none !important; }
 }
+
+/* Icon picker (admin-icons.js): a button showing the chosen icon, and a popup of small pictures. */
+.icon-picker { display: block; position: relative; }
+.icon-picker-native { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.icon-picker-trigger {
+  display: flex; align-items: center; gap: 0.6rem; width: 100%;
+  padding: 0.4rem 0.6rem; border: 1px solid #cbd5e1; border-radius: 0.375rem;
+  background: #fff; color: #0f172a; font-size: 0.875rem; text-align: left; cursor: pointer;
+}
+.icon-picker-trigger:hover { border-color: #94a3b8; }
+.icon-picker-trigger:focus-visible, .icon-picker-tile:focus-visible, .icon-picker-search:focus-visible { outline: 2px solid #1d4ed8; outline-offset: 2px; }
+.icon-picker-thumb { display: inline-grid; place-items: center; flex: none; width: 2rem; height: 2rem; border-radius: 0.375rem; background: #f1f5f9; color: #0f172a; }
+.icon-picker-thumb svg, .icon-picker-tile-art svg { width: 1.25rem; height: 1.25rem; }
+.icon-picker-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.icon-picker-caret { flex: none; color: #64748b; font-size: 0.75rem; }
+.icon-picker-none { color: #94a3b8; }
+.icon-picker-panel {
+  position: fixed; z-index: 400; display: flex; flex-direction: column; gap: 0.5rem; overflow: hidden;
+  padding: 0.6rem; border: 1px solid #cbd5e1; border-radius: 0.5rem; background: #fff;
+  box-shadow: 0 20px 40px -16px rgba(15, 23, 42, 0.35);
+}
+.icon-picker-search { width: 100%; padding: 0.4rem 0.6rem; border: 1px solid #cbd5e1; border-radius: 0.375rem; font-size: 0.875rem; }
+.icon-picker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(4.25rem, 1fr)); gap: 0.35rem; overflow-y: auto; }
+.icon-picker-tile {
+  display: flex; flex-direction: column; align-items: center; gap: 0.25rem; min-width: 0;
+  padding: 0.5rem 0.25rem; border: 1px solid transparent; border-radius: 0.375rem;
+  background: #f8fafc; color: #334155; font-size: 0.6875rem; line-height: 1.2; cursor: pointer;
+}
+.icon-picker-tile[hidden] { display: none; }
+.icon-picker-tile:hover { border-color: #94a3b8; background: #f1f5f9; }
+.icon-picker-tile[aria-pressed="true"] { border-color: #0f172a; background: #e2e8f0; color: #0f172a; }
+.icon-picker-tile-art { display: inline-grid; place-items: center; width: 2rem; height: 2rem; }
+.icon-picker-tile-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.icon-picker-empty { margin: 0; padding: 0.5rem; color: #64748b; font-size: 0.875rem; }

@@ -179,7 +179,7 @@ final class BlockRegistry
             'label' => (string)($raw['label'] ?? ucfirst(str_replace('-', ' ', $type))),
             'description' => (string)($raw['description'] ?? ''),
             'variants' => $variants,
-            'fields' => FieldSchema::normalize($this->expandFields(is_array($raw['fields'] ?? null) ? $raw['fields'] : [])),
+            'fields' => FieldSchema::withIcons(FieldSchema::normalize($this->expandFields(is_array($raw['fields'] ?? null) ? $raw['fields'] : [])), $this->theme->iconNames()),
             // Every block shares these presentation fields.
             'common' => FieldSchema::normalize([
                 'variant' => ['type' => 'select', 'label' => 'Layout', 'options' => $variants, 'default' => (string)array_key_first($variants)],
@@ -197,15 +197,6 @@ final class BlockRegistry
         foreach ($fields as $key => $field) {
             if (!is_array($field)) {
                 continue;
-            }
-            if (($field['type'] ?? '') === 'icon') {
-                $options = ['' => 'None'];
-                foreach ($this->theme->iconNames() as $name) {
-                    $options[$name] = $name;
-                }
-                $field['type'] = 'select';
-                $field['options'] = $options;
-                $field['default'] = (string)($field['default'] ?? '');
             }
             $source = (string)($field['options_from'] ?? '');
             if ($source !== '' && isset($this->optionSources[$source])) {

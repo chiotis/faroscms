@@ -2495,6 +2495,15 @@ p.form-error {
     min-width: 0;
   }
 
+  /* The bottom bar has its own Menu button, so the header does not repeat it. */
+  body.has-mobile-bar .site-header .mobile-menu-button {
+    display: none;
+  }
+
+  body.has-mobile-bar .site-header .header-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
   .site-brand-tagline,
   .site-nav,
   .header-bar,

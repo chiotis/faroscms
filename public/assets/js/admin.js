@@ -497,6 +497,67 @@
     form.appendChild(input);
   }, true);
 
+  /* Repeaters in server-rendered forms (theme settings): add, remove, and move rows. Rows are cloned from the template. */
+  function renumberRepeater(box) {
+    var rows = box.querySelectorAll('[data-repeater-rows] > [data-repeater-row]');
+    var max = parseInt(box.getAttribute('data-repeater-max'), 10) || 0;
+    Array.prototype.forEach.call(rows, function (row, index) {
+      // Keep the field names in row order, so the saved list has the order shown.
+      row.querySelectorAll('[name]').forEach(function (control) {
+        control.name = control.name.replace(/\[(\d+|__INDEX__)\](?=\[[a-z0-9_]+\]$)/, '[' + index + ']');
+      });
+      var title = row.querySelector('[data-repeater-title]');
+      if (title) title.textContent = box.getAttribute('data-repeater-item') + ' ' + (index + 1);
+      var up = row.querySelector('[data-repeater-up]');
+      var down = row.querySelector('[data-repeater-down]');
+      if (up) up.disabled = index === 0;
+      if (down) down.disabled = index === rows.length - 1;
+    });
+    var add = box.querySelector('[data-repeater-add]');
+    if (add) add.disabled = max > 0 && rows.length >= max;
+  }
+
+  document.addEventListener('click', function (event) {
+    var box = event.target.closest && event.target.closest('[data-repeater]');
+    if (!box) return;
+    var rowsHost = box.querySelector('[data-repeater-rows]');
+    if (event.target.closest('[data-repeater-add]')) {
+      var template = box.querySelector('[data-repeater-template]');
+      var count = rowsHost.children.length;
+      var max = parseInt(box.getAttribute('data-repeater-max'), 10) || 0;
+      if (!template || (max > 0 && count >= max)) return;
+      var holder = document.createElement('div');
+      holder.innerHTML = template.innerHTML.replace(/__INDEX__/g, String(count));
+      var row = holder.firstElementChild;
+      rowsHost.appendChild(row);
+      renumberRepeater(box);
+      var first = row.querySelector('input:not([type=hidden]), textarea, button.icon-picker-trigger, select');
+      if (first) first.focus();
+      return;
+    }
+    var row = event.target.closest('[data-repeater-row]');
+    if (!row) return;
+    if (event.target.closest('[data-repeater-remove]')) {
+      var next = row.nextElementSibling || row.previousElementSibling;
+      row.remove();
+      renumberRepeater(box);
+      var focusTarget = next ? next.querySelector('[data-repeater-remove]') : box.querySelector('[data-repeater-add]');
+      if (focusTarget) focusTarget.focus();
+    } else if (event.target.closest('[data-repeater-up]') && row.previousElementSibling) {
+      rowsHost.insertBefore(row, row.previousElementSibling);
+      renumberRepeater(box);
+      row.querySelector('[data-repeater-up]').focus();
+    } else if (event.target.closest('[data-repeater-down]') && row.nextElementSibling) {
+      rowsHost.insertBefore(row.nextElementSibling, row);
+      renumberRepeater(box);
+      row.querySelector('[data-repeater-down]').focus();
+    }
+  });
+
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('[data-repeater]').forEach(renumberRepeater);
+  });
+
   /* Activate first tab in each tab group on load */
   document.addEventListener('DOMContentLoaded', function () {
     injectThemeToggle();
