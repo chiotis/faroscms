@@ -52,7 +52,9 @@ final class App
     private string $currentLang;
     private array $translations = [];
     private array $formStates = [];
-    private array $menusCache = [];
+    private ?Menus $menuStore = null;
+    private ?StructuredData $structuredDataService = null;
+    private ?ContentCsv $contentCsvService = null;
     private ?Taxonomies $taxonomyStore = null;
     /** @var array<string, mixed>|null */
     private ?array $storageSummary = null;
@@ -69,7 +71,7 @@ final class App
         $this->settings = $this->loadSettings();
         $this->theme = new Theme($this->basePath, (string)($this->settings['theme'] ?? Theme::DEFAULT_NAME));
         $this->themeSettings = $this->loadThemeSettings();
-        $this->ensureDefaultMenus();
+        $this->menus()->ensureDefaults();
         $this->taxonomies()->ensureDefaults();
 
         $markdown = $this->markdownConverter();
@@ -297,7 +299,7 @@ final class App
             'current_lang' => $lang,
             'path_no_lang' => $pathNoLang,
             'canonical_url' => $currentUrl,
-            'theme_menus' => $this->resolveThemeMenus($lang, $pathNoLang),
+            'theme_menus' => $this->menus()->forTheme($lang, $pathNoLang),
         ];
 
         if (($segments[0] ?? '') === 'pages') {
@@ -438,7 +440,7 @@ final class App
             'block_styles' => $pageBlocks['styles'] ?? [],
             'block_scripts' => $pageBlocks['scripts'] ?? [],
             'structured_data' => array_merge(
-                $this->itemStructuredData($item, $lang, (string)($viewDefaults['canonical_url'] ?? ''), $isHome, (string)($pageBlocks['image'] ?? '')),
+                $this->structuredData()->forItem($item, $lang, (string)($viewDefaults['canonical_url'] ?? ''), $isHome, (string)($pageBlocks['image'] ?? '')),
                 $pageBlocks['structured_data'] ?? []
             ),
             'og_type' => $item->type === 'posts' ? 'article' : 'website',
@@ -645,155 +647,6 @@ final class App
                 return $options;
             },
         ]);
-    }
-
-    /** Organization node shared by every frontend page. @return array<int, array<string, mixed>> */
-    private function baseStructuredData(): array
-    {
-        $siteUrl = $this->buildAbsoluteUrl('');
-        $organization = [
-            '@type' => 'Organization',
-            '@id' => $siteUrl . '#organization',
-            'name' => (string)($this->settings['title'] ?? 'FarosCMS'),
-            'url' => $siteUrl,
-        ];
-        $logo = trim((string)($this->themeSettings['brand']['logo'] ?? ''));
-        if ($logo !== '') {
-            $organization['logo'] = preg_match('#^https?://#i', $logo) ? $logo : $this->buildAbsoluteUrl($logo);
-        }
-        $social = is_array($this->themeSettings['social'] ?? null) ? $this->themeSettings['social'] : [];
-        $sameAs = array_values(array_filter(array_map(static fn($url): string => trim((string)$url), $social), static fn(string $url): bool => $url !== ''));
-        if ($sameAs !== []) {
-            $organization['sameAs'] = $sameAs;
-        }
-        // The phone and email of the footer are how people reach the business.
-        $phone = trim((string)($this->themeSettings['footer']['phone'] ?? ''));
-        $email = trim((string)($this->themeSettings['footer']['email'] ?? ''));
-        if ($phone !== '' || $email !== '') {
-            $contact = ['@type' => 'ContactPoint', 'contactType' => 'customer service'];
-            if ($phone !== '') {
-                $contact['telephone'] = $phone;
-            }
-            if ($email !== '') {
-                $contact['email'] = $email;
-            }
-            $organization['contactPoint'] = $contact;
-        }
-        return [$organization];
-    }
-
-    /** @return array<int, array<string, mixed>> */
-    private function itemStructuredData(ContentItem $item, string $lang, string $canonical, bool $isHome, string $blockImage = ''): array
-    {
-        $graph = $this->baseStructuredData();
-        $siteUrl = $this->buildAbsoluteUrl('');
-        $organization = ['@id' => $siteUrl . '#organization'];
-        $prefix = $this->langPrefix($lang);
-        $homeUrl = $this->buildAbsoluteUrl($prefix);
-
-        if ($isHome) {
-            $graph[] = [
-                '@type' => 'WebSite',
-                '@id' => $siteUrl . '#website',
-                'url' => $homeUrl,
-                'name' => (string)($this->settings['title'] ?? 'FarosCMS'),
-                'inLanguage' => $lang,
-                'publisher' => $organization,
-                'potentialAction' => [
-                    '@type' => 'SearchAction',
-                    'target' => ['@type' => 'EntryPoint', 'urlTemplate' => $this->buildAbsoluteUrl($prefix . 'search') . '?q={search_term_string}'],
-                    'query-input' => 'required name=search_term_string',
-                ],
-            ];
-            return $graph;
-        }
-
-        $title = (string)($item->meta['title'] ?? $item->slug);
-        $seo = is_array($item->meta['seo'] ?? null) ? $item->meta['seo'] : [];
-        $description = trim((string)($seo['description'] ?? '')) ?: trim((string)($item->meta['excerpt'] ?? ''));
-        $absolute = fn(string $url): string => preg_match('#^https?://#i', $url) ? $url : $this->buildAbsoluteUrl($url);
-        $website = ['@type' => 'WebSite', '@id' => $siteUrl . '#website', 'url' => $homeUrl, 'name' => (string)($this->settings['title'] ?? 'FarosCMS')];
-
-        if ($item->type === 'posts' || $item->type === 'projects') {
-            // A post is a blog posting, a project an article; both name the author, the dates, and a picture.
-            $article = [
-                '@type' => $item->type === 'posts' ? 'BlogPosting' : 'Article',
-                'headline' => mb_substr($title, 0, 110),
-                'mainEntityOfPage' => ['@type' => 'WebPage', '@id' => $canonical],
-                'url' => $canonical,
-                'inLanguage' => $lang,
-                'isPartOf' => ['@id' => $siteUrl . '#website'],
-                'publisher' => $organization,
-            ];
-            $author = trim((string)($item->meta['author'] ?? ''));
-            $article['author'] = $author !== '' ? ['@type' => 'Person', 'name' => $author] : $organization;
-            $published = $this->structuredDataTime($item->meta['date'] ?? null);
-            if ($published !== null) {
-                $article['datePublished'] = date('c', $published);
-            }
-            $article['dateModified'] = date('c', max($item->mtime, $published ?? 0));
-            if ($description !== '') {
-                $article['description'] = $description;
-            }
-            // The picture people see when the link is shared: the entry's own, the share image of its SEO settings,
-            // the first picture in its blocks, then the site's default.
-            foreach ([$item->meta['main_image'] ?? '', $seo['og_image'] ?? '', $blockImage, $this->themeSettings['brand']['share_image'] ?? ''] as $candidate) {
-                $candidate = trim((string)$candidate);
-                if ($candidate !== '') {
-                    $article['image'] = $absolute($candidate);
-                    break;
-                }
-            }
-            $graph[] = $article;
-        } else {
-            $page = [
-                '@type' => 'WebPage',
-                '@id' => $canonical . '#webpage',
-                'url' => $canonical,
-                'name' => $title,
-                'inLanguage' => $lang,
-                'isPartOf' => $website,
-            ];
-            if ($description !== '') {
-                $page['description'] = $description;
-            }
-            $graph[] = $page;
-        }
-
-        $crumbs = [[$this->translate('nav.main.home', 'Home'), $homeUrl]];
-        if ($item->type !== 'pages') {
-            $crumbs[] = [$this->translate('type.' . $item->type, ucfirst($item->type)), $this->buildAbsoluteUrl($prefix . $item->type)];
-        }
-        $crumbs[] = [$title, $canonical];
-        $list = [];
-        foreach ($crumbs as $position => [$name, $url]) {
-            $list[] = ['@type' => 'ListItem', 'position' => $position + 1, 'name' => $name, 'item' => $url];
-        }
-        $graph[] = ['@type' => 'BreadcrumbList', 'itemListElement' => $list];
-        return $graph;
-    }
-
-    /** A date from front matter as a Unix time: a `2026-03-04` string, a timestamp the YAML reader made of it, or nothing. */
-    private function structuredDataTime(mixed $value): ?int
-    {
-        if (is_int($value) || (is_string($value) && ctype_digit($value) && strlen($value) >= 9)) {
-            return (int)$value;
-        }
-        $time = strtotime(trim((string)$value));
-        return $time === false ? null : $time;
-    }
-
-    /** JSON-LD graph as a script tag; `<`, `>` and `&` are escaped so content cannot close the tag. */
-    private function jsonLdScript(array $graph): string
-    {
-        if ($graph === []) {
-            return '';
-        }
-        $json = json_encode(
-            ['@context' => 'https://schema.org', '@graph' => array_values($graph)],
-            JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_INVALID_UTF8_SUBSTITUTE
-        );
-        return $json === false ? '' : '<script type="application/ld+json">' . $json . '</script>';
     }
 
     private function handleAdmin(string $path): void
@@ -2629,7 +2482,7 @@ final class App
         // The system database may have been swapped: reload settings and write history into the active database.
         $this->settings = $this->loadSettings();
         $this->themeSettings = $this->loadThemeSettings();
-        $this->menusCache = [];
+        $this->menus()->forget();
         $this->taxonomies()->forget();
         $this->recordBackupRun($safety);
         if ($result['ok']) {
@@ -3188,7 +3041,7 @@ final class App
             $metaForm['excerpt'] = (string)($meta['excerpt'] ?? '');
             $metaForm['custom_fields'] = $this->extractCustomFields($meta, $this->contentTypes()->declaredKeys($type));
             if ($type === 'forms') {
-                $formFields = $this->normalizeFormFieldsForAdmin($meta['fields'] ?? []);
+                $formFields = FormFields::forAdmin($meta['fields'] ?? []);
                 $notifications = $meta['notifications'] ?? [];
                 if (is_array($notifications)) {
                     $formNotifications['enabled'] = $this->isTruthy($notifications['enabled'] ?? false);
@@ -3303,7 +3156,7 @@ final class App
             'form_settings' => $formSettings,
             'form_submissions' => $formSubmissions,
             'form_submissions_total' => $formSubmissionsTotal,
-            'form_field_types' => $this->formFieldTypes(),
+            'form_field_types' => FormFields::types(),
             'block_editor_json' => $type === 'forms' ? '' : $this->blockEditorJson($pageBlocks, $lang),
             'page_templates' => $type === 'forms' ? [] : $this->theme->pageTemplates(),
             'opening' => $this->openingChoices($type),
@@ -3535,7 +3388,7 @@ final class App
         if ($result['moved'] && $result['moved_together']) {
             // Menu links follow a page whose address changed in every language.
             $old = $result['original_slug'];
-            $this->relinkMenus($type === 'pages' ? $old : $type . '/' . $old, $type === 'pages' ? $slug : $type . '/' . $slug);
+            $this->menus()->relink($type === 'pages' ? $old : $type . '/' . $old, $type === 'pages' ? $slug : $type . '/' . $slug);
         }
 
         $this->logActivity($result['was_existing'] ? 'content.update' : 'content.create', 'info', $type, $slug . ':' . $lang, ($result['was_existing'] ? 'Content updated.' : 'Content created.'), [
@@ -3936,7 +3789,7 @@ final class App
 
     private function handleMenusList(): void
     {
-        $rows = $this->listMenusForAdmin();
+        $rows = $this->menus()->listForAdmin();
 
         $this->render('@admin/menus-list.twig', [
             'types' => $this->content->getTypes(),
@@ -3951,7 +3804,7 @@ final class App
 
     private function handleMenusNew(): void
     {
-        $menuKeys = $this->listMenuKeys();
+        $menuKeys = $this->menus()->keys();
         $newKeyPrefill = $this->slugify((string)($_GET['new_key'] ?? ''));
         $sourceKey = $this->slugify((string)($_GET['source_key'] ?? ''));
         if ($newKeyPrefill === '' && $sourceKey !== '') {
@@ -3973,8 +3826,8 @@ final class App
             } else {
                 $items = [];
                 if ($sourceKey !== '' && in_array($sourceKey, $menuKeys, true)) {
-                    $sourceMenu = $this->loadMenuDefinition($sourceKey, '');
-                    $items = $this->normalizeMenuItems($sourceMenu['items'] ?? []);
+                    $sourceMenu = $this->menus()->load($sourceKey);
+                    $items = $this->menus()->normalize($sourceMenu['items'] ?? []);
                     if ($title === '') {
                         $title = (string)($sourceMenu['title'] ?? '');
                     }
@@ -3982,11 +3835,11 @@ final class App
                 if ($title === '') {
                     $title = $this->titleFromSlug($newKey);
                 }
-                $this->writeMenuDefinition($newKey, '', [
+                $this->menus()->write($newKey, [
                     'title' => $title,
                     'items' => $items,
                 ]);
-                $this->menusCache = [];
+                $this->menus()->forget();
                 $this->logActivity('menus.create', 'info', 'menu', $newKey, 'Menu created.', [
                     'title' => $title,
                     'source_key' => $sourceKey,
@@ -4012,7 +3865,7 @@ final class App
     {
         $languages = $this->settings['languages']['available'] ?? [(string)($this->settings['languages']['default'] ?? 'el')];
 
-        $menuKeys = $this->listMenuKeys();
+        $menuKeys = $this->menus()->keys();
         $selectedKey = $this->slugify((string)($_GET['key'] ?? $_POST['key'] ?? ''));
         if ($selectedKey === '') {
             if (!empty($menuKeys)) {
@@ -4032,15 +3885,15 @@ final class App
         $deleted = isset($_GET['deleted']);
         $error = '';
 
-        $menu = $this->loadMenuDefinition($selectedKey, '');
+        $menu = $this->menus()->load($selectedKey);
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $action = (string)($_POST['menu_action'] ?? 'save');
             if ($action === 'delete') {
-                $path = $this->menuWritePath($selectedKey, '');
+                $path = $this->menus()->path($selectedKey);
                 if (is_file($path)) {
                     unlink($path);
-                    $this->menusCache = [];
+                    $this->menus()->forget();
                     $this->logActivity('menus.delete', 'warning', 'menu', $selectedKey, 'Menu deleted.');
                 }
                 $this->redirect('/admin/menus?deleted=1');
@@ -4056,12 +3909,12 @@ final class App
                 $classes = $_POST['menu_class'] ?? [];
                 $targets = $_POST['menu_target'] ?? [];
                 $depths = $_POST['menu_depth'] ?? [];
-                $items = $this->buildMenuItemsFromAdminRows($labelKeys, $labelLangs, $urls, $classes, $targets, $depths, $languages);
-                $this->writeMenuDefinition($selectedKey, '', [
+                $items = $this->menus()->fromAdminRows($labelKeys, $labelLangs, $urls, $classes, $targets, $depths, $languages);
+                $this->menus()->write($selectedKey, [
                     'title' => $title,
                     'items' => $items,
                 ]);
-                $this->menusCache = [];
+                $this->menus()->forget();
                 $this->logActivity('menus.update', 'info', 'menu', $selectedKey, 'Menu updated.', [
                     'title' => $title,
                     'items' => count($items),
@@ -4071,8 +3924,8 @@ final class App
             }
         }
 
-        $menu = $this->loadMenuDefinition($selectedKey, '');
-        $menuItems = $this->flattenMenuItemsForAdmin($menu['items'] ?? [], $languages);
+        $menu = $this->menus()->load($selectedKey);
+        $menuItems = $this->menus()->flatten($menu['items'] ?? [], $languages);
         if (empty($menuItems)) {
             $defaultLabels = [];
             foreach ($languages as $language) {
@@ -4158,7 +4011,7 @@ final class App
                     $prefix = $langCode === $default ? '' : $langCode . '/';
                     $this->redirects->moved($prefix . $kind . '/' . $move['from'], $prefix . $kind . '/' . $move['to'], $by, $taxonomy);
                 }
-                $this->relinkMenus($kind . '/' . $move['from'], $kind . '/' . $move['to']);
+                $this->menus()->relink($kind . '/' . $move['from'], $kind . '/' . $move['to']);
             }
             foreach (array_merge($prepared['added'], array_column($prepared['moved'], 'id')) as $termId) {
                 foreach ($languages as $langCode) {
@@ -4821,7 +4674,7 @@ final class App
                 'title' => (string)($primary->meta['title'] ?? $slug),
                 'status' => $status,
                 'lang' => $primary->lang,
-                'field_count' => count($this->normalizeFormFields($primary->meta['fields'] ?? [])),
+                'field_count' => count(FormFields::normalize($primary->meta['fields'] ?? [])),
                 'languages' => array_keys($versions),
                 'missing_languages' => array_values(array_diff($languages, array_keys($versions))),
                 'submissions' => $stats['total'],
@@ -4932,7 +4785,7 @@ final class App
         $page = min(max(1, (int)($_GET['page'] ?? 1)), $totalPages);
 
         $labels = [];
-        $formFields = $this->normalizeFormFields($form->meta['fields'] ?? []);
+        $formFields = FormFields::normalize($form->meta['fields'] ?? []);
         foreach ($formFields as $field) {
             $name = (string)($field['name'] ?? '');
             if ($name !== '') {
@@ -5012,58 +4865,8 @@ final class App
         }
 
         $items = $this->content->getItems($type, null, true, false);
-        $metaHeaders = [];
-        $reservedMetaHeaders = [
-            'meta.slug',
-            'meta.type',
-            'meta.lang',
-            'meta.title',
-            'meta.status',
-            'meta.visible',
-            'meta.date',
-            'meta.author',
-            'meta.tags',
-            'meta.categories',
-            'meta.translation_id',
-            'meta.main_image',
-            'meta.excerpt',
-        ];
-
-        $flatMetaRows = [];
-        foreach ($items as $item) {
-            $flatMeta = $this->flattenMetaForCsv($item->meta, 'meta');
-            $flatMetaRows[$item->slug . '|' . $item->lang] = $flatMeta;
-            foreach (array_keys($flatMeta) as $key) {
-                if (in_array($key, $reservedMetaHeaders, true)) {
-                    continue;
-                }
-                if (!in_array($key, $metaHeaders, true)) {
-                    $metaHeaders[] = $key;
-                }
-            }
-        }
-        sort($metaHeaders);
-
-        $headers = array_merge([
-            'site_title',
-            'content_type',
-            'language',
-            'slug',
-            'title',
-            'status',
-            'visible',
-            'date',
-            'author',
-            'tags',
-            'categories',
-            'translation_id',
-            'main_image',
-            'excerpt',
-            'updated_at',
-            'body',
-        ], $metaHeaders);
-
         $siteName = (string)($this->settings['title'] ?? 'site');
+        $table = $this->contentCsv()->exportTable($type, $items, $siteName);
         $siteSlug = $this->slugify($siteName);
         if ($siteSlug === '') {
             $siteSlug = 'site';
@@ -5082,32 +4885,8 @@ final class App
             return;
         }
 
-        fputcsv($output, $headers, ',', '"', '');
-        foreach ($items as $item) {
-            $key = $item->slug . '|' . $item->lang;
-            $flatMeta = $flatMetaRows[$key] ?? [];
-            $row = [
-                $siteName,
-                $type,
-                $item->lang,
-                $item->slug,
-                (string)($item->meta['title'] ?? ''),
-                (string)($item->meta['status'] ?? ''),
-                $this->isTruthy($item->meta['visible'] ?? true) ? 'true' : 'false',
-                (string)($item->meta['date'] ?? ''),
-                (string)($item->meta['author'] ?? ''),
-                implode(', ', $this->normalizeMetaList($item->meta['tags'] ?? null)),
-                implode(', ', $this->normalizeMetaList($item->meta['categories'] ?? null)),
-                (string)($item->meta['translation_id'] ?? ''),
-                (string)($item->meta['main_image'] ?? ''),
-                (string)($item->meta['excerpt'] ?? ''),
-                date('c', $item->mtime),
-                $item->markdown,
-            ];
-
-            foreach ($metaHeaders as $metaHeader) {
-                $row[] = (string)($flatMeta[$metaHeader] ?? '');
-            }
+        fputcsv($output, $table['headers'], ',', '"', '');
+        foreach ($table['rows'] as $row) {
             fputcsv($output, $row, ',', '"', '');
         }
 
@@ -5150,7 +4929,7 @@ final class App
                     $error = 'Import preview expired. Run dry-run again.';
                 } else {
                     $entries = is_array($cache['entries'] ?? null) ? $cache['entries'] : [];
-                    $applyResult = $this->applyContentImportBatch($type, $entries);
+                    $applyResult = $this->contentCsv()->apply($type, $entries);
                     if (($applyResult['ok'] ?? false) === true) {
                         unset($_SESSION['content_import_preview'][$token]);
                         $summary = is_array($cache['summary'] ?? null) ? $cache['summary'] : [];
@@ -5183,11 +4962,11 @@ final class App
                         if ($ext !== 'csv') {
                             $error = 'Please upload a .csv file.';
                         } else {
-                            $parse = $this->parseContentImportCsv($tmpPath);
+                            $parse = $this->contentCsv()->parseImport($tmpPath);
                             if (($parse['ok'] ?? false) !== true) {
                                 $error = (string)($parse['error'] ?? 'Could not parse CSV.');
                             } else {
-                                $preview = $this->buildContentImportPreview($type, (array)($parse['rows'] ?? []), (array)($parse['headers'] ?? []));
+                                $preview = $this->contentCsv()->preview($type, (array)($parse['rows'] ?? []), (array)($parse['headers'] ?? []));
                                 $previewRows = $preview['rows'];
                                 $previewSummary = $preview['summary'];
                                 if (!empty($preview['entries'])) {
@@ -5669,7 +5448,7 @@ final class App
         }));
 
         $twig->addFunction(new TwigFunction('json_ld', function (array $graph): string {
-            return $this->jsonLdScript($graph);
+            return $this->structuredData()->script($graph);
         }, ['is_safe' => ['html']]));
 
         $twig->addFunction(new TwigFunction('admin_asset', function (string $path) use ($baseUrl): string {
@@ -5761,7 +5540,7 @@ final class App
         }
 
         if (!str_starts_with($template, '@admin/') && !array_key_exists('structured_data', $data)) {
-            $defaults['structured_data'] = $this->baseStructuredData();
+            $defaults['structured_data'] = $this->structuredData()->site();
         }
 
         $data = array_merge($defaults, $data);
@@ -6243,90 +6022,6 @@ final class App
         return ['ok' => true];
     }
 
-    private function ensureDefaultMenus(): void
-    {
-        $dir = $this->menuDir();
-        if (!is_dir($dir)) {
-            mkdir($dir, 0775, true);
-        }
-
-        $defaultLang = (string)($this->settings['languages']['default'] ?? 'el');
-        $mainPath = $this->menuWritePath('main', $defaultLang);
-        $footerPath = $this->menuWritePath('footer', $defaultLang);
-
-        if (!is_file($mainPath)) {
-            $legacyHeader = $this->settings['menu']['header'] ?? [];
-            $mainItems = [];
-            if (is_array($legacyHeader) && !empty($legacyHeader)) {
-                foreach ($legacyHeader as $row) {
-                    if (!is_array($row)) {
-                        continue;
-                    }
-                    $url = trim((string)($row['url'] ?? ''));
-                    $label = trim((string)($row['label'] ?? ''));
-                    $labelKey = trim((string)($row['label_key'] ?? ''));
-                    $class = trim((string)($row['class'] ?? ''));
-                    $target = trim((string)($row['target'] ?? ''));
-                    if ($url === '' && $label === '' && $labelKey === '') {
-                        continue;
-                    }
-                    $item = ['url' => $url];
-                    if ($label !== '') {
-                        $item['label'] = $label;
-                    }
-                    if ($labelKey !== '') {
-                        $item['label_key'] = $labelKey;
-                    }
-                    if ($class !== '') {
-                        $item['class'] = $class;
-                    }
-                    if ($target !== '') {
-                        $item['target'] = $target;
-                    }
-                    $mainItems[] = $item;
-                }
-            }
-            if (empty($mainItems)) {
-                $mainItems = [
-                    ['label_key' => 'nav.main.home', 'url' => ''],
-                    ['label_key' => 'nav.main.about', 'url' => 'about'],
-                    [
-                        'label_key' => 'nav.main.services',
-                        'url' => 'services',
-                        'children' => [
-                            ['label_key' => 'nav.main.services.workplace_strategy', 'url' => 'workplace-strategy'],
-                            ['label_key' => 'nav.main.services.design_build', 'url' => 'design-build'],
-                            ['label_key' => 'nav.main.services.project_management', 'url' => 'project-management'],
-                        ],
-                    ],
-                    ['label_key' => 'nav.main.projects', 'url' => 'projects'],
-                    ['label_key' => 'nav.main.news', 'url' => 'category/news'],
-                    ['label_key' => 'nav.main.contact', 'url' => 'contact', 'class' => 'nav-cta'],
-                ];
-            }
-            $this->writeMenuDefinition('main', $defaultLang, [
-                'title' => 'Main Menu',
-                'items' => $mainItems,
-            ]);
-        }
-
-        if (!is_file($footerPath)) {
-            $footerItems = [
-                ['label_key' => 'nav.footer.about', 'url' => 'about'],
-                ['label_key' => 'nav.footer.careers', 'url' => 'careers'],
-                ['label_key' => 'nav.footer.faq', 'url' => 'faq'],
-                ['label_key' => 'nav.footer.privacy', 'url' => 'privacy-policy'],
-                ['label_key' => 'nav.footer.terms', 'url' => 'terms'],
-                ['label_key' => 'nav.footer.cookies', 'url' => 'cookies'],
-                ['label_key' => 'nav.footer.contact', 'url' => 'contact'],
-            ];
-            $this->writeMenuDefinition('footer', $defaultLang, [
-                'title' => 'Footer Menu',
-                'items' => $footerItems,
-            ]);
-        }
-    }
-
     /** @return array<int, array{name: string, title: string, terms: array<int, array{id: string, slug: string, labels: array<string, string>}>}> */
     private function listTaxonomiesForAdmin(): array
     {
@@ -6347,467 +6042,44 @@ final class App
         return $this->taxonomies()->label($taxonomy, $termId, $lang !== null && $lang !== '' ? $lang : $this->currentLang);
     }
 
+    private function contentCsv(): ContentCsv
+    {
+        return $this->contentCsvService ??= new ContentCsv(
+            $this->content,
+            $this->contentDir,
+            fn(): array => $this->settings,
+            $this->revisions,
+            fn(): HtmlGuard => $this->htmlGuard(),
+            fn(string $date): string => $this->normalizeDateForStorage($date),
+            fn(): string => $this->currentUsername(),
+            fn(): bool => $this->permissions->can($this->auth->user(), 'content.raw_html')
+        );
+    }
+
+    private function structuredData(): StructuredData
+    {
+        return $this->structuredDataService ??= new StructuredData(
+            fn(): array => $this->settings,
+            fn(): array => $this->themeSettings,
+            fn(string $key, ?string $fallback = null): string => $this->translate($key, $fallback),
+            fn(string $path): string => $this->buildAbsoluteUrl($path),
+            fn(string $lang): string => $this->langPrefix($lang)
+        );
+    }
+
+    private function menus(): Menus
+    {
+        return $this->menuStore ??= new Menus(
+            $this->contentDir,
+            fn(): array => $this->settings,
+            fn(string $key, ?string $fallback = null): string => $this->translate($key, $fallback),
+            fn(): array => $this->theme->menuLocations()
+        );
+    }
+
     private function taxonomies(): Taxonomies
     {
         return $this->taxonomyStore ??= new Taxonomies($this->contentDir, array_map('strval', $this->settings['languages']['available'] ?? [(string)($this->settings['languages']['default'] ?? 'el')]));
-    }
-
-    private function menuDir(): string
-    {
-        return $this->contentDir . '/menus';
-    }
-
-    private function menuWritePath(string $key, string $lang): string
-    {
-        $key = $this->slugify($key);
-        if ($key === '') {
-            $key = 'menu';
-        }
-        return $this->menuDir() . '/' . $key . '.yaml';
-    }
-
-    /** @return string[] */
-    private function listMenuKeys(): array
-    {
-        $keys = ['main', 'footer'];
-        foreach (glob($this->menuDir() . '/*.yaml') ?: [] as $path) {
-            $filename = basename($path, '.yaml');
-            if ($filename === '' || preg_match('/\.[a-z]{2}$/', $filename) === 1) {
-                continue;
-            }
-            $key = $this->slugify($filename);
-            if ($key === '' || in_array($key, $keys, true)) {
-                continue;
-            }
-            $keys[] = $key;
-        }
-        sort($keys);
-        return $keys;
-    }
-
-    /** @return array<int, array{key: string, title: string, updated: string}> */
-    private function listMenusForAdmin(): array
-    {
-        $rows = [];
-        foreach ($this->listMenuKeys() as $key) {
-            $path = $this->menuWritePath($key, '');
-            $menu = $this->loadMenuDefinition($key, '');
-            $mtime = is_file($path) ? (int)filemtime($path) : 0;
-            $rows[] = [
-                'key' => $key,
-                'title' => (string)($menu['title'] ?? $this->titleFromSlug($key)),
-                'updated' => $mtime > 0 ? date('Y-m-d H:i', $mtime) : '',
-            ];
-        }
-        return $rows;
-    }
-
-    /** @return array{path: string, lang: string} */
-    private function resolveMenuSource(string $key, string $lang): array
-    {
-        $path = $this->menuWritePath($key, '');
-        return ['path' => $path, 'lang' => (string)($this->settings['languages']['default'] ?? 'el')];
-    }
-
-    /** @return array{title: string, items: array<int, array<string, mixed>>} */
-    private function loadMenuDefinition(string $key, string $lang): array
-    {
-        $cacheKey = $key . '|single';
-        if (isset($this->menusCache[$cacheKey])) {
-            return $this->menusCache[$cacheKey];
-        }
-
-        $menu = [
-            'title' => $this->titleFromSlug($key),
-            'items' => [],
-        ];
-
-        $source = $this->resolveMenuSource($key, '');
-        if ($source['path'] !== '' && is_file($source['path'])) {
-            $data = Yaml::parseFile($source['path']);
-            if (is_array($data)) {
-                $title = trim((string)($data['title'] ?? ''));
-                if ($title !== '') {
-                    $menu['title'] = $title;
-                }
-                $menu['items'] = $this->normalizeMenuItems($data['items'] ?? []);
-            }
-        }
-
-        $this->menusCache[$cacheKey] = $menu;
-        return $menu;
-    }
-
-    private function writeMenuDefinition(string $key, string $lang, array $menu): void
-    {
-        $dir = $this->menuDir();
-        if (!is_dir($dir)) {
-            mkdir($dir, 0775, true);
-        }
-        $path = $this->menuWritePath($key, $lang);
-        $title = trim((string)($menu['title'] ?? ''));
-        if ($title === '') {
-            $title = $this->titleFromSlug($key);
-        }
-        $items = $this->normalizeMenuItems($menu['items'] ?? []);
-        $payload = [
-            'title' => $title,
-            'items' => $items,
-        ];
-        file_put_contents($path, Yaml::dump($payload, 4, 2));
-        $this->menusCache = [];
-    }
-
-    /** @return array<int, array<string, mixed>> */
-    private function normalizeMenuItems(mixed $items, int $depth = 1): array
-    {
-        if (!is_array($items)) {
-            return [];
-        }
-        $depth = max(1, min(3, $depth));
-        $defaultLang = (string)($this->settings['languages']['default'] ?? 'el');
-        $languages = $this->settings['languages']['available'] ?? [$defaultLang];
-        $rows = [];
-        foreach ($items as $row) {
-            if (!is_array($row)) {
-                continue;
-            }
-            $label = trim((string)($row['label'] ?? ''));
-            $labelKey = trim((string)($row['label_key'] ?? ''));
-            $sourceLabels = is_array($row['labels'] ?? null) ? $row['labels'] : [];
-            $labels = [];
-            foreach ($languages as $language) {
-                $language = (string)$language;
-                $labels[$language] = trim((string)($sourceLabels[$language] ?? ''));
-            }
-            if ($label !== '' && ($labels[$defaultLang] ?? '') === '') {
-                $labels[$defaultLang] = $label;
-            }
-            $url = trim((string)($row['url'] ?? ''));
-            $class = trim((string)($row['class'] ?? ''));
-            $target = trim((string)($row['target'] ?? ''));
-            $children = [];
-            if ($depth < 3) {
-                $children = $this->normalizeMenuItems($row['children'] ?? [], $depth + 1);
-            }
-            $hasLabels = false;
-            foreach ($labels as $value) {
-                if ($value !== '') {
-                    $hasLabels = true;
-                    break;
-                }
-            }
-            if ($label === '' && $labelKey === '' && !$hasLabels && $url === '' && empty($children)) {
-                continue;
-            }
-            $item = [
-                'label' => $label,
-                'label_key' => $labelKey,
-                'labels' => $labels,
-                'url' => $url,
-                'class' => $class,
-                'target' => $target,
-            ];
-            if (!empty($children)) {
-                $item['children'] = $children;
-            }
-            $rows[] = $item;
-        }
-        return $rows;
-    }
-
-    /** @return array<int, array{depth: string, label_key: string, labels: array<string, string>, url: string, class: string, target: string}> */
-    private function flattenMenuItemsForAdmin(mixed $items, array $languages, int $depth = 1): array
-    {
-        $depth = max(1, min(3, $depth));
-        $rows = [];
-        foreach ($this->normalizeMenuItems($items, $depth) as $item) {
-            $rowLabels = [];
-            $labels = is_array($item['labels'] ?? null) ? $item['labels'] : [];
-            foreach ($languages as $language) {
-                $language = (string)$language;
-                $rowLabels[$language] = trim((string)($labels[$language] ?? ''));
-            }
-            $rows[] = [
-                'depth' => (string)$depth,
-                'label_key' => trim((string)($item['label_key'] ?? '')),
-                'labels' => $rowLabels,
-                'url' => trim((string)($item['url'] ?? '')),
-                'class' => trim((string)($item['class'] ?? '')),
-                'target' => trim((string)($item['target'] ?? '')),
-            ];
-            if ($depth < 3 && isset($item['children']) && is_array($item['children'])) {
-                $rows = array_merge($rows, $this->flattenMenuItemsForAdmin($item['children'], $languages, $depth + 1));
-            }
-        }
-        return $rows;
-    }
-
-    /** @return array<int, array<string, mixed>> */
-    private function buildMenuItemsFromAdminRows(mixed $labelKeys, mixed $labelLangs, mixed $urls, mixed $classes, mixed $targets, mixed $depths, array $languages): array
-    {
-        $labelKeys = is_array($labelKeys) ? $labelKeys : [];
-        $labelLangs = is_array($labelLangs) ? $labelLangs : [];
-        $urls = is_array($urls) ? $urls : [];
-        $classes = is_array($classes) ? $classes : [];
-        $targets = is_array($targets) ? $targets : [];
-        $depths = is_array($depths) ? $depths : [];
-
-        $count = max(count($labelKeys), count($urls), count($classes), count($targets), count($depths));
-        $roots = [];
-        $stack = [];
-
-        for ($i = 0; $i < $count; $i++) {
-            $labelKey = trim((string)($labelKeys[$i] ?? ''));
-            $labels = [];
-            $hasLabels = false;
-            foreach ($languages as $language) {
-                $language = (string)$language;
-                $langRows = is_array($labelLangs[$language] ?? null) ? $labelLangs[$language] : [];
-                $value = trim((string)($langRows[$i] ?? ''));
-                $labels[$language] = $value;
-                if ($value !== '') {
-                    $hasLabels = true;
-                }
-            }
-            $url = trim((string)($urls[$i] ?? ''));
-            $class = trim((string)($classes[$i] ?? ''));
-            $target = trim((string)($targets[$i] ?? ''));
-            if ($labelKey === '' && !$hasLabels && $url === '') {
-                continue;
-            }
-
-            $depth = (int)($depths[$i] ?? 1);
-            $depth = max(1, min(3, $depth));
-            while ($depth > 1 && !isset($stack[$depth - 1])) {
-                $depth--;
-            }
-
-            $item = [
-                'label_key' => $labelKey,
-                'labels' => $labels,
-                'url' => $url,
-                'class' => $class,
-                'target' => $target,
-            ];
-
-            if ($depth === 1) {
-                $roots[] = $item;
-                $stack = [1 => count($roots) - 1];
-                continue;
-            }
-
-            $parentDepth = $depth - 1;
-            $parent = &$this->menuNodeByStack($roots, $stack, $parentDepth);
-            if (!isset($parent['children']) || !is_array($parent['children'])) {
-                $parent['children'] = [];
-            }
-            $parent['children'][] = $item;
-            $stack[$depth] = count($parent['children']) - 1;
-            for ($d = $depth + 1; $d <= 3; $d++) {
-                unset($stack[$d]);
-            }
-            unset($parent);
-        }
-
-        return $this->normalizeMenuItems($roots);
-    }
-
-    /** @param array<int, int> $stack */
-    private function &menuNodeByStack(array &$roots, array $stack, int $depth): array
-    {
-        $ref = &$roots[(int)$stack[1]];
-        for ($d = 2; $d <= $depth; $d++) {
-            if (!isset($ref['children']) || !is_array($ref['children'])) {
-                $ref['children'] = [];
-            }
-            $ref = &$ref['children'][(int)$stack[$d]];
-        }
-        return $ref;
-    }
-
-    /** @return array<string, array<int, array<string, mixed>>> */
-    private function resolveThemeMenus(string $lang, string $currentPath): array
-    {
-        $locations = $this->settings['menu_locations'] ?? [];
-        if (!is_array($locations)) {
-            $locations = [];
-        }
-        foreach ($this->theme->menuLocations() + ['header' => ['default' => 'main'], 'footer' => ['default' => 'footer']] as $location => $definition) {
-            if (!isset($locations[$location]) || trim((string)$locations[$location]) === '') {
-                $locations[$location] = $definition['default'];
-            }
-        }
-
-        $resolved = [];
-        foreach ($locations as $location => $key) {
-            $location = $this->slugify((string)$location);
-            $key = $this->slugify((string)$key);
-            if ($location === '' || $key === '') {
-                continue;
-            }
-            $menu = $this->loadMenuDefinition($key, $lang);
-            $activeItems = $this->applyMenuActiveState($menu['items'] ?? [], $this->normalizeMenuPath($currentPath));
-            $resolved[$location] = $this->localizeMenuItems($activeItems, $lang);
-        }
-
-        if (empty($resolved['header'] ?? [])) {
-            $legacyHeader = $this->settings['menu']['header'] ?? [];
-            if (is_array($legacyHeader)) {
-                $activeItems = $this->applyMenuActiveState($this->normalizeMenuItems($legacyHeader), $this->normalizeMenuPath($currentPath));
-                $resolved['header'] = $this->localizeMenuItems($activeItems, $lang);
-            }
-        }
-
-        return $resolved;
-    }
-
-    /** @param array<int, array<string, mixed>> $items
-     *  @return array<int, array<string, mixed>>
-     */
-    private function localizeMenuItems(array $items, string $lang): array
-    {
-        $defaultLang = (string)($this->settings['languages']['default'] ?? 'el');
-        $rows = [];
-        foreach ($items as $item) {
-            if (!is_array($item)) {
-                continue;
-            }
-            $labels = is_array($item['labels'] ?? null) ? $item['labels'] : [];
-            $label = trim((string)($labels[$lang] ?? ''));
-            if ($label === '') {
-                $labelKey = trim((string)($item['label_key'] ?? ''));
-                if ($labelKey !== '') {
-                    $label = $this->translate($labelKey, $labelKey);
-                }
-            }
-            if ($label === '' && $defaultLang !== $lang) {
-                $label = trim((string)($labels[$defaultLang] ?? ''));
-            }
-            if ($label === '') {
-                $label = trim((string)($item['label'] ?? ''));
-            }
-            $item['label'] = $label;
-            if (isset($item['children']) && is_array($item['children'])) {
-                $item['children'] = $this->localizeMenuItems($item['children'], $lang);
-            }
-            $rows[] = $item;
-        }
-        return $rows;
-    }
-
-    /** @param array<int, array<string, mixed>> $items
-     *  @return array<int, array<string, mixed>>
-     */
-    private function applyMenuActiveState(array $items, string $currentPath): array
-    {
-        $rows = [];
-        foreach ($items as $item) {
-            if (!is_array($item)) {
-                continue;
-            }
-            $children = [];
-            $hasChildActive = false;
-            if (isset($item['children']) && is_array($item['children'])) {
-                $children = $this->applyMenuActiveState($item['children'], $currentPath);
-                foreach ($children as $child) {
-                    if (!is_array($child)) {
-                        continue;
-                    }
-                    if (($child['is_active'] ?? false) || ($child['is_trail'] ?? false)) {
-                        $hasChildActive = true;
-                        break;
-                    }
-                }
-            }
-
-            $isActive = $this->isMenuUrlActive((string)($item['url'] ?? ''), $currentPath);
-            $item['is_active'] = $isActive;
-            $item['is_trail'] = $hasChildActive;
-            if (!empty($children)) {
-                $item['children'] = $children;
-            } else {
-                unset($item['children']);
-            }
-            $rows[] = $item;
-        }
-        return $rows;
-    }
-
-    private function isMenuUrlActive(string $url, string $currentPath): bool
-    {
-        $targetPath = $this->menuTargetPath($url);
-        if ($targetPath === null) {
-            return false;
-        }
-        if ($targetPath === '') {
-            return $currentPath === '';
-        }
-        if ($currentPath === $targetPath) {
-            return true;
-        }
-        return str_starts_with($currentPath, $targetPath . '/');
-    }
-
-    private function menuTargetPath(string $url): ?string
-    {
-        $url = trim($url);
-        if ($url === '' || $url === '/') {
-            return '';
-        }
-
-        if (str_starts_with($url, '#') || str_starts_with($url, 'mailto:') || str_starts_with($url, 'tel:')) {
-            return null;
-        }
-
-        if (preg_match('/^https?:\/\//i', $url) === 1) {
-            $targetHost = (string)(parse_url($url, PHP_URL_HOST) ?? '');
-            $baseHost = (string)(parse_url((string)($this->settings['base_url'] ?? ''), PHP_URL_HOST) ?? '');
-            if ($targetHost === '' || $baseHost === '' || strcasecmp($targetHost, $baseHost) !== 0) {
-                return null;
-            }
-            $url = (string)(parse_url($url, PHP_URL_PATH) ?? '');
-        }
-
-        return $this->normalizeMenuPath($url);
-    }
-
-    private function normalizeMenuPath(string $path): string
-    {
-        $raw = trim($path);
-        if ($raw === '') {
-            return '';
-        }
-
-        $parsed = parse_url($raw);
-        if (is_array($parsed) && array_key_exists('path', $parsed)) {
-            $path = trim((string)$parsed['path']);
-        } else {
-            $path = $raw;
-        }
-
-        $path = trim($path, '/');
-        if ($path === '') {
-            return '';
-        }
-
-        $segments = explode('/', $path);
-        $available = $this->settings['languages']['available'] ?? [];
-        if (isset($segments[0]) && in_array($segments[0], $available, true)) {
-            array_shift($segments);
-        }
-
-        if (($segments[0] ?? '') === 'pages') {
-            array_shift($segments);
-        }
-
-        $homeSlug = $this->slugify((string)($this->settings['home_page'] ?? 'index'));
-        $normalized = trim(implode('/', $segments), '/');
-        if ($normalized === $homeSlug) {
-            return '';
-        }
-
-        return $normalized;
     }
 
     /** @return array{0: string, 1: string[]} */
@@ -7162,17 +6434,7 @@ final class App
 
     private function normalizeMetaList(mixed $value): array
     {
-        if ($value === null || $value === '') {
-            return [];
-        }
-        if (is_array($value)) {
-            return array_values(array_filter(array_map('strval', $value)));
-        }
-        $value = (string)$value;
-        if (str_contains($value, ',')) {
-            return array_values(array_filter(array_map('trim', explode(',', $value))));
-        }
-        return [$value];
+        return Format::list($value);
     }
 
     private function isTruthy(mixed $value): bool
@@ -7365,12 +6627,7 @@ final class App
 
     private function parseCommaList(string $value): array
     {
-        $value = trim($value);
-        if ($value === '') {
-            return [];
-        }
-        $items = array_map('trim', explode(',', $value));
-        return array_values(array_filter($items, fn($item) => $item !== ''));
+        return Format::commaList($value);
     }
 
     private function normalizeLanguageList(string $value): array
@@ -7567,7 +6824,7 @@ final class App
         $form = [];
         foreach ($this->settingsSecretPaths() as $field => $path) {
             $form[$field] = '';
-            $form[$field . '_set'] = trim((string)$this->readArrayPath($settings, $path)) !== '';
+            $form[$field . '_set'] = trim((string)ArrayPath::get($settings, $path)) !== '';
         }
         return $form;
     }
@@ -7582,18 +6839,6 @@ final class App
             'backup_remote_secret_key' => ['backup', 'remote', 'secret_key'],
             'update_github_token' => ['updates', 'github_token'],
         ];
-    }
-
-    private function readArrayPath(array $source, array $path): mixed
-    {
-        $node = $source;
-        foreach ($path as $segment) {
-            if (!is_array($node) || !array_key_exists($segment, $node)) {
-                return null;
-            }
-            $node = $node[$segment];
-        }
-        return $node;
     }
 
     private function saveSettings(string $raw, array $form): bool
@@ -7615,7 +6860,7 @@ final class App
         $data = $this->parseSettingsYaml($raw);
         $existingSecrets = [];
         foreach ($this->settingsSecretPaths() as $field => $path) {
-            $existingSecrets[$field] = (string)($this->readArrayPath($data, $path) ?? '');
+            $existingSecrets[$field] = (string)(ArrayPath::get($data, $path) ?? '');
         }
 
         $data['title'] = $form['title'] !== '' ? $form['title'] : ($data['title'] ?? 'FarosCMS');
@@ -7792,7 +7037,7 @@ final class App
             } else {
                 $value = $existingSecrets[$field] ?? '';
             }
-            $this->setArrayPath($data, $path, $value);
+            ArrayPath::set($data, $path, $value);
         }
 
         $this->setSystemMeta('site_settings', Yaml::dump($data, 4, 2));
@@ -7961,34 +7206,6 @@ final class App
     private function translationSiblings(string $type, string $slug, string $lang): array
     {
         return $this->contentEditor()->translationSiblings($type, $slug, $lang);
-    }
-
-    /** Menu links follow a page whose address changed. Links are language-neutral ("about", "posts/my-post"). */
-    private function relinkMenus(string $oldUrl, string $newUrl): void
-    {
-        $walk = function (array $items) use (&$walk, $oldUrl, $newUrl, &$changed): array {
-            foreach ($items as $i => $item) {
-                if (!is_array($item)) {
-                    continue;
-                }
-                if (isset($item['url']) && trim((string)$item['url'], '/') === $oldUrl) {
-                    $items[$i]['url'] = $newUrl;
-                    $changed = true;
-                }
-                if (isset($item['children']) && is_array($item['children'])) {
-                    $items[$i]['children'] = $walk($item['children']);
-                }
-            }
-            return $items;
-        };
-        foreach ($this->listMenuKeys() as $key) {
-            $changed = false;
-            $menu = $this->loadMenuDefinition($key, '');
-            $menu['items'] = $walk($menu['items']);
-            if ($changed) {
-                $this->writeMenuDefinition($key, '', $menu);
-            }
-        }
     }
 
     private function slugify(string $value): string
@@ -8401,160 +7618,10 @@ final class App
         $this->settings = $this->loadSettings();
     }
 
-    /** @return string[] */
-    private function formFieldTypes(): array
-    {
-        return FormFields::types();
-    }
-
-    /** @return array<int, array<string, mixed>> */
-    private function normalizeFormFields(mixed $fields): array
-    {
-        if (!is_array($fields)) {
-            return [];
-        }
-        $normalized = [];
-        $allowedTypes = $this->formFieldTypes();
-        foreach ($fields as $row) {
-            if (!is_array($row)) {
-                continue;
-            }
-            $type = strtolower(trim((string)($row['type'] ?? 'text')));
-            if (!in_array($type, $allowedTypes, true)) {
-                $type = 'text';
-            }
-            $name = $this->sanitizeFormFieldName((string)($row['name'] ?? ''));
-            if ($name === '') {
-                continue;
-            }
-            $label = trim((string)($row['label'] ?? ''));
-            if ($label === '') {
-                $label = $this->titleFromSlug($name);
-            }
-            $field = [
-                'type' => $type,
-                'name' => $name,
-                'label' => $label,
-                'required' => $this->isTruthy($row['required'] ?? false),
-                'placeholder' => (string)($row['placeholder'] ?? ''),
-                'help' => (string)($row['help'] ?? ''),
-                'default' => $row['default'] ?? '',
-                'options' => $this->normalizeFormOptions($row['options'] ?? []),
-                'rows' => (int)($row['rows'] ?? 4),
-                'min' => (string)($row['min'] ?? ''),
-                'max' => (string)($row['max'] ?? ''),
-                'step' => (string)($row['step'] ?? ''),
-            ];
-            $normalized[] = $field;
-        }
-        return $normalized;
-    }
-
-    /** @return array<int, array<string, mixed>> */
-    private function normalizeFormFieldsForAdmin(mixed $fields): array
-    {
-        if (!is_array($fields)) {
-            return [];
-        }
-        $normalized = [];
-        $allowedTypes = $this->formFieldTypes();
-        foreach ($fields as $index => $row) {
-            if (!is_array($row)) {
-                continue;
-            }
-            $type = strtolower(trim((string)($row['type'] ?? 'text')));
-            if (!in_array($type, $allowedTypes, true)) {
-                $type = 'text';
-            }
-            $name = $this->sanitizeFormFieldName((string)($row['name'] ?? ''));
-            if ($name === '') {
-                continue;
-            }
-            $label = trim((string)($row['label'] ?? ''));
-            if ($label === '') {
-                $label = $this->titleFromSlug($name);
-            }
-            $options = '';
-            if (isset($row['options'])) {
-                if (is_array($row['options'])) {
-                    $options = implode(', ', array_map('strval', $row['options']));
-                } else {
-                    $options = (string)$row['options'];
-                }
-            }
-            $normalized[] = [
-                'id' => 'field_' . $index,
-                'type' => $type,
-                'name' => $name,
-                'label' => $label,
-                'required' => $this->isTruthy($row['required'] ?? false),
-                'placeholder' => (string)($row['placeholder'] ?? ''),
-                'help' => (string)($row['help'] ?? ''),
-                'default' => (string)($row['default'] ?? ''),
-                'options' => $options,
-                'rows' => (string)($row['rows'] ?? 4),
-                'min' => (string)($row['min'] ?? ''),
-                'max' => (string)($row['max'] ?? ''),
-                'step' => (string)($row['step'] ?? ''),
-            ];
-        }
-        return $normalized;
-    }
-
-    /** @return array<int, array<string, mixed>> */
-    private function parseFormFieldsInput(mixed $input): array
-    {
-        return FormFields::parseInput($input);
-    }
-
-    private function sanitizeFormFieldName(string $value): string
-    {
-        return FormFields::sanitizeName($value);
-    }
-
-    /** @return string[] */
-    private function parseFormOptions(string $value): array
-    {
-        return FormFields::parseOptions($value);
-    }
-
-    /** @return array<int, array{value: string, label: string}> */
-    private function normalizeFormOptions(mixed $value): array
-    {
-        $raw = [];
-        if (is_array($value)) {
-            $raw = $value;
-        } elseif (is_string($value)) {
-            $raw = preg_split('/\R|,/', $value) ?: [];
-        }
-        $options = [];
-        foreach ($raw as $option) {
-            $option = trim((string)$option);
-            if ($option === '') {
-                continue;
-            }
-            $value = $option;
-            $label = $option;
-            if (str_contains($option, '|')) {
-                [$value, $label] = array_map('trim', explode('|', $option, 2));
-            } elseif (str_contains($option, ':')) {
-                [$value, $label] = array_map('trim', explode(':', $option, 2));
-            }
-            if ($label === '') {
-                $label = $value;
-            }
-            $options[] = [
-                'value' => $value,
-                'label' => $label,
-            ];
-        }
-        return $options;
-    }
-
     /** @return array{fields: array, values: array, errors: array, success: bool, message: string, action: string, honeypot: string, redirect: string} */
     private function handleFormRequest(ContentItem $form, string $lang, string $currentPath): array
     {
-        $fields = $this->normalizeFormFields($form->meta['fields'] ?? []);
+        $fields = FormFields::normalize($form->meta['fields'] ?? []);
         $values = $this->defaultFormValues($fields);
         $errors = [];
         $success = false;
@@ -8696,7 +7763,7 @@ final class App
                 if (is_array($default)) {
                     $values[$name] = $default;
                 } else {
-                    $values[$name] = $this->parseFormOptions((string)$default);
+                    $values[$name] = FormFields::parseOptions((string)$default);
                 }
                 continue;
             }
@@ -8841,684 +7908,6 @@ final class App
             return $value;
         }
         return date('Y-m-d H:i', $timestamp);
-    }
-
-    /** @return array<string, string> */
-    private function flattenMetaForCsv(array $meta, string $prefix = ''): array
-    {
-        $flat = [];
-        foreach ($meta as $key => $value) {
-            $key = (string)$key;
-            if ($key === '') {
-                continue;
-            }
-            $path = $prefix === '' ? $key : $prefix . '.' . $key;
-            if (is_array($value)) {
-                if ($this->isAssocArray($value)) {
-                    $flat += $this->flattenMetaForCsv($value, $path);
-                } else {
-                    $flat[$path] = json_encode(array_values($value), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '';
-                }
-                continue;
-            }
-            if (is_bool($value)) {
-                $flat[$path] = $value ? 'true' : 'false';
-                continue;
-            }
-            if ($value === null) {
-                $flat[$path] = '';
-                continue;
-            }
-            if (is_scalar($value)) {
-                $flat[$path] = (string)$value;
-                continue;
-            }
-            $flat[$path] = json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '';
-        }
-        return $flat;
-    }
-
-    private function isAssocArray(array $value): bool
-    {
-        return array_keys($value) !== range(0, count($value) - 1);
-    }
-
-    /** @return array{ok: bool, error?: string, headers?: array<int, string>, rows?: array<int, array<string, string>>} */
-    private function parseContentImportCsv(string $path): array
-    {
-        $handle = fopen($path, 'rb');
-        if ($handle === false) {
-            return ['ok' => false, 'error' => 'Could not open CSV file.'];
-        }
-
-        $firstLine = fgets($handle);
-        if ($firstLine === false) {
-            fclose($handle);
-            return ['ok' => false, 'error' => 'CSV is empty.'];
-        }
-        $delimiter = $this->detectCsvDelimiter($firstLine);
-        rewind($handle);
-
-        $headers = fgetcsv($handle, 0, $delimiter, '"', '');
-        if (!is_array($headers) || empty($headers)) {
-            fclose($handle);
-            return ['ok' => false, 'error' => 'CSV headers are invalid.'];
-        }
-
-        $normalizedHeaders = [];
-        foreach ($headers as $index => $header) {
-            $header = (string)$header;
-            if ($index === 0) {
-                $header = preg_replace('/^\xEF\xBB\xBF/', '', $header) ?? $header;
-            }
-            $normalizedHeaders[] = $this->normalizeCsvHeader($header);
-        }
-
-        if (!in_array('language', $normalizedHeaders, true)) {
-            fclose($handle);
-            return ['ok' => false, 'error' => 'CSV must contain a language column.'];
-        }
-
-        $rows = [];
-        while (($line = fgetcsv($handle, 0, $delimiter, '"', '')) !== false) {
-            if ($line === [null] || $line === []) {
-                continue;
-            }
-            $row = [];
-            foreach ($normalizedHeaders as $i => $header) {
-                if (!isset($line[$i])) {
-                    $row[$header] = '';
-                    continue;
-                }
-                $value = (string)$line[$i];
-                $row[$header] = $header === 'body' ? $value : trim($value);
-            }
-            $isEmpty = true;
-            foreach ($row as $value) {
-                if ($value !== '') {
-                    $isEmpty = false;
-                    break;
-                }
-            }
-            if (!$isEmpty) {
-                $rows[] = $row;
-            }
-        }
-        fclose($handle);
-
-        return [
-            'ok' => true,
-            'headers' => $normalizedHeaders,
-            'rows' => $rows,
-        ];
-    }
-
-    private function detectCsvDelimiter(string $line): string
-    {
-        $comma = substr_count($line, ',');
-        $semi = substr_count($line, ';');
-        return $semi > $comma ? ';' : ',';
-    }
-
-    private function normalizeCsvHeader(string $value): string
-    {
-        $value = strtolower(trim($value));
-        $value = str_replace(' ', '_', $value);
-        return preg_replace('/[^a-z0-9._-]/', '', $value) ?? '';
-    }
-
-    /** @param array<int, array<string, string>> $rows @param array<int, string> $headers */
-    private function buildContentImportPreview(string $type, array $rows, array $headers): array
-    {
-        $availableLanguages = $this->settings['languages']['available'] ?? [];
-        $existingItems = $this->content->getItems($type, null, true, false);
-        $bySlugLang = [];
-        $byTranslationLang = [];
-        foreach ($existingItems as $item) {
-            $slugKey = $item->slug . '|' . $item->lang;
-            $bySlugLang[$slugKey] = $item;
-            $translationId = trim((string)($item->meta['translation_id'] ?? ''));
-            if ($translationId !== '') {
-                $byTranslationLang[$translationId . '|' . $item->lang] = $item;
-            }
-        }
-
-        $rowsOut = [];
-        $entries = [];
-        $summary = [
-            'create' => 0,
-            'update' => 0,
-            'skip' => 0,
-            'error' => 0,
-        ];
-        $seenTargets = [];
-
-        foreach ($rows as $index => $row) {
-            $lineNo = $index + 2;
-            $csvType = $this->sanitizeType((string)($row['content_type'] ?? $type));
-            if ($csvType !== $type) {
-                $rowsOut[] = [
-                    'line' => $lineNo,
-                    'action' => 'error',
-                    'slug' => (string)($row['slug'] ?? ''),
-                    'lang' => (string)($row['language'] ?? ''),
-                    'title' => (string)($row['title'] ?? ''),
-                    'message' => 'content_type mismatch: expected ' . $type . ', got ' . ($csvType ?: '(empty)') . '.',
-                ];
-                $summary['error']++;
-                continue;
-            }
-
-            $lang = strtolower(trim((string)($row['language'] ?? '')));
-            if (!in_array($lang, $availableLanguages, true)) {
-                $rowsOut[] = [
-                    'line' => $lineNo,
-                    'action' => 'error',
-                    'slug' => (string)($row['slug'] ?? ''),
-                    'lang' => $lang,
-                    'title' => (string)($row['title'] ?? ''),
-                    'message' => 'Invalid language.',
-                ];
-                $summary['error']++;
-                continue;
-            }
-
-            $slug = $this->slugify((string)($row['slug'] ?? ''));
-            $title = trim((string)($row['title'] ?? ''));
-            if ($slug === '' && $title !== '') {
-                $slug = $this->slugify($title);
-            }
-            if ($slug === '') {
-                $rowsOut[] = [
-                    'line' => $lineNo,
-                    'action' => 'error',
-                    'slug' => '',
-                    'lang' => $lang,
-                    'title' => $title,
-                    'message' => 'Missing slug/title.',
-                ];
-                $summary['error']++;
-                continue;
-            }
-
-            $translationId = trim((string)($row['translation_id'] ?? ''));
-            $matchByTranslation = null;
-            if ($translationId !== '') {
-                $matchByTranslation = $byTranslationLang[$translationId . '|' . $lang] ?? null;
-            }
-            $matchBySlug = $bySlugLang[$slug . '|' . $lang] ?? null;
-
-            if ($matchByTranslation !== null && $matchBySlug !== null && $matchByTranslation->filePath !== $matchBySlug->filePath) {
-                $rowsOut[] = [
-                    'line' => $lineNo,
-                    'action' => 'error',
-                    'slug' => $slug,
-                    'lang' => $lang,
-                    'title' => $title,
-                    'message' => 'Conflict: translation_id and slug point to different items.',
-                ];
-                $summary['error']++;
-                continue;
-            }
-
-            $matched = $matchByTranslation ?? $matchBySlug;
-            $oldSlug = $matched?->slug ?? $slug;
-            $oldPath = $matched?->filePath ?? '';
-            $newPath = $this->contentDir . '/' . $type . '/' . $this->buildFilename($slug, $lang);
-            $targetKey = $slug . '|' . $lang;
-            if (isset($seenTargets[$targetKey])) {
-                $rowsOut[] = [
-                    'line' => $lineNo,
-                    'action' => 'error',
-                    'slug' => $slug,
-                    'lang' => $lang,
-                    'title' => $title,
-                    'message' => 'Duplicate target slug+language in CSV.',
-                ];
-                $summary['error']++;
-                continue;
-            }
-            $seenTargets[$targetKey] = true;
-
-            $payload = $this->buildImportPayload($type, $row, $headers, $matched, $slug, $lang, $title);
-            if (($payload['ok'] ?? false) !== true) {
-                $rowsOut[] = [
-                    'line' => $lineNo,
-                    'action' => 'error',
-                    'slug' => $slug,
-                    'lang' => $lang,
-                    'title' => $title,
-                    'message' => (string)($payload['error'] ?? 'Invalid row data.'),
-                ];
-                $summary['error']++;
-                continue;
-            }
-
-            $data = is_array($payload['data'] ?? null) ? $payload['data'] : [];
-            $body = (string)($payload['body'] ?? '');
-            $newContent = $this->buildMarkdownPayload($data, $body);
-
-            $action = 'create';
-            if ($matched !== null) {
-                $action = 'update';
-                if ($oldPath === $newPath && is_file($oldPath)) {
-                    $oldContent = (string)file_get_contents($oldPath);
-                    if ($oldContent === $newContent) {
-                        $action = 'skip';
-                    }
-                }
-            }
-
-            $rowsOut[] = [
-                'line' => $lineNo,
-                'action' => $action,
-                'slug' => $slug,
-                'lang' => $lang,
-                'title' => (string)($data['title'] ?? $title ?: $this->titleFromSlug($slug)),
-                'message' => $action === 'skip' ? 'No changes detected.' : '',
-            ];
-            $summary[$action]++;
-
-            if ($action === 'skip') {
-                continue;
-            }
-
-            $entries[] = [
-                'line' => $lineNo,
-                'action' => $action,
-                'old_path' => $oldPath,
-                'new_path' => $newPath,
-                'old_slug' => $oldSlug,
-                'slug' => $slug,
-                'lang' => $lang,
-                'old_mtime' => $matched?->mtime ?? 0,
-                'data' => $data,
-                'body' => $body,
-            ];
-        }
-
-        return [
-            'rows' => $rowsOut,
-            'entries' => $entries,
-            'summary' => $summary,
-        ];
-    }
-
-    /** @param array<string, string> $row @param array<int, string> $headers */
-    private function buildImportPayload(string $type, array $row, array $headers, ?ContentItem $existing, string $slug, string $lang, string $title): array
-    {
-        $data = $existing ? $existing->meta : [];
-        unset($data['slug'], $data['type'], $data['lang']);
-
-        $has = fn (string $header): bool => in_array($header, $headers, true);
-
-        if ($has('title')) {
-            $data['title'] = $title !== '' ? $title : $this->titleFromSlug($slug);
-        } elseif (!isset($data['title']) || (string)$data['title'] === '') {
-            $data['title'] = $this->titleFromSlug($slug);
-        }
-
-        if ($has('status')) {
-            $status = trim((string)($row['status'] ?? ''));
-            $data['status'] = $status !== '' ? $status : 'published';
-        } elseif (!isset($data['status'])) {
-            $data['status'] = 'published';
-        }
-
-        if ($has('visible')) {
-            $data['visible'] = $this->parseCsvBool((string)($row['visible'] ?? ''), true);
-        } elseif (!isset($data['visible'])) {
-            $data['visible'] = true;
-        }
-
-        if ($has('date')) {
-            $date = trim((string)($row['date'] ?? ''));
-            if ($date !== '') {
-                $data['date'] = $this->normalizeDateForStorage($date);
-            } else {
-                unset($data['date']);
-            }
-        }
-
-        if ($has('author')) {
-            $author = trim((string)($row['author'] ?? ''));
-            if ($author !== '') {
-                $data['author'] = $author;
-            } else {
-                unset($data['author']);
-            }
-        }
-
-        if ($has('tags')) {
-            $tags = array_values(array_filter(array_map(fn($value) => $this->slugify((string)$value), $this->parseCommaList((string)($row['tags'] ?? '')))));
-            if (!empty($tags) && $type !== 'pages' && $type !== 'forms') {
-                $data['tags'] = $tags;
-            } else {
-                unset($data['tags']);
-            }
-        }
-
-        if ($has('categories')) {
-            $categories = array_values(array_filter(array_map(fn($value) => $this->slugify((string)$value), $this->parseCommaList((string)($row['categories'] ?? '')))));
-            if (!empty($categories) && $type !== 'pages' && $type !== 'forms') {
-                $data['categories'] = $categories;
-            } else {
-                unset($data['categories']);
-            }
-        }
-
-        if ($has('translation_id')) {
-            $translationId = trim((string)($row['translation_id'] ?? ''));
-            if ($translationId !== '') {
-                $data['translation_id'] = $translationId;
-            } elseif (!isset($data['translation_id'])) {
-                $data['translation_id'] = $this->generateTranslationId();
-            }
-        } elseif (!isset($data['translation_id']) || (string)$data['translation_id'] === '') {
-            $data['translation_id'] = $this->generateTranslationId();
-        }
-
-        if ($has('main_image')) {
-            $mainImage = trim((string)($row['main_image'] ?? ''));
-            if ($mainImage !== '') {
-                $data['main_image'] = $mainImage;
-            } else {
-                unset($data['main_image']);
-            }
-        }
-
-        if ($has('excerpt')) {
-            $excerpt = trim((string)($row['excerpt'] ?? ''));
-            if ($excerpt !== '') {
-                $data['excerpt'] = $excerpt;
-            } else {
-                unset($data['excerpt']);
-            }
-        }
-
-        $metaSet = [];
-        $metaUnset = [];
-        foreach ($headers as $header) {
-            if (!str_starts_with($header, 'meta.')) {
-                continue;
-            }
-            $raw = (string)($row[$header] ?? '');
-            $path = substr($header, 5);
-            if ($path === '' || in_array($path, ['slug', 'type', 'lang'], true)) {
-                continue;
-            }
-            if ($raw === '') {
-                $metaUnset[] = $path;
-                continue;
-            }
-            $metaSet[$path] = $this->parseCsvImportValue($raw);
-        }
-
-        foreach ($metaUnset as $path) {
-            $this->unsetArrayPath($data, explode('.', $path));
-        }
-        foreach ($metaSet as $path => $value) {
-            $this->setArrayPath($data, explode('.', $path), $value);
-        }
-
-        foreach (array_keys($data) as $key) {
-            if ($key === 'summary') {
-                unset($data[$key]);
-            }
-        }
-
-        $body = $has('body') ? (string)($row['body'] ?? '') : ($existing?->markdown ?? '');
-        return [
-            'ok' => true,
-            'data' => $data,
-            'body' => $body,
-        ];
-    }
-
-    private function parseCsvBool(string $value, bool $default): bool
-    {
-        $value = strtolower(trim($value));
-        if ($value === '') {
-            return $default;
-        }
-        if (in_array($value, ['1', 'true', 'yes', 'on'], true)) {
-            return true;
-        }
-        if (in_array($value, ['0', 'false', 'no', 'off'], true)) {
-            return false;
-        }
-        return $default;
-    }
-
-    private function parseCsvImportValue(string $value): mixed
-    {
-        $value = trim($value);
-        if ($value === '') {
-            return '';
-        }
-        $first = $value[0] ?? '';
-        if ($first === '[' || $first === '{') {
-            $decoded = json_decode($value, true);
-            if (json_last_error() === JSON_ERROR_NONE) {
-                return $decoded;
-            }
-        }
-        $lower = strtolower($value);
-        if ($lower === 'true') {
-            return true;
-        }
-        if ($lower === 'false') {
-            return false;
-        }
-        return $value;
-    }
-
-    private function setArrayPath(array &$target, array $path, mixed $value): void
-    {
-        if (empty($path)) {
-            return;
-        }
-        $node = &$target;
-        foreach ($path as $index => $segment) {
-            $segment = (string)$segment;
-            if ($segment === '') {
-                return;
-            }
-            $isLeaf = $index === count($path) - 1;
-            if ($isLeaf) {
-                $node[$segment] = $value;
-                return;
-            }
-            if (!isset($node[$segment]) || !is_array($node[$segment])) {
-                $node[$segment] = [];
-            }
-            $node = &$node[$segment];
-        }
-    }
-
-    private function unsetArrayPath(array &$target, array $path): void
-    {
-        if (empty($path)) {
-            return;
-        }
-        $node = &$target;
-        $last = count($path) - 1;
-        foreach ($path as $index => $segment) {
-            $segment = (string)$segment;
-            if ($segment === '') {
-                return;
-            }
-            if ($index === $last) {
-                unset($node[$segment]);
-                return;
-            }
-            if (!isset($node[$segment]) || !is_array($node[$segment])) {
-                return;
-            }
-            $node = &$node[$segment];
-        }
-    }
-
-    private function buildMarkdownPayload(array $data, string $body): string
-    {
-        $frontmatter = trim(Yaml::dump($data, 4, 2));
-        $body = rtrim($body);
-        return "---\n" . $frontmatter . "\n---\n\n" . $body . "\n";
-    }
-
-    /** @param array<int, array<string, mixed>> $entries */
-    private function applyContentImportBatch(string $type, array $entries): array
-    {
-        $writable = array_values(array_filter($entries, function (array $entry): bool {
-            return in_array((string)($entry['action'] ?? ''), ['create', 'update'], true);
-        }));
-        if (empty($writable)) {
-            return ['ok' => false, 'error' => 'Nothing to import.'];
-        }
-
-        foreach ($writable as $entry) {
-            $oldPath = (string)($entry['old_path'] ?? '');
-            $oldMtime = (int)($entry['old_mtime'] ?? 0);
-            if ($oldPath !== '' && file_exists($oldPath) && $oldMtime > 0) {
-                $current = (int)filemtime($oldPath);
-                if ($current !== $oldMtime) {
-                    return ['ok' => false, 'error' => 'Content changed since dry-run. Please rerun preview.'];
-                }
-            }
-        }
-
-        $touched = [];
-        foreach ($writable as $entry) {
-            $oldPath = (string)($entry['old_path'] ?? '');
-            $newPath = (string)($entry['new_path'] ?? '');
-            if ($oldPath !== '') {
-                $touched[$oldPath] = true;
-            }
-            if ($newPath !== '') {
-                $touched[$newPath] = true;
-            }
-        }
-        $touchedPaths = array_keys($touched);
-        $originalExists = [];
-        foreach ($touchedPaths as $path) {
-            $originalExists[$path] = file_exists($path);
-        }
-
-        $backupToken = date('Ymd-His') . '-' . bin2hex(random_bytes(4));
-        $backupDir = $this->contentDir . '/.import-backups/' . $type . '-' . $backupToken;
-        if (!is_dir($backupDir) && !mkdir($backupDir, 0775, true) && !is_dir($backupDir)) {
-            return ['ok' => false, 'error' => 'Could not create import backup directory.'];
-        }
-
-        foreach ($touchedPaths as $path) {
-            if (!file_exists($path)) {
-                continue;
-            }
-            [$identitySlug, $identityLang] = $this->contentIdentity($path);
-            $this->revisions->baseline($type, $identitySlug, $identityLang, $path, $this->currentUsername());
-            $relative = ltrim(str_replace($this->contentDir, '', $path), '/');
-            $target = $backupDir . '/' . $relative;
-            $targetDir = dirname($target);
-            if (!is_dir($targetDir)) {
-                mkdir($targetDir, 0775, true);
-            }
-            if (!copy($path, $target)) {
-                return ['ok' => false, 'error' => 'Failed to create backup copy before import.'];
-            }
-        }
-
-        $temps = [];
-        foreach ($writable as $entry) {
-            $newPath = (string)($entry['new_path'] ?? '');
-            $data = is_array($entry['data'] ?? null) ? $entry['data'] : [];
-            $body = (string)($entry['body'] ?? '');
-            $dir = dirname($newPath);
-            if (!is_dir($dir)) {
-                mkdir($dir, 0775, true);
-            }
-            $tmpPath = $dir . '/.' . basename($newPath) . '.tmp-import-' . bin2hex(random_bytes(4));
-            if (!$this->permissions->can($this->auth->user(), 'content.raw_html')) {
-                // An import must not be a way around the raw HTML rule: HTML already in the file being replaced stays.
-                $allowedHtml = $this->storedHtmlFragments((string)($entry['old_path'] ?? ''));
-                $body = $this->neutralizeRawHtml($body, $allowedHtml);
-                if (isset($data['blocks']) && is_array($data['blocks'])) {
-                    $data['blocks'] = $this->eachMarkdownField(array_values($data['blocks']), fn(string $value): string => $this->neutralizeRawHtml($value, $allowedHtml));
-                }
-            }
-            $payload = $this->buildMarkdownPayload($data, $body);
-            if (file_put_contents($tmpPath, $payload) === false) {
-                foreach ($temps as $temp) {
-                    @unlink($temp['tmp']);
-                }
-                $this->restoreImportBackup($backupDir, $touchedPaths, $originalExists);
-                return ['ok' => false, 'error' => 'Failed while preparing import files.'];
-            }
-            $temps[] = [
-                'tmp' => $tmpPath,
-                'new' => $newPath,
-                'old' => (string)($entry['old_path'] ?? ''),
-            ];
-        }
-
-        foreach ($temps as $temp) {
-            if (!@rename($temp['tmp'], $temp['new'])) {
-                foreach ($temps as $cleanup) {
-                    @unlink($cleanup['tmp']);
-                }
-                $this->restoreImportBackup($backupDir, $touchedPaths, $originalExists);
-                return ['ok' => false, 'error' => 'Failed while writing imported content.'];
-            }
-        }
-
-        foreach ($temps as $temp) {
-            $oldPath = $temp['old'];
-            $newPath = $temp['new'];
-            if ($oldPath !== '' && $oldPath !== $newPath && file_exists($oldPath)) {
-                @unlink($oldPath);
-            }
-            [$identitySlug, $identityLang] = $this->contentIdentity($newPath);
-            $this->revisions->capture($type, $identitySlug, $identityLang, (string)file_get_contents($newPath), 'import', $this->currentUsername());
-        }
-
-        return ['ok' => true];
-    }
-
-    /**
-     * The slug and language a content file name stands for ("about.md" is the default language, "about.en.md" is English).
-     *
-     * @return array{0: string, 1: string}
-     */
-    private function contentIdentity(string $path): array
-    {
-        $name = basename($path, '.md');
-        $available = (array)($this->settings['languages']['available'] ?? []);
-        if (preg_match('/^(.+)\.([a-z0-9-]+)$/', $name, $m) === 1 && in_array($m[2], $available, true)) {
-            return [$m[1], $m[2]];
-        }
-        return [$name, $this->defaultLanguage()];
-    }
-
-    /** @param string[] $paths @param array<string, bool> $originalExists */
-    private function restoreImportBackup(string $backupDir, array $paths, array $originalExists): void
-    {
-        foreach ($paths as $path) {
-            $relative = ltrim(str_replace($this->contentDir, '', $path), '/');
-            $backupPath = $backupDir . '/' . $relative;
-            $existed = (bool)($originalExists[$path] ?? false);
-            if ($existed) {
-                if (file_exists($backupPath)) {
-                    $dir = dirname($path);
-                    if (!is_dir($dir)) {
-                        mkdir($dir, 0775, true);
-                    }
-                    @copy($backupPath, $path);
-                }
-            } else {
-                if (file_exists($path)) {
-                    @unlink($path);
-                }
-            }
-        }
     }
 
     private function cleanupImportPreviewCache(): void
@@ -9691,7 +8080,7 @@ final class App
         if (!$form) {
             return '';
         }
-        $fields = $this->normalizeFormFields($form->meta['fields'] ?? []);
+        $fields = FormFields::normalize($form->meta['fields'] ?? []);
         $values = $this->defaultFormValues($fields);
         $errors = [];
         $success = isset($_GET['sent']) && (string)($_GET['form'] ?? '') === $form->slug;

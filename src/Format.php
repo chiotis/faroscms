@@ -22,6 +22,32 @@ final class Format
         return number_format($value, 1) . ' ' . $units[$unitIndex];
     }
 
+    /** A list from front matter: an array, a comma separated text, or one value; empty entries are dropped. @return array<int, string> */
+    public static function list(mixed $value): array
+    {
+        if ($value === null || $value === '') {
+            return [];
+        }
+        if (is_array($value)) {
+            return array_values(array_filter(array_map('strval', $value)));
+        }
+        $value = (string)$value;
+        if (str_contains($value, ',')) {
+            return array_values(array_filter(array_map('trim', explode(',', $value))));
+        }
+        return [$value];
+    }
+
+    /** "a, b,,c" as ['a', 'b', 'c']. @return array<int, string> */
+    public static function commaList(string $value): array
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return [];
+        }
+        return array_values(array_filter(array_map('trim', explode(',', $value)), static fn(string $item): bool => $item !== ''));
+    }
+
     /** Checkbox and query values: true, 1, "1", "yes", "on", "true". */
     public static function isTruthy(mixed $value): bool
     {

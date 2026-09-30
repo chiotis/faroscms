@@ -1,0 +1,184 @@
+<?php
+
+declare(strict_types=1);
+
+namespace FarosCMS;
+
+/**
+ * The JSON-LD that describes a page to search engines: the organization, the website and its search, the article
+ * or page itself, its breadcrumb, all as one graph, and the script tag that carries it.
+ */
+final class StructuredData
+{
+    /**
+     * @param callable(): array<string, mixed> $settings the site settings
+     * @param callable(): array<string, mixed> $themeSettings the theme's settings (logo, social profiles, footer)
+     * @param callable(string, ?string): string $translate a theme string
+     * @param callable(string): string $absoluteUrl a path of the site as a full address
+     * @param callable(string): string $langPrefix "" for the default language, "en/" for another
+     */
+    public function __construct(private $settings, private $themeSettings, private $translate, private $absoluteUrl, private $langPrefix)
+    {
+    }
+
+    /** @return array<string, mixed> */
+    private function settings(): array
+    {
+        return ($this->settings)();
+    }
+
+    /** @return array<string, mixed> */
+    private function themeSettings(): array
+    {
+        return ($this->themeSettings)();
+    }
+
+    /** Organization node shared by every frontend page. @return array<int, array<string, mixed>> */
+    public function site(): array
+    {
+        $siteUrl = ($this->absoluteUrl)('');
+        $organization = [
+            '@type' => 'Organization',
+            '@id' => $siteUrl . '#organization',
+            'name' => (string)($this->settings()['title'] ?? 'FarosCMS'),
+            'url' => $siteUrl,
+        ];
+        $logo = trim((string)($this->themeSettings()['brand']['logo'] ?? ''));
+        if ($logo !== '') {
+            $organization['logo'] = preg_match('#^https?://#i', $logo) ? $logo : ($this->absoluteUrl)($logo);
+        }
+        $social = is_array($this->themeSettings()['social'] ?? null) ? $this->themeSettings()['social'] : [];
+        $sameAs = array_values(array_filter(array_map(static fn($url): string => trim((string)$url), $social), static fn(string $url): bool => $url !== ''));
+        if ($sameAs !== []) {
+            $organization['sameAs'] = $sameAs;
+        }
+        // The phone and email of the footer are how people reach the business.
+        $phone = trim((string)($this->themeSettings()['footer']['phone'] ?? ''));
+        $email = trim((string)($this->themeSettings()['footer']['email'] ?? ''));
+        if ($phone !== '' || $email !== '') {
+            $contact = ['@type' => 'ContactPoint', 'contactType' => 'customer service'];
+            if ($phone !== '') {
+                $contact['telephone'] = $phone;
+            }
+            if ($email !== '') {
+                $contact['email'] = $email;
+            }
+            $organization['contactPoint'] = $contact;
+        }
+        return [$organization];
+    }
+
+    /** @return array<int, array<string, mixed>> */
+    public function forItem(ContentItem $item, string $lang, string $canonical, bool $isHome, string $blockImage = ''): array
+    {
+        $graph = $this->site();
+        $siteUrl = ($this->absoluteUrl)('');
+        $organization = ['@id' => $siteUrl . '#organization'];
+        $prefix = ($this->langPrefix)($lang);
+        $homeUrl = ($this->absoluteUrl)($prefix);
+
+        if ($isHome) {
+            $graph[] = [
+                '@type' => 'WebSite',
+                '@id' => $siteUrl . '#website',
+                'url' => $homeUrl,
+                'name' => (string)($this->settings()['title'] ?? 'FarosCMS'),
+                'inLanguage' => $lang,
+                'publisher' => $organization,
+                'potentialAction' => [
+                    '@type' => 'SearchAction',
+                    'target' => ['@type' => 'EntryPoint', 'urlTemplate' => ($this->absoluteUrl)($prefix . 'search') . '?q={search_term_string}'],
+                    'query-input' => 'required name=search_term_string',
+                ],
+            ];
+            return $graph;
+        }
+
+        $title = (string)($item->meta['title'] ?? $item->slug);
+        $seo = is_array($item->meta['seo'] ?? null) ? $item->meta['seo'] : [];
+        $description = trim((string)($seo['description'] ?? '')) ?: trim((string)($item->meta['excerpt'] ?? ''));
+        $absolute = fn(string $url): string => preg_match('#^https?://#i', $url) ? $url : ($this->absoluteUrl)($url);
+        $website = ['@type' => 'WebSite', '@id' => $siteUrl . '#website', 'url' => $homeUrl, 'name' => (string)($this->settings()['title'] ?? 'FarosCMS')];
+
+        if ($item->type === 'posts' || $item->type === 'projects') {
+            // A post is a blog posting, a project an article; both name the author, the dates, and a picture.
+            $article = [
+                '@type' => $item->type === 'posts' ? 'BlogPosting' : 'Article',
+                'headline' => mb_substr($title, 0, 110),
+                'mainEntityOfPage' => ['@type' => 'WebPage', '@id' => $canonical],
+                'url' => $canonical,
+                'inLanguage' => $lang,
+                'isPartOf' => ['@id' => $siteUrl . '#website'],
+                'publisher' => $organization,
+            ];
+            $author = trim((string)($item->meta['author'] ?? ''));
+            $article['author'] = $author !== '' ? ['@type' => 'Person', 'name' => $author] : $organization;
+            $published = $this->time($item->meta['date'] ?? null);
+            if ($published !== null) {
+                $article['datePublished'] = date('c', $published);
+            }
+            $article['dateModified'] = date('c', max($item->mtime, $published ?? 0));
+            if ($description !== '') {
+                $article['description'] = $description;
+            }
+            // The picture people see when the link is shared: the entry's own, the share image of its SEO settings,
+            // the first picture in its blocks, then the site's default.
+            foreach ([$item->meta['main_image'] ?? '', $seo['og_image'] ?? '', $blockImage, $this->themeSettings()['brand']['share_image'] ?? ''] as $candidate) {
+                $candidate = trim((string)$candidate);
+                if ($candidate !== '') {
+                    $article['image'] = $absolute($candidate);
+                    break;
+                }
+            }
+            $graph[] = $article;
+        } else {
+            $page = [
+                '@type' => 'WebPage',
+                '@id' => $canonical . '#webpage',
+                'url' => $canonical,
+                'name' => $title,
+                'inLanguage' => $lang,
+                'isPartOf' => $website,
+            ];
+            if ($description !== '') {
+                $page['description'] = $description;
+            }
+            $graph[] = $page;
+        }
+
+        $crumbs = [[($this->translate)('nav.main.home', 'Home'), $homeUrl]];
+        if ($item->type !== 'pages') {
+            $crumbs[] = [($this->translate)('type.' . $item->type, ucfirst($item->type)), ($this->absoluteUrl)($prefix . $item->type)];
+        }
+        $crumbs[] = [$title, $canonical];
+        $list = [];
+        foreach ($crumbs as $position => [$name, $url]) {
+            $list[] = ['@type' => 'ListItem', 'position' => $position + 1, 'name' => $name, 'item' => $url];
+        }
+        $graph[] = ['@type' => 'BreadcrumbList', 'itemListElement' => $list];
+        return $graph;
+    }
+
+    /** A date from front matter as a Unix time: a `2026-03-04` string, a timestamp the YAML reader made of it, or nothing. */
+    private function time(mixed $value): ?int
+    {
+        if (is_int($value) || (is_string($value) && ctype_digit($value) && strlen($value) >= 9)) {
+            return (int)$value;
+        }
+        $time = strtotime(trim((string)$value));
+        return $time === false ? null : $time;
+    }
+
+    /** JSON-LD graph as a script tag; `<`, `>` and `&` are escaped so content cannot close the tag. */
+    public function script(array $graph): string
+    {
+        if ($graph === []) {
+            return '';
+        }
+        $json = json_encode(
+            ['@context' => 'https://schema.org', '@graph' => array_values($graph)],
+            JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_INVALID_UTF8_SUBSTITUTE
+        );
+        return $json === false ? '' : '<script type="application/ld+json">' . $json . '</script>';
+    }
+}
