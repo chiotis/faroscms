@@ -264,6 +264,70 @@ final class SiteSettings
     }
 
     /**
+     * The form as the server reads it, from what the browser sent. A box that is ticked is sent, one that is not is
+     * not, so those become '1' or '0'; the robots box is null when it was not on the form that was sent, so a form
+     * without it does not clear the rules. The storage limit and the upload settings are left out: they need
+     * permission, so the caller adds them.
+     *
+     * @param array<string, mixed> $post
+     * @return array<string, mixed>
+     */
+    public static function formFromPost(array $post): array
+    {
+        return [
+            'title' => (string)($post['title'] ?? ''),
+            'tagline' => (string)($post['tagline'] ?? ''),
+            'base_url' => (string)($post['base_url'] ?? ''),
+            'theme' => (string)($post['theme'] ?? ''),
+            'home_page' => (string)($post['home_page'] ?? ''),
+            'date_format' => (string)($post['date_format'] ?? ''),
+            // Only when the box was on the form that was sent, so a form without it does not clear the rules.
+            'robots_disallow' => isset($post['robots_disallow']) ? implode("\n", RobotsTxt::rules((string)$post['robots_disallow'])) : null,
+            'languages_default' => (string)($post['languages_default'] ?? ''),
+            'languages_available' => (string)($post['languages_available'] ?? ''),
+            'mail_driver' => (string)($post['mail_driver'] ?? ''),
+            'mail_from' => (string)($post['mail_from'] ?? ''),
+            'mail_from_name' => (string)($post['mail_from_name'] ?? ''),
+            'smtp_host' => (string)($post['smtp_host'] ?? ''),
+            'smtp_port' => (string)($post['smtp_port'] ?? ''),
+            'smtp_user' => (string)($post['smtp_user'] ?? ''),
+            'smtp_pass' => (string)($post['smtp_pass'] ?? ''),
+            'smtp_encryption' => (string)($post['smtp_encryption'] ?? ''),
+            'ses_key' => (string)($post['ses_key'] ?? ''),
+            'ses_secret' => (string)($post['ses_secret'] ?? ''),
+            'ses_region' => (string)($post['ses_region'] ?? ''),
+            'menu_location_header' => (string)($post['menu_location_header'] ?? ''),
+            'menu_location_footer' => (string)($post['menu_location_footer'] ?? ''),
+            'menu_location_keys' => $post['menu_location_keys'] ?? [],
+            'menu_location_values' => $post['menu_location_values'] ?? [],
+            'backup_auto_enabled' => isset($post['backup_auto_enabled']) ? '1' : '0',
+            'backup_schedule' => (string)($post['backup_schedule'] ?? ''),
+            'backup_keep_local' => (string)($post['backup_keep_local'] ?? ''),
+            'backup_remote_enabled' => isset($post['backup_remote_enabled']) ? '1' : '0',
+            'backup_remote_provider' => (string)($post['backup_remote_provider'] ?? ''),
+            'backup_remote_endpoint' => (string)($post['backup_remote_endpoint'] ?? ''),
+            'backup_remote_region' => (string)($post['backup_remote_region'] ?? ''),
+            'backup_remote_bucket' => (string)($post['backup_remote_bucket'] ?? ''),
+            'backup_remote_access_key' => (string)($post['backup_remote_access_key'] ?? ''),
+            'backup_remote_secret_key' => (string)($post['backup_remote_secret_key'] ?? ''),
+            'backup_remote_prefix' => (string)($post['backup_remote_prefix'] ?? ''),
+            'backup_remote_keep' => (string)($post['backup_remote_keep'] ?? ''),
+            'backup_remote_path_style' => isset($post['backup_remote_path_style']) ? '1' : '0',
+            'google_enabled' => isset($post['google_enabled']) ? '1' : '0',
+            'google_client_id' => (string)($post['google_client_id'] ?? ''),
+            'google_client_secret' => (string)($post['google_client_secret'] ?? ''),
+            'google_allowed_domain' => (string)($post['google_allowed_domain'] ?? ''),
+            'update_repository' => (string)($post['update_repository'] ?? ''),
+            'update_branch' => (string)($post['update_branch'] ?? ''),
+            'update_version_url' => (string)($post['update_version_url'] ?? ''),
+            'update_changelog_url' => (string)($post['update_changelog_url'] ?? ''),
+            'update_package_url' => (string)($post['update_package_url'] ?? ''),
+            'update_github_token' => (string)($post['update_github_token'] ?? ''),
+            'clear_secrets' => is_array($post['clear_secret'] ?? null) ? array_map('strval', $post['clear_secret']) : [],
+        ];
+    }
+
+    /**
      * Secrets never travel back to the browser; the form only learns whether one is stored.
      *
      * @return array<string, string|bool>
