@@ -14,6 +14,13 @@ Direction: one all-purpose theme (`themes/default`) that grows with blocks and v
 - Taxonomy layouts, links after address changes, and redirects on delete (done): each category/tag taxonomy has its own archive layout, links inside content can follow a changed address, and deleting a public entry can send its visitors somewhere
 - Comparison table and before/after blocks (done), admin-wide fixed action bar (done)
 - Custom roles (done): Admin > Roles, super admin only
+- Hero layouts (done): five title layouts (default, centered, split, cover, minimal) per content type, an override in every entry's editor, and an optional transparent header over an opening hero
+- Phone navigation (done): five styles for the phone menu (drawer left or right, full screen, top sheet, bottom sheet), and a bottom bar with links and icons you choose
+- Icons (done): one shared library and one picker popup wherever an icon is chosen (blocks, theme settings, the bottom bar)
+- Admin structure (done): Content, Manage and System sidebar sections; the Theme has its own screen with a tab per section; Logs and Users & Roles are tabs; one tab style; every message in the bottom bar
+- Limits (done): storage limit (measured every 12 hours, adjusted on uploads and deletes), largest upload, and the kinds of file allowed
+- Resilience (done): a content file with unreadable front matter is treated as a draft and reported, and the rest of the site carries on
+- Tests on GitHub Actions (done): the whole suite on PHP 8.1, 8.3 and 8.5 for every push and pull request
 - Next candidates: draft preview links (not now), admin-level user management with limits, better search, import improvements, further App.php splitting
 - Style references from the owner can refine the design system at any point (tokens and block CSS)
 - Phase 6 (done): content types with declared fields, an admin screen for them, archive layouts, filters, and pagination
@@ -23,13 +30,7 @@ Direction: one all-purpose theme (`themes/default`) that grows with blocks and v
   - responsive header navigation (desktop + mobile off-canvas + nested levels)
   - sticky header reveal and interaction polish
   - full-width hero architecture across singles/archives/search/404
-  - per-content-type hero layout switch (`default` / `centered`) via `theme_settings.hero_layouts`
   - full-width footer shell with constrained inner layout and footer icon set
-- Build robust production-ready visual system for default theme (typography scale, spacing rhythm, component polish)
-- Add polished page compositions for home/services/about/contact/news/projects/404 using current content model
-- Add reusable UI sections/components for cards, CTAs, testimonials, trust signals, and service highlights
-- Finalize accessibility pass (contrast, focus states, heading hierarchy, keyboard flow)
-- Add lightweight theme documentation for layout options and settings keys
 
 ## Taxonomies
 - Dedicated taxonomy UX for future custom taxonomies (create/remove taxonomy files from admin)
@@ -51,14 +52,11 @@ Direction: one all-purpose theme (`themes/default`) that grows with blocks and v
 - Add media picker search/filter inside edit-screen picker (name/tag filter)
 - Add paginated media picker modal/drawer for large libraries
 - Add usage/reference tracking (show where each media item is used before delete)
-- Add optional image transforms (`thumb`, `webp`) with safe fallback URLs
 
 ## Admin UI
-- Current baseline: fixed left admin sidebar + pinned bottom actions, with compact navigation styling
-- Current baseline: fixed right utility rail for `Translations`, `Settings`, and `Logout`
-- Add responsive admin behavior for narrow widths (collapse/slide left nav, keep utilities accessible)
-- Add optional quick-action rail configuration (enable/disable items per installation)
-- Add permission-aware visibility for utility and sidebar actions (future roles support)
+- Current baseline: fixed left sidebar (Overview, Content, Manage, System) that slides in on narrow screens, with one fixed Save bar that also carries messages
+- Current baseline: sidebar and screens follow each role's permissions (Admin > Roles)
+- Admin screens are still checked by hand and with the axe audit only on the public theme; add an accessibility audit of the admin
 
 ## Forms
 - Translation helper: clone fields/options from source form when creating a new language version
@@ -98,7 +96,6 @@ Direction: one all-purpose theme (`themes/default`) that grows with blocks and v
 
 ## Later Development
 - Search improvements (weighted + highlights)
-- Brand-new custom roles (the four roles are fixed; their permissions can be changed at Admin > Roles)
 - Runtime page/data cache implementation (filesystem backend + targeted invalidation)
 - Theme switcher in settings + preview mode
 - Theme settings for OpenAI/API credentials (for future excerpt/content generation)
