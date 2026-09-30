@@ -326,6 +326,11 @@ final class PermissionService
 
     public function canAccessAction(?array $user, string $action): bool
     {
+        // The image picker is used from the content editor, the media screen, and screens with an image setting.
+        if ($action === 'media-picker') {
+            return $this->can($user, 'content.manage') || $this->can($user, 'media.manage') || $this->can($user, 'settings.manage');
+        }
+
         $capability = match ($action) {
             'settings', 'theme', 'system', 'content-types' => 'settings.manage',
             'dashboard', 'index' => 'dashboard.view',
