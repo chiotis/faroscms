@@ -16,7 +16,11 @@ top = head(html)
 check('the sidebar top has no logo square', st == 200 and '>FC<' not in top and 'bg-slate-900 text-xs font-bold' not in top, top[:300])
 name = re.search(r'<span class="[^"]*truncate[^"]*"[^>]*>([^<]*)</span>', top)
 check('it shows the site name from Settings', name is not None and name.group(1).strip() != '', top[:300])
-check('and the version reads "FarosCMS v…"', re.search(r'>\s*(?:<span[^>]*></span>)?FarosCMS v[^<]+<', top) is not None, top[-400:])
+aside = re.search(r'<aside.*?</aside>', html, re.S).group(0)
+bottom = aside.split('</nav>')[-1]
+check('the top has the View site button, opening a new tab', 'View site' in top and 'target="_blank"' in top and 'rel="noopener"' in top and '(opens in a new tab)' in top, top[-500:])
+check('and the version, now at the bottom, reads "FarosCMS v…"', re.search(r'>\s*(?:<span[^>]*></span>)?FarosCMS v[^<]+<', bottom) is not None and 'FarosCMS v' not in top, bottom[:400])
+check('the bottom no longer has the big View site button', 'View site' not in bottom)
 
 # change the name in Settings and see it here
 form = next(f for f in root.forms('/admin/settings') if any(x[0] == 'title' for x in f['fields']))
