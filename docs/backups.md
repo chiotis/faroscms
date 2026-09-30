@@ -6,7 +6,7 @@ Archives live in `storage/backups/` and are listed in Admin `Backups`.
 
 | Type | Contents | Filename |
 |------|----------|----------|
-| Full | Every project file except `.git/`, `_reference/`, `node_modules/`, `storage/backups/`, `storage/cache/`, `storage/restore/`, `storage/updates/`, and generated image variants (`public/uploads/_v/`), plus a consistent copy of the system database | `<site>-backup-YYYYMMDD-HHMMSS-<id>.zip` |
+| Full | Every project file except `.git/`, `node_modules/`, `storage/backups/`, `storage/cache/`, `storage/restore/`, `storage/updates/`, and generated image variants (`public/uploads/_v/`), plus a consistent copy of the system database | `<site>-backup-YYYYMMDD-HHMMSS-<id>.zip` |
 | Database | A consistent copy of `storage/db/app.sqlite` | `<site>-database-backup-YYYYMMDD-HHMMSS-<id>.zip` |
 
 Every archive contains `faroscms-backup.json`:

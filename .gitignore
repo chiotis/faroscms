@@ -10,3 +10,9 @@ custom/*
 !custom/README.md
 # Responsive image variants are generated on demand.
 public/uploads/_v/
+# Working notes, kept on the maintainer's machine only.
+docs/todo.md
+docs/migration-plan.md
+docs/admin-gap-list.md
+# Local tooling settings.
+.claude/

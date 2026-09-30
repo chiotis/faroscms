@@ -24,7 +24,6 @@ final class BackupService
         '.git/',
         '.codex/',
         '.claude/',
-        '_reference/',
         'node_modules/',
         'storage/cache/',
         'storage/backups/',

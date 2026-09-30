@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-09-30 — A lighter repository
+- The `_reference/` folder (the old PicolinoCMS code and the admin HTML templates the admin was built from, 39 MB in 5,600 files) and the unused `scripts/vendorize.py` are removed from the repository; they stay in the Git history. The working notes `docs/todo.md`, `docs/migration-plan.md` and `docs/admin-gap-list.md` and the local `.claude/` folder are no longer tracked (they are in `.gitignore`). Full backups no longer list `_reference/` as excluded, since the folder is gone
+
 ## 2026-09-30 — Works on PHP 8.1 again
 - One migration in the system database was declared with the return type `null`, which only exists from PHP 8.2, so on PHP 8.1 (the stated minimum) every page failed with a fatal error. It is `void` now. Found by the new GitHub Actions run on PHP 8.1
 - A test of roles left a database connection with an open write transaction, which locked the database for the rest of the run on Linux (each request waited five seconds); it closes its connection now
