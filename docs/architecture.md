@@ -38,7 +38,14 @@ Before the application boots, `public/index.php` hands `/_themes/…` and `/_cus
 | `FormSubmissionRepository` | JSON form submissions per form slug: listing, filtering, storing, deleting. |
 | `Mailer` | SMTP and Amazon SES sending. |
 | `MediaLibrary` | Media uploads (type allowlist, SVG checks), YAML metadata, tags, listing, legacy adoption. |
-| `Format` | Shared display formatters (byte sizes). |
+| `Format` | Shared small helpers: byte sizes, truthy values, lists from front matter. |
+| `ArrayPath` | Reading, writing, and removing a value deep inside nested arrays by its path. |
+| `Menus` | The menu files in `content/menus`: reading and writing, checking items (three levels, labels per language), nesting rows from the admin form, which menu sits in which theme location, translated labels, the active item and trail for the page shown, and following an address change. |
+| `ContentCsv` | The CSV export of a content type and the two-step import (preview, then apply with backups and rollback). |
+| `StructuredData` | The JSON-LD graph of a page (organization, website and search, article or page, breadcrumb) and its script tag. |
+| `RobotsTxt` | The rules typed in Settings > General > Search engines, checked, and the robots.txt they make. |
+| `MediaUsage` | Where each uploaded file is used (content and settings), kept between visits under a fingerprint of what it read. |
+| `FormFields` | Form field kinds, and how stored fields are read for the site and the editor and cleaned when the editor sends them. |
 | `Theme` | Frontend theme manifest (`theme.yaml`), settings schema and resolution, template lookup across `custom/` and the theme, asset URLs, layered translations and `custom/lang` overrides. |
 | `ThemeAssets` | Serves theme and `custom/` assets from outside `public/` with type allowlist, path checks, and caching. |
 | `FieldSchema` | Declarative field definitions (text, markdown, link, image, select, toggle, number, repeater, …): defaults, validation of stored values, and form input handling. Used by theme settings and blocks. |
@@ -64,4 +71,4 @@ See `system-database.md` for SQLite and `backups.md` for what backups contain. C
 
 ## Refactoring direction
 
-`App.php` is being split incrementally, keeping behaviour identical: extract a cohesive group of private methods into a class, delegate from `App`, and run the admin regression checks. Candidates, in order of size and independence: menus, taxonomies, CSV import/export, settings (defaults, load/save, form mapping), translations.
+`App.php` is being split incrementally, keeping behaviour identical: extract a cohesive group of private methods into a class that takes what it needs through its constructor (paths, and closures for things that change during a request, such as the settings), delegate from `App`, and give the class unit tests before and after moving it. Done so far: menus (`Menus`), CSV import and export (`ContentCsv`), structured data (`StructuredData`), robots.txt (`RobotsTxt`), form fields (`FormFields`), media usage (`MediaUsage`), the media library, backups, updates, mail, and the content editor. Candidates left, in order of size and independence: settings (defaults, load and save, the form mapping and the secrets), taxonomies handling, translations, the backup schedule and remote upload, the redirects and links screens.
