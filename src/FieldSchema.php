@@ -13,7 +13,7 @@ namespace FarosCMS;
  */
 final class FieldSchema
 {
-    public const TYPES = ['text', 'textarea', 'markdown', 'email', 'url', 'link', 'image', 'color', 'number', 'decimal', 'date', 'select', 'toggle', 'repeater'];
+    public const TYPES = ['text', 'textarea', 'markdown', 'email', 'url', 'link', 'image', 'color', 'number', 'decimal', 'date', 'select', 'icon', 'toggle', 'repeater'];
 
     /**
      * @param array<string, mixed> $definitions raw map of key => definition
@@ -41,7 +41,8 @@ final class FieldSchema
                 'hidden' => ($definition['hidden'] ?? false) === true,
                 'required' => ($definition['required'] ?? false) === true,
             ];
-            if ($type === 'select') {
+            // An icon is a choice from the theme's icon set; the set itself is filled in where the theme is known.
+            if ($type === 'select' || $type === 'icon') {
                 $field['options'] = self::normalizeOptions($definition['options'] ?? []);
             }
             if ($type === 'decimal') {
@@ -63,6 +64,33 @@ final class FieldSchema
             }
             $field['default'] = self::clean($field, $definition['default'] ?? null, true);
             $fields[$key] = $field;
+        }
+        return $fields;
+    }
+
+    /**
+     * Gives every icon field (also inside repeaters) the icons the theme has as its choices, "None" first,
+     * and settles its default again now that the choices are known.
+     *
+     * @param array<string, array<string, mixed>> $fields normalized definitions
+     * @param string[] $names icon names
+     * @return array<string, array<string, mixed>>
+     */
+    public static function withIcons(array $fields, array $names): array
+    {
+        foreach ($fields as $key => $field) {
+            if ($field['type'] === 'icon') {
+                $options = ['' => 'None'];
+                foreach ($names as $name) {
+                    $options[$name] = $name;
+                }
+                $field['options'] = $options;
+                $field['default'] = self::sanitize($field, $field['default'], '');
+                $fields[$key] = $field;
+            } elseif ($field['type'] === 'repeater') {
+                $field['fields'] = self::withIcons($field['fields'], $names);
+                $fields[$key] = $field;
+            }
         }
         return $fields;
     }
@@ -129,12 +157,12 @@ final class FieldSchema
     public static function clean(array $field, mixed $value, bool $isDefault = false): mixed
     {
         if ($isDefault) {
-            if ($value === null && $field['type'] === 'select') {
+            if ($value === null && in_array($field['type'], ['select', 'icon'], true)) {
                 return (string)(array_key_first($field['options']) ?? '');
             }
             $value = self::sanitize($field, $value, self::emptyValue($field));
             // A declared default that is not one of the options means the first option.
-            if ($field['type'] === 'select' && !array_key_exists($value, $field['options'])) {
+            if (in_array($field['type'], ['select', 'icon'], true) && !array_key_exists($value, $field['options']) && !($field['type'] === 'icon' && $field['options'] === [] && $value !== '')) {
                 return (string)(array_key_first($field['options']) ?? '');
             }
             return $value;
@@ -189,6 +217,14 @@ final class FieldSchema
                 $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $value);
                 return $date !== false && $date->format('Y-m-d') === $value ? $value : $fallback;
 
+            case 'icon':
+                $value = is_scalar($value) ? (string)$value : '';
+                // Until the theme's icon set is filled in (see withIcons) any icon name is accepted, so a declared default survives.
+                if (count($field['options']) <= 1 && preg_match('/^[a-z0-9-]{0,40}$/', $value)) {
+                    return $value;
+                }
+                return array_key_exists($value, $field['options']) ? $value : $fallback;
+
             case 'select':
                 $value = is_scalar($value) ? (string)$value : '';
                 return array_key_exists($value, $field['options']) ? $value : $fallback;
@@ -207,13 +243,21 @@ final class FieldSchema
                 return $value === '' || self::isSafeLink($value) ? $value : $fallback;
 
             case 'repeater':
+                // A form that lists no rows at all sends an empty marker, which means "none".
+                if ($value === '') {
+                    return [];
+                }
                 if (!is_array($value)) {
                     return $fallback;
                 }
                 $items = [];
                 foreach (array_values($value) as $item) {
                     if (is_array($item)) {
-                        $items[] = self::resolve($field['fields'], array_intersect_key($item, $field['fields']));
+                        // A row the person added and left empty is not kept.
+                        $filled = array_filter(array_intersect_key($item, $field['fields']), static fn(mixed $v): bool => !($v === '' || $v === null || $v === false || $v === []));
+                        if ($filled !== []) {
+                            $items[] = self::resolve($field['fields'], array_intersect_key($item, $field['fields']));
+                        }
                     }
                 }
                 return $field['max'] !== null ? array_slice($items, 0, max(0, $field['max'])) : $items;

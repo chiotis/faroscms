@@ -8,7 +8,7 @@
 #   - retire a field by marking it `hidden: true` (it keeps its stored value), not by deleting it.
 name: default
 label: FarosCMS Default
-version: 1.12.0
+version: 1.13.0
 description: All-purpose FarosCMS theme.
 
 menu_locations:
@@ -125,8 +125,19 @@ settings:
       mobile_bar:
         type: toggle
         label: Bottom bar on phones
-        help: Menu, call, email, and the header button, fixed at the bottom of small screens.
+        help: A bar of icons fixed at the bottom of small screens, with the Menu button and the links below. The menu button leaves the header while it is on.
         default: false
+      bar_items:
+        type: repeater
+        label: Bottom bar links
+        item_label: Link
+        max: 4
+        span: full
+        help: The links next to the Menu button in the bottom bar, each with an icon. Leave the list empty for the automatic ones (call, email, and the header button).
+        fields:
+          icon: { type: icon, label: Icon }
+          label: { type: text, label: Label, placeholder: Call us }
+          url: { type: link, label: Link, placeholder: 'tel:+302100000000, contact, or /en/contact' }
       topbar_contacts:
         type: toggle
         label: Phone and email in a top bar

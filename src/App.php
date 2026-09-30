@@ -5315,6 +5315,18 @@ final class App
             return $this->theme->icon($name, $class);
         }, ['is_safe' => ['html']]));
 
+        // The icon set as JSON ({name: svg}) for the admin's icon picker, one library for every place an icon is chosen.
+        $twig->addFunction(new TwigFunction('icon_library_json', function (): string {
+            $library = [];
+            foreach ($this->theme->iconNames() as $name) {
+                $svg = $this->theme->icon($name);
+                if ($svg !== '') {
+                    $library[$name] = $svg;
+                }
+            }
+            return (string)json_encode($library, JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_FORCE_OBJECT);
+        }, ['is_safe' => ['html']]));
+
         // Declared fields of a content item, ready to print: content_fields(item) for its page,
         // content_fields(item, 'card') for the fields marked for cards.
         $twig->addFunction(new TwigFunction('content_fields', function (mixed $item, string $context = 'page'): array {

@@ -98,7 +98,7 @@ final class Theme
                 'label' => (string)($section['label'] ?? ucfirst(str_replace('_', ' ', $key))),
                 'description' => (string)($section['description'] ?? ''),
                 'columns' => max(1, min(5, (int)($section['columns'] ?? 2))),
-                'fields' => FieldSchema::normalize(is_array($section['fields'] ?? null) ? $section['fields'] : []),
+                'fields' => FieldSchema::withIcons(FieldSchema::normalize(is_array($section['fields'] ?? null) ? $section['fields'] : []), $this->iconNames()),
             ];
         }
         return $this->settingsSchema = $sections;
