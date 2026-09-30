@@ -56,6 +56,7 @@ final class App
     private ?StructuredData $structuredDataService = null;
     private ?ContentCsv $contentCsvService = null;
     private ?SiteSettings $siteSettingsService = null;
+    private ?BackupManager $backupManagerService = null;
     private ?Taxonomies $taxonomyStore = null;
     /** @var array<string, mixed>|null */
     private ?array $storageSummary = null;
@@ -712,7 +713,9 @@ final class App
             return;
         }
 
-        $this->maybeRunScheduledBackup();
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
+            $this->backupManager()->runIfDue();
+        }
 
         if ($action === 'theme') {
             $this->handleTheme();
@@ -1371,7 +1374,7 @@ final class App
                 'status' => ((int)$storage['percent']) > 90 ? 'warning' : 'ok',
             ],
             $this->contentIndexCheck(),
-            $this->scheduledBackupCheck(),
+            $this->backupManager()->scheduleStatus(),
         ];
     }
 
@@ -1390,35 +1393,6 @@ final class App
             'label' => 'Content index',
             'value' => $index['stale'] ? 'out of date' : $index['rows'] . ' entries',
             'status' => $index['stale'] ? 'warning' : 'ok',
-        ];
-    }
-
-    /** @return array{label: string, value: string, status: string} */
-    private function scheduledBackupCheck(): array
-    {
-        $auto = is_array($this->settings['backup']['auto'] ?? null) ? $this->settings['backup']['auto'] : [];
-        $latest = $this->backups->list()[0] ?? null;
-        $latestAge = $latest !== null ? time() - (int)$latest['mtime'] : PHP_INT_MAX;
-        if (!$this->isTruthy($auto['enabled'] ?? false)) {
-            // Without a schedule, only warn when nobody has taken a backup for a month.
-            return [
-                'label' => 'Scheduled backups',
-                'value' => $latest === null ? 'off, no backups yet' : 'off',
-                'status' => $latestAge > 30 * 86400 ? 'warning' : 'ok',
-            ];
-        }
-        $schedule = (string)($auto['schedule'] ?? 'daily');
-        $lastRun = (int)strtotime((string)($auto['last_run'] ?? ''));
-        $interval = match ($schedule) {
-            'weekly' => 604800,
-            'monthly' => 2592000,
-            default => 86400,
-        };
-        $overdue = $lastRun > 0 && time() - $lastRun > $interval + 86400;
-        return [
-            'label' => 'Scheduled backups',
-            'value' => $overdue ? 'overdue (' . $schedule . ')' : $schedule . ($lastRun > 0 ? ', last ' . date('Y-m-d', $lastRun) : ''),
-            'status' => $overdue ? 'warning' : 'ok',
         ];
     }
 
@@ -2299,33 +2273,33 @@ final class App
             }
 
             if ($action === 'create_full') {
-                $result = $this->createBackupSnapshot();
+                $result = $this->backupManager()->createSnapshot();
                 if (($result['ok'] ?? false) === true) {
                     $this->updateBackupLastRun(date('c'));
                 }
-                $this->recordBackupRun($result);
-                $this->logActivity(($result['ok'] ?? false) ? 'backup.create_success' : 'backup.create_failure', $this->backupLogLevel($result), 'backup', (string)($result['filename'] ?? ''), (string)($result['message'] ?? 'Backup action completed.'), [
+                $this->backupManager()->recordRun($result);
+                $this->logActivity(($result['ok'] ?? false) ? 'backup.create_success' : 'backup.create_failure', BackupManager::logLevel($result), 'backup', (string)($result['filename'] ?? ''), (string)($result['message'] ?? 'Backup action completed.'), [
                     'result' => $result,
                     'source' => 'backups_module',
                 ]);
-                $this->notifyBackupResult($result, false);
+                $this->backupManager()->notify($result, false);
                 $this->redirect('/admin/backups?' . http_build_query([
-                    'backup' => $this->backupResultQueryStatus($result),
+                    'backup' => BackupManager::queryStatus($result),
                     'backup_msg' => (string)($result['message'] ?? ''),
                 ]));
                 return;
             }
 
             if ($action === 'create_database') {
-                $result = $this->createDatabaseBackupSnapshot();
-                $this->recordBackupRun($result);
-                $this->logActivity(($result['ok'] ?? false) ? 'backup.database_success' : 'backup.database_failure', $this->backupLogLevel($result), 'backup', (string)($result['filename'] ?? ''), (string)($result['message'] ?? 'Database backup action completed.'), [
+                $result = $this->backupManager()->createDatabaseSnapshot();
+                $this->backupManager()->recordRun($result);
+                $this->logActivity(($result['ok'] ?? false) ? 'backup.database_success' : 'backup.database_failure', BackupManager::logLevel($result), 'backup', (string)($result['filename'] ?? ''), (string)($result['message'] ?? 'Database backup action completed.'), [
                     'result' => $result,
                     'source' => 'backups_module',
                 ]);
-                $this->notifyBackupResult($result, false);
+                $this->backupManager()->notify($result, false);
                 $this->redirect('/admin/backups?' . http_build_query([
-                    'backup' => $this->backupResultQueryStatus($result),
+                    'backup' => BackupManager::queryStatus($result),
                     'backup_msg' => (string)($result['message'] ?? ''),
                 ]));
                 return;
@@ -2470,9 +2444,9 @@ final class App
         }
 
         // A safety snapshot of the current state is mandatory; without it there is no way back.
-        $safety = $this->createBackupSnapshot('pre-restore', false, false);
+        $safety = $this->backupManager()->createSnapshot('pre-restore', false, false);
         if (($safety['ok'] ?? false) !== true) {
-            $this->recordBackupRun($safety);
+            $this->backupManager()->recordRun($safety);
             $this->renderBackupRestore($filename, 'The safety snapshot failed, so the restore was not started: ' . (string)($safety['message'] ?? ''), $scopeKeys);
             return;
         }
@@ -2485,7 +2459,7 @@ final class App
         $this->themeSettings = $this->loadThemeSettings();
         $this->menus()->forget();
         $this->taxonomies()->forget();
-        $this->recordBackupRun($safety);
+        $this->backupManager()->recordRun($safety);
         if ($result['ok']) {
             $this->rebuildContentIndex();
         }
@@ -2547,8 +2521,8 @@ final class App
                     $this->renderForbidden();
                     return;
                 }
-                $result = $this->createBackupSnapshot('pre-update');
-                $this->recordBackupRun($result);
+                $result = $this->backupManager()->createSnapshot('pre-update');
+                $this->backupManager()->recordRun($result);
                 $verification = ($result['ok'] ?? false) === true
                     ? $this->backups->verify((string)$result['filename'])
                     : ['ok' => false, 'message' => (string)($result['message'] ?? 'Backup failed.')];
@@ -2563,7 +2537,7 @@ final class App
                 $this->logActivity($verification['ok'] ? 'updates.pre_backup_success' : 'updates.pre_backup_failure', $verification['ok'] ? 'info' : 'error', 'backup', (string)($result['filename'] ?? ''), (string)$verification['message'], [
                     'result' => $result,
                 ]);
-                $this->notifyBackupResult($result, false);
+                $this->backupManager()->notify($result, false);
                 $this->redirect('/admin/updates?' . http_build_query([
                     'pre_backup' => $verification['ok'] ? 'ok' : 'fail',
                     'pre_backup_msg' => $verification['ok'] ? 'Verified pre-update backup created: ' . (string)$result['filename'] : (string)$verification['message'],
@@ -3684,7 +3658,7 @@ final class App
                 return;
             }
             if (isset($_POST['test_remote_backup'])) {
-                $result = $this->testRemoteBackupStorage();
+                $result = $this->backupManager()->testRemote();
                 $this->logActivity(($result['ok'] ?? false) ? 'backup.remote_test_success' : 'backup.remote_test_failure', ($result['ok'] ?? false) ? 'info' : 'error', 'backup', 'remote_storage', (string)($result['message'] ?? 'Remote backup test completed.'), [
                     'provider' => (string)($this->settings['backup']['remote']['provider'] ?? 'custom'),
                     'bucket' => (string)($this->settings['backup']['remote']['bucket'] ?? ''),
@@ -3699,19 +3673,19 @@ final class App
                 return;
             }
             if (isset($_POST['create_backup'])) {
-                $result = $this->createBackupSnapshot();
+                $result = $this->backupManager()->createSnapshot();
                 if (($result['ok'] ?? false) === true) {
                     $this->updateBackupLastRun(date('c'));
                 }
-                $this->recordBackupRun($result);
-                $this->logActivity(($result['ok'] ?? false) ? 'backup.create_success' : 'backup.create_failure', $this->backupLogLevel($result), 'backup', (string)($result['filename'] ?? ''), (string)($result['message'] ?? 'Backup action completed.'), [
+                $this->backupManager()->recordRun($result);
+                $this->logActivity(($result['ok'] ?? false) ? 'backup.create_success' : 'backup.create_failure', BackupManager::logLevel($result), 'backup', (string)($result['filename'] ?? ''), (string)($result['message'] ?? 'Backup action completed.'), [
                     'result' => $result,
                 ]);
-                $this->notifyBackupResult($result, false);
+                $this->backupManager()->notify($result, false);
                 $query = [
                     'saved' => '1',
                     'tab' => 'backup',
-                    'backup' => $this->backupResultQueryStatus($result),
+                    'backup' => BackupManager::queryStatus($result),
                     'backup_msg' => (string)($result['message'] ?? ''),
                 ];
                 $this->redirect('/admin/settings?' . http_build_query($query));
@@ -5657,40 +5631,6 @@ final class App
         }
     }
 
-    private function notifyBackupResult(array $result, bool $scheduled): void
-    {
-        try {
-            $status = $this->backupResultStatus($result);
-            $ok = $status !== 'failed';
-            $this->notifications->createIfMissing([
-                'type' => match ($status) {
-                    'warning' => 'backup.remote_failed',
-                    'success' => 'backup.success',
-                    default => 'backup.failed',
-                },
-                'title' => match ($status) {
-                    'warning' => 'Backup saved locally, remote upload failed',
-                    'success' => 'Backup completed',
-                    default => 'Backup failed',
-                },
-                'body' => (string)($result['message'] ?? ($ok ? 'Backup completed.' : 'Backup failed.')),
-                'severity' => match ($status) {
-                    'warning' => 'warning',
-                    'success' => 'success',
-                    default => 'error',
-                },
-                'target_url' => '/admin/backups',
-                'context' => [
-                    'scheduled' => $scheduled,
-                    'filename' => (string)($result['filename'] ?? ''),
-                    'result' => $result,
-                ],
-            ]);
-        } catch (\Throwable) {
-            // Notifications must never block backup creation.
-        }
-    }
-
     private function syncSystemNotifications(): void
     {
         if ($this->permissions->can($this->auth->user(), 'updates.manage')) {
@@ -5902,6 +5842,20 @@ final class App
     private function siteSettings(): SiteSettings
     {
         return $this->siteSettingsService ??= new SiteSettings($this->systemMeta, $this->contentDir);
+    }
+
+    private function backupManager(): BackupManager
+    {
+        return $this->backupManagerService ??= new BackupManager(
+            $this->backups,
+            $this->systemDatabase,
+            $this->backupRuns,
+            $this->notifications,
+            fn(): array => $this->settings,
+            fn(): UpdateService => $this->updates(),
+            fn(string $isoDate) => $this->updateBackupLastRun($isoDate),
+            fn(array $config) => new S3BackupStorage($config)
+        );
     }
 
     private function contentCsv(): ContentCsv
@@ -6793,236 +6747,6 @@ final class App
     private function backupDirectory(): string
     {
         return $this->backups->directory();
-    }
-
-    private function maybeRunScheduledBackup(): void
-    {
-        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') {
-            return;
-        }
-        if (!$this->systemDatabase->isAvailable()) {
-            // Without SQLite the last run cannot be persisted, so every request would start a new backup.
-            return;
-        }
-        $auto = $this->settings['backup']['auto'] ?? [];
-        if (!is_array($auto) || !$this->isTruthy($auto['enabled'] ?? false)) {
-            return;
-        }
-        $schedule = strtolower((string)($auto['schedule'] ?? 'daily'));
-        if (!in_array($schedule, ['daily', 'weekly', 'monthly'], true)) {
-            return;
-        }
-
-        $lastRun = trim((string)($auto['last_run'] ?? ''));
-        $lastTimestamp = $lastRun !== '' ? (int)strtotime($lastRun) : 0;
-        if (!$this->isBackupDue($lastTimestamp, $schedule)) {
-            return;
-        }
-
-        $this->backups->ensureDirectory();
-        $lockPath = $this->backupDirectory() . '/.auto-backup.lock';
-        $lockHandle = @fopen($lockPath, 'c');
-        if (!$lockHandle) {
-            return;
-        }
-        if (!@flock($lockHandle, LOCK_EX | LOCK_NB)) {
-            fclose($lockHandle);
-            return;
-        }
-
-        $result = $this->createBackupSnapshot('scheduled');
-        if (($result['ok'] ?? false) === true) {
-            $this->updateBackupLastRun(date('c'));
-        }
-        $this->recordBackupRun($result);
-        $this->notifyBackupResult($result, true);
-
-        @flock($lockHandle, LOCK_UN);
-        fclose($lockHandle);
-    }
-
-    private function isBackupDue(int $lastTimestamp, string $schedule): bool
-    {
-        if ($lastTimestamp <= 0) {
-            return true;
-        }
-        $interval = match ($schedule) {
-            'daily' => 86400,
-            'weekly' => 604800,
-            'monthly' => 2592000,
-            default => PHP_INT_MAX,
-        };
-        return (time() - $lastTimestamp) >= $interval;
-    }
-
-    /**
-     * Full snapshot + local retention + optional remote upload.
-     * Pre-restore safety snapshots skip pruning so the archive being restored is never deleted.
-     *
-     * @return array{ok: bool, message: string, filename?: string, status?: string}
-     */
-    private function createBackupSnapshot(string $reason = 'manual', bool $prune = true, bool $uploadRemote = true): array
-    {
-        $result = $this->backups->createFullSnapshot($this->backupSiteSlug(), $this->backupMeta($reason));
-        return $this->finishBackup($result, $prune, $uploadRemote);
-    }
-
-    /** @return array{ok: bool, message: string, filename?: string, status?: string} */
-    private function createDatabaseBackupSnapshot(string $reason = 'manual'): array
-    {
-        $result = $this->backups->createDatabaseSnapshot($this->backupSiteSlug(), $this->backupMeta($reason));
-        return $this->finishBackup($result, true, true);
-    }
-
-    private function finishBackup(array $result, bool $prune, bool $uploadRemote): array
-    {
-        if (($result['ok'] ?? false) !== true) {
-            return $result;
-        }
-        if ($prune) {
-            $this->backups->prune($this->localBackupKeep());
-        }
-        $remote = $uploadRemote ? $this->uploadBackupToRemote((string)$result['path'], (string)$result['filename']) : null;
-        return $this->buildBackupResult((string)$result['message'], (string)$result['filename'], $remote);
-    }
-
-    private function backupSiteSlug(): string
-    {
-        $slug = $this->slugify((string)($this->settings['title'] ?? 'site'));
-        return $slug !== '' ? $slug : 'site';
-    }
-
-    /** @return array{reason: string, version: string, commit: string} */
-    private function backupMeta(string $reason): array
-    {
-        $updates = $this->updates();
-        return [
-            'reason' => $reason,
-            'version' => $updates->currentVersion(),
-            'commit' => $updates->currentGitCommit(),
-        ];
-    }
-
-    private function localBackupKeep(): int
-    {
-        return max(1, (int)($this->settings['backup']['local']['keep'] ?? 20));
-    }
-
-    private function recordBackupRun(array $result): void
-    {
-        try {
-            $filename = (string)($result['filename'] ?? '');
-            $size = 0;
-            if ($filename !== '') {
-                $path = $this->backups->pathFor($filename);
-                $size = $path !== null ? (int)(filesize($path) ?: 0) : 0;
-            }
-            $this->backupRuns->record([
-                'filename' => $filename,
-                'status' => $this->backupResultStatus($result),
-                'size_bytes' => $size,
-                'message' => (string)($result['message'] ?? ''),
-            ]);
-        } catch (\Throwable) {
-            // Backup run history must never block the backup workflow.
-        }
-    }
-
-    /** @return array{ok: bool, message: string, object_key?: string, pruned?: int}|null */
-    private function uploadBackupToRemote(string $path, string $filename): ?array
-    {
-        $remoteSettings = $this->settings['backup']['remote'] ?? [];
-        if (!is_array($remoteSettings) || !$this->isTruthy($remoteSettings['enabled'] ?? false)) {
-            return null;
-        }
-
-        $storage = new S3BackupStorage($remoteSettings);
-        $upload = $storage->upload($path, $filename);
-        if (($upload['ok'] ?? false) === true) {
-            $keep = (int)($remoteSettings['keep'] ?? 20);
-            $prune = $storage->prune($keep > 0 ? $keep : 20);
-            if (($prune['ok'] ?? false) === true) {
-                $upload['pruned'] = (int)($prune['deleted'] ?? 0);
-            }
-        }
-
-        return $upload;
-    }
-
-    /**
-     * The local archive decides `ok`; a failed remote upload only downgrades the run to a warning,
-     * so schedules still advance and the local snapshot is not reported as lost.
-     *
-     * @param array<string, mixed>|null $remote
-     * @return array{ok: bool, status: string, message: string, filename: string, remote: array<string, mixed>|null}
-     */
-    private function buildBackupResult(string $message, string $filename, ?array $remote): array
-    {
-        $remoteFailed = $remote !== null && (($remote['ok'] ?? false) !== true);
-        return [
-            'ok' => true,
-            'status' => $remoteFailed ? 'warning' : 'success',
-            'message' => $message . $this->remoteBackupMessage($remote),
-            'filename' => $filename,
-            'remote' => $remote,
-        ];
-    }
-
-    private function backupLogLevel(array $result): string
-    {
-        return match ($this->backupResultStatus($result)) {
-            'warning' => 'warning',
-            'success' => 'info',
-            default => 'error',
-        };
-    }
-
-    private function backupResultQueryStatus(array $result): string
-    {
-        return match ($this->backupResultStatus($result)) {
-            'warning' => 'warn',
-            'success' => 'ok',
-            default => 'fail',
-        };
-    }
-
-    private function backupResultStatus(array $result): string
-    {
-        if (($result['ok'] ?? false) !== true) {
-            return 'failed';
-        }
-        return (string)($result['status'] ?? 'success') === 'warning' ? 'warning' : 'success';
-    }
-
-    /** @param array<string, mixed>|null $remote */
-    private function remoteBackupMessage(?array $remote): string
-    {
-        if ($remote === null) {
-            return '';
-        }
-        if (($remote['ok'] ?? false) === true) {
-            $suffix = ' Remote upload completed.';
-            if (isset($remote['object_key']) && trim((string)$remote['object_key']) !== '') {
-                $suffix .= ' Object: ' . (string)$remote['object_key'] . '.';
-            }
-            if (isset($remote['pruned']) && (int)$remote['pruned'] > 0) {
-                $suffix .= ' Pruned ' . (int)$remote['pruned'] . ' remote backup(s).';
-            }
-            return $suffix;
-        }
-
-        return ' Saved locally, but remote upload failed: ' . (string)($remote['message'] ?? 'Remote storage error.');
-    }
-
-    /** @return array{ok: bool, message: string} */
-    private function testRemoteBackupStorage(): array
-    {
-        $remoteSettings = $this->settings['backup']['remote'] ?? [];
-        if (!is_array($remoteSettings)) {
-            return ['ok' => false, 'message' => 'Remote backup settings are missing.'];
-        }
-
-        return (new S3BackupStorage($remoteSettings))->testConnection();
     }
 
     /** @return array<int, array<string, mixed>> */
