@@ -41,7 +41,7 @@
           <input type="text" name="{{ name }}" value="{{ value }}" placeholder="{{ field.placeholder }}" class="{{ control }}">
         </span>
       {% else %}
-        <input type="{{ field.type == 'email' ? 'email' : 'text' }}" name="{{ name }}" value="{{ value }}" placeholder="{{ field.placeholder }}" class="{{ control }}">
+        <input type="{{ field.type == 'email' ? 'email' : 'text' }}" name="{{ name }}" value="{{ value }}" placeholder="{{ field.placeholder }}" class="{{ control }}"{% if field.type == 'image' %} data-image-field{% endif %}>
       {% endif %}
       {% if field.help %}<span class="mt-1 block text-xs text-slate-400">{{ field.help }}</span>{% endif %}
     </label>

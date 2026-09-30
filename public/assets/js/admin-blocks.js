@@ -25,7 +25,6 @@
 
   var definitions = {};
   (data.definitions || []).forEach(function (def) { definitions[def.type] = def; });
-  var media = data.media || [];
   var presets = data.presets || [];
   var selected = {};
   var nextId = 1;
@@ -596,50 +595,9 @@
 
   /* Media picker ------------------------------------------------------------- */
 
-  var mediaDialog = null;
-  var mediaCallback = null;
-
+  // Choosing a picture is the shared picker (admin-media-picker.js): a dialog that asks the server a page at a time.
   function openMediaPicker(callback) {
-    mediaCallback = callback;
-    if (!mediaDialog) {
-      mediaDialog = el('dialog', { class: 'w-[min(92vw,56rem)] rounded-lg border border-slate-200 p-0 shadow-xl backdrop:bg-slate-900/40', 'aria-label': 'Choose an image' });
-      var search = el('input', { type: 'search', placeholder: 'Filter by name…', class: CLS.input, 'aria-label': 'Filter images by name' });
-      var grid = el('div', { class: 'grid max-h-[60vh] grid-cols-2 gap-3 overflow-y-auto p-4 sm:grid-cols-3 md:grid-cols-5' });
-      var fill = function () {
-        var term = search.value.trim().toLowerCase();
-        grid.innerHTML = '';
-        var shown = media.filter(function (item) { return !term || item.name.toLowerCase().indexOf(term) !== -1; });
-        if (shown.length === 0) {
-          grid.appendChild(el('p', { class: 'col-span-full text-sm text-slate-500', text: media.length ? 'No images match.' : 'The media library has no images yet. Upload them in Media.' }));
-        }
-        shown.forEach(function (item) {
-          var button = el('button', { type: 'button', class: 'overflow-hidden rounded-md border border-slate-200 bg-white text-left transition hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500' }, [
-            el('img', { src: item.thumb || item.url, alt: '', class: 'h-24 w-full object-cover', loading: 'lazy' }),
-            el('span', { class: 'block truncate px-2 py-1 text-[11px] text-slate-600', text: item.name })
-          ]);
-          button.setAttribute('aria-label', item.name + (item.alt ? ': ' + item.alt : ''));
-          button.addEventListener('click', function () {
-            mediaDialog.close();
-            if (mediaCallback) mediaCallback(item.url);
-          });
-          grid.appendChild(button);
-        });
-      };
-      search.addEventListener('input', fill);
-      mediaDialog.appendChild(el('div', { class: 'flex items-center gap-3 border-b border-slate-200 p-4' }, [
-        el('h2', { class: 'shrink-0 text-sm font-semibold text-slate-900', text: 'Choose an image' }),
-        search,
-        el('button', { type: 'button', class: CLS.btn, text: 'Close', onclick: function () { mediaDialog.close(); } })
-      ]));
-      mediaDialog.appendChild(grid);
-      document.body.appendChild(mediaDialog);
-      mediaDialog._fill = fill;
-      mediaDialog._search = search;
-    }
-    mediaDialog._search.value = '';
-    mediaDialog._fill();
-    mediaDialog.showModal();
-    mediaDialog._search.focus();
+    if (window.FarosMediaPicker) window.FarosMediaPicker.open(callback);
   }
 
   /* Save selected blocks as a reusable section ---------------------------------- */

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.4 — 2026-09-30 — One image picker with search and pages
+- Choosing a picture from the library is one dialog everywhere: the **main image** of an entry, the **image fields of blocks**, and now the **image settings** of the theme (logo, share image, footer background) and of content types, which had only a text box. The dialog has a **search box** (name or tag), a **tag filter**, and **pages** (24 at a time, with Previous and Next), and asks the server for one page at a time. Before, the editor page carried the first 120 pictures inside it, had no search for the main image, and could not reach the 121st picture at all
+- Nothing is embedded in the editor page any more, so pages with a large library open faster. The dialog is keyboard friendly and named for screen readers. Anyone who can edit content, use Media, or change settings may use it (`/admin/media-picker`, JSON)
+- New test `media_picker_test.py` (29 checks)
+
 ## 0.1.3 — 2026-09-30 — Where each media file is used
 - **Media** shows, for every file, **where it is used**: "Unused", or "Used in 3 places" that opens a list of links to the pages, posts, projects, forms, menus, taxonomies, and the site and theme settings that point at it (in a list and in the grid). A file counts as used when its address appears in a content file (front matter, blocks, or text) or in the settings; it does not know about links people typed by hand elsewhere
 - **Deleting a used file asks first** and names the places ("This file is used in About, Home page and 2 more"); the server refuses if it is not confirmed. **Bulk delete keeps files in use** and says how many it kept. A new **Use** filter (Any, In use, Unused) and an "N unused" link in the toolbar find the files nothing points at; with "Apply to all filtered" this cleans up every unused file at once

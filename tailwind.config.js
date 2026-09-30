@@ -4,6 +4,7 @@ module.exports = {
     './admin/templates/**/*.twig',
     './public/assets/js/admin.js',
     './public/assets/js/admin-blocks.js',
+    './public/assets/js/admin-media-picker.js',
     './src/**/*.php',
   ],
   theme: {

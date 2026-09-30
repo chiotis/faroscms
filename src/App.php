@@ -991,6 +991,11 @@ final class App
             return;
         }
 
+        if ($action === 'media-picker') {
+            $this->handleMediaPicker();
+            return;
+        }
+
         if ($action === 'delete') {
             $this->handleDelete();
             return;
@@ -3078,7 +3083,6 @@ final class App
             'rate_limit_seconds' => (string)($this->settings['forms']['antispam']['rate_limit_seconds'] ?? 20),
         ];
         $formSubmissions = [];
-        $mediaPickerImages = [];
 
         $isNew = true;
         if ($slug !== '' && file_exists($path)) {
@@ -3185,13 +3189,6 @@ final class App
             $formSubmissionsTotal = count($formSubmissions);
             $formSubmissions = array_slice($formSubmissions, 0, 10);
         }
-        if ($type !== 'forms') {
-            $this->media->ensureDirectories();
-            $this->media->migrateLegacyItems();
-            $mediaPickerImages = array_slice($this->media->list([
-                'type' => 'image',
-            ]), 0, 120);
-        }
         $frontUrl = '';
         $linkFix = null;
         $itemExists = $slug !== '' && is_file($path);
@@ -3258,8 +3255,7 @@ final class App
             'form_submissions' => $formSubmissions,
             'form_submissions_total' => $formSubmissionsTotal,
             'form_field_types' => $this->formFieldTypes(),
-            'media_picker_images' => $mediaPickerImages,
-            'block_editor_json' => $type === 'forms' ? '' : $this->blockEditorJson($pageBlocks, $mediaPickerImages, $lang),
+            'block_editor_json' => $type === 'forms' ? '' : $this->blockEditorJson($pageBlocks, $lang),
             'page_templates' => $type === 'forms' ? [] : $this->theme->pageTemplates(),
             'opening' => $this->openingChoices($type),
         ]);
@@ -3290,21 +3286,11 @@ final class App
     }
 
     /** Data for the admin block editor, safe to embed in a <script type="application/json">. */
-    private function blockEditorJson(array $blocks, array $mediaImages, string $lang): string
+    private function blockEditorJson(array $blocks, string $lang): string
     {
-        $media = [];
-        foreach ($mediaImages as $item) {
-            $media[] = [
-                'url' => (string)($item['direct_url'] ?? ''),
-                'thumb' => (string)(($item['thumbnail_url'] ?? '') ?: ($item['direct_url'] ?? '')),
-                'name' => (string)($item['original_name'] ?? ''),
-                'alt' => (string)($item['alt'] ?? ''),
-            ];
-        }
         return (string)json_encode([
             'definitions' => $this->blockRegistry()->editorDefinitions(),
             'blocks' => $blocks,
-            'media' => $media,
             'presets' => $this->presetLibrary()->forEditor($lang, (string)($this->settings['languages']['default'] ?? 'en')),
             'presets_url' => rtrim((string)($this->settings['base_url'] ?? ''), '/') . '/admin/block-presets',
             'lang' => $lang,
@@ -3346,6 +3332,47 @@ final class App
             $this->blockRegistry(),
             fn(string $value): string => $this->slugify($value)
         );
+    }
+
+    /**
+     * The pictures the image picker shows, a page at a time, for the words and tag typed (JSON). The picker is in the
+     * content editor (main image, blocks) and on screens with an image setting, so whoever can reach one of those
+     * may read it.
+     */
+    private function handleMediaPicker(): void
+    {
+        header('Content-Type: application/json; charset=utf-8');
+        header('Cache-Control: no-store');
+        $this->media->ensureDirectories();
+        $this->media->migrateLegacyItems();
+
+        $kind = (string)($_GET['kind'] ?? 'image') === 'all' ? 'all' : 'image';
+        $tag = $this->media->sanitizeTag((string)($_GET['tag'] ?? ''));
+        $q = trim((string)($_GET['q'] ?? ''));
+        $perPage = max(6, min(48, (int)($_GET['per_page'] ?? 24)));
+        $all = $this->media->list(['type' => $kind, 'tag' => $tag, 'q' => $q]);
+        $total = count($all);
+        $pages = max(1, (int)ceil($total / $perPage));
+        $page = max(1, min($pages, (int)($_GET['page'] ?? 1)));
+        $items = [];
+        foreach (array_slice($all, ($page - 1) * $perPage, $perPage) as $item) {
+            $items[] = [
+                'url' => (string)($item['direct_url'] ?? ''),
+                'thumb' => (string)(($item['thumbnail_url'] ?? '') ?: ($item['direct_url'] ?? '')),
+                'name' => (string)($item['original_name'] ?? ''),
+                'alt' => (string)($item['alt'] ?? ''),
+                'kind' => (string)($item['kind'] ?? ''),
+                'tags' => array_values(array_map('strval', is_array($item['tags'] ?? null) ? $item['tags'] : [])),
+            ];
+        }
+        echo json_encode([
+            'items' => $items,
+            'total' => $total,
+            'page' => $page,
+            'pages' => $pages,
+            'per_page' => $perPage,
+            'tags' => $this->media->availableTags(),
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
     }
 
     /** Saves or deletes a site section from the block editor (JSON in, JSON out). */

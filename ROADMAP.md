@@ -49,8 +49,7 @@ Direction: one all-purpose theme (`themes/default`) that grows with blocks and v
 ## Media
 - Current baseline: unified media library for images + documents/files (single admin flow)
 - Current baseline: content edit screens can pick existing images from library or upload/assign a new main image in place
-- Add media picker search/filter inside edit-screen picker (name/tag filter)
-- Add paginated media picker modal/drawer for large libraries
+- Media picker (done): one dialog with search, tag filter, and pages, everywhere an image is chosen
 - Usage tracking (done): where each file is used, a warning before deleting a used file, and an Unused filter
 
 ## Admin UI
