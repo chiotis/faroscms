@@ -65,8 +65,7 @@ Direction: one all-purpose theme (`themes/default`) that grows with blocks and v
 - Optional: frontend form theme variants (compact/stacked) without changing form schema
 
 ## SEO
-- JSON-LD: `Organization` + `WebSite` (+ `SearchAction` on homepage)
-- JSON-LD: `Article` for posts/projects (title, date, author, image)
+- JSON-LD (done): `Organization` (with contact point), `WebSite` with `SearchAction` on the home page, `BlogPosting` for posts, `Article` for projects, `WebPage`, breadcrumbs; see `docs/theming.md`
 - robots.txt extra disallow rules (settings)
 
 ## Caching

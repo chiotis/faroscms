@@ -285,7 +285,15 @@ Variants are created on first request at `/uploads/_v/<file>/<width>-<version>.w
 
 The layout outputs the title (`Page | Site`, or the SEO title), meta description, canonical URL, `hreflang` alternates, Open Graph (`og:type`, `og:site_name`, `og:locale` and alternates, image), and Twitter card tags. The share image falls back from the SEO image to the main image, the first block image, and finally Theme settings > Brand.
 
-Structured data is one JSON-LD graph per page: `Organization` (with logo and social profiles from Theme settings) everywhere, `WebSite` with a search action on the home page, `BlogPosting` for posts, `BreadcrumbList` on inner pages, and `FAQPage` from FAQ blocks. Templates can add nodes through the `structured_data` variable or override `{% block structured_data %}`.
+Structured data is one JSON-LD graph per page:
+
+- `Organization` everywhere: name, logo, social profiles (`sameAs`) and, when the Footer has a phone or an email, a `ContactPoint`.
+- `WebSite` on the home page of each language, with a `SearchAction` that points at that language's search page.
+- `BlogPosting` for a post and `Article` for a project: headline (cut at 110 characters), address, language, publisher, the author (the person named in the editor, otherwise the organization), `datePublished` and `dateModified`, the summary, and a picture (the entry's main image, then its SEO share image, then the first picture in its blocks, then the site's default share image, as a full address).
+- `WebPage` for every other page, pointing at the site.
+- `BreadcrumbList` on inner pages, and `FAQPage` from FAQ blocks.
+
+Text is escaped so nothing typed in the admin can end the script tag. Templates can add nodes through the `structured_data` variable or override `{% block structured_data %}`.
 
 ## Accessibility
 
