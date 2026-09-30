@@ -105,16 +105,12 @@
         {% endif %}
 
         <p class="px-2 pb-1.5 pt-3 text-[10px] font-semibold uppercase tracking-wider text-slate-400">System</p>
-        {% if can('users.manage') %}
-          <a href="{{ url('admin/users') }}" class="{{ nav_base }} {{ section == 'users' ? nav_active : nav_idle }}">
-            <svg class="h-4 w-4 {{ section == 'users' ? 'text-white/80' : 'text-slate-400 group-hover:text-slate-600' }}" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 14a4 4 0 10-8 0M12 7a3 3 0 110 0M3 20a6 6 0 0118 0"/></svg>
-            Users
-          </a>
-        {% endif %}
-        {% if can('roles.manage') %}
-          <a href="{{ url('admin/roles') }}" class="{{ nav_base }} {{ section == 'roles' ? nav_active : nav_idle }}">
-            <svg class="h-4 w-4 {{ section == 'roles' ? 'text-white/80' : 'text-slate-400 group-hover:text-slate-600' }}" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3l8 3v6c0 4.5-3.2 8.2-8 9-4.8-.8-8-4.5-8-9V6l8-3zM9 12l2 2 4-4"/></svg>
-            Roles
+        {% if can('users.manage') or can('roles.manage') %}
+          {# One entry for users and roles; the tabs inside pick which. #}
+          {% set in_people = section in ['users', 'roles'] %}
+          <a href="{{ url(can('users.manage') ? 'admin/users' : 'admin/roles') }}" class="{{ nav_base }} {{ in_people ? nav_active : nav_idle }}"{% if in_people %} aria-current="page"{% endif %}>
+            <svg class="h-4 w-4 {{ in_people ? 'text-white/80' : 'text-slate-400 group-hover:text-slate-600' }}" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 14a4 4 0 10-8 0M12 7a3 3 0 110 0M3 20a6 6 0 0118 0"/></svg>
+            Users &amp; Roles
           </a>
         {% endif %}
         {% if can('activity.manage') or can('email_logs.manage') %}
