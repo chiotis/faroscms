@@ -1,5 +1,7 @@
 # Changelog
 
+## 2026-09-30 — The sidebar shows the site's own name
+- The top of the admin sidebar no longer has the "FC" logo square. It shows the **Site name** from Settings (cut with "…" when it is long, with the full name on hover), and the version badge now reads **FarosCMS v0.1.0**. The name follows Settings, so a client's admin carries the client's name
 ## 2026-09-30 — A bottom bar you edit, and one icon picker
 - **Bottom bar on phones** (Theme settings > Header): while it is on, the **hamburger button leaves the header** on phones (the bar has its own Menu button, always first), and the links beside it are a list you edit: up to four, each with an **icon**, a label, and a link (a page, a path, `tel:`, `mailto:`, or a full address). Rows can be added, removed, and moved. With an empty list the bar keeps its automatic links (call, email, and the header button). A row without a link is left out, and a link without an icon gets an arrow. On wider screens, where the bar is off, the header button stays
 - **Icons are chosen from a popup of small pictures**, with a search box, instead of a list of names. It is one picker for every place an icon is chosen: the fields of blocks (Features, Contact, Banner, and any block a site adds with `type: icon`), the bottom bar, and any theme setting that declares `type: icon`. They share one library, the theme's `icons/` plus the site's `custom/icons/`, so an icon added there shows up everywhere. Works with the keyboard (arrows, Enter, Escape) and on a phone
