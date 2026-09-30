@@ -340,16 +340,7 @@
         const buttons = document.querySelectorAll('.tab-button');
         const panels = document.querySelectorAll('.tab-panel');
 
-        buttons.forEach((button) => {
-          const active = button.classList.contains('active');
-          button.classList.toggle('bg-slate-200', active);
-          button.classList.toggle('border-slate-400', active);
-          button.classList.toggle('text-slate-900', active);
-          button.classList.toggle('bg-white', !active);
-          button.classList.toggle('border-slate-300', !active);
-          button.classList.toggle('text-slate-600', !active);
-        });
-
+        // Tab colours come from the stylesheet (.tab-button.active); only the panels need syncing here.
         panels.forEach((panel) => {
           const active = panel.classList.contains('active');
           panel.classList.toggle('hidden', !active);
