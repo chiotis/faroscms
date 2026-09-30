@@ -2,7 +2,7 @@
   Shared admin UI macros. Import with: {% import '@admin/partials/ui.twig' as ui %}
 #}
 
-{# Server message shown as a bottom-right toast by admin.js. type: success | info | warning | error #}
+{# Server message shown in the bottom bar by admin.js. type: success | info | warning | error #}
 {% macro flash(message, type) %}
   {% if message %}<template data-flash data-type="{{ type|default('success') }}">{{ message }}</template>{% endif %}
 {% endmacro %}

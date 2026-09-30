@@ -19,13 +19,10 @@
   </header>
 
   {% if saved %}
-    <div class="toast toast-success fixed right-6 top-5 z-[999] flex items-center gap-3 rounded-md border border-emerald-300 bg-emerald-50 px-3.5 py-2.5 text-emerald-800 shadow">
-      <span>Import completed.</span>
-      <button type="button" class="toast-close border-0 bg-transparent text-lg leading-none text-current" onclick="this.parentElement.remove()">x</button>
-    </div>
+    <template data-flash data-type="success">Import completed.</template>
   {% endif %}
   {% if error %}
-    <div class="mb-4 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{{ error }}</div>
+    <template data-flash data-type="error">{{ error }}</template>
   {% endif %}
 
   <section class="mb-4 rounded-lg border border-slate-200 bg-white">
