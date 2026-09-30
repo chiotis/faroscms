@@ -16,7 +16,7 @@ Two rules follow from that:
 | Theme contract | `themes/default/theme.yaml` | Done |
 | Design system: tokens, palettes, dark mode, fonts, corner shapes | `assets/css/site.css` | Done |
 | Content blocks per page or post | `themes/default/blocks/<block>/` + `blocks:` in front matter | 23 blocks in three families; admin block editor |
-| Site-level component variants (header, footer) | `components/`, Theme settings | Header: 4 layouts, transparent, sticky modes, top bar, CTA, phone bottom bar. Footer: 3 layouts |
+| Site-level component variants (header, footer) | `components/`, Theme settings | Header: 4 layouts, transparent (per content type and per entry), sticky modes, top bar, CTA, phone bottom bar, 5 phone menu styles. Footer: 3 layouts |
 | Page templates (standard, landing, with sidebar) | `templates/`, `page_templates` in the manifest | Done |
 | Ready-made sections and page layouts | `presets/`, `custom/presets/` | Done |
 | Field definitions and archive settings per content type | `themes/default/content-types/`, `custom/content-types/`, Admin > Content types | Done |
@@ -298,7 +298,8 @@ Structured data is one JSON-LD graph per page: `Organization` (with logo and soc
 - Submenus open on hover and focus and close with Escape (focus returns to the parent link); overlays (viewers, the mobile menu) return focus to what opened them.
 - Markdown tables are supported and sit in a keyboard-focusable box that scrolls sideways on narrow screens, so no page needs horizontal scrolling at 320 px.
 - Blocks without their own heading give their items `<h2>`, so levels never skip.
-- `scripts/theme-audit.js` checks pages with axe-core (WCAG 2.2 AA), reflow at 320 px, and the contrast of the theme's colour pairs in all palettes; see the developer guide. The showcase page `/blocks`, every content page, and the interactive states (mobile menu, viewers, open FAQ) were checked in light and dark.
+- `scripts/theme-audit.js` checks pages with axe-core (WCAG 2.2 AA), reflow at 320 px, and the contrast of the theme's colour pairs in all palettes; see the developer guide. It can scan at a phone width and with the phone menu open (`themeAudit.pages(['/'], {width: 375, menu: true})`).
+- The phone menu (Theme settings > Header > Phone menu: side drawer from the left or right, full screen, sheet from the top or bottom) is one panel outside the header, so a sticky, blurred, or transparent header never changes how it looks. While it is open the rest of the page is inert, focus stays inside, Escape closes it, and focus returns to the button that opened it. The showcase page `/blocks`, every content page, and the interactive states (mobile menu, viewers, open FAQ) were checked in light and dark.
 
 ## Server configuration
 
