@@ -68,6 +68,10 @@ final class App
     private ?DashboardData $dashboardDataService = null;
     private ?FormsAdmin $formsAdminService = null;
     private ?FormProcessor $formProcessorService = null;
+    private ?SignIn $signInService = null;
+    private ?GoogleSignIn $googleSignInService = null;
+    private ?RoleAdmin $roleAdminService = null;
+    private ?UserAdmin $userAdminService = null;
     private ?PublicPaths $publicPathsService = null;
     private ?Taxonomies $taxonomyStore = null;
     /** @var array<string, mixed>|null */
@@ -928,43 +932,36 @@ final class App
 
     private function handlePasswordLogin(): void
     {
-        $username = trim((string)($_POST['username'] ?? ''));
-        $password = (string)($_POST['password'] ?? '');
-        $address = (string)($_SERVER['REMOTE_ADDR'] ?? '');
-
-        $throttle = $this->loginThrottle->check($address, $username);
-        if ($throttle['blocked']) {
-            $minutes = max(1, (int)ceil($throttle['retry_after'] / 60));
-            $this->logActivity('auth.login_throttled', 'warning', 'user', $username, 'Login blocked after repeated failures.', [
-                'username' => $username,
-                'retry_after' => $throttle['retry_after'],
-            ], ['username' => $username]);
+        $outcome = $this->signIn()->password(trim((string)($_POST['username'] ?? '')), (string)($_POST['password'] ?? ''), (string)($_SERVER['REMOTE_ADDR'] ?? ''));
+        if ($outcome['status'] === 'blocked') {
             http_response_code(429);
-            header('Retry-After: ' . $throttle['retry_after']);
-            $this->renderLogin('Too many failed sign-in attempts. Try again in ' . $minutes . ' minute' . ($minutes === 1 ? '' : 's') . '.');
+            header('Retry-After: ' . $outcome['retry_after']);
+            $this->renderLogin($outcome['message']);
             return;
         }
-
-        if ($this->auth->attempt($username, $password)) {
-            $this->loginThrottle->recordSuccess($address, $username);
-            $signedIn = (string)($this->auth->user()['username'] ?? $username);
-            $this->logActivity('auth.login_success', 'info', 'user', $signedIn, 'User logged in.', [
-                'method' => 'password',
-            ]);
-            if ($this->auth->isShippedDefaultPassword($signedIn, $password)) {
+        if ($outcome['status'] === 'ok') {
+            if ($outcome['default_password']) {
                 $_SESSION['security_default_password'] = true;
-                $this->notifyDefaultPassword($signedIn);
+                $this->notifyDefaultPassword($outcome['username']);
             }
             $this->redirect('/admin');
             return;
         }
+        $this->renderLogin($outcome['message']);
+    }
 
-        $this->loginThrottle->recordFailure($address, $username);
-        $this->logActivity('auth.login_failure', 'warning', 'user', $username, 'Invalid password login attempt.', [
-            'method' => 'password',
-            'username' => $username,
-        ], ['username' => $username]);
-        $this->renderLogin('Invalid credentials.');
+    private function signIn(): SignIn
+    {
+        return $this->signInService ??= new SignIn(
+            $this->auth,
+            $this->loginThrottle,
+            fn(string $action, string $level, ?string $type, ?string $id, string $message, array $context, ?array $actor) => $this->logActivity($action, $level, $type, $id, $message, $context, $actor)
+        );
+    }
+
+    private function googleSignIn(): GoogleSignIn
+    {
+        return $this->googleSignInService ??= new GoogleSignIn(fn(): array => $this->settings, fn(string $path): string => $this->buildAbsoluteUrl($path));
     }
 
     private function notifyDefaultPassword(string $username): void
@@ -999,16 +996,15 @@ final class App
 
     private function renderLogin(string $error = ''): void
     {
-        $google = $this->googleAuthSettings();
         $this->render('@admin/login.twig', [
             'error' => $error,
-            'google_auth' => $google,
+            'google_auth' => $this->googleSignIn()->config(),
         ]);
     }
 
     private function handleGoogleLogin(): void
     {
-        $google = $this->googleAuthSettings();
+        $google = $this->googleSignIn()->config();
         if (!$google['ready']) {
             $this->renderLogin('Google Sign-In is not configured yet.');
             return;
@@ -1016,22 +1012,14 @@ final class App
 
         $state = bin2hex(random_bytes(16));
         $_SESSION['google_oauth_state'] = $state;
-        $query = http_build_query([
-            'client_id' => $google['client_id'],
-            'redirect_uri' => $google['redirect_uri'],
-            'response_type' => 'code',
-            'scope' => 'openid email profile',
-            'state' => $state,
-            'access_type' => 'online',
-            'prompt' => 'select_account',
-        ]);
-        header('Location: https://accounts.google.com/o/oauth2/v2/auth?' . $query);
+        header('Location: ' . $this->googleSignIn()->authorizationUrl($google, $state));
         exit;
     }
 
     private function handleGoogleCallback(): void
     {
-        $google = $this->googleAuthSettings();
+        $sign = $this->googleSignIn();
+        $google = $sign->config();
         if (!$google['ready']) {
             $this->renderLogin('Google Sign-In is not configured yet.');
             return;
@@ -1051,36 +1039,30 @@ final class App
             return;
         }
 
-        $token = $this->googleTokenRequest($code, $google);
+        $token = $sign->exchange($code, $google);
         if (!$token['ok']) {
             $this->renderLogin((string)$token['message']);
             return;
         }
-        $profile = $this->googleUserInfo((string)$token['access_token']);
+        $profile = $sign->profile((string)$token['access_token']);
         if (!$profile['ok']) {
             $this->renderLogin((string)$profile['message']);
             return;
         }
-
-        $email = strtolower(trim((string)($profile['email'] ?? '')));
-        $sub = trim((string)($profile['sub'] ?? ''));
-        $verified = (bool)($profile['email_verified'] ?? false);
-        if ($email === '' || !$verified) {
-            $this->renderLogin('Google account email is not verified.');
-            return;
-        }
-        if ($google['allowed_domain'] !== '' && !str_ends_with($email, '@' . $google['allowed_domain'])) {
-            $this->renderLogin('This Google account is not allowed for this FarosCMS installation.');
+        $accepted = $sign->accept($profile, $google);
+        if (!$accepted['ok']) {
+            $this->renderLogin($accepted['message']);
             return;
         }
 
+        $email = $accepted['email'];
         $user = $this->users->findByEmail($email);
         if (!$user || !$this->users->isActive($user)) {
             $this->renderLogin('No active FarosCMS user matches this Google account.');
             return;
         }
 
-        $this->users->linkGoogle((int)$user['id'], $sub, $email);
+        $this->users->linkGoogle((int)$user['id'], $accepted['sub'], $email);
         $user = $this->users->find((int)$user['id']) ?: $user;
         $this->auth->loginUser($user);
         $this->logActivity('auth.login_success', 'info', 'user', (string)($user['username'] ?? $email), 'User logged in.', [
@@ -1131,149 +1113,15 @@ final class App
             return;
         }
 
-        $catalogue = PermissionService::catalogue();
-        $custom = $this->permissions->customRoles();
-
+        $roles = $this->roleAdmin();
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            if (!$this->systemMeta->isAvailable()) {
-                $this->redirect('/admin/roles?error=store');
-                return;
-            }
-            $action = (string)($_POST['action'] ?? 'save');
-            $key = strtolower(trim((string)($_POST['role'] ?? '')));
-
-            if ($action === 'create_role') {
-                $label = trim((string)preg_replace('/\s+/', ' ', (string)($_POST['label'] ?? '')));
-                if ($label === '') {
-                    $this->redirect('/admin/roles?error=label');
-                    return;
-                }
-                if (count($custom) >= PermissionService::MAX_CUSTOM_ROLES) {
-                    $this->redirect('/admin/roles?error=limit');
-                    return;
-                }
-                $from = (string)($_POST['from'] ?? 'blank');
-                $start = in_array($from, ['admin', 'editor', 'user'], true) ? $this->permissions->capabilitiesForRole($from) : [];
-                $newKey = PermissionService::newCustomKey($label, array_merge(array_keys($custom), array_keys(PermissionService::roles())));
-                $custom[$newKey] = [
-                    'label' => $label,
-                    'description' => trim((string)($_POST['description'] ?? '')),
-                    'capabilities' => $this->permissions->normalizeCapabilities($start),
-                ];
-                $this->systemMeta->setJson('custom_roles', $custom);
-                $made = new PermissionService(null, $custom);
-                $this->logActivity('roles.create', 'warning', 'role', $newKey, 'Role created.', [
-                    'label' => $made->customRoles()[$newKey]['label'],
-                    'copied_from' => in_array($from, ['admin', 'editor', 'user'], true) ? $from : '',
-                    'capabilities' => $made->customRoles()[$newKey]['capabilities'],
-                ]);
-                $this->redirect('/admin/roles?created=' . urlencode($newKey));
-                return;
-            }
-
-            if ($action === 'update_role' || $action === 'delete_role') {
-                if (!isset($custom[$key])) {
-                    $this->redirect('/admin/roles?error=unknown');
-                    return;
-                }
-                if ($action === 'delete_role') {
-                    // People still holding the role would lose all access, so it has to be free first.
-                    if ($this->users->countByRole($key, false) > 0) {
-                        $this->redirect('/admin/roles?error=in_use&role=' . urlencode($key));
-                        return;
-                    }
-                    unset($custom[$key]);
-                    $this->systemMeta->setJson('custom_roles', $custom);
-                    $this->logActivity('roles.delete', 'warning', 'role', $key, 'Role deleted.');
-                    $this->redirect('/admin/roles?deleted=1');
-                    return;
-                }
-                $custom[$key]['label'] = trim((string)($_POST['label'] ?? '')) ?: $custom[$key]['label'];
-                $custom[$key]['description'] = trim((string)($_POST['description'] ?? ''));
-                $this->systemMeta->setJson('custom_roles', $custom);
-                $this->logActivity('roles.update', 'info', 'role', $key, 'Role renamed or described.');
-                $this->redirect('/admin/roles?saved=1');
-                return;
-            }
-
-            // The permission table, and the "back to the built-in set" of one built-in role.
-            $before = [];
-            foreach (array_merge(PermissionService::CUSTOMIZABLE_ROLES, array_keys($custom)) as $role) {
-                $before[$role] = $this->permissions->capabilitiesForRole($role);
-            }
-            $inForm = is_array($_POST['in_form'] ?? null) ? array_map('strval', $_POST['in_form']) : array_keys($before);
-
-            $selected = [];
-            $newCustom = $custom;
-            if ($action === 'reset') {
-                $selected = $before;
-                if (in_array($key, PermissionService::CUSTOMIZABLE_ROLES, true)) {
-                    $selected[$key] = $this->permissions->defaultsForRole($key);
-                }
-            } else {
-                foreach ($before as $role => $caps) {
-                    // A role that was not on the form (made in another window meanwhile) keeps what it has.
-                    $posted = $_POST['caps'][$role] ?? [];
-                    $selected[$role] = in_array($role, $inForm, true)
-                        ? (is_array($posted) ? array_keys(array_filter($posted, static fn($v): bool => (string)$v === '1')) : [])
-                        : $caps;
-                }
-            }
-            foreach ($custom as $role => $definition) {
-                $newCustom[$role]['capabilities'] = $this->permissions->normalizeCapabilities($selected[$role] ?? $before[$role]);
-            }
-
-            $document = $this->permissions->saveable($selected);
-            $this->systemMeta->setJson('role_permissions', $document);
-            if ($newCustom !== $custom) {
-                $this->systemMeta->setJson('custom_roles', $newCustom);
-            }
-
-            $after = new PermissionService($document, $newCustom);
-            foreach ($before as $role => $was) {
-                $now = $after->capabilitiesForRole($role);
-                $added = array_values(array_diff($now, $was));
-                $removed = array_values(array_diff($was, $now));
-                if ($added !== [] || $removed !== []) {
-                    $this->logActivity('roles.update', 'warning', 'role', $role, 'Role permissions changed.', [
-                        'added' => $added,
-                        'removed' => $removed,
-                    ]);
-                }
-            }
-            $this->redirect('/admin/roles?saved=1');
+            $this->redirect($roles->apply($this->permissions, $_POST));
             return;
         }
 
-        $all = $this->permissions->allRoles();
-        $columns = [];
-        foreach (array_merge(PermissionService::CUSTOMIZABLE_ROLES, array_keys($custom)) as $role) {
-            $isCustom = isset($custom[$role]);
-            $columns[$role] = [
-                'label' => $all[$role]['label'],
-                'custom' => $isCustom,
-                'customized' => !$isCustom && $this->permissions->isCustomized($role),
-                'caps' => $this->permissions->capabilitiesForRole($role),
-                'defaults' => $isCustom ? [] : $this->permissions->defaultsForRole($role),
-                'users' => $this->users->countByRole($role),
-            ];
-        }
-        $groups = [];
-        foreach ($catalogue as $key => $capability) {
-            $groups[$capability['group']][$key] = $capability;
-        }
-        $mine = [];
-        foreach ($custom as $key => $definition) {
-            $mine[] = $definition + ['key' => $key, 'users_total' => $this->users->countByRole($key, false)];
-        }
+        $screen = $roles->screen($this->permissions);
 
-        $this->render('@admin/roles.twig', [
-            'roles' => $all,
-            'columns' => $columns,
-            'groups' => $groups,
-            'custom_roles' => $mine,
-            'can_add_role' => count($custom) < PermissionService::MAX_CUSTOM_ROLES,
-            'super_caps' => $this->permissions->capabilitiesForRole('superadmin'),
+        $this->render('@admin/roles.twig', $screen + [
             'locked' => ['admin.access', 'users.self'],
             'saved' => isset($_GET['saved']),
             'created' => (string)($_GET['created'] ?? ''),
@@ -1285,6 +1133,15 @@ final class App
             'admin_section' => 'roles',
             'current_type' => 'pages',
         ]);
+    }
+
+    private function roleAdmin(): RoleAdmin
+    {
+        return $this->roleAdminService ??= new RoleAdmin(
+            $this->systemMeta,
+            $this->users,
+            fn(string $action, string $level, ?string $type, ?string $id, string $message, array $context) => $this->logActivity($action, $level, $type, $id, $message, $context)
+        );
     }
 
     private function handleRedirects(): void
@@ -2167,82 +2024,21 @@ final class App
         }
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $payload = [
-                'username' => trim((string)($_POST['username'] ?? '')),
-                'email' => trim((string)($_POST['email'] ?? '')),
-                'display_name' => trim((string)($_POST['display_name'] ?? '')),
-                'role' => trim((string)($_POST['role'] ?? 'editor')),
-                'status' => trim((string)($_POST['status'] ?? 'active')),
-                'google_sub' => trim((string)($_POST['google_sub'] ?? '')),
-                'google_email' => trim((string)($_POST['google_email'] ?? '')),
-            ];
-            if ($id > 0 && !$this->permissions->canChangeAccessForUser($currentUser, $id)) {
-                $payload['role'] = (string)($user['role'] ?? 'user');
-                $payload['status'] = (string)($user['status'] ?? 'active');
-            }
-            if ($id > 0 && !$canManageUsers) {
-                $payload['google_sub'] = (string)($user['google_sub'] ?? '');
-                $payload['google_email'] = (string)($user['google_email'] ?? '');
-            }
-            $password = (string)($_POST['password'] ?? '');
-            $passwordConfirm = (string)($_POST['password_confirm'] ?? '');
-            if ($payload['username'] === '') {
-                $error = 'Username is required.';
-            } elseif ($id === 0 && $password === '') {
-                $error = 'Password is required for new users.';
-            } elseif ($password !== '' && $password !== $passwordConfirm) {
-                $error = 'Password confirmation does not match.';
-            } elseif ($password !== '' && mb_strlen($password) < 8) {
-                $error = 'Passwords must be at least 8 characters long.';
-            } elseif ($password !== '' && $this->auth->isShippedDefaultPassword($payload['username'], $password)) {
-                $error = 'Choose a password other than the one shipped with FarosCMS.';
-            } else {
-                if ($password !== '') {
-                    $payload['password_hash'] = $this->users->passwordHash($password);
+            $result = $this->userAdmin()->save($id, $user, $currentUser, $_POST);
+            if ($result['ok']) {
+                if ($result['password_changed'] && $result['id'] === $currentId) {
+                    unset($_SESSION['security_default_password']);
                 }
-                try {
-                    if ($id > 0) {
-                        $this->users->update($id, $payload);
-                        if ($id === $currentId && $password !== '') {
-                            unset($_SESSION['security_default_password']);
-                        }
-                        $this->logActivity('users.update', 'info', 'user', (string)$id, 'User updated.', [
-                            'username' => $payload['username'],
-                            'role' => $payload['role'],
-                            'status' => $payload['status'],
-                        ]);
-                    } else {
-                        $id = $this->users->create($payload);
-                        $this->logActivity('users.create', 'info', 'user', (string)$id, 'User created.', [
-                            'username' => $payload['username'],
-                            'role' => $payload['role'],
-                            'status' => $payload['status'],
-                        ]);
-                    }
-                    $this->redirect('/admin/users-edit?id=' . $id . '&saved=1');
-                    return;
-                } catch (\Throwable $e) {
-                    $error = 'User could not be saved. Check for duplicate usernames or invalid values.';
-                }
+                $this->redirect('/admin/users-edit?id=' . $result['id'] . '&saved=1');
+                return;
             }
-            $user = array_merge($user ?: [], $payload, ['id' => $id]);
+            $error = $result['error'];
+            $user = array_merge($user ?: [], $result['payload'], ['id' => $id]);
         }
 
         $this->render('@admin/user-edit.twig', [
             'title' => $canManageUsers ? ($id === 0 ? 'Add user' : 'Edit user') : 'Your profile',
-            'edited_user' => $user ?: [
-                'id' => 0,
-                'username' => '',
-                'email' => '',
-                'display_name' => '',
-                'role' => 'editor',
-                'status' => 'active',
-                'google_sub' => '',
-                'google_email' => '',
-                'created_at' => '',
-                'updated_at' => '',
-                'last_login_at' => '',
-            ],
+            'edited_user' => $user ?: UserAdmin::blank(),
             'roles' => $this->permissions->allRoles(),
             'is_new' => $id === 0,
             'error' => $error,
@@ -2255,6 +2051,16 @@ final class App
             'admin_section' => 'users',
             'current_type' => 'pages',
         ]);
+    }
+
+    private function userAdmin(): UserAdmin
+    {
+        return $this->userAdminService ??= new UserAdmin(
+            $this->users,
+            $this->auth,
+            $this->permissions,
+            fn(string $action, string $level, ?string $type, ?string $id, string $message, array $context) => $this->logActivity($action, $level, $type, $id, $message, $context)
+        );
     }
 
     private function handleUserDelete(): void
@@ -5338,84 +5144,6 @@ final class App
                 'status' => (string)$source['version_url'] !== '' ? 'ok' : 'warning',
             ],
         ];
-    }
-
-    /** @return array<string, mixed> */
-    private function googleAuthSettings(): array
-    {
-        $config = $this->settings['auth']['google'] ?? [];
-        if (!is_array($config)) {
-            $config = [];
-        }
-        $clientId = trim((string)($config['client_id'] ?? ''));
-        $clientSecret = trim((string)($config['client_secret'] ?? ''));
-        $enabled = $this->isTruthy($config['enabled'] ?? false);
-        $allowedDomain = strtolower(trim((string)($config['allowed_domain'] ?? '')));
-        return [
-            'enabled' => $enabled,
-            'client_id' => $clientId,
-            'client_secret' => $clientSecret,
-            'allowed_domain' => $allowedDomain,
-            'redirect_uri' => $this->buildAbsoluteUrl('/admin/google-callback'),
-            'ready' => $enabled && $clientId !== '' && $clientSecret !== '',
-        ];
-    }
-
-    /** @param array<string, mixed> $google */
-    private function googleTokenRequest(string $code, array $google): array
-    {
-        if (!function_exists('curl_init')) {
-            return ['ok' => false, 'message' => 'PHP cURL is required for Google Sign-In.'];
-        }
-        $ch = curl_init('https://oauth2.googleapis.com/token');
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => http_build_query([
-                'code' => $code,
-                'client_id' => (string)$google['client_id'],
-                'client_secret' => (string)$google['client_secret'],
-                'redirect_uri' => (string)$google['redirect_uri'],
-                'grant_type' => 'authorization_code',
-            ]),
-            CURLOPT_HTTPHEADER => ['Content-Type: application/x-www-form-urlencoded'],
-            CURLOPT_TIMEOUT => 15,
-        ]);
-        $body = curl_exec($ch);
-        $status = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
-        $error = curl_error($ch);
-        if (!is_string($body) || $body === '' || $status < 200 || $status >= 300) {
-            return ['ok' => false, 'message' => 'Google token exchange failed.' . ($error !== '' ? ' ' . $error : '')];
-        }
-        $data = json_decode($body, true);
-        if (!is_array($data) || empty($data['access_token'])) {
-            return ['ok' => false, 'message' => 'Google token response was invalid.'];
-        }
-        return ['ok' => true, 'access_token' => (string)$data['access_token']];
-    }
-
-    private function googleUserInfo(string $accessToken): array
-    {
-        if (!function_exists('curl_init')) {
-            return ['ok' => false, 'message' => 'PHP cURL is required for Google Sign-In.'];
-        }
-        $ch = curl_init('https://openidconnect.googleapis.com/v1/userinfo');
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $accessToken],
-            CURLOPT_TIMEOUT => 15,
-        ]);
-        $body = curl_exec($ch);
-        $status = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
-        if (!is_string($body) || $body === '' || $status < 200 || $status >= 300) {
-            return ['ok' => false, 'message' => 'Google profile lookup failed.'];
-        }
-        $data = json_decode($body, true);
-        if (!is_array($data)) {
-            return ['ok' => false, 'message' => 'Google profile response was invalid.'];
-        }
-        $data['ok'] = true;
-        return $data;
     }
 
     private function resolveArchiveTemplate(string $type): string
