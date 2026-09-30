@@ -31,7 +31,7 @@ report() { # name output
 
 run_unit() {
   echo "Unit checks"
-  for spec in "blocks:tests/unit/blocks.php" "content-types:tests/unit/content-types.php" "revisions:tests/unit/revisions.php" "taxonomies:tests/unit/taxonomies.php" "links:tests/unit/links.php" "robots:tests/unit/robots.php" "menus:tests/unit/menus.php" "permissions:scripts/check-permissions.php" "slugs-and-redirects:scripts/check-slugs.php" "content-blocks:scripts/check-blocks.php"; do
+  for spec in "blocks:tests/unit/blocks.php" "content-types:tests/unit/content-types.php" "revisions:tests/unit/revisions.php" "taxonomies:tests/unit/taxonomies.php" "links:tests/unit/links.php" "robots:tests/unit/robots.php" "menus:tests/unit/menus.php" "content-csv:tests/unit/content-csv.php" "permissions:scripts/check-permissions.php" "slugs-and-redirects:scripts/check-slugs.php" "content-blocks:scripts/check-blocks.php"; do
     local name="${spec%%:*}" file="${spec#*:}" out
     out=$(cd "$ROOT" && php "$file" 2>&1)
     if [ "$name" = "content-blocks" ]; then
