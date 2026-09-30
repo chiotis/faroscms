@@ -58,6 +58,8 @@ final class App
     private ?SiteSettings $siteSettingsService = null;
     private ?BackupManager $backupManagerService = null;
     private ?TaxonomyEditor $taxonomyEditorService = null;
+    private ?RedirectAdmin $redirectAdminService = null;
+    private ?PublicPaths $publicPathsService = null;
     private ?Taxonomies $taxonomyStore = null;
     /** @var array<string, mixed>|null */
     private ?array $storageSummary = null;
@@ -1573,194 +1575,28 @@ final class App
         ]);
     }
 
-    /** @return array<string, string> public path (no leading slash) => title, for published content in every language */
-    private function contentPathMap(): array
-    {
-        $homeSlug = (string)(($this->settings['home_page'] ?? '') !== '' ? $this->settings['home_page'] : 'index');
-        $defaultLang = $this->defaultLanguage();
-        $map = [];
-        foreach ($this->content->getTypes() as $type) {
-            if ($type === 'forms') {
-                continue;
-            }
-            foreach ($this->content->getItems($type, null, false, false) as $item) {
-                $path = $this->buildContentPath($type, $item->slug, $item->lang, $homeSlug, $defaultLang);
-                $map[$path] = (string)($item->meta['title'] ?? $item->slug);
-            }
-        }
-        ksort($map);
-        return $map;
-    }
-
-    /** Whether a visitor asking for this path (normalised, no leading slash) gets a real page. */
-    private function publicPathExists(string $path): bool
-    {
-        if ($path === '' || in_array($path, ['sitemap.xml', 'robots.txt'], true)) {
-            return true;
-        }
-        [$lang, $segments] = $this->extractLang($path);
-        if ($segments === []) {
-            return true;
-        }
-        $first = $segments[0];
-        if (in_array($first, ['search', 'pages'], true)) {
-            return true;
-        }
-        if (in_array($first, ['tag', 'tags', 'category', 'categories'], true)) {
-            return isset($segments[1]) && $this->taxonomies()->findBySlug(in_array($first, ['category', 'categories'], true) ? 'categories' : 'tags', $segments[1]) !== null;
-        }
-        if (in_array($first, $this->content->getTypes(), true)) {
-            if (count($segments) === 1) {
-                return true;
-            }
-            return count($segments) === 2 && $this->content->find($first, $segments[1], $lang, false, false) !== null;
-        }
-        return count($segments) === 1 && $this->content->find('pages', $first, $lang, false, false) !== null;
-    }
-
-    /** The existing address most like one that was not found, or '' when nothing is close. */
-    private function suggestAddress(string $missing, array $known): string
-    {
-        $tail = basename($missing);
-        $best = '';
-        $bestScore = 0.0;
-        foreach ($known as $path => $title) {
-            $candidate = basename((string)$path);
-            similar_text($tail, $candidate, $percent);
-            if ($percent > $bestScore) {
-                $bestScore = $percent;
-                $best = (string)$path;
-            }
-        }
-        return $bestScore >= 65 ? '/' . $best : '';
-    }
-
-    /** Turns a pasted address of this very site into a path, so it survives a change of domain. */
-    private function localizeTarget(string $target): string
-    {
-        $target = trim($target);
-        if (!RedirectRepository::isExternal($target)) {
-            return $target;
-        }
-        $host = strtolower((string)(parse_url($target, PHP_URL_HOST) ?? ''));
-        $own = [strtolower((string)(parse_url($this->getBaseUrl(), PHP_URL_HOST) ?? '')), strtolower((string)explode(':', (string)($_SERVER['HTTP_HOST'] ?? ''))[0])];
-        if ($host === '' || !in_array($host, array_filter($own), true)) {
-            return $target;
-        }
-        $path = (string)(parse_url($target, PHP_URL_PATH) ?? '/');
-        $query = parse_url($target, PHP_URL_QUERY);
-        $fragment = parse_url($target, PHP_URL_FRAGMENT);
-        return ($path !== '' ? $path : '/') . ($query ? '?' . $query : '') . ($fragment ? '#' . $fragment : '');
-    }
-
     private function handleRedirects(): void
     {
+        $admin = $this->redirectAdmin();
         $repo = $this->redirects;
-        $by = $this->currentUsername();
         $tab = (string)($_GET['tab'] ?? '') === 'missing' ? 'missing' : 'redirects';
-        $blank = ['id' => 0, 'source' => '', 'target' => '', 'code' => 301, 'note' => '', 'enabled' => true];
-        $form = $blank;
+        $form = $admin->blankForm();
         $error = '';
         $importReport = null;
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $do = (string)($_POST['do'] ?? '');
-            if (!$repo->isAvailable()) {
-                $this->redirect('/admin/redirects?error=store');
+            $result = $admin->apply($_POST, $this->currentUsername());
+            if ($result['location'] !== null) {
+                $this->redirect($result['location']);
                 return;
             }
-            if ($do === 'add' || $do === 'update') {
-                $id = $do === 'update' ? (int)($_POST['id'] ?? 0) : 0;
-                $form = [
-                    'id' => $id,
-                    'source' => trim((string)($_POST['source'] ?? '')),
-                    'target' => $this->localizeTarget((string)($_POST['target'] ?? '')),
-                    'code' => (int)($_POST['code'] ?? 301),
-                    'note' => trim((string)($_POST['note'] ?? '')),
-                    'enabled' => $do === 'add' || (string)($_POST['enabled'] ?? '') === '1',
-                ];
-                $error = (string)$repo->validate($form['source'], $form['target'], $form['code'], $id ?: null);
-                $normalized = RedirectRepository::normalizePath($form['source']);
-                if ($error === '') {
-                    $existing = $repo->findBySource($normalized, false);
-                    if ($existing !== null && (int)$existing['id'] !== $id) {
-                        $error = 'duplicate';
-                    } elseif ($this->publicPathExists($normalized)) {
-                        $error = 'source_has_page';
-                    }
-                }
-                if ($error === '') {
-                    if ($do === 'add') {
-                        $repo->create($normalized, $form['target'], $form['code'], 'manual', $form['note'], $by);
-                        $this->logActivity('redirects.create', 'info', 'redirect', $normalized, 'Redirect added.', ['target' => $form['target'], 'code' => $form['code']]);
-                        $this->redirect('/admin/redirects?done=added');
-                    } else {
-                        $before = $repo->find($id);
-                        if ($before === null) {
-                            $this->redirect('/admin/redirects');
-                            return;
-                        }
-                        $repo->update($id, $normalized, $form['target'], $form['code'], $form['enabled'], $form['note']);
-                        $this->logActivity('redirects.update', 'info', 'redirect', $normalized, 'Redirect changed.', ['from_target' => (string)$before['target'], 'target' => $form['target'], 'code' => $form['code'], 'enabled' => $form['enabled']]);
-                        $this->redirect('/admin/redirects?done=updated');
-                    }
-                    return;
-                }
-            } elseif ($do === 'delete' || $do === 'bulk_delete') {
-                $ids = $do === 'delete' ? [(int)($_POST['id'] ?? 0)] : (array)($_POST['ids'] ?? []);
-                $removed = $repo->deleteMany($ids);
-                $this->logActivity('redirects.delete', 'warning', 'redirect', (string)implode(',', array_map('intval', $ids)), 'Redirects deleted.', ['count' => $removed]);
-                $this->redirect('/admin/redirects?done=deleted&n=' . $removed);
-                return;
-            } elseif ($do === 'toggle') {
-                $row = $repo->find((int)($_POST['id'] ?? 0));
-                if ($row !== null) {
-                    $repo->update((int)$row['id'], (string)$row['source'], (string)$row['target'], (int)$row['status_code'], !(bool)$row['enabled'], (string)($row['note'] ?? ''));
-                    $this->logActivity('redirects.update', 'info', 'redirect', (string)$row['source'], !(bool)$row['enabled'] ? 'Redirect turned on.' : 'Redirect turned off.');
-                }
-                $this->redirect('/admin/redirects?done=updated');
-                return;
-            } elseif ($do === 'import') {
-                $importReport = ['added' => 0, 'skipped' => []];
-                $lines = preg_split('/\R/', (string)($_POST['lines'] ?? '')) ?: [];
-                foreach (array_slice($lines, 0, 500) as $number => $line) {
-                    $line = trim($line);
-                    if ($line === '' || str_starts_with($line, '#')) {
-                        continue;
-                    }
-                    $parts = preg_split('/\s*(?:,|\t|->|=>|\s)\s*/', $line, 3) ?: [];
-                    $source = (string)($parts[0] ?? '');
-                    $target = $this->localizeTarget((string)($parts[1] ?? ''));
-                    $code = in_array((int)($parts[2] ?? 301), [301, 302], true) ? (int)($parts[2] ?? 301) : 301;
-                    $problem = (string)$repo->validate($source, $target, $code);
-                    $normalized = RedirectRepository::normalizePath($source);
-                    if ($problem === '' && $repo->findBySource($normalized, false) !== null) {
-                        $problem = 'duplicate';
-                    } elseif ($problem === '' && $this->publicPathExists($normalized)) {
-                        $problem = 'source_has_page';
-                    }
-                    if ($problem !== '') {
-                        $importReport['skipped'][] = ['line' => $number + 1, 'text' => mb_substr($line, 0, 80), 'reason' => $problem];
-                        continue;
-                    }
-                    $repo->create($normalized, $target, $code, 'manual', 'Imported', $by);
-                    $importReport['added']++;
-                }
-                $this->logActivity('redirects.import', 'info', 'redirect', 'import', 'Redirects imported.', ['added' => $importReport['added'], 'skipped' => count($importReport['skipped'])]);
-                $tab = 'redirects';
-            } elseif ($do === 'missing_delete') {
-                $repo->deleteNotFound((string)($_POST['path'] ?? ''));
-                $this->redirect('/admin/redirects?tab=missing&done=ignored');
-                return;
-            } elseif ($do === 'missing_clear') {
-                $repo->clearNotFound();
-                $this->logActivity('redirects.missing_clear', 'info', 'redirect', 'not_found_log', 'List of missing addresses cleared.');
-                $this->redirect('/admin/redirects?tab=missing&done=cleared');
-                return;
-            }
+            $form = $result['form'];
+            $error = $result['error'];
+            $importReport = $result['report'];
+            $tab = $result['tab'] ?? $tab;
         }
 
-        $known = $this->contentPathMap();
+        $known = $this->publicPaths()->map();
         $filters = [
             'q' => trim((string)($_GET['q'] ?? '')),
             'origin' => (string)($_GET['origin'] ?? ''),
@@ -1769,34 +1605,11 @@ final class App
         $perPage = 100;
         $page = max(1, (int)($_GET['page'] ?? 1));
         $total = $repo->count($filters);
-        $editId = (int)($_GET['edit'] ?? 0);
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            if ($editId > 0 && ($row = $repo->find($editId)) !== null) {
-                $form = ['id' => (int)$row['id'], 'source' => '/' . $row['source'], 'target' => (string)$row['target'], 'code' => (int)$row['status_code'], 'note' => (string)($row['note'] ?? ''), 'enabled' => (bool)$row['enabled']];
-            } elseif (isset($_GET['source'])) {
-                $form['source'] = '/' . RedirectRepository::normalizePath((string)$_GET['source']);
-                $form['target'] = trim((string)($_GET['target'] ?? ''));
-            }
+            $form = $admin->formFor((int)($_GET['edit'] ?? 0), isset($_GET['source']) ? (string)$_GET['source'] : null, (string)($_GET['target'] ?? ''));
         }
 
-        $rows = [];
-        foreach ($repo->all($filters, $perPage, ($page - 1) * $perPage) as $row) {
-            $target = (string)$row['target'];
-            $state = 'external';
-            if (!RedirectRepository::isExternal($target)) {
-                $next = RedirectRepository::normalizePath($target);
-                if ($this->publicPathExists($next)) {
-                    $state = 'ok';
-                } elseif ($repo->findBySource($next) !== null) {
-                    $state = $repo->resolve((string)$row['source']) === null ? 'loop' : 'chain';
-                } else {
-                    $state = 'missing';
-                }
-            }
-            $row['target_state'] = $state;
-            $row['shadowed'] = $this->publicPathExists((string)$row['source']);
-            $rows[] = $row;
-        }
+        $rows = $admin->rows($filters, $perPage, $page);
         // Links inside content that still use an old address (only for permanent redirects that are on).
         $linkCounts = null;
         if ($this->permissions->can($this->auth->user(), 'content.manage')) {
@@ -1807,18 +1620,10 @@ final class App
             $rows[$i]['links'] = $linkCounts === null ? null : ($linkCounts[$row['source']] ?? 0);
         }
 
-        $missing = [];
-        if ($tab === 'missing') {
-            foreach ($repo->notFound(trim((string)($_GET['q'] ?? '')), 200) as $row) {
-                $row['suggestion'] = $this->suggestAddress((string)$row['path'], $known);
-                $missing[] = $row;
-            }
-        }
-
         $this->render('@admin/redirects.twig', [
             'tab' => $tab,
             'rows' => $rows,
-            'missing' => $missing,
+            'missing' => $tab === 'missing' ? $admin->missing(trim((string)($_GET['q'] ?? ''))) : [],
             'stats' => $repo->stats(),
             'missing_total' => $repo->notFoundCount(),
             'filters' => $filters,
@@ -1839,6 +1644,25 @@ final class App
         ]);
     }
 
+    private function redirectAdmin(): RedirectAdmin
+    {
+        return $this->redirectAdminService ??= new RedirectAdmin(
+            $this->redirects,
+            $this->publicPaths(),
+            fn(string $action, string $level, ?string $type, ?string $id, string $message, array $context) => $this->logActivity($action, $level, $type, $id, $message, $context)
+        );
+    }
+
+    private function publicPaths(): PublicPaths
+    {
+        return $this->publicPathsService ??= new PublicPaths(
+            $this->content,
+            fn(): Taxonomies => $this->taxonomies(),
+            fn(): array => $this->settings,
+            fn(): string => $this->getBaseUrl()
+        );
+    }
+
     private function linkScanner(): LinkScanner
     {
         $hosts = [
@@ -1854,29 +1678,6 @@ final class App
     }
 
     /**
-     * Where each redirect's old address should now be linked to, for redirects that are permanent and on.
-     *
-     * @param int[] $ids
-     * @return array<string, string> normalised source => target
-     */
-    private function linkFixes(array $ids): array
-    {
-        $map = [];
-        foreach ($ids as $id) {
-            $row = $this->redirects->find($id);
-            if ($row === null || !(bool)$row['enabled'] || (int)$row['status_code'] !== 301) {
-                continue;
-            }
-            // The end of a chain, so a link never goes through two redirects.
-            $resolved = $this->redirects->resolve((string)$row['source']);
-            if ($resolved !== null && $resolved['code'] === 301) {
-                $map[(string)$row['source']] = $resolved['target'];
-            }
-        }
-        return $map;
-    }
-
-    /**
      * Links inside content that still use an old address. Lists where they are and, on request, points them at the
      * redirect's target, so visitors no longer take the detour. Only the address in the text changes.
      */
@@ -1884,7 +1685,7 @@ final class App
     {
         $raw = (string)($_POST['ids'] ?? $_GET['ids'] ?? '');
         $ids = array_values(array_unique(array_filter(array_map('intval', explode(',', $raw)), static fn(int $id): bool => $id > 0)));
-        $map = $this->linkFixes(array_slice($ids, 0, 50));
+        $map = $this->redirectAdmin()->linkFixes(array_slice($ids, 0, 50));
         $scanner = $this->linkScanner();
         $may = fn(string $type): bool => $this->canAccessContentType($type);
 
@@ -3442,10 +3243,10 @@ final class App
             $target = match ($choice) {
                 'archive' => $type === 'pages' ? '' : '/' . $this->buildArchivePath($type, $lang, $defaultLang),
                 'home' => '/' . ($lang === $defaultLang ? '' : $lang),
-                default => $this->localizeTarget((string)($_POST['after_target'] ?? '')),
+                default => $this->publicPaths()->localize((string)($_POST['after_target'] ?? '')),
             };
             $error = $target === '' ? 'target_empty' : (string)$this->redirects->validate($publicPath, $target, 301);
-            if ($error === '' && !RedirectRepository::isExternal($target) && !$this->publicPathExists(RedirectRepository::normalizePath($target))) {
+            if ($error === '' && !RedirectRepository::isExternal($target) && !$this->publicPaths()->exists(RedirectRepository::normalizePath($target))) {
                 $error = 'target_missing';
             }
         }
@@ -3491,7 +3292,7 @@ final class App
     {
         $defaultLang = $this->defaultLanguage();
         $item = $this->content->find($type, $slug, $lang, true, false);
-        $known = $this->contentPathMap();
+        $known = $this->publicPaths()->map();
         unset($known[$publicPath]);
         $counts = $this->permissions->can($this->auth->user(), 'content.manage')
             ? $this->linkScanner()->countBySource([RedirectRepository::normalizePath($publicPath)])
