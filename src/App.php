@@ -73,6 +73,7 @@ final class App
     private ?RoleAdmin $roleAdminService = null;
     private ?UserAdmin $userAdminService = null;
     private ?ContentTypeAdmin $contentTypeAdminService = null;
+    private ?ArchiveBuilder $archiveBuilderService = null;
     private ?PublicPaths $publicPathsService = null;
     private ?Taxonomies $taxonomyStore = null;
     /** @var array<string, mixed>|null */
@@ -476,139 +477,7 @@ final class App
     private function archiveContext(string $type, string $lang, array $items): array
     {
         $definition = $this->contentTypes()->definition($type, $lang, $this->defaultLanguage());
-        return $this->buildArchive($definition['archive'], $definition['fields'], $definition, $lang, $items);
-    }
-
-    /**
-     * The archive of any list of entries (a content type, or the entries of a category or tag): filters, order, and pages
-     * from settings that a content type or a taxonomy chose. Filters come from the chosen taxonomies and, for a content
-     * type, from its filterable select fields.
-     *
-     * @param array<string, mixed> $settings resolved archive settings
-     * @param array<string, array<string, mixed>> $fields the declared fields of the type (none for a taxonomy)
-     * @param array<string, mixed>|null $definition the type's definition, when there is one
-     * @param ContentItem[] $items
-     * @return array<string, mixed>
-     */
-    private function buildArchive(array $settings, array $fields, ?array $definition, string $lang, array $items): array
-    {
-        // Facets: name => label, options (value => label), how to read an item's values.
-        $facets = [];
-        $taxonomyNames = $this->taxonomies()->names();
-        foreach ($settings['taxonomies'] as $taxonomy) {
-            if (in_array($taxonomy, $taxonomyNames, true)) {
-                $facets[$taxonomy] = ['label' => $this->titleFromSlug($taxonomy), 'kind' => 'taxonomy', 'labels' => []];
-            }
-        }
-        foreach ($fields as $key => $field) {
-            if ($field['filterable'] && !$field['hidden']) {
-                $facets[$key] = ['label' => $field['label'], 'kind' => 'field', 'labels' => $field['options']];
-            }
-        }
-        $valuesOf = function (ContentItem $item, string $name, array $facet): array {
-            if ($facet['kind'] === 'taxonomy') {
-                return $this->normalizeMetaList($item->meta[$name] ?? null);
-            }
-            $value = $item->meta['custom_fields'][$name] ?? '';
-            return is_scalar($value) && (string)$value !== '' ? [(string)$value] : [];
-        };
-
-        $requested = is_array($_GET['filter'] ?? null) ? $_GET['filter'] : [];
-        $filters = [];
-        $selected = [];
-        foreach ($facets as $name => $facet) {
-            $counts = [];
-            foreach ($items as $item) {
-                foreach ($valuesOf($item, $name, $facet) as $value) {
-                    $counts[$value] = ($counts[$value] ?? 0) + 1;
-                }
-            }
-            $options = [];
-            foreach ($counts as $value => $count) {
-                $value = (string)$value;
-                $label = $facet['kind'] === 'taxonomy'
-                    ? $this->taxonomyTermLabel($name, $value, $lang)
-                    : (string)($facet['labels'][$value] ?? $value);
-                $options[] = ['value' => $value, 'label' => $label !== '' ? $label : $value, 'count' => $count];
-            }
-            usort($options, static fn(array $a, array $b): int => strcasecmp($a['label'], $b['label']));
-            $choice = is_scalar($requested[$name] ?? null) ? (string)$requested[$name] : '';
-            if ($choice !== '' && !isset($counts[$choice])) {
-                $choice = '';
-            }
-            if ($choice !== '') {
-                $selected[$name] = $choice;
-            }
-            if (count($options) >= 2 || $choice !== '') {
-                $filters[] = ['name' => $name, 'label' => $facet['label'], 'kind' => $facet['kind'], 'options' => $options, 'selected' => $choice];
-            }
-        }
-
-        foreach ($selected as $name => $choice) {
-            $items = array_values(array_filter($items, fn(ContentItem $item): bool => in_array($choice, $valuesOf($item, $name, $facets[$name]), true)));
-        }
-
-        $title = static fn(ContentItem $item): string => mb_strtolower((string)($item->meta['title'] ?? $item->slug));
-        if (preg_match('/^field:([a-z][a-z0-9_]*):(asc|desc)$/', (string)$settings['order'], $m)) {
-            // By a declared field; items without a value go last in either direction.
-            [$key, $direction] = [$m[1], $m[2]];
-            $type_ = $fields[$key]['type'] ?? 'text';
-            $sortKey = static function (ContentItem $item) use ($key, $type_): string|float|null {
-                $value = $item->meta['custom_fields'][$key] ?? null;
-                if ($value === null || $value === '') {
-                    return null;
-                }
-                if ($type_ === 'number' || $type_ === 'decimal') {
-                    return is_numeric($value) ? (float)$value : null;
-                }
-                if ($type_ === 'date' && is_int($value)) {
-                    return gmdate('Y-m-d', $value);
-                }
-                return mb_strtolower((string)$value);
-            };
-            $withValue = array_values(array_filter($items, static fn(ContentItem $i): bool => $sortKey($i) !== null));
-            $without = array_values(array_filter($items, static fn(ContentItem $i): bool => $sortKey($i) === null));
-            usort($withValue, static fn(ContentItem $a, ContentItem $b): int => $direction === 'asc' ? $sortKey($a) <=> $sortKey($b) : $sortKey($b) <=> $sortKey($a));
-            $items = array_merge($withValue, $without);
-        } elseif ($settings['order'] === 'date_asc') {
-            $items = array_reverse($items);
-        } elseif ($settings['order'] === 'title_asc') {
-            usort($items, static fn(ContentItem $a, ContentItem $b): int => strcmp($title($a), $title($b)));
-        } elseif ($settings['order'] === 'title_desc') {
-            usort($items, static fn(ContentItem $a, ContentItem $b): int => strcmp($title($b), $title($a)));
-        }
-
-        $total = count($items);
-        $perPage = (int)$settings['per_page'];
-        $pages = $perPage > 0 ? max(1, (int)ceil($total / $perPage)) : 1;
-        $page = max(1, min($pages, (int)($_GET['page'] ?? 1)));
-        if ($perPage > 0) {
-            $items = array_slice($items, ($page - 1) * $perPage, $perPage);
-        }
-        $link = static function (int $number) use ($selected): string {
-            $query = [];
-            if ($selected !== []) {
-                $query['filter'] = $selected;
-            }
-            if ($number > 1) {
-                $query['page'] = $number;
-            }
-            return '?' . http_build_query($query);
-        };
-
-        return [
-            'definition' => $definition,
-            'settings' => $settings,
-            'items' => $items,
-            'total' => $total,
-            'filters' => $filters,
-            'filtered' => $selected !== [],
-            'page' => $page,
-            'pages' => $pages,
-            'prev' => $page > 1 ? $link($page - 1) : '',
-            'next' => $page < $pages ? $link($page + 1) : '',
-            'page_links' => $pages > 1 ? array_map(static fn(int $n): array => ['number' => $n, 'href' => $link($n), 'current' => $n === $page], range(1, $pages)) : [],
-        ];
+        return $this->archiveBuilder()->build($definition['archive'], $definition['fields'], $definition, $lang, $items, $_GET);
     }
 
     private function blockRenderer(string $lang, string $path): BlockRenderer
@@ -4424,6 +4293,14 @@ final class App
         );
     }
 
+    private function archiveBuilder(): ArchiveBuilder
+    {
+        return $this->archiveBuilderService ??= new ArchiveBuilder(
+            fn(): array => $this->taxonomies()->names(),
+            fn(string $taxonomy, string $termId, string $lang): string => $this->taxonomyTermLabel($taxonomy, $termId, $lang)
+        );
+    }
+
     private function contentCsv(): ContentCsv
     {
         return $this->contentCsvService ??= new ContentCsv(
@@ -4598,7 +4475,7 @@ final class App
         // Entries of several types come newest first, as within a single type.
         $when = static fn(ContentItem $i): int => strtotime((string)($i->meta['date'] ?? '')) ?: $i->mtime;
         usort($items, static fn(ContentItem $a, ContentItem $b): int => $when($b) <=> $when($a));
-        $archive = $this->buildArchive($settings, [], null, $lang, $items);
+        $archive = $this->archiveBuilder()->build($settings, [], null, $lang, $items, $_GET);
         if ($archive['page'] > 1 && !$archive['filtered']) {
             $viewDefaults['canonical_url'] = ($viewDefaults['canonical_url'] ?? '') . '?page=' . $archive['page'];
         }
