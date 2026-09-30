@@ -90,7 +90,7 @@ Direction: one all-purpose theme (`themes/default`) that grows with blocks and v
 
 ## Post-Theme Architecture
 - Refactor `src/App.php` into focused modules/services (in progress: BackupService, UpdateService, Mailer, MediaLibrary, ContentIndex, FormSubmissionRepository, LoginThrottle, SystemMetaRepository are extracted)
-- Split so far: menus, CSV import/export, structured data, robots.txt, form fields, site settings, taking backups, the taxonomies screen, redirects, translations, media, storage limits and the dashboard (`App.php` went from 9,800 to about 6,250 lines, with unit tests for each). Next candidates: the public taxonomy pages, the forms, users and content types screens (see `docs/architecture.md`)
+- Split so far: menus, CSV import/export, structured data, robots.txt, form fields, site settings, taking backups, the taxonomies screen, redirects, translations, media, storage limits and the dashboard, forms, sign-in, users and roles, content types, archives and backups (`App.php` went from 9,800 to about 5,000 lines, with unit tests for each). Next candidates: the screens that edit content, menus, logs, the Twig set-up, and the public side (see `docs/architecture.md`)
 - Keep behavior identical during refactor (incremental extraction + regression checks)
 
 ## Later Development

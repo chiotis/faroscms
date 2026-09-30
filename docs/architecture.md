@@ -14,7 +14,7 @@ Before the application boots, `public/index.php` hands `/_themes/…` and `/_cus
 
 | Class | Responsibility |
 |-------|----------------|
-| `App` | Routing, request handlers, settings, menus, taxonomies, forms, CSV import/export, template rendering. Still the largest file (about 8,900 lines); new behaviour should go into a focused class, as content saving did (`ContentEditor`). |
+| `App` | Routing, request handlers, and the wiring of the classes below. Still the largest file (about 5,000 lines); new behaviour should go into a focused class, as content saving did (`ContentEditor`). |
 | `ContentRepository` / `ContentItem` | Reads Markdown files with YAML front matter; listing, lookup, and frontend search. |
 | `ContentIndex` | SQLite `content_index` kept in sync with the files; admin search and staleness checks. |
 | `Auth` | Session sign-in (SQLite users, YAML fallback), session rotation, per-request user refresh, shipped-password detection. |
@@ -54,6 +54,15 @@ Before the application boots, `public/index.php` hands `/_themes/…` and `/_cus
 | `SiteLimits` | What the site uses against the storage limit (measured, kept for twelve hours, adjusted by uploads and deletions), whether a file fits, the size of one upload, and the readers of the limits on the settings form. |
 | `SystemStatus` | The health checks of the dashboard and the System screen, their one-line verdict, the PHP extensions, and the environment table. |
 | `DashboardData` | What the dashboard shows each role. |
+| `FormProcessor` | What happens to a form someone fills in on the site: the starting values, checking what was sent against the fields, the record kept, and the emails it causes (notification and automatic reply). Sending and storing are the caller's. |
+| `FormsAdmin` | The Forms screens: the list with submission counts, one form's submissions filtered and paged, deleting submissions, and the CSV export. |
+| `SignIn` | Password sign-in: a block after repeated failures, the log, and a flag when the password is the one shipped with the CMS. |
+| `GoogleSignIn` | Signing in with Google: its settings, the address to send the person to, the two calls for a profile, and whether a profile may sign in. The calls can be replaced in tests. |
+| `UserAdmin` | Adding and changing a user: reading the form within what the person may change, the password checks, saving. |
+| `RoleAdmin` | The Roles screen: the permission table, custom roles (make, rename, delete), and the log of permission changes. |
+| `ContentTypeAdmin` | The Content types screen: making a type, saving a definition (only differences from the theme are written), and the rows it shows. |
+| `ArchiveBuilder` | The archive of any list of entries: the filters it offers (only real values), the order, and the page. |
+| `BackupAdmin` | The Backups screens: verify, create, delete, restore (a safety snapshot first, only the areas chosen), the backup before an update, and the data of the screens. |
 | `StructuredData` | The JSON-LD graph of a page (organization, website and search, article or page, breadcrumb) and its script tag. |
 | `RobotsTxt` | The rules typed in Settings > General > Search engines, checked, and the robots.txt they make. |
 | `MediaUsage` | Where each uploaded file is used (content and settings), kept between visits under a fingerprint of what it read. |
@@ -83,4 +92,4 @@ See `system-database.md` for SQLite and `backups.md` for what backups contain. C
 
 ## Refactoring direction
 
-`App.php` is being split incrementally, keeping behaviour identical: extract a cohesive group of private methods into a class that takes what it needs through its constructor (paths, and closures for things that change during a request, such as the settings), delegate from `App`, and give the class unit tests before and after moving it. Done so far: menus (`Menus`), CSV import and export (`ContentCsv`), structured data (`StructuredData`), robots.txt (`RobotsTxt`), form fields (`FormFields`), the site settings (`SiteSettings`), taking backups (`BackupManager`), what the taxonomies screen does (`TaxonomyEditor`), redirects (`RedirectAdmin`, `PublicPaths`), translations (`ThemeStrings`, `EntryTranslations`, `LanguageAlternates`), the media screen (`MediaAdmin`), storage limits, system checks and the dashboard (`SiteLimits`, `SystemStatus`, `DashboardData`), media usage (`MediaUsage`), the media library, backups, updates, mail, and the content editor. Candidates left, in order of size and independence: the public taxonomy pages (routing, paths, templates), the admin screens that are still handlers of `App` (forms, users and roles, content types, settings), and template rendering.
+`App.php` is being split incrementally, keeping behaviour identical: extract a cohesive group of private methods into a class that takes what it needs through its constructor (paths, and closures for things that change during a request, such as the settings), delegate from `App`, and give the class unit tests before and after moving it. Done so far: menus (`Menus`), CSV import and export (`ContentCsv`), structured data (`StructuredData`), robots.txt (`RobotsTxt`), form fields (`FormFields`), the site settings (`SiteSettings`), taking backups (`BackupManager`), what the taxonomies screen does (`TaxonomyEditor`), redirects (`RedirectAdmin`, `PublicPaths`), translations (`ThemeStrings`, `EntryTranslations`, `LanguageAlternates`), the media screen (`MediaAdmin`), storage limits, system checks and the dashboard (`SiteLimits`, `SystemStatus`, `DashboardData`), forms (`FormProcessor`, `FormsAdmin`), sign-in, users and roles (`SignIn`, `GoogleSignIn`, `UserAdmin`, `RoleAdmin`), content types (`ContentTypeAdmin`), archives (`ArchiveBuilder`), backups (`BackupAdmin`), media usage (`MediaUsage`), the media library, backups, updates, mail, and the content editor. Candidates left, in order of size and independence: the screens that edit content (edit, save, delete, the list, bulk actions, CSV import, history), the menus and taxonomies handlers, the logs, the Twig set-up and template rendering, and the public side (routing, the front page of each kind, the taxonomy pages).
