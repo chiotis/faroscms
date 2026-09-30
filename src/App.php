@@ -66,6 +66,8 @@ final class App
     private ?SiteLimits $siteLimitsService = null;
     private ?SystemStatus $systemStatusService = null;
     private ?DashboardData $dashboardDataService = null;
+    private ?FormsAdmin $formsAdminService = null;
+    private ?FormProcessor $formProcessorService = null;
     private ?PublicPaths $publicPathsService = null;
     private ?Taxonomies $taxonomyStore = null;
     /** @var array<string, mixed>|null */
@@ -2593,7 +2595,7 @@ final class App
         }
         $formSubmissionsTotal = 0;
         if ($type === 'forms' && $slug !== '') {
-            $formSubmissions = $this->listFormSubmissions($slug);
+            $formSubmissions = $this->formsAdmin()->recent($slug);
             $formSubmissionsTotal = count($formSubmissions);
             $formSubmissions = array_slice($formSubmissions, 0, 10);
         }
@@ -3593,62 +3595,21 @@ final class App
             return;
         }
 
-        $submissions = $this->loadFormSubmissionsRaw($slug);
-        $headers = ['id', 'submitted_at', 'site_title', 'form_title', 'form', 'lang', 'translation_id', 'ip', 'user_agent'];
-        $fieldKeys = [];
-        foreach ($submissions as $submission) {
-            foreach (array_keys($submission['fields'] ?? []) as $key) {
-                if (!in_array($key, $fieldKeys, true)) {
-                    $fieldKeys[] = $key;
-                }
-            }
-        }
-        sort($fieldKeys);
-        $headers = array_merge($headers, $fieldKeys);
-
-        $siteName = (string)($this->settings['title'] ?? 'site');
-        $siteSlug = $this->slugify($siteName);
-        if ($siteSlug === '') {
-            $siteSlug = 'site';
-        }
-        $formTitle = (string)($form->meta['title'] ?? $form->slug);
-        $formSlug = $this->slugify($formTitle);
-        if ($formSlug === '') {
-            $formSlug = $form->slug;
-        }
-        $filename = $siteSlug . '-' . $formSlug . '-submissions.csv';
+        $export = $this->formsAdmin()->export($form, (string)($this->settings['title'] ?? ''));
         $this->logActivity('forms.export', 'info', 'forms', $slug . ':' . $lang, 'Form submissions exported.', [
             'slug' => $slug,
             'lang' => $lang,
-            'submissions' => count($submissions),
-            'filename' => $filename,
+            'submissions' => $export['count'],
+            'filename' => $export['filename'],
         ]);
         header('Content-Type: text/csv; charset=utf-8');
-        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Content-Disposition: attachment; filename="' . $export['filename'] . '"');
         $output = fopen('php://output', 'w');
         if ($output === false) {
             return;
         }
-        $siteTitle = (string)($this->settings['title'] ?? '');
-        fputcsv($output, $headers, ',', '"', '');
-        foreach ($submissions as $submission) {
-            $row = [];
-            foreach ($headers as $header) {
-                if (in_array($header, ['id', 'submitted_at', 'form', 'lang', 'translation_id', 'ip', 'user_agent'], true)) {
-                    $row[] = $submission[$header] ?? '';
-                    continue;
-                }
-                if ($header === 'site_title') {
-                    $row[] = $siteTitle;
-                    continue;
-                }
-                if ($header === 'form_title') {
-                    $row[] = $formTitle;
-                    continue;
-                }
-                $value = $submission['fields'][$header] ?? '';
-                $row[] = $this->stringifySubmissionValue($value);
-            }
+        fputcsv($output, $export['headers'], ',', '"', '');
+        foreach ($export['rows'] as $row) {
             fputcsv($output, $row, ',', '"', '');
         }
         fclose($output);
@@ -3773,65 +3734,15 @@ final class App
             'q' => trim((string)($_GET['q'] ?? '')),
             'status' => trim((string)($_GET['status'] ?? '')),
         ];
-        $sort = (string)($_GET['sort'] ?? 'updated');
-        if (!in_array($sort, ['updated', 'submissions', 'name'], true)) {
-            $sort = 'updated';
-        }
-
-        $groups = [];
-        foreach ($this->content->getItems('forms', null, true, false) as $item) {
-            $groups[$item->slug][$item->lang] = $item;
-        }
-
-        $rows = [];
-        $totals = ['forms' => 0, 'published' => 0, 'submissions' => 0, 'recent' => 0];
-        foreach ($groups as $slug => $versions) {
-            $primary = $versions[$defaultLang] ?? reset($versions);
-            $stats = $this->formSubmissions->stats((string)$slug);
-            $notifications = is_array($primary->meta['notifications'] ?? null) ? $primary->meta['notifications'] : [];
-            $status = (string)($primary->meta['status'] ?? 'published');
-            $rows[] = [
-                'slug' => (string)$slug,
-                'title' => (string)($primary->meta['title'] ?? $slug),
-                'status' => $status,
-                'lang' => $primary->lang,
-                'field_count' => count(FormFields::normalize($primary->meta['fields'] ?? [])),
-                'languages' => array_keys($versions),
-                'missing_languages' => array_values(array_diff($languages, array_keys($versions))),
-                'submissions' => $stats['total'],
-                'recent' => $stats['last_7_days'],
-                'latest_submission' => $stats['latest'] !== '' ? $this->formatSubmissionDate($stats['latest']) : '',
-                'updated' => max(array_map(static fn(ContentItem $version): int => $version->mtime, $versions)),
-                'notifications' => $this->isTruthy($notifications['enabled'] ?? false),
-                'stores' => $this->isTruthy($primary->meta['store_submissions'] ?? ($this->settings['forms']['store_submissions'] ?? true)),
-                'shortcode' => '[form slug="' . $slug . '"]',
-            ];
-            $totals['forms']++;
-            $totals['published'] += $status === 'published' ? 1 : 0;
-            $totals['submissions'] += $stats['total'];
-            $totals['recent'] += $stats['last_7_days'];
-        }
-
-        if ($filters['q'] !== '') {
-            $needle = mb_strtolower($filters['q']);
-            $rows = array_values(array_filter($rows, static fn(array $row): bool => str_contains(mb_strtolower($row['title'] . ' ' . $row['slug']), $needle)));
-        }
-        if ($filters['status'] !== '') {
-            $rows = array_values(array_filter($rows, static fn(array $row): bool => $row['status'] === $filters['status']));
-        }
-        usort($rows, static fn(array $a, array $b): int => match ($sort) {
-            'submissions' => $b['submissions'] <=> $a['submissions'],
-            'name' => strcasecmp($a['title'], $b['title']),
-            default => $b['updated'] <=> $a['updated'],
-        });
+        $overview = $this->formsAdmin()->overview($filters, (string)($_GET['sort'] ?? 'updated'), $languages, $defaultLang, $this->isTruthy($this->settings['forms']['store_submissions'] ?? true));
 
         $this->render('@admin/forms-list.twig', [
             'title' => 'Forms',
-            'rows' => $rows,
-            'totals' => $totals,
+            'rows' => $overview['rows'],
+            'totals' => $overview['totals'],
             'filters' => $filters,
-            'sort' => $sort,
-            'filters_active' => $filters['q'] !== '' || $filters['status'] !== '' || $sort !== 'updated',
+            'sort' => $overview['sort'],
+            'filters_active' => $filters['q'] !== '' || $filters['status'] !== '' || $overview['sort'] !== 'updated',
             'languages' => $languages,
             'default_lang' => $defaultLang,
             'deleted' => isset($_GET['deleted']),
@@ -3846,12 +3757,7 @@ final class App
     {
         $slug = $this->slugify((string)($_GET['slug'] ?? ($_POST['slug'] ?? '')));
         $defaultLang = (string)($this->settings['languages']['default'] ?? 'en');
-        $versions = [];
-        foreach ($this->content->getItems('forms', null, true, false) as $item) {
-            if ($item->slug === $slug) {
-                $versions[$item->lang] = $item;
-            }
-        }
+        $versions = $this->formsAdmin()->versions($slug);
         if ($slug === '' || $versions === []) {
             $this->redirect('/admin/forms');
             return;
@@ -3859,24 +3765,14 @@ final class App
         $form = $versions[$defaultLang] ?? reset($versions);
 
         if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
-            $action = (string)($_POST['submission_action'] ?? '');
-            $ids = $action === 'delete'
-                ? [(string)($_POST['id'] ?? '')]
-                : (is_array($_POST['selected_ids'] ?? null) ? array_map('strval', $_POST['selected_ids']) : []);
-            $deleted = 0;
-            if (in_array($action, ['delete', 'bulk_delete'], true)) {
-                foreach ($ids as $id) {
-                    if ($this->formSubmissions->delete($slug, $id)) {
-                        $deleted++;
-                    }
-                }
-                if ($deleted > 0) {
-                    $this->logActivity('forms.submission_delete', 'warning', 'forms', $slug, $deleted === 1 ? 'Form submission deleted.' : 'Form submissions deleted.', [
-                        'slug' => $slug,
-                        'count' => $deleted,
-                        'ids' => array_slice($ids, 0, 50),
-                    ]);
-                }
+            $result = $this->formsAdmin()->deleteSubmissions($slug, $_POST);
+            $deleted = $result['deleted'];
+            if ($deleted > 0) {
+                $this->logActivity('forms.submission_delete', 'warning', 'forms', $slug, $deleted === 1 ? 'Form submission deleted.' : 'Form submissions deleted.', [
+                    'slug' => $slug,
+                    'count' => $deleted,
+                    'ids' => array_slice($result['ids'], 0, 50),
+                ]);
             }
             $return = $this->sanitizeAdminReturnUrl((string)($_POST['return_to'] ?? ''));
             parse_str((string)parse_url($return, PHP_URL_QUERY), $query);
@@ -3889,64 +3785,7 @@ final class App
             return;
         }
 
-        $filters = [
-            'lang' => $this->slugify((string)($_GET['lang'] ?? '')),
-            'q' => trim((string)($_GET['q'] ?? '')),
-            'date_from' => preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)($_GET['date_from'] ?? '')) ? (string)$_GET['date_from'] : '',
-            'date_to' => preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)($_GET['date_to'] ?? '')) ? (string)$_GET['date_to'] : '',
-        ];
-        $perPage = (int)($_GET['per_page'] ?? 25);
-        if (!in_array($perPage, [25, 50, 100], true)) {
-            $perPage = 25;
-        }
-        $all = $this->formSubmissions->all($slug);
-        $filtered = $this->formSubmissions->filter($all, $filters);
-        $total = count($filtered);
-        $totalPages = max(1, (int)ceil($total / $perPage));
-        $page = min(max(1, (int)($_GET['page'] ?? 1)), $totalPages);
-
-        $labels = [];
-        $formFields = FormFields::normalize($form->meta['fields'] ?? []);
-        foreach ($formFields as $field) {
-            $name = (string)($field['name'] ?? '');
-            if ($name !== '') {
-                $labels[$name] = (string)($field['label'] ?? $this->titleFromSlug($name));
-            }
-        }
-        $rows = [];
-        foreach (array_slice($filtered, ($page - 1) * $perPage, $perPage) as $entry) {
-            $fields = [];
-            foreach ($entry['fields'] as $key => $value) {
-                $fields[] = [
-                    'key' => (string)$key,
-                    'label' => $labels[(string)$key] ?? $this->titleFromSlug((string)$key),
-                    'value' => $this->stringifySubmissionValue($value),
-                ];
-            }
-            $summaryParts = [];
-            foreach ($fields as $field) {
-                if (in_array($field['key'], ['name', 'full_name', 'email'], true) || $field['value'] === '') {
-                    continue;
-                }
-                $summaryParts[] = $field['value'];
-                if (count($summaryParts) >= 2) {
-                    break;
-                }
-            }
-            $rows[] = [
-                'id' => $entry['id'],
-                'submitted_at' => $this->formatSubmissionDate((string)$entry['submitted_at']),
-                'lang' => (string)$entry['lang'],
-                'title' => $this->submissionTitle($entry['fields']),
-                'email' => $this->findReplyToEmail($entry['fields'], $formFields, ''),
-                'summary' => mb_strimwidth(implode(' · ', $summaryParts), 0, 120, '…'),
-                'fields' => $fields,
-                'ip' => (string)$entry['ip'],
-                'user_agent' => (string)$entry['user_agent'],
-            ];
-        }
-
-        $stats = $this->formSubmissions->stats($slug);
+        $page = $this->formsAdmin()->page($form, $_GET);
         $this->render('@admin/form-submissions.twig', [
             'title' => 'Submissions',
             'form' => [
@@ -3955,16 +3794,16 @@ final class App
                 'lang' => $form->lang,
                 'languages' => array_keys($versions),
             ],
-            'rows' => $rows,
-            'filters' => $filters,
-            'filters_active' => array_filter($filters) !== [],
-            'total_all' => count($all),
-            'total' => $total,
-            'recent' => $stats['last_7_days'],
-            'page' => $page,
-            'total_pages' => $totalPages,
-            'per_page' => $perPage,
-            'per_page_options' => [25, 50, 100],
+            'rows' => $page['rows'],
+            'filters' => $page['filters'],
+            'filters_active' => array_filter($page['filters']) !== [],
+            'total_all' => $page['total_all'],
+            'total' => $page['total'],
+            'recent' => $page['recent'],
+            'page' => $page['page'],
+            'total_pages' => $page['total_pages'],
+            'per_page' => $page['per_page'],
+            'per_page_options' => FormsAdmin::PER_PAGE_OPTIONS,
             'deleted_count' => (int)($_GET['deleted'] ?? 0),
             'error' => trim((string)($_GET['error'] ?? '')),
             'current_url' => $this->currentRequestPath(),
@@ -3974,6 +3813,16 @@ final class App
             'admin_section' => 'forms',
             'current_type' => 'forms',
         ]);
+    }
+
+    private function formsAdmin(): FormsAdmin
+    {
+        return $this->formsAdminService ??= new FormsAdmin($this->content, $this->formSubmissions);
+    }
+
+    private function formProcessor(): FormProcessor
+    {
+        return $this->formProcessorService ??= new FormProcessor(fn(string $key, string $fallback): string => $this->translate($key, $fallback));
     }
 
     private function handleContentExport(): void
@@ -5698,7 +5547,7 @@ final class App
     private function handleFormRequest(ContentItem $form, string $lang, string $currentPath): array
     {
         $fields = FormFields::normalize($form->meta['fields'] ?? []);
-        $values = $this->defaultFormValues($fields);
+        $values = $this->formProcessor()->defaults($fields);
         $errors = [];
         $success = false;
         $message = (string)($form->meta['success_message'] ?? '');
@@ -5771,7 +5620,9 @@ final class App
             ];
         }
 
-        $values = $this->collectFormValues($fields, $_POST, $errors);
+        $collected = $this->formProcessor()->collect($fields, $_POST);
+        $values = $collected['values'];
+        $errors = $collected['errors'];
         if (!empty($errors)) {
             return [
                 'fields' => $fields,
@@ -5786,10 +5637,14 @@ final class App
         }
 
         if ($this->isTruthy($form->meta['store_submissions'] ?? $this->settings['forms']['store_submissions'] ?? true)) {
-            $this->storeFormSubmission($form, $values);
+            $this->formSubmissions->store($form->slug, $this->formProcessor()->record($form, $values, (string)($_SERVER['REMOTE_ADDR'] ?? ''), (string)($_SERVER['HTTP_USER_AGENT'] ?? '')));
         }
 
-        $this->sendFormNotifications($form, $values, $fields);
+        $formUrl = $this->buildAbsoluteUrl($this->buildContentPath('forms', $form->slug, $form->lang, $this->settings['home_page'] ?? 'index', $this->settings['languages']['default'] ?? 'en'));
+        $siteMail = is_array($this->settings['forms']['notifications'] ?? null) ? $this->settings['forms']['notifications'] : [];
+        foreach ($this->formProcessor()->emails($form, $values, $fields, $siteMail, $formUrl) as $message) {
+            $this->sendEmailMessage($message['to'], $message['subject'], $message['body'], $message['headers']);
+        }
         $this->markFormRateLimit($form->slug);
         $success = true;
 
@@ -5825,167 +5680,6 @@ final class App
         $_SESSION['form_rate'][$slug] = time();
     }
 
-    /** @return array<string, mixed> */
-    private function defaultFormValues(array $fields): array
-    {
-        $values = [];
-        foreach ($fields as $field) {
-            $name = (string)($field['name'] ?? '');
-            if ($name === '') {
-                continue;
-            }
-            $default = $field['default'] ?? '';
-            if (($field['type'] ?? '') === 'checkboxes') {
-                if (is_array($default)) {
-                    $values[$name] = $default;
-                } else {
-                    $values[$name] = FormFields::parseOptions((string)$default);
-                }
-                continue;
-            }
-            if (($field['type'] ?? '') === 'checkbox') {
-                $values[$name] = $this->isTruthy($default) ? '1' : '';
-                continue;
-            }
-            $values[$name] = $default;
-        }
-        return $values;
-    }
-
-    /** @param array<int, array<string, mixed>> $fields */
-    private function collectFormValues(array $fields, array $payload, array &$errors): array
-    {
-        $values = [];
-        foreach ($fields as $field) {
-            $name = (string)($field['name'] ?? '');
-            if ($name === '') {
-                continue;
-            }
-            $type = (string)($field['type'] ?? 'text');
-            $required = (bool)($field['required'] ?? false);
-            $options = $field['options'] ?? [];
-            $optionValues = array_map(fn ($opt) => $opt['value'], is_array($options) ? $options : []);
-
-            if ($type === 'checkboxes') {
-                $raw = $payload[$name] ?? [];
-                $rawValues = is_array($raw) ? $raw : [];
-                $clean = [];
-                foreach ($rawValues as $value) {
-                    $value = trim((string)$value);
-                    if ($value === '') {
-                        continue;
-                    }
-                    if (!empty($optionValues) && !in_array($value, $optionValues, true)) {
-                        continue;
-                    }
-                    $clean[] = $value;
-                }
-                $values[$name] = $clean;
-                if ($required && empty($clean)) {
-                    $errors[$name] = $this->translate('form.error.required', 'This field is required.');
-                }
-                continue;
-            }
-
-            if ($type === 'checkbox') {
-                $checked = isset($payload[$name]) && (string)($payload[$name]) !== '';
-                $values[$name] = $checked ? '1' : '';
-                if ($required && !$checked) {
-                    $errors[$name] = $this->translate('form.error.required', 'This field is required.');
-                }
-                continue;
-            }
-
-            $value = trim((string)($payload[$name] ?? ''));
-            if ($type === 'email' && $value !== '' && !filter_var($value, FILTER_VALIDATE_EMAIL)) {
-                $errors[$name] = $this->translate('form.error.email', 'Please enter a valid email.');
-            }
-            if ($type === 'url' && $value !== '' && !filter_var($value, FILTER_VALIDATE_URL)) {
-                $errors[$name] = $this->translate('form.error.url', 'Please enter a valid URL.');
-            }
-            if (in_array($type, ['number', 'range'], true) && $value !== '' && !is_numeric($value)) {
-                $errors[$name] = $this->translate('form.error.numeric', 'Please enter a numeric value.');
-            }
-            if (in_array($type, ['select', 'radio'], true) && $value !== '' && !empty($optionValues) && !in_array($value, $optionValues, true)) {
-                $errors[$name] = $this->translate('form.error.option', 'Please select a valid option.');
-            }
-            if ($required && $value === '') {
-                $errors[$name] = $this->translate('form.error.required', 'This field is required.');
-            }
-            $values[$name] = $value;
-        }
-        return $values;
-    }
-
-    private function storeFormSubmission(ContentItem $form, array $values): void
-    {
-        $this->formSubmissions->store($form->slug, [
-            'form' => $form->slug,
-            'lang' => $form->lang,
-            'translation_id' => (string)($form->meta['translation_id'] ?? ''),
-            'submitted_at' => date('c'),
-            'ip' => (string)($_SERVER['REMOTE_ADDR'] ?? ''),
-            'user_agent' => (string)($_SERVER['HTTP_USER_AGENT'] ?? ''),
-            'fields' => $values,
-        ]);
-    }
-
-    /** @return array<int, array<string, mixed>> */
-    private function listFormSubmissions(string $slug): array
-    {
-        $rawEntries = $this->loadFormSubmissionsRaw($slug);
-        $entries = [];
-        foreach ($rawEntries as $data) {
-            $fields = [];
-            foreach (($data['fields'] ?? []) as $key => $value) {
-                $fields[] = [
-                    'label' => $this->titleFromSlug((string)$key),
-                    'value' => $this->stringifySubmissionValue($value),
-                ];
-            }
-            $entries[] = [
-                'id' => (string)($data['id'] ?? ''),
-                'submitted_at' => $this->formatSubmissionDate((string)($data['submitted_at'] ?? '')),
-                'title' => $this->submissionTitle($data['fields'] ?? []),
-                'fields' => $fields,
-            ];
-        }
-        usort($entries, function (array $a, array $b): int {
-            return strcmp((string)($b['submitted_at'] ?? ''), (string)($a['submitted_at'] ?? ''));
-        });
-        return $entries;
-    }
-
-    /** @return array<int, array<string, mixed>> */
-    private function loadFormSubmissionsRaw(string $slug): array
-    {
-        return $this->formSubmissions->all($slug);
-    }
-
-    private function submissionTitle(mixed $fields): string
-    {
-        if (is_array($fields)) {
-            foreach (['name', 'full_name', 'email'] as $key) {
-                if (isset($fields[$key]) && trim((string)$fields[$key]) !== '') {
-                    return trim((string)$fields[$key]);
-                }
-            }
-        }
-        return 'Submission';
-    }
-
-    private function formatSubmissionDate(string $value): string
-    {
-        if ($value === '') {
-            return '';
-        }
-        $timestamp = strtotime($value);
-        if ($timestamp === false) {
-            return $value;
-        }
-        return date('Y-m-d H:i', $timestamp);
-    }
-
     private function cleanupImportPreviewCache(): void
     {
         if (!isset($_SESSION['content_import_preview']) || !is_array($_SESSION['content_import_preview'])) {
@@ -5998,114 +5692,6 @@ final class App
                 unset($_SESSION['content_import_preview'][$token]);
             }
         }
-    }
-
-    private function stringifySubmissionValue(mixed $value): string
-    {
-        if (is_array($value)) {
-            return implode(', ', array_map('strval', $value));
-        }
-        return trim((string)$value);
-    }
-
-    private function sendFormNotifications(ContentItem $form, array $values, array $fields): void
-    {
-        $notifications = $form->meta['notifications'] ?? [];
-        if (!is_array($notifications)) {
-            $notifications = [];
-        }
-        $enabled = $this->isTruthy($notifications['enabled'] ?? false);
-        $to = trim((string)($notifications['to'] ?? ''));
-        $subject = trim((string)($notifications['subject'] ?? ''));
-        if ($subject === '') {
-            $subject = 'New submission: ' . (string)($form->meta['title'] ?? $form->slug);
-        }
-        $body = $this->buildFormEmailBody($form, $values, $fields);
-
-        $from = trim((string)($this->settings['forms']['notifications']['from'] ?? ''));
-        $fromName = trim((string)($this->settings['forms']['notifications']['from_name'] ?? ''));
-        if ($from === '') {
-            $from = 'noreply@localhost';
-        }
-        $fromHeader = $fromName !== '' ? $fromName . ' <' . $from . '>' : $from;
-        $headers = [
-            'From' => $fromHeader,
-        ];
-        $replyToField = trim((string)($notifications['reply_to_field'] ?? ''));
-        $replyEmail = $this->findReplyToEmail($values, $fields, $replyToField);
-        if ($replyEmail !== '') {
-            $headers['Reply-To'] = $replyEmail;
-        }
-        $cc = trim((string)($notifications['cc'] ?? ''));
-        if ($cc !== '') {
-            $headers['Cc'] = $cc;
-        }
-        $bcc = trim((string)($notifications['bcc'] ?? ''));
-        if ($bcc !== '') {
-            $headers['Bcc'] = $bcc;
-        }
-
-        if ($enabled && $to !== '') {
-            $this->sendEmailMessage($to, $subject, $body, $headers);
-        }
-
-        if ($this->isTruthy($notifications['auto_reply'] ?? false) && $replyEmail !== '') {
-            $autoSubject = trim((string)($notifications['auto_reply_subject'] ?? ''));
-            if ($autoSubject === '') {
-                $autoSubject = 'Thanks for your message';
-            }
-            $autoMessage = trim((string)($notifications['auto_reply_message'] ?? ''));
-            if ($autoMessage === '') {
-                $autoMessage = "Thanks for contacting us.\n\nWe received your submission and will get back to you soon.";
-            }
-            if ($this->isTruthy($notifications['auto_reply_include'] ?? false)) {
-                $autoMessage .= "\n\n---\n\n" . $body;
-            }
-            $this->sendEmailMessage($replyEmail, $autoSubject, $autoMessage, [
-                'From' => $fromHeader,
-            ]);
-        }
-    }
-
-    private function buildFormEmailBody(ContentItem $form, array $values, array $fields): string
-    {
-        $lines = [];
-        $lines[] = 'Form: ' . (string)($form->meta['title'] ?? $form->slug);
-        $lines[] = 'URL: ' . $this->buildAbsoluteUrl($this->buildContentPath('forms', $form->slug, $form->lang, $this->settings['home_page'] ?? 'index', $this->settings['languages']['default'] ?? 'en'));
-        $lines[] = '';
-        foreach ($fields as $field) {
-            $name = (string)($field['name'] ?? '');
-            if ($name === '') {
-                continue;
-            }
-            $label = (string)($field['label'] ?? $name);
-            $value = $values[$name] ?? '';
-            $lines[] = $label . ': ' . $this->stringifySubmissionValue($value);
-        }
-        return implode("\n", $lines);
-    }
-
-    private function findReplyToEmail(array $values, array $fields, string $replyToField): string
-    {
-        if ($replyToField !== '' && isset($values[$replyToField])) {
-            $candidate = trim((string)$values[$replyToField]);
-            if (filter_var($candidate, FILTER_VALIDATE_EMAIL)) {
-                return $candidate;
-            }
-        }
-        foreach ($fields as $field) {
-            if (($field['type'] ?? '') === 'email') {
-                $name = (string)($field['name'] ?? '');
-                $candidate = trim((string)($values[$name] ?? ''));
-                if (filter_var($candidate, FILTER_VALIDATE_EMAIL)) {
-                    return $candidate;
-                }
-            }
-        }
-        if (isset($values['email']) && filter_var($values['email'], FILTER_VALIDATE_EMAIL)) {
-            return (string)$values['email'];
-        }
-        return '';
     }
 
     private function mailer(): Mailer
@@ -6157,7 +5743,7 @@ final class App
             return '';
         }
         $fields = FormFields::normalize($form->meta['fields'] ?? []);
-        $values = $this->defaultFormValues($fields);
+        $values = $this->formProcessor()->defaults($fields);
         $errors = [];
         $success = isset($_GET['sent']) && (string)($_GET['form'] ?? '') === $form->slug;
         $message = (string)($form->meta['success_message'] ?? '');
