@@ -31,7 +31,7 @@
       {% endif %}
 
       <div class="rounded-lg border border-slate-200 bg-white p-4">
-        <h3 class="mb-3 text-sm font-semibold text-slate-900">Profile</h3>
+        <h2 class="mb-3 text-sm font-semibold text-slate-900">Profile</h2>
         <div class="mb-4 flex items-center gap-3">
           <span class="flex h-12 w-12 items-center justify-center rounded-full bg-slate-900 text-base font-semibold text-white">{{ initials ?: 'U' }}</span>
           <div>
@@ -56,7 +56,7 @@
       </div>
 
       <div class="rounded-lg border border-slate-200 bg-white p-4">
-        <h3 class="mb-3 text-sm font-semibold text-slate-900">Password</h3>
+        <h2 class="mb-3 text-sm font-semibold text-slate-900">Password</h2>
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label class="block">
             <span class="mb-1 block text-sm font-medium text-slate-700">New password{% if is_new %} <span class="text-red-500">*</span>{% endif %}</span>
@@ -72,7 +72,7 @@
 
       {% if can_manage_users %}
         <div class="rounded-lg border border-slate-200 bg-white p-4">
-          <h3 class="mb-3 text-sm font-semibold text-slate-900">Connected accounts</h3>
+          <h2 class="mb-3 text-sm font-semibold text-slate-900">Connected accounts</h2>
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label class="block">
               <span class="mb-1 block text-sm font-medium text-slate-700">Google subject</span>
@@ -86,7 +86,7 @@
         </div>
       {% elseif edited_user.google_email %}
         <div class="rounded-lg border border-slate-200 bg-white p-4">
-          <h3 class="mb-2 text-sm font-semibold text-slate-900">Connected accounts</h3>
+          <h2 class="mb-2 text-sm font-semibold text-slate-900">Connected accounts</h2>
           <p class="text-sm text-slate-500">Google Sign-In is connected to {{ edited_user.google_email }}.</p>
         </div>
       {% endif %}
@@ -95,7 +95,7 @@
     <div class="space-y-4">
       <div class="sticky top-4 space-y-4 lg:top-6">
         <div class="rounded-lg border border-slate-200 bg-white p-4">
-          <h3 class="mb-3 text-sm font-semibold text-slate-900">Access</h3>
+          <h2 class="mb-3 text-sm font-semibold text-slate-900">Access</h2>
           <div class="space-y-3">
             <label class="block">
               <span class="mb-1 block text-sm font-medium text-slate-700">Role</span>
@@ -122,7 +122,7 @@
         </div>
 
         <div class="rounded-lg border border-slate-200 bg-white p-4 text-sm">
-          <h3 class="mb-2 text-sm font-semibold text-slate-900">Activity</h3>
+          <h2 class="mb-2 text-sm font-semibold text-slate-900">Activity</h2>
           <dl class="space-y-1.5 text-xs">
             <div class="flex justify-between gap-3"><dt class="text-slate-400">Created</dt><dd class="text-right text-slate-600">{{ edited_user.created_at ?: '—' }}</dd></div>
             <div class="flex justify-between gap-3"><dt class="text-slate-400">Updated</dt><dd class="text-right text-slate-600">{{ edited_user.updated_at ?: '—' }}</dd></div>

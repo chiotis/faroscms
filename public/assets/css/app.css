@@ -43,6 +43,9 @@ html.dark body.bg-slate-100 { background-color: #0b1120; }
 .dark .bg-white { background-color: #0f172a; }
 .dark .bg-white\/90 { background-color: rgba(15, 23, 42, .9); }
 .dark .bg-white\/95 { background-color: rgba(15, 23, 42, .95); }
+.dark .bg-white\/85 { background-color: rgba(15, 23, 42, .85); }
+/* Any other translucent slate wash (a table group row, a quiet panel) stays dark too. */
+.dark [class*="bg-slate-50/"] { background-color: #131c2e; }
 .dark .bg-slate-50,
 .dark .bg-slate-50\/50,
 .dark .bg-slate-50\/30 { background-color: #131c2e; }
@@ -71,9 +74,9 @@ html.dark body.bg-slate-100 { background-color: #0b1120; }
 .dark .text-slate-700 { color: #cbd5e1; }
 .dark .text-slate-600 { color: #a3b2c7; }
 .dark .text-slate-500 { color: #94a3b8; }
-.dark .text-slate-400 { color: #6b7a90; }
+.dark .text-slate-400 { color: #8494ab; }
 .dark .text-slate-300 { color: #475569; }
-.dark .placeholder\:text-slate-400::placeholder { color: #6b7a90; }
+.dark .placeholder\:text-slate-400::placeholder { color: #8494ab; }
 
 /* Hover-variant text colors — base remaps above don't cover `hover:text-*`,
    so nav links/icons turned dark-on-dark on hover. Remap the hover variants too. */
@@ -110,7 +113,7 @@ html.dark body.bg-slate-100 { background-color: #0b1120; }
   color: #e2e8f0;
 }
 .dark input:not([type="checkbox"]):not([type="radio"])::placeholder,
-.dark textarea::placeholder { color: #6b7a90; }
+.dark textarea::placeholder { color: #8494ab; }
 
 /* Neutral ring on chips */
 .dark .ring-slate-200 { --tw-ring-color: rgba(51, 65, 85, .7); }
@@ -130,6 +133,16 @@ html.dark body.bg-slate-100 { background-color: #0b1120; }
 .dark .text-red-800,
 .dark .text-red-600,
 .dark .text-red-500 { color: #f87171; }
+/* Rose (delete buttons) and the 900 shades used for messages read on dark panels. */
+.dark .text-rose-500,
+.dark .text-rose-600,
+.dark .text-rose-700 { color: #fb7185; }
+.dark .bg-rose-50 { background-color: rgba(251, 113, 133, .15); }
+.dark .hover\:bg-rose-50:hover { background-color: rgba(251, 113, 133, .15); }
+.dark .border-rose-200 { border-color: rgba(251, 113, 133, .35); }
+.dark .text-emerald-900 { color: #a7f3d0; }
+.dark .text-amber-900 { color: #fde68a; }
+.dark .text-red-900 { color: #fecaca; }
 .dark .text-violet-700,
 .dark .text-violet-600 { color: #a78bfa; }
 
@@ -155,7 +168,7 @@ html.dark body.bg-slate-100 { background-color: #0b1120; }
   border-bottom-width: 2px;
   border-bottom-color: transparent;
   background: transparent;
-  color: #64748b;
+  color: #4d5d73;
   cursor: pointer;
   white-space: nowrap;
 }

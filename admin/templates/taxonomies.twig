@@ -2,16 +2,16 @@
   <tr class="hover:bg-slate-50" data-term-row data-used="{{ term.used|default(0) }}">
     {% for langCode in languages %}
       <td class="px-4 py-2.5 align-top">
-        <input type="text" name="term_label[{{ langCode }}][]" value="{{ term.labels[langCode]|default('') }}" placeholder="{{ langCode|upper }} name" class="{{ input_class }}">
+        <input type="text" name="term_label[{{ langCode }}][]" aria-label="{{ langCode|upper }} name" value="{{ term.labels[langCode]|default('') }}" placeholder="{{ langCode|upper }} name" class="{{ input_class }}">
       </td>
     {% endfor %}
     <td class="px-4 py-2.5 align-top">
       <input type="hidden" name="term_id[]" value="{{ term.id|default('') }}">
-      <input type="text" name="term_slug[]" value="{{ term.slug|default('') }}" placeholder="{{ term.id ? '' : 'made from the name' }}" class="{{ input_class }}" autocomplete="off" spellcheck="false" data-term-slug data-original="{{ term.slug|default('') }}">
+      <input type="text" name="term_slug[]" value="{{ term.slug|default('') }}" placeholder="{{ term.id ? '' : 'made from the name' }}" class="{{ input_class }}" autocomplete="off" spellcheck="false" aria-label="Address of this term" data-term-slug data-original="{{ term.slug|default('') }}">
       {% if term.id %}<p class="mt-1 hidden text-xs text-amber-700" data-term-slug-note>The old address /{{ kind }}/{{ term.slug }} will keep working and lead here.</p>{% endif %}
     </td>
     <td class="px-4 py-2.5 align-top text-xs text-slate-500">
-      {% if term.id %}{{ term.used|default(0) }} {{ term.used|default(0) == 1 ? 'entry' : 'entries' }}{% else %}<span class="text-slate-300">new</span>{% endif %}
+      {% if term.id %}{{ term.used|default(0) }} {{ term.used|default(0) == 1 ? 'entry' : 'entries' }}{% else %}<span class="text-slate-500">new</span>{% endif %}
     </td>
     <td class="px-4 py-2.5 text-right align-top">
       <button type="button" class="{{ remove_btn }} js-remove-taxonomy-row" title="Remove term" aria-label="Remove term">

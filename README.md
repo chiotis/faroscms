@@ -165,6 +165,7 @@ npm install && npm run build:css
 | [docs/theming.md](docs/theming.md) | Theme contract, blocks, settings, assets, server configuration |
 | [docs/theme-developer-guide.md](docs/theme-developer-guide.md) | Building blocks, templates and content types |
 | [docs/security.md](docs/security.md) | Security model and operator checklist |
+| [docs/admin-accessibility.md](docs/admin-accessibility.md) | What was checked in the admin, the rules the templates keep, how to check again |
 | [docs/backups.md](docs/backups.md) | Local and remote backups, restore |
 | [docs/update-workflow.md](docs/update-workflow.md), [update.md](update.md) | Updating a live site safely |
 | [docs/system-database.md](docs/system-database.md) | What lives in SQLite |

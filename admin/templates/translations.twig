@@ -75,7 +75,7 @@
                   {{ default_value }}
                 </td>
                 <td class="min-w-80 px-4 py-2.5">
-                  <input type="text" name="values[]" value="{{ value }}" placeholder="Add translation..." class="{{ input_soft }} {% if is_missing %}border-red-200 bg-red-50/30{% elseif is_source %}border-amber-200 bg-amber-50/30{% endif %}">
+                  <input type="text" name="values[]" value="{{ value }}" aria-label="Translation of {{ key }}" placeholder="Add translation..." class="{{ input_soft }} {% if is_missing %}border-red-200 bg-red-50/30{% elseif is_source %}border-amber-200 bg-amber-50/30{% endif %}">
                 </td>
                 <td class="px-4 py-2.5">
                   {% if is_custom %}
@@ -96,11 +96,11 @@
             {% endfor %}
             <tr class="align-top bg-slate-50/40">
               <td class="px-4 py-3">
-                <input type="text" name="keys[]" placeholder="new.key" class="{{ input_soft }} font-mono text-xs">
+                <input type="text" name="keys[]" aria-label="New string key" placeholder="new.key" class="{{ input_soft }} font-mono text-xs">
               </td>
               <td class="px-4 py-3 text-xs text-slate-400">New custom string</td>
               <td class="min-w-80 px-4 py-3">
-                <input type="text" name="values[]" placeholder="New value" class="{{ input_soft }}">
+                <input type="text" name="values[]" aria-label="New string value" placeholder="New value" class="{{ input_soft }}">
               </td>
               <td class="px-4 py-3">
                 <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500 ring-1 ring-inset ring-slate-200">new</span>
