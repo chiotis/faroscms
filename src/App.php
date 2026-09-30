@@ -52,7 +52,7 @@ final class App
     private string $currentLang;
     private array $translations = [];
     private array $formStates = [];
-    private array $menusCache = [];
+    private ?Menus $menuStore = null;
     private ?Taxonomies $taxonomyStore = null;
     /** @var array<string, mixed>|null */
     private ?array $storageSummary = null;
@@ -69,7 +69,7 @@ final class App
         $this->settings = $this->loadSettings();
         $this->theme = new Theme($this->basePath, (string)($this->settings['theme'] ?? Theme::DEFAULT_NAME));
         $this->themeSettings = $this->loadThemeSettings();
-        $this->ensureDefaultMenus();
+        $this->menus()->ensureDefaults();
         $this->taxonomies()->ensureDefaults();
 
         $markdown = $this->markdownConverter();
@@ -297,7 +297,7 @@ final class App
             'current_lang' => $lang,
             'path_no_lang' => $pathNoLang,
             'canonical_url' => $currentUrl,
-            'theme_menus' => $this->resolveThemeMenus($lang, $pathNoLang),
+            'theme_menus' => $this->menus()->forTheme($lang, $pathNoLang),
         ];
 
         if (($segments[0] ?? '') === 'pages') {
@@ -2629,7 +2629,7 @@ final class App
         // The system database may have been swapped: reload settings and write history into the active database.
         $this->settings = $this->loadSettings();
         $this->themeSettings = $this->loadThemeSettings();
-        $this->menusCache = [];
+        $this->menus()->forget();
         $this->taxonomies()->forget();
         $this->recordBackupRun($safety);
         if ($result['ok']) {
@@ -3535,7 +3535,7 @@ final class App
         if ($result['moved'] && $result['moved_together']) {
             // Menu links follow a page whose address changed in every language.
             $old = $result['original_slug'];
-            $this->relinkMenus($type === 'pages' ? $old : $type . '/' . $old, $type === 'pages' ? $slug : $type . '/' . $slug);
+            $this->menus()->relink($type === 'pages' ? $old : $type . '/' . $old, $type === 'pages' ? $slug : $type . '/' . $slug);
         }
 
         $this->logActivity($result['was_existing'] ? 'content.update' : 'content.create', 'info', $type, $slug . ':' . $lang, ($result['was_existing'] ? 'Content updated.' : 'Content created.'), [
@@ -3936,7 +3936,7 @@ final class App
 
     private function handleMenusList(): void
     {
-        $rows = $this->listMenusForAdmin();
+        $rows = $this->menus()->listForAdmin();
 
         $this->render('@admin/menus-list.twig', [
             'types' => $this->content->getTypes(),
@@ -3951,7 +3951,7 @@ final class App
 
     private function handleMenusNew(): void
     {
-        $menuKeys = $this->listMenuKeys();
+        $menuKeys = $this->menus()->keys();
         $newKeyPrefill = $this->slugify((string)($_GET['new_key'] ?? ''));
         $sourceKey = $this->slugify((string)($_GET['source_key'] ?? ''));
         if ($newKeyPrefill === '' && $sourceKey !== '') {
@@ -3973,8 +3973,8 @@ final class App
             } else {
                 $items = [];
                 if ($sourceKey !== '' && in_array($sourceKey, $menuKeys, true)) {
-                    $sourceMenu = $this->loadMenuDefinition($sourceKey, '');
-                    $items = $this->normalizeMenuItems($sourceMenu['items'] ?? []);
+                    $sourceMenu = $this->menus()->load($sourceKey);
+                    $items = $this->menus()->normalize($sourceMenu['items'] ?? []);
                     if ($title === '') {
                         $title = (string)($sourceMenu['title'] ?? '');
                     }
@@ -3982,11 +3982,11 @@ final class App
                 if ($title === '') {
                     $title = $this->titleFromSlug($newKey);
                 }
-                $this->writeMenuDefinition($newKey, '', [
+                $this->menus()->write($newKey, [
                     'title' => $title,
                     'items' => $items,
                 ]);
-                $this->menusCache = [];
+                $this->menus()->forget();
                 $this->logActivity('menus.create', 'info', 'menu', $newKey, 'Menu created.', [
                     'title' => $title,
                     'source_key' => $sourceKey,
@@ -4012,7 +4012,7 @@ final class App
     {
         $languages = $this->settings['languages']['available'] ?? [(string)($this->settings['languages']['default'] ?? 'el')];
 
-        $menuKeys = $this->listMenuKeys();
+        $menuKeys = $this->menus()->keys();
         $selectedKey = $this->slugify((string)($_GET['key'] ?? $_POST['key'] ?? ''));
         if ($selectedKey === '') {
             if (!empty($menuKeys)) {
@@ -4032,15 +4032,15 @@ final class App
         $deleted = isset($_GET['deleted']);
         $error = '';
 
-        $menu = $this->loadMenuDefinition($selectedKey, '');
+        $menu = $this->menus()->load($selectedKey);
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $action = (string)($_POST['menu_action'] ?? 'save');
             if ($action === 'delete') {
-                $path = $this->menuWritePath($selectedKey, '');
+                $path = $this->menus()->path($selectedKey);
                 if (is_file($path)) {
                     unlink($path);
-                    $this->menusCache = [];
+                    $this->menus()->forget();
                     $this->logActivity('menus.delete', 'warning', 'menu', $selectedKey, 'Menu deleted.');
                 }
                 $this->redirect('/admin/menus?deleted=1');
@@ -4056,12 +4056,12 @@ final class App
                 $classes = $_POST['menu_class'] ?? [];
                 $targets = $_POST['menu_target'] ?? [];
                 $depths = $_POST['menu_depth'] ?? [];
-                $items = $this->buildMenuItemsFromAdminRows($labelKeys, $labelLangs, $urls, $classes, $targets, $depths, $languages);
-                $this->writeMenuDefinition($selectedKey, '', [
+                $items = $this->menus()->fromAdminRows($labelKeys, $labelLangs, $urls, $classes, $targets, $depths, $languages);
+                $this->menus()->write($selectedKey, [
                     'title' => $title,
                     'items' => $items,
                 ]);
-                $this->menusCache = [];
+                $this->menus()->forget();
                 $this->logActivity('menus.update', 'info', 'menu', $selectedKey, 'Menu updated.', [
                     'title' => $title,
                     'items' => count($items),
@@ -4071,8 +4071,8 @@ final class App
             }
         }
 
-        $menu = $this->loadMenuDefinition($selectedKey, '');
-        $menuItems = $this->flattenMenuItemsForAdmin($menu['items'] ?? [], $languages);
+        $menu = $this->menus()->load($selectedKey);
+        $menuItems = $this->menus()->flatten($menu['items'] ?? [], $languages);
         if (empty($menuItems)) {
             $defaultLabels = [];
             foreach ($languages as $language) {
@@ -4158,7 +4158,7 @@ final class App
                     $prefix = $langCode === $default ? '' : $langCode . '/';
                     $this->redirects->moved($prefix . $kind . '/' . $move['from'], $prefix . $kind . '/' . $move['to'], $by, $taxonomy);
                 }
-                $this->relinkMenus($kind . '/' . $move['from'], $kind . '/' . $move['to']);
+                $this->menus()->relink($kind . '/' . $move['from'], $kind . '/' . $move['to']);
             }
             foreach (array_merge($prepared['added'], array_column($prepared['moved'], 'id')) as $termId) {
                 foreach ($languages as $langCode) {
@@ -6243,90 +6243,6 @@ final class App
         return ['ok' => true];
     }
 
-    private function ensureDefaultMenus(): void
-    {
-        $dir = $this->menuDir();
-        if (!is_dir($dir)) {
-            mkdir($dir, 0775, true);
-        }
-
-        $defaultLang = (string)($this->settings['languages']['default'] ?? 'el');
-        $mainPath = $this->menuWritePath('main', $defaultLang);
-        $footerPath = $this->menuWritePath('footer', $defaultLang);
-
-        if (!is_file($mainPath)) {
-            $legacyHeader = $this->settings['menu']['header'] ?? [];
-            $mainItems = [];
-            if (is_array($legacyHeader) && !empty($legacyHeader)) {
-                foreach ($legacyHeader as $row) {
-                    if (!is_array($row)) {
-                        continue;
-                    }
-                    $url = trim((string)($row['url'] ?? ''));
-                    $label = trim((string)($row['label'] ?? ''));
-                    $labelKey = trim((string)($row['label_key'] ?? ''));
-                    $class = trim((string)($row['class'] ?? ''));
-                    $target = trim((string)($row['target'] ?? ''));
-                    if ($url === '' && $label === '' && $labelKey === '') {
-                        continue;
-                    }
-                    $item = ['url' => $url];
-                    if ($label !== '') {
-                        $item['label'] = $label;
-                    }
-                    if ($labelKey !== '') {
-                        $item['label_key'] = $labelKey;
-                    }
-                    if ($class !== '') {
-                        $item['class'] = $class;
-                    }
-                    if ($target !== '') {
-                        $item['target'] = $target;
-                    }
-                    $mainItems[] = $item;
-                }
-            }
-            if (empty($mainItems)) {
-                $mainItems = [
-                    ['label_key' => 'nav.main.home', 'url' => ''],
-                    ['label_key' => 'nav.main.about', 'url' => 'about'],
-                    [
-                        'label_key' => 'nav.main.services',
-                        'url' => 'services',
-                        'children' => [
-                            ['label_key' => 'nav.main.services.workplace_strategy', 'url' => 'workplace-strategy'],
-                            ['label_key' => 'nav.main.services.design_build', 'url' => 'design-build'],
-                            ['label_key' => 'nav.main.services.project_management', 'url' => 'project-management'],
-                        ],
-                    ],
-                    ['label_key' => 'nav.main.projects', 'url' => 'projects'],
-                    ['label_key' => 'nav.main.news', 'url' => 'category/news'],
-                    ['label_key' => 'nav.main.contact', 'url' => 'contact', 'class' => 'nav-cta'],
-                ];
-            }
-            $this->writeMenuDefinition('main', $defaultLang, [
-                'title' => 'Main Menu',
-                'items' => $mainItems,
-            ]);
-        }
-
-        if (!is_file($footerPath)) {
-            $footerItems = [
-                ['label_key' => 'nav.footer.about', 'url' => 'about'],
-                ['label_key' => 'nav.footer.careers', 'url' => 'careers'],
-                ['label_key' => 'nav.footer.faq', 'url' => 'faq'],
-                ['label_key' => 'nav.footer.privacy', 'url' => 'privacy-policy'],
-                ['label_key' => 'nav.footer.terms', 'url' => 'terms'],
-                ['label_key' => 'nav.footer.cookies', 'url' => 'cookies'],
-                ['label_key' => 'nav.footer.contact', 'url' => 'contact'],
-            ];
-            $this->writeMenuDefinition('footer', $defaultLang, [
-                'title' => 'Footer Menu',
-                'items' => $footerItems,
-            ]);
-        }
-    }
-
     /** @return array<int, array{name: string, title: string, terms: array<int, array{id: string, slug: string, labels: array<string, string>}>}> */
     private function listTaxonomiesForAdmin(): array
     {
@@ -6347,467 +6263,19 @@ final class App
         return $this->taxonomies()->label($taxonomy, $termId, $lang !== null && $lang !== '' ? $lang : $this->currentLang);
     }
 
+    private function menus(): Menus
+    {
+        return $this->menuStore ??= new Menus(
+            $this->contentDir,
+            fn(): array => $this->settings,
+            fn(string $key, ?string $fallback = null): string => $this->translate($key, $fallback),
+            fn(): array => $this->theme->menuLocations()
+        );
+    }
+
     private function taxonomies(): Taxonomies
     {
         return $this->taxonomyStore ??= new Taxonomies($this->contentDir, array_map('strval', $this->settings['languages']['available'] ?? [(string)($this->settings['languages']['default'] ?? 'el')]));
-    }
-
-    private function menuDir(): string
-    {
-        return $this->contentDir . '/menus';
-    }
-
-    private function menuWritePath(string $key, string $lang): string
-    {
-        $key = $this->slugify($key);
-        if ($key === '') {
-            $key = 'menu';
-        }
-        return $this->menuDir() . '/' . $key . '.yaml';
-    }
-
-    /** @return string[] */
-    private function listMenuKeys(): array
-    {
-        $keys = ['main', 'footer'];
-        foreach (glob($this->menuDir() . '/*.yaml') ?: [] as $path) {
-            $filename = basename($path, '.yaml');
-            if ($filename === '' || preg_match('/\.[a-z]{2}$/', $filename) === 1) {
-                continue;
-            }
-            $key = $this->slugify($filename);
-            if ($key === '' || in_array($key, $keys, true)) {
-                continue;
-            }
-            $keys[] = $key;
-        }
-        sort($keys);
-        return $keys;
-    }
-
-    /** @return array<int, array{key: string, title: string, updated: string}> */
-    private function listMenusForAdmin(): array
-    {
-        $rows = [];
-        foreach ($this->listMenuKeys() as $key) {
-            $path = $this->menuWritePath($key, '');
-            $menu = $this->loadMenuDefinition($key, '');
-            $mtime = is_file($path) ? (int)filemtime($path) : 0;
-            $rows[] = [
-                'key' => $key,
-                'title' => (string)($menu['title'] ?? $this->titleFromSlug($key)),
-                'updated' => $mtime > 0 ? date('Y-m-d H:i', $mtime) : '',
-            ];
-        }
-        return $rows;
-    }
-
-    /** @return array{path: string, lang: string} */
-    private function resolveMenuSource(string $key, string $lang): array
-    {
-        $path = $this->menuWritePath($key, '');
-        return ['path' => $path, 'lang' => (string)($this->settings['languages']['default'] ?? 'el')];
-    }
-
-    /** @return array{title: string, items: array<int, array<string, mixed>>} */
-    private function loadMenuDefinition(string $key, string $lang): array
-    {
-        $cacheKey = $key . '|single';
-        if (isset($this->menusCache[$cacheKey])) {
-            return $this->menusCache[$cacheKey];
-        }
-
-        $menu = [
-            'title' => $this->titleFromSlug($key),
-            'items' => [],
-        ];
-
-        $source = $this->resolveMenuSource($key, '');
-        if ($source['path'] !== '' && is_file($source['path'])) {
-            $data = Yaml::parseFile($source['path']);
-            if (is_array($data)) {
-                $title = trim((string)($data['title'] ?? ''));
-                if ($title !== '') {
-                    $menu['title'] = $title;
-                }
-                $menu['items'] = $this->normalizeMenuItems($data['items'] ?? []);
-            }
-        }
-
-        $this->menusCache[$cacheKey] = $menu;
-        return $menu;
-    }
-
-    private function writeMenuDefinition(string $key, string $lang, array $menu): void
-    {
-        $dir = $this->menuDir();
-        if (!is_dir($dir)) {
-            mkdir($dir, 0775, true);
-        }
-        $path = $this->menuWritePath($key, $lang);
-        $title = trim((string)($menu['title'] ?? ''));
-        if ($title === '') {
-            $title = $this->titleFromSlug($key);
-        }
-        $items = $this->normalizeMenuItems($menu['items'] ?? []);
-        $payload = [
-            'title' => $title,
-            'items' => $items,
-        ];
-        file_put_contents($path, Yaml::dump($payload, 4, 2));
-        $this->menusCache = [];
-    }
-
-    /** @return array<int, array<string, mixed>> */
-    private function normalizeMenuItems(mixed $items, int $depth = 1): array
-    {
-        if (!is_array($items)) {
-            return [];
-        }
-        $depth = max(1, min(3, $depth));
-        $defaultLang = (string)($this->settings['languages']['default'] ?? 'el');
-        $languages = $this->settings['languages']['available'] ?? [$defaultLang];
-        $rows = [];
-        foreach ($items as $row) {
-            if (!is_array($row)) {
-                continue;
-            }
-            $label = trim((string)($row['label'] ?? ''));
-            $labelKey = trim((string)($row['label_key'] ?? ''));
-            $sourceLabels = is_array($row['labels'] ?? null) ? $row['labels'] : [];
-            $labels = [];
-            foreach ($languages as $language) {
-                $language = (string)$language;
-                $labels[$language] = trim((string)($sourceLabels[$language] ?? ''));
-            }
-            if ($label !== '' && ($labels[$defaultLang] ?? '') === '') {
-                $labels[$defaultLang] = $label;
-            }
-            $url = trim((string)($row['url'] ?? ''));
-            $class = trim((string)($row['class'] ?? ''));
-            $target = trim((string)($row['target'] ?? ''));
-            $children = [];
-            if ($depth < 3) {
-                $children = $this->normalizeMenuItems($row['children'] ?? [], $depth + 1);
-            }
-            $hasLabels = false;
-            foreach ($labels as $value) {
-                if ($value !== '') {
-                    $hasLabels = true;
-                    break;
-                }
-            }
-            if ($label === '' && $labelKey === '' && !$hasLabels && $url === '' && empty($children)) {
-                continue;
-            }
-            $item = [
-                'label' => $label,
-                'label_key' => $labelKey,
-                'labels' => $labels,
-                'url' => $url,
-                'class' => $class,
-                'target' => $target,
-            ];
-            if (!empty($children)) {
-                $item['children'] = $children;
-            }
-            $rows[] = $item;
-        }
-        return $rows;
-    }
-
-    /** @return array<int, array{depth: string, label_key: string, labels: array<string, string>, url: string, class: string, target: string}> */
-    private function flattenMenuItemsForAdmin(mixed $items, array $languages, int $depth = 1): array
-    {
-        $depth = max(1, min(3, $depth));
-        $rows = [];
-        foreach ($this->normalizeMenuItems($items, $depth) as $item) {
-            $rowLabels = [];
-            $labels = is_array($item['labels'] ?? null) ? $item['labels'] : [];
-            foreach ($languages as $language) {
-                $language = (string)$language;
-                $rowLabels[$language] = trim((string)($labels[$language] ?? ''));
-            }
-            $rows[] = [
-                'depth' => (string)$depth,
-                'label_key' => trim((string)($item['label_key'] ?? '')),
-                'labels' => $rowLabels,
-                'url' => trim((string)($item['url'] ?? '')),
-                'class' => trim((string)($item['class'] ?? '')),
-                'target' => trim((string)($item['target'] ?? '')),
-            ];
-            if ($depth < 3 && isset($item['children']) && is_array($item['children'])) {
-                $rows = array_merge($rows, $this->flattenMenuItemsForAdmin($item['children'], $languages, $depth + 1));
-            }
-        }
-        return $rows;
-    }
-
-    /** @return array<int, array<string, mixed>> */
-    private function buildMenuItemsFromAdminRows(mixed $labelKeys, mixed $labelLangs, mixed $urls, mixed $classes, mixed $targets, mixed $depths, array $languages): array
-    {
-        $labelKeys = is_array($labelKeys) ? $labelKeys : [];
-        $labelLangs = is_array($labelLangs) ? $labelLangs : [];
-        $urls = is_array($urls) ? $urls : [];
-        $classes = is_array($classes) ? $classes : [];
-        $targets = is_array($targets) ? $targets : [];
-        $depths = is_array($depths) ? $depths : [];
-
-        $count = max(count($labelKeys), count($urls), count($classes), count($targets), count($depths));
-        $roots = [];
-        $stack = [];
-
-        for ($i = 0; $i < $count; $i++) {
-            $labelKey = trim((string)($labelKeys[$i] ?? ''));
-            $labels = [];
-            $hasLabels = false;
-            foreach ($languages as $language) {
-                $language = (string)$language;
-                $langRows = is_array($labelLangs[$language] ?? null) ? $labelLangs[$language] : [];
-                $value = trim((string)($langRows[$i] ?? ''));
-                $labels[$language] = $value;
-                if ($value !== '') {
-                    $hasLabels = true;
-                }
-            }
-            $url = trim((string)($urls[$i] ?? ''));
-            $class = trim((string)($classes[$i] ?? ''));
-            $target = trim((string)($targets[$i] ?? ''));
-            if ($labelKey === '' && !$hasLabels && $url === '') {
-                continue;
-            }
-
-            $depth = (int)($depths[$i] ?? 1);
-            $depth = max(1, min(3, $depth));
-            while ($depth > 1 && !isset($stack[$depth - 1])) {
-                $depth--;
-            }
-
-            $item = [
-                'label_key' => $labelKey,
-                'labels' => $labels,
-                'url' => $url,
-                'class' => $class,
-                'target' => $target,
-            ];
-
-            if ($depth === 1) {
-                $roots[] = $item;
-                $stack = [1 => count($roots) - 1];
-                continue;
-            }
-
-            $parentDepth = $depth - 1;
-            $parent = &$this->menuNodeByStack($roots, $stack, $parentDepth);
-            if (!isset($parent['children']) || !is_array($parent['children'])) {
-                $parent['children'] = [];
-            }
-            $parent['children'][] = $item;
-            $stack[$depth] = count($parent['children']) - 1;
-            for ($d = $depth + 1; $d <= 3; $d++) {
-                unset($stack[$d]);
-            }
-            unset($parent);
-        }
-
-        return $this->normalizeMenuItems($roots);
-    }
-
-    /** @param array<int, int> $stack */
-    private function &menuNodeByStack(array &$roots, array $stack, int $depth): array
-    {
-        $ref = &$roots[(int)$stack[1]];
-        for ($d = 2; $d <= $depth; $d++) {
-            if (!isset($ref['children']) || !is_array($ref['children'])) {
-                $ref['children'] = [];
-            }
-            $ref = &$ref['children'][(int)$stack[$d]];
-        }
-        return $ref;
-    }
-
-    /** @return array<string, array<int, array<string, mixed>>> */
-    private function resolveThemeMenus(string $lang, string $currentPath): array
-    {
-        $locations = $this->settings['menu_locations'] ?? [];
-        if (!is_array($locations)) {
-            $locations = [];
-        }
-        foreach ($this->theme->menuLocations() + ['header' => ['default' => 'main'], 'footer' => ['default' => 'footer']] as $location => $definition) {
-            if (!isset($locations[$location]) || trim((string)$locations[$location]) === '') {
-                $locations[$location] = $definition['default'];
-            }
-        }
-
-        $resolved = [];
-        foreach ($locations as $location => $key) {
-            $location = $this->slugify((string)$location);
-            $key = $this->slugify((string)$key);
-            if ($location === '' || $key === '') {
-                continue;
-            }
-            $menu = $this->loadMenuDefinition($key, $lang);
-            $activeItems = $this->applyMenuActiveState($menu['items'] ?? [], $this->normalizeMenuPath($currentPath));
-            $resolved[$location] = $this->localizeMenuItems($activeItems, $lang);
-        }
-
-        if (empty($resolved['header'] ?? [])) {
-            $legacyHeader = $this->settings['menu']['header'] ?? [];
-            if (is_array($legacyHeader)) {
-                $activeItems = $this->applyMenuActiveState($this->normalizeMenuItems($legacyHeader), $this->normalizeMenuPath($currentPath));
-                $resolved['header'] = $this->localizeMenuItems($activeItems, $lang);
-            }
-        }
-
-        return $resolved;
-    }
-
-    /** @param array<int, array<string, mixed>> $items
-     *  @return array<int, array<string, mixed>>
-     */
-    private function localizeMenuItems(array $items, string $lang): array
-    {
-        $defaultLang = (string)($this->settings['languages']['default'] ?? 'el');
-        $rows = [];
-        foreach ($items as $item) {
-            if (!is_array($item)) {
-                continue;
-            }
-            $labels = is_array($item['labels'] ?? null) ? $item['labels'] : [];
-            $label = trim((string)($labels[$lang] ?? ''));
-            if ($label === '') {
-                $labelKey = trim((string)($item['label_key'] ?? ''));
-                if ($labelKey !== '') {
-                    $label = $this->translate($labelKey, $labelKey);
-                }
-            }
-            if ($label === '' && $defaultLang !== $lang) {
-                $label = trim((string)($labels[$defaultLang] ?? ''));
-            }
-            if ($label === '') {
-                $label = trim((string)($item['label'] ?? ''));
-            }
-            $item['label'] = $label;
-            if (isset($item['children']) && is_array($item['children'])) {
-                $item['children'] = $this->localizeMenuItems($item['children'], $lang);
-            }
-            $rows[] = $item;
-        }
-        return $rows;
-    }
-
-    /** @param array<int, array<string, mixed>> $items
-     *  @return array<int, array<string, mixed>>
-     */
-    private function applyMenuActiveState(array $items, string $currentPath): array
-    {
-        $rows = [];
-        foreach ($items as $item) {
-            if (!is_array($item)) {
-                continue;
-            }
-            $children = [];
-            $hasChildActive = false;
-            if (isset($item['children']) && is_array($item['children'])) {
-                $children = $this->applyMenuActiveState($item['children'], $currentPath);
-                foreach ($children as $child) {
-                    if (!is_array($child)) {
-                        continue;
-                    }
-                    if (($child['is_active'] ?? false) || ($child['is_trail'] ?? false)) {
-                        $hasChildActive = true;
-                        break;
-                    }
-                }
-            }
-
-            $isActive = $this->isMenuUrlActive((string)($item['url'] ?? ''), $currentPath);
-            $item['is_active'] = $isActive;
-            $item['is_trail'] = $hasChildActive;
-            if (!empty($children)) {
-                $item['children'] = $children;
-            } else {
-                unset($item['children']);
-            }
-            $rows[] = $item;
-        }
-        return $rows;
-    }
-
-    private function isMenuUrlActive(string $url, string $currentPath): bool
-    {
-        $targetPath = $this->menuTargetPath($url);
-        if ($targetPath === null) {
-            return false;
-        }
-        if ($targetPath === '') {
-            return $currentPath === '';
-        }
-        if ($currentPath === $targetPath) {
-            return true;
-        }
-        return str_starts_with($currentPath, $targetPath . '/');
-    }
-
-    private function menuTargetPath(string $url): ?string
-    {
-        $url = trim($url);
-        if ($url === '' || $url === '/') {
-            return '';
-        }
-
-        if (str_starts_with($url, '#') || str_starts_with($url, 'mailto:') || str_starts_with($url, 'tel:')) {
-            return null;
-        }
-
-        if (preg_match('/^https?:\/\//i', $url) === 1) {
-            $targetHost = (string)(parse_url($url, PHP_URL_HOST) ?? '');
-            $baseHost = (string)(parse_url((string)($this->settings['base_url'] ?? ''), PHP_URL_HOST) ?? '');
-            if ($targetHost === '' || $baseHost === '' || strcasecmp($targetHost, $baseHost) !== 0) {
-                return null;
-            }
-            $url = (string)(parse_url($url, PHP_URL_PATH) ?? '');
-        }
-
-        return $this->normalizeMenuPath($url);
-    }
-
-    private function normalizeMenuPath(string $path): string
-    {
-        $raw = trim($path);
-        if ($raw === '') {
-            return '';
-        }
-
-        $parsed = parse_url($raw);
-        if (is_array($parsed) && array_key_exists('path', $parsed)) {
-            $path = trim((string)$parsed['path']);
-        } else {
-            $path = $raw;
-        }
-
-        $path = trim($path, '/');
-        if ($path === '') {
-            return '';
-        }
-
-        $segments = explode('/', $path);
-        $available = $this->settings['languages']['available'] ?? [];
-        if (isset($segments[0]) && in_array($segments[0], $available, true)) {
-            array_shift($segments);
-        }
-
-        if (($segments[0] ?? '') === 'pages') {
-            array_shift($segments);
-        }
-
-        $homeSlug = $this->slugify((string)($this->settings['home_page'] ?? 'index'));
-        $normalized = trim(implode('/', $segments), '/');
-        if ($normalized === $homeSlug) {
-            return '';
-        }
-
-        return $normalized;
     }
 
     /** @return array{0: string, 1: string[]} */
@@ -7961,34 +7429,6 @@ final class App
     private function translationSiblings(string $type, string $slug, string $lang): array
     {
         return $this->contentEditor()->translationSiblings($type, $slug, $lang);
-    }
-
-    /** Menu links follow a page whose address changed. Links are language-neutral ("about", "posts/my-post"). */
-    private function relinkMenus(string $oldUrl, string $newUrl): void
-    {
-        $walk = function (array $items) use (&$walk, $oldUrl, $newUrl, &$changed): array {
-            foreach ($items as $i => $item) {
-                if (!is_array($item)) {
-                    continue;
-                }
-                if (isset($item['url']) && trim((string)$item['url'], '/') === $oldUrl) {
-                    $items[$i]['url'] = $newUrl;
-                    $changed = true;
-                }
-                if (isset($item['children']) && is_array($item['children'])) {
-                    $items[$i]['children'] = $walk($item['children']);
-                }
-            }
-            return $items;
-        };
-        foreach ($this->listMenuKeys() as $key) {
-            $changed = false;
-            $menu = $this->loadMenuDefinition($key, '');
-            $menu['items'] = $walk($menu['items']);
-            if ($changed) {
-                $this->writeMenuDefinition($key, '', $menu);
-            }
-        }
     }
 
     private function slugify(string $value): string
