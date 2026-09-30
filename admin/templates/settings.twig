@@ -76,7 +76,7 @@
       <div class="{{ panel_class }}{% if active_tab != 'limits' %} hidden{% else %} active{% endif %}" data-panel="limits">
         <div class="{{ section_class }}">
           <div class="{{ section_header_class }}">
-            <h3 class="text-sm font-semibold text-slate-900">Storage</h3>
+            <h2 class="text-sm font-semibold text-slate-900">Storage</h2>
             <p class="mt-0.5 text-xs text-slate-400">How much space this site may use. Only a super admin sees this. The bar in the sidebar and on the dashboard follows it: orange from 80%, red from 90%, when everyone in the admin is shown a message, and at 100% new uploads are blocked.</p>
           </div>
           {% set limit_mb = settings_form.storage_limit_mb %}
@@ -107,7 +107,7 @@
 
         <div class="{{ section_class }}">
           <div class="{{ section_header_class }}">
-            <h3 class="text-sm font-semibold text-slate-900">File uploads</h3>
+            <h2 class="text-sm font-semibold text-slate-900">File uploads</h2>
             <p class="mt-0.5 text-xs text-slate-400">What can be added to the media library (and as a main image while editing). A file that is too big or of a kind that is not ticked is refused with the reason.</p>
           </div>
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -140,7 +140,7 @@
       <div class="{{ panel_class }}{% if active_tab != 'basics' %} hidden{% else %} active{% endif %}" data-panel="basics">
         <div class="{{ section_class }}">
           <div class="{{ section_header_class }}">
-            <h3 class="text-sm font-semibold text-slate-900">Site Identity</h3>
+            <h2 class="text-sm font-semibold text-slate-900">Site Identity</h2>
             <p class="mt-0.5 text-xs text-slate-400">Basic information used across the public site and admin.</p>
           </div>
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -165,7 +165,7 @@
 
         <div class="{{ section_class }}">
           <div class="{{ section_header_class }}">
-            <h3 class="text-sm font-semibold text-slate-900">Localization</h3>
+            <h2 class="text-sm font-semibold text-slate-900">Localization</h2>
             <p class="mt-0.5 text-xs text-slate-400">Default language, available locales and date formatting.</p>
           </div>
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -188,7 +188,7 @@
       <div class="{{ panel_class }}{% if active_tab != 'menus' %} hidden{% else %} active{% endif %}" data-panel="menus">
         <div class="{{ section_class }}">
           <div class="{{ section_header_class }}">
-            <h3 class="text-sm font-semibold text-slate-900">Menu Locations</h3>
+            <h2 class="text-sm font-semibold text-slate-900">Menu Locations</h2>
             <p class="mt-0.5 text-xs text-slate-400">Map theme locations to menu keys. Menu items stay managed in Menus.</p>
           </div>
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -205,22 +205,22 @@
 
         <div class="{{ section_class }}">
           <div class="{{ section_header_class }}">
-            <h3 class="text-sm font-semibold text-slate-900">Extra Locations</h3>
+            <h2 class="text-sm font-semibold text-slate-900">Extra Locations</h2>
             <p class="mt-0.5 text-xs text-slate-400">Add optional theme slots such as sidebar or utility menus.</p>
           </div>
           <div class="grid gap-3" data-menu-locations>
             {% if settings_form.menu_location_keys is not empty %}
               {% for index, key in settings_form.menu_location_keys %}
                 <div class="grid grid-cols-1 items-start gap-2 md:grid-cols-[1fr_2fr_auto]" data-menu-location-row>
-                  <input type="text" name="menu_location_keys[]" value="{{ key }}" placeholder="sidebar" class="{{ input_class }}">
-                  <input type="text" name="menu_location_values[]" value="{{ settings_form.menu_location_values[index]|default('') }}" placeholder="sidebar-menu" class="{{ input_class }}">
+                  <input type="text" name="menu_location_keys[]" aria-label="Location name" value="{{ key }}" placeholder="sidebar" class="{{ input_class }}">
+                  <input type="text" name="menu_location_values[]" aria-label="Menu" value="{{ settings_form.menu_location_values[index]|default('') }}" placeholder="sidebar-menu" class="{{ input_class }}">
                   <button type="button" class="{{ danger_button_class }} js-remove-menu-location">Remove</button>
                 </div>
               {% endfor %}
             {% else %}
               <div class="grid grid-cols-1 items-start gap-2 md:grid-cols-[1fr_2fr_auto]" data-menu-location-row>
-                <input type="text" name="menu_location_keys[]" placeholder="sidebar" class="{{ input_class }}">
-                <input type="text" name="menu_location_values[]" placeholder="sidebar-menu" class="{{ input_class }}">
+                <input type="text" name="menu_location_keys[]" aria-label="Location name" placeholder="sidebar" class="{{ input_class }}">
+                <input type="text" name="menu_location_values[]" aria-label="Menu" placeholder="sidebar-menu" class="{{ input_class }}">
                 <button type="button" class="{{ danger_button_class }} js-remove-menu-location">Remove</button>
               </div>
             {% endif %}
@@ -237,7 +237,7 @@
       <div class="{{ panel_class }}{% if active_tab != 'smtp' %} hidden{% else %} active{% endif %}" data-panel="smtp">
         <div class="{{ section_class }}">
           <div class="{{ section_header_class }}">
-            <h3 class="text-sm font-semibold text-slate-900">Mailer</h3>
+            <h2 class="text-sm font-semibold text-slate-900">Mailer</h2>
             <p class="mt-0.5 text-xs text-slate-400">Outgoing email identity and provider.</p>
           </div>
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -269,7 +269,7 @@
 
         <div class="{{ section_class }}">
           <div class="{{ section_header_class }}">
-            <h3 class="text-sm font-semibold text-slate-900">SMTP Configuration</h3>
+            <h2 class="text-sm font-semibold text-slate-900">SMTP Configuration</h2>
             <p class="mt-0.5 text-xs text-slate-400">Server credentials used when SMTP is selected.</p>
           </div>
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -302,7 +302,7 @@
 
         <div class="{{ section_class }}">
           <div class="{{ section_header_class }}">
-            <h3 class="text-sm font-semibold text-slate-900">AWS SES</h3>
+            <h2 class="text-sm font-semibold text-slate-900">AWS SES</h2>
             <p class="mt-0.5 text-xs text-slate-400">Credentials used when AWS SES is selected.</p>
           </div>
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -325,7 +325,7 @@
       <div class="{{ panel_class }}{% if active_tab != 'auth' %} hidden{% else %} active{% endif %}" data-panel="auth">
         <div class="{{ section_class }}">
           <div class="{{ section_header_class }}">
-            <h3 class="text-sm font-semibold text-slate-900">Google Sign-In</h3>
+            <h2 class="text-sm font-semibold text-slate-900">Google Sign-In</h2>
             <p class="mt-0.5 text-xs text-slate-400">Allow existing FarosCMS users to sign in with matching Google accounts.</p>
           </div>
           <label class="flex items-start justify-between gap-4 py-2.5">
@@ -360,7 +360,7 @@
       <div class="{{ panel_class }}{% if active_tab != 'backup' %} hidden{% else %} active{% endif %}" data-panel="backup">
         <div class="{{ section_class }}">
           <div class="{{ section_header_class }}">
-            <h3 class="text-sm font-semibold text-slate-900">Backup Schedule</h3>
+            <h2 class="text-sm font-semibold text-slate-900">Backup Schedule</h2>
             <p class="mt-0.5 text-xs text-slate-400">Automated local snapshot policy.</p>
           </div>
           <label class="flex items-start justify-between gap-4 py-2.5">
@@ -396,7 +396,7 @@
 
         <div class="{{ section_class }}">
           <div class="{{ section_header_class }}">
-            <h3 class="text-sm font-semibold text-slate-900">Remote Storage</h3>
+            <h2 class="text-sm font-semibold text-slate-900">Remote Storage</h2>
             <p class="mt-0.5 text-xs text-slate-400">S3-compatible destination for offsite copies, including AWS S3, Backblaze B2, Cloudflare R2, Wasabi, DigitalOcean Spaces, and MinIO.</p>
           </div>
           <label class="flex items-start justify-between gap-4 py-2.5">
@@ -468,7 +468,7 @@
       <div class="{{ panel_class }}{% if active_tab != 'updates' %} hidden{% else %} active{% endif %}" data-panel="updates">
         <div class="{{ section_class }}">
           <div class="{{ section_header_class }}">
-            <h3 class="text-sm font-semibold text-slate-900">Update Source</h3>
+            <h2 class="text-sm font-semibold text-slate-900">Update Source</h2>
             <p class="mt-0.5 text-xs text-slate-400">GitHub repository used by the read-only Updates module.</p>
           </div>
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -504,7 +504,7 @@
       <div class="{{ panel_class }}{% if active_tab != 'apis' %} hidden{% else %} active{% endif %}" data-panel="apis">
         <div class="{{ section_class }}">
           <div class="{{ section_header_class }}">
-            <h3 class="text-sm font-semibold text-slate-900">API Settings</h3>
+            <h2 class="text-sm font-semibold text-slate-900">API Settings</h2>
             <p class="mt-0.5 text-xs text-slate-400">Reserved for future integrations.</p>
           </div>
           <p class="text-sm text-slate-500">API settings will appear here.</p>
@@ -573,8 +573,8 @@
           row.className = 'grid grid-cols-1 items-start gap-2 md:grid-cols-[1fr_2fr_auto]';
           row.setAttribute('data-menu-location-row', '');
           row.innerHTML = `
-            <input type="text" name="menu_location_keys[]" placeholder="sidebar" class="{{ input_class }}">
-            <input type="text" name="menu_location_values[]" placeholder="sidebar-menu" class="{{ input_class }}">
+            <input type="text" name="menu_location_keys[]" aria-label="Location name" placeholder="sidebar" class="{{ input_class }}">
+            <input type="text" name="menu_location_values[]" aria-label="Menu" placeholder="sidebar-menu" class="{{ input_class }}">
             <button type="button" class="{{ danger_button_class }} js-remove-menu-location">Remove</button>
           `;
           locationsContainer.appendChild(row);

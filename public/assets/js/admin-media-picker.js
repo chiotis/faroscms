@@ -46,7 +46,7 @@
   function build() {
     ui.search = el('input', { type: 'search', placeholder: 'Search by name or tag…', class: CLS.input + ' min-w-0 flex-1', 'aria-label': 'Search images' });
     ui.tag = el('select', { class: CLS.input + ' w-40', 'aria-label': 'Filter by tag' }, [el('option', { value: '', text: 'All tags' })]);
-    ui.grid = el('div', { class: 'grid grid-cols-2 gap-3 p-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6', role: 'list' });
+    ui.grid = el('div', { class: 'grid grid-cols-2 gap-3 p-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6', role: 'group', 'aria-label': 'Images' });
     ui.status = el('p', { class: 'px-4 pb-1 text-sm text-slate-500', role: 'status', 'aria-live': 'polite' });
     ui.info = el('span', { class: 'text-xs text-slate-500' });
     ui.prev = el('button', { type: 'button', class: CLS.btn, text: 'Previous', onclick: function () { go(state.page - 1); } });
@@ -89,7 +89,7 @@
     fillTags(payload.tags || []);
     state.page = payload.page;
     (payload.items || []).forEach(function (item) {
-      var button = el('button', { type: 'button', role: 'listitem', class: 'overflow-hidden rounded-md border border-slate-200 bg-white text-left transition hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40' }, [
+      var button = el('button', { type: 'button', class: 'overflow-hidden rounded-md border border-slate-200 bg-white text-left transition hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40' }, [
         el('img', { src: item.thumb || item.url, alt: '', class: 'h-24 w-full object-cover', loading: 'lazy' }),
         el('span', { class: 'block truncate px-2 py-1 text-[11px] text-slate-600', text: item.name })
       ]);

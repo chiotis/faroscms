@@ -56,7 +56,7 @@ Direction: one all-purpose theme (`themes/default`) that grows with blocks and v
 ## Admin UI
 - Current baseline: fixed left sidebar (Overview, Content, Manage, System) that slides in on narrow screens, with one fixed Save bar that also carries messages
 - Current baseline: sidebar and screens follow each role's permissions (Admin > Roles)
-- Admin screens are still checked by hand and with the axe audit only on the public theme; add an accessibility audit of the admin
+- Admin accessibility (done): every screen and state scanned with axe-core in light, dark, and phone width with no violations; see `docs/admin-accessibility.md`. Still to do by hand: screen readers
 
 ## Forms
 - Translation helper: clone fields/options from source form when creating a new language version

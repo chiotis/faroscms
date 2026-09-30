@@ -152,6 +152,7 @@
     var progress = bar.querySelector('[data-action-bar-progress]');
     var live = bar.querySelector('[data-action-bar-live]');
     var dismiss = bar.querySelector('[data-action-bar-dismiss]');
+    var layer = bar.querySelector('[data-action-bar-message]');
     var timer = null;
     var done = false;
 
@@ -159,7 +160,9 @@
     icon.innerHTML = '<svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">' + BAR_ICONS[item.type] + '</svg>';
     ['success', 'warning', 'error', 'info'].forEach(function (t) { bar.classList.remove('tone-' + t); });
     bar.classList.add('tone-' + item.type);
-    // Screen readers get the message from a live region; the visible layer is hidden from them.
+    // Screen readers are told by the live region. The visible layer is hidden from them while it rests, but shown to
+    // them while it is up, since its Dismiss button is focusable (and takes focus for an error).
+    if (layer) layer.removeAttribute('aria-hidden');
     live.setAttribute('aria-live', item.type === 'error' ? 'assertive' : 'polite');
     live.textContent = '';
     setTimeout(function () { live.textContent = item.msg; }, 50);
@@ -173,6 +176,7 @@
       clearTimeout(timer);
       document.removeEventListener('keydown', onKey);
       bar.classList.remove('is-notifying');
+      if (layer) layer.setAttribute('aria-hidden', 'true');
       if (content) content.removeAttribute('inert');
       dismiss.setAttribute('tabindex', '-1');
       progress.style.transition = 'none';
@@ -537,11 +541,76 @@
     document.querySelectorAll('[data-repeater]').forEach(renumberRepeater);
   });
 
+  /* ---- Tabs, for assistive technology ----
+   * Several screens switch their own tabs (the editor, Settings, Theme). This gives every tab bar the same
+   * semantics on top of that: each button is a tab that controls its panel, the selected one is the only one in the
+   * tab order, and the arrow keys, Home and End move between them (the WAI-ARIA tabs pattern). It follows the `active`
+   * class the screens already toggle, so it works with any of them. */
+  function enhanceTabs() {
+    document.querySelectorAll('[role="tablist"]').forEach(function (list, listIndex) {
+      var tabs = Array.prototype.slice.call(list.querySelectorAll('[data-tab]'));
+      if (tabs.length === 0) return;
+      var scope = list.closest('form') || document;
+      if (!list.hasAttribute('aria-label') && !list.hasAttribute('aria-labelledby')) list.setAttribute('aria-label', 'Sections');
+      tabs.forEach(function (tab) {
+        var key = tab.getAttribute('data-tab');
+        if (!tab.id) tab.id = 'tab-' + listIndex + '-' + key;
+        tab.setAttribute('role', 'tab');
+        var panel = scope.querySelector('[data-panel="' + key + '"]') || scope.querySelector('[data-tab-panel="' + key + '"]');
+        if (panel) {
+          if (!panel.id) panel.id = 'tabpanel-' + listIndex + '-' + key;
+          panel.setAttribute('role', 'tabpanel');
+          panel.setAttribute('aria-labelledby', tab.id);
+          tab.setAttribute('aria-controls', panel.id);
+        }
+      });
+      function sync() {
+        var current = tabs.filter(function (tab) { return tab.classList.contains('active'); })[0] || tabs[0];
+        tabs.forEach(function (tab) {
+          var on = tab === current;
+          tab.setAttribute('aria-selected', on ? 'true' : 'false');
+          tab.tabIndex = on ? 0 : -1;
+        });
+      }
+      sync();
+      new MutationObserver(sync).observe(list, { attributes: true, attributeFilter: ['class'], subtree: true });
+      list.addEventListener('keydown', function (event) {
+        var index = tabs.indexOf(document.activeElement);
+        if (index === -1) return;
+        var next = -1;
+        if (event.key === 'ArrowRight') next = (index + 1) % tabs.length;
+        else if (event.key === 'ArrowLeft') next = (index - 1 + tabs.length) % tabs.length;
+        else if (event.key === 'Home') next = 0;
+        else if (event.key === 'End') next = tabs.length - 1;
+        if (next === -1) return;
+        event.preventDefault();
+        tabs[next].focus();
+        tabs[next].click();
+      });
+    });
+  }
+
+  /* ---- Scrollable tables ----
+   * A table wider than a phone scrolls sideways inside its box. If nothing in it can take focus, a keyboard user could
+   * never scroll it, so such a box becomes focusable (arrow keys then scroll it). Checked again when the window changes. */
+  function makeScrollersFocusable() {
+    document.querySelectorAll('.overflow-x-auto').forEach(function (box) {
+      var scrolls = box.scrollWidth > box.clientWidth + 1;
+      var hasFocusable = !!box.querySelector('a[href], button:not([disabled]), input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])');
+      if (scrolls && !hasFocusable) box.setAttribute('tabindex', '0');
+      else if (box.getAttribute('data-scroll-focus') === '1' && !scrolls) box.removeAttribute('tabindex');
+      if (scrolls && !hasFocusable) box.setAttribute('data-scroll-focus', '1');
+    });
+  }
+  window.addEventListener('resize', makeScrollersFocusable);
+
   /* Activate first tab in each tab group on load */
   document.addEventListener('DOMContentLoaded', function () {
     injectThemeToggle();
     showServerFlashes();
     decorateSortableHeaders();
+    enhanceTabs();
+    makeScrollersFocusable();
     document.querySelectorAll('[data-tabs]').forEach(function (wrap) {
       var first = wrap.querySelector('[data-tab][data-tab-default]') || wrap.querySelector('[data-tab]');
       if (first) activateTab(wrap, first.getAttribute('data-tab'));

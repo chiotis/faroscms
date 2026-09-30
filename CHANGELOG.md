@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-09-30 — The admin passes an accessibility audit
+- Every admin screen and every state that needs a click (the icon and image pickers, confirmation dialogs, messages in the bottom bar, the phone sidebar, the block editor with every block open, each tab of the editor, Settings, and Theme) was scanned with axe-core in light mode, dark mode, and at phone width. It found real problems, all fixed; the scan now reports none. Details and how to repeat it: `docs/admin-accessibility.md`
+- **Muted text was too pale**: the grey of helper text, table headers, and labels was 2.6:1 on white (4.5:1 is the minimum), and several other greys, the green and orange text, and some dark-mode greys were also short. The four Tailwind shades involved are nudged in `tailwind.config.js` (the markup is unchanged), the dark-mode shades are lightened, a few dark-mode gaps are filled (translucent panels, delete buttons, message text), and a few places that used near-invisible grey for meaningful text (a missing translation, "new" in taxonomies) are readable now
+- **Tab bars are real tabs** for assistive technology: roles, the panel each controls, which one is selected, one tab stop, and the arrow, Home, and End keys (the editor, Settings, and Theme each switched their tabs their own way, and none said so to a screen reader)
+- **Names for controls**: the body and front matter boxes of the editor, the snippet menu, custom field rows, media checkboxes and search, taxonomy and translation fields, menu locations, and "rows per page" now have names; the empty table headers have hidden text
+- **Headings**: screens went from the `h1` straight to `h3`; cards are `h2` now (the editor, Settings, user editor, lists, and empty-state notes)
+- **Wide tables** that scroll sideways on a phone can be focused, so a keyboard user can scroll them
+- **A message in the bottom bar** is shown to assistive technology while it is up (its Dismiss button takes focus for an error, and the layer was hidden from screen readers)
+- New test `admin_a11y_test.py` keeps the parts that need no browser from slipping back: heading order, control names, tab panels, and the colour tokens
+
 ## 0.1.2 — 2026-09-30 — The version is visible on GitHub
 - Every time the `VERSION` file changes on `main`, a GitHub Actions workflow (`.github/workflows/release.yml`) tags it (`v0.1.2`) and publishes a **Release** whose notes are that version's entry from this changelog. The repository page now shows the latest version and the list of releases, and the README has a version badge. Until now the number lived only in the `VERSION` file, so nothing on the repository page showed it
 - The site's own update check is unchanged: it compares its local `VERSION` with the `VERSION` file on the configured branch. It reports an update only when the site is older than GitHub, so a site running this very code (such as the development copy) is always "up to date"

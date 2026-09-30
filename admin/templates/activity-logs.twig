@@ -80,7 +80,7 @@
           {% endif %}
         {% endfor %}
         <span>Rows</span>
-        <select name="per_page" class="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-600 focus:border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-900/5" onchange="this.form.submit()">
+        <select name="per_page" aria-label="Rows per page" class="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-600 focus:border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-900/5" onchange="this.form.submit()">
           {% for option in per_page_options %}
             <option value="{{ option }}" {% if per_page == option %}selected{% endif %}>{{ option }}</option>
           {% endfor %}

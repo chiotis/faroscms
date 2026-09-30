@@ -98,7 +98,7 @@
       <div class="space-y-4 xl:col-span-2">
         <div class="{{ section_class }}">
           <div class="{{ section_header_class }}">
-            <h3 class="text-sm font-semibold text-slate-900">Content</h3>
+            <h2 class="text-sm font-semibold text-slate-900">Content</h2>
             <p class="mt-0.5 text-xs text-slate-400">Core title, slug, summary and Markdown body.</p>
           </div>
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -163,7 +163,7 @@
 
         <div class="{{ section_class }}">
           <div class="{{ section_header_class }}">
-            <h3 class="text-sm font-semibold text-slate-900">Main Content</h3>
+            <h2 class="text-sm font-semibold text-slate-900">Main Content</h2>
             <p class="mt-0.5 text-xs text-slate-400">Markdown body used by the public template.</p>
           </div>
           <div class="mb-0 flex flex-wrap items-center gap-1.5 rounded-t-md border border-b-0 border-slate-300 bg-slate-50 px-2 py-2 text-slate-500" data-md-toolbar>
@@ -179,20 +179,20 @@
             <button type="button" class="{{ icon_button_class }}" title="Quote" data-action="quote">Quote</button>
             <button type="button" class="{{ icon_button_class }}" title="Code" data-action="code">Code</button>
             <button type="button" class="{{ icon_button_class }}" title="Image" data-action="image">Image</button>
-            <select class="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-600" data-action="snippet">
+            <select class="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-600" data-action="snippet" aria-label="Insert a snippet">
               <option value="">Snippet</option>
               <option value="iframe">Embed iframe</option>
               <option value="button">Button</option>
             </select>
           </div>
-          <textarea name="body" rows="18" data-md-body class="{{ textarea_class }} rounded-t-none font-mono text-[13px] leading-6">{{ body }}</textarea>
+          <textarea name="body" rows="18" data-md-body aria-label="Body" class="{{ textarea_class }} rounded-t-none font-mono text-[13px] leading-6">{{ body }}</textarea>
         </div>
       </div>
 
       <div class="space-y-4">
         <div class="sticky top-4 space-y-4 lg:top-6">
           <div class="{{ section_class }}">
-            <h3 class="mb-3 text-sm font-semibold text-slate-900">Publish</h3>
+            <h2 class="mb-3 text-sm font-semibold text-slate-900">Publish</h2>
             <div class="grid gap-3">
               <label class="block">
                 <span class="mb-1 block text-sm font-medium text-slate-700">Status</span>
@@ -235,7 +235,7 @@
           </div>
           {% if opening.layouts|default([]) is not empty or opening.transparent|default([]) is not empty %}
             <div class="{{ section_class }}" data-opening>
-              <h3 class="text-sm font-semibold text-slate-900">Hero Layout</h3>
+              <h2 class="text-sm font-semibold text-slate-900">Hero Layout</h2>
               <p class="mb-3 mt-0.5 text-xs text-slate-400">For this entry only. Leave both on “Follow settings” to use what Theme settings say for its content type. A page that starts with a Hero block uses that block as its opening.</p>
               <div class="grid gap-3">
                 {% if opening.layouts is not empty %}
@@ -282,7 +282,7 @@
       <div class="tab-panel hidden space-y-4" data-panel="media">
         <div class="{{ section_class }}">
           <div class="{{ section_header_class }}">
-            <h3 class="text-sm font-semibold text-slate-900">Main Image</h3>
+            <h2 class="text-sm font-semibold text-slate-900">Main Image</h2>
             <p class="mt-0.5 text-xs text-slate-400">Pick from the media library or upload a new image.</p>
           </div>
           <div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px]">
@@ -313,7 +313,7 @@
           <input type="hidden" name="details_present" value="1">
           <div class="{{ section_class }}">
             <div class="{{ section_header_class }}">
-              <h3 class="text-sm font-semibold text-slate-900">{{ type_definition.singular }} details</h3>
+              <h2 class="text-sm font-semibold text-slate-900">{{ type_definition.singular }} details</h2>
               <p class="mt-0.5 text-xs text-slate-400">{{ type_definition.description ?: 'Fields defined for this content type. They are shown on the page and can be used to filter the archive.' }}</p>
             </div>
             <div class="grid gap-3 md:grid-cols-2">
@@ -331,7 +331,7 @@
             {% set selected_terms = meta_form.taxonomy_terms[taxonomy.name]|default([]) %}
             <div class="{{ section_class }}">
               <div class="{{ section_header_class }}">
-                <h3 class="text-sm font-semibold text-slate-900">{{ taxonomy.title }}</h3>
+                <h2 class="text-sm font-semibold text-slate-900">{{ taxonomy.title }}</h2>
                 <p class="mt-0.5 text-xs text-slate-400">Assign taxonomy terms for this entry.</p>
               </div>
               {% if taxonomy.terms is empty %}
@@ -358,22 +358,22 @@
       <div class="tab-panel hidden space-y-4" data-panel="custom">
         <div class="{{ section_class }}">
           <div class="{{ section_header_class }}">
-            <h3 class="text-sm font-semibold text-slate-900">Custom Fields</h3>
+            <h2 class="text-sm font-semibold text-slate-900">Custom Fields</h2>
             <p class="mt-0.5 text-xs text-slate-400">Extra front matter saved under custom_fields.</p>
           </div>
           <div class="grid gap-3" data-custom-fields>
             {% if meta_form.custom_fields is not empty %}
               {% for field in meta_form.custom_fields %}
                 <div class="custom-field-row grid grid-cols-1 items-start gap-2 md:grid-cols-[1fr_2fr_auto]">
-                  <input type="text" name="custom_keys[]" placeholder="field_name" value="{{ field.key }}" class="{{ input_class }}">
-                  <textarea name="custom_values[]" rows="2" placeholder="Value" class="{{ textarea_class }}">{{ field.value }}</textarea>
+                  <input type="text" name="custom_keys[]" aria-label="Field name" placeholder="field_name" value="{{ field.key }}" class="{{ input_class }}">
+                  <textarea name="custom_values[]" rows="2" aria-label="Field value" placeholder="Value" class="{{ textarea_class }}">{{ field.value }}</textarea>
                   <button type="button" class="{{ danger_button_class }} js-remove-field">Remove</button>
                 </div>
               {% endfor %}
             {% else %}
               <div class="custom-field-row grid grid-cols-1 items-start gap-2 md:grid-cols-[1fr_2fr_auto]">
-                <input type="text" name="custom_keys[]" placeholder="field_name" class="{{ input_class }}">
-                <textarea name="custom_values[]" rows="2" placeholder="Value" class="{{ textarea_class }}"></textarea>
+                <input type="text" name="custom_keys[]" aria-label="Field name" placeholder="field_name" class="{{ input_class }}">
+                <textarea name="custom_values[]" rows="2" aria-label="Field value" placeholder="Value" class="{{ textarea_class }}"></textarea>
                 <button type="button" class="{{ danger_button_class }} js-remove-field">Remove</button>
               </div>
             {% endif %}
@@ -390,7 +390,7 @@
       <div class="tab-panel hidden space-y-4" data-panel="fields">
         <div class="{{ section_class }}">
           <div class="{{ section_header_class }}">
-            <h3 class="text-sm font-semibold text-slate-900">Fields</h3>
+            <h2 class="text-sm font-semibold text-slate-900">Fields</h2>
             <p class="mt-0.5 text-xs text-slate-400">Define the inputs that appear in this form.</p>
           </div>
           <div class="grid gap-3" data-form-fields>
@@ -513,7 +513,7 @@
       <div class="tab-panel hidden space-y-4" data-panel="notifications">
         <div class="{{ section_class }}">
           <div class="{{ section_header_class }}">
-            <h3 class="text-sm font-semibold text-slate-900">Admin Notification</h3>
+            <h2 class="text-sm font-semibold text-slate-900">Admin Notification</h2>
             <p class="mt-0.5 text-xs text-slate-400">Email sent to site administrators when a form is submitted.</p>
           </div>
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -546,7 +546,7 @@
 
         <div class="{{ section_class }}">
           <div class="{{ section_header_class }}">
-            <h3 class="text-sm font-semibold text-slate-900">Auto-reply</h3>
+            <h2 class="text-sm font-semibold text-slate-900">Auto-reply</h2>
             <p class="mt-0.5 text-xs text-slate-400">Optional message sent to the submitter.</p>
           </div>
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -571,7 +571,7 @@
 
         <div class="{{ section_class }}">
           <div class="{{ section_header_class }}">
-            <h3 class="text-sm font-semibold text-slate-900">Storage & Success</h3>
+            <h2 class="text-sm font-semibold text-slate-900">Storage & Success</h2>
             <p class="mt-0.5 text-xs text-slate-400">Submission storage, redirect and success message.</p>
           </div>
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -607,7 +607,7 @@
         <div class="{{ section_class }}">
           <div class="{{ section_header_class }} flex items-center justify-between gap-3">
             <div>
-              <h3 class="text-sm font-semibold text-slate-900">Submissions</h3>
+              <h2 class="text-sm font-semibold text-slate-900">Submissions</h2>
               <p class="mt-0.5 text-xs text-slate-400">{{ form_submissions_total > form_submissions|length ? 'Latest ' ~ form_submissions|length ~ ' of ' ~ form_submissions_total ~ ' stored submissions.' : 'Stored submissions for this form.' }}</p>
             </div>
             {% if slug %}
@@ -646,7 +646,7 @@
     <div class="tab-panel hidden space-y-4" data-panel="seo">
       <div class="{{ section_class }}">
         <div class="{{ section_header_class }}">
-          <h3 class="text-sm font-semibold text-slate-900">Search Metadata</h3>
+          <h2 class="text-sm font-semibold text-slate-900">Search Metadata</h2>
           <p class="mt-0.5 text-xs text-slate-400">Title, description and canonical URL for search engines.</p>
         </div>
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -674,7 +674,7 @@
 
       <div class="{{ section_class }}">
         <div class="{{ section_header_class }}">
-          <h3 class="text-sm font-semibold text-slate-900">Open Graph</h3>
+          <h2 class="text-sm font-semibold text-slate-900">Open Graph</h2>
           <p class="mt-0.5 text-xs text-slate-400">Social sharing metadata.</p>
         </div>
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -697,7 +697,7 @@
     <div class="tab-panel hidden space-y-4" data-panel="translations">
       <div class="{{ section_class }}">
         <div class="{{ section_header_class }}">
-          <h3 class="text-sm font-semibold text-slate-900">Translations</h3>
+          <h2 class="text-sm font-semibold text-slate-900">Translations</h2>
           <p class="mt-0.5 text-xs text-slate-400">Linked content entries by language.</p>
         </div>
         <div class="grid gap-3">
@@ -730,7 +730,7 @@
       <div class="tab-panel hidden space-y-4" data-panel="history">
         <div class="{{ section_class }}">
           <div class="{{ section_header_class }}">
-            <h3 class="text-sm font-semibold text-slate-900">History</h3>
+            <h2 class="text-sm font-semibold text-slate-900">History</h2>
             <p class="mt-0.5 text-xs text-slate-400">Earlier versions of this item. Open one to see what changed and to restore it.</p>
           </div>
           {% if history %}
@@ -759,10 +759,10 @@
     <div class="tab-panel hidden space-y-4" data-panel="advanced">
       <div class="{{ section_class }}">
         <div class="{{ section_header_class }}">
-          <h3 class="text-sm font-semibold text-slate-900">Front Matter</h3>
+          <h2 class="text-sm font-semibold text-slate-900">Front Matter</h2>
           <p class="mt-0.5 text-xs text-slate-400">Advanced YAML merged with the standard fields above.{% if block_editor_json %} Blocks are edited in the Blocks tab.{% endif %}</p>
         </div>
-        <textarea name="frontmatter" rows="16" class="{{ textarea_class }} font-mono text-[13px] leading-6">{{ frontmatter }}</textarea>
+        <textarea name="frontmatter" rows="16" aria-label="Front matter (YAML)" class="{{ textarea_class }} font-mono text-[13px] leading-6">{{ frontmatter }}</textarea>
       </div>
     </div>
 
@@ -929,8 +929,8 @@
           const row = document.createElement('div');
           row.className = 'custom-field-row grid grid-cols-1 items-start gap-2 md:grid-cols-[1fr_2fr_auto]';
           row.innerHTML = `
-            <input type="text" name="custom_keys[]" placeholder="field_name" class="{{ input_class }}">
-            <textarea name="custom_values[]" rows="2" placeholder="Value" class="{{ textarea_class }}"></textarea>
+            <input type="text" name="custom_keys[]" aria-label="Field name" placeholder="field_name" class="{{ input_class }}">
+            <textarea name="custom_values[]" rows="2" aria-label="Field value" placeholder="Value" class="{{ textarea_class }}"></textarea>
             <button type="button" class="{{ danger_button_class }} js-remove-field">Remove</button>
           `;
           fieldsContainer.appendChild(row);
