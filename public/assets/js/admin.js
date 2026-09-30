@@ -90,10 +90,7 @@
     wrap.querySelectorAll('[data-tab]').forEach(function (b) {
       var on = b.getAttribute('data-tab') === key;
       b.setAttribute('aria-selected', on ? 'true' : 'false');
-      b.classList.toggle('text-slate-900', on);
-      b.classList.toggle('border-blue-600', on);
-      b.classList.toggle('text-slate-500', !on);
-      b.classList.toggle('border-transparent', !on);
+      b.classList.toggle('active', on);
     });
     wrap.querySelectorAll('[data-tab-panel]').forEach(function (p) {
       p.classList.toggle('hidden', p.getAttribute('data-tab-panel') !== key);

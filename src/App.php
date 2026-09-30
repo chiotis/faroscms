@@ -807,6 +807,11 @@ final class App
 
         $this->maybeRunScheduledBackup();
 
+        if ($action === 'theme') {
+            $this->handleTheme();
+            return;
+        }
+
         if ($action === 'settings') {
             $this->handleSettings();
             return;
@@ -3526,9 +3531,12 @@ final class App
         $testStatus = (string)($_GET['test'] ?? '');
         $backupStatus = (string)($_GET['backup'] ?? '');
         $backupMessage = trim((string)($_GET['backup_msg'] ?? ''));
-        $themeStatus = (string)($_GET['theme'] ?? '');
-        $themeMessage = trim((string)($_GET['theme_msg'] ?? ''));
         $settingsError = trim((string)($_GET['settings_error'] ?? ''));
+        if (strtolower((string)($_GET['tab'] ?? '')) === 'theme' && $_SERVER['REQUEST_METHOD'] !== 'POST') {
+            // The theme has its own page now.
+            $this->redirect('/admin/theme');
+            return;
+        }
         $activeTab = $this->sanitizeSettingsTab((string)($_GET['tab'] ?? 'basics'));
 
         $downloadBackup = trim((string)($_GET['download_backup'] ?? ''));
@@ -3603,11 +3611,11 @@ final class App
             if ($limitAfter !== $limitBefore) {
                 $this->logActivity('limits.storage', 'warning', 'settings', 'storage_mb', 'Storage limit changed.', ['from_mb' => $limitBefore, 'to_mb' => $limitAfter]);
             }
-            $themeSave = $this->saveThemeSettings(is_array($_POST['theme_settings'] ?? null) ? $_POST['theme_settings'] : []);
+            $themeSave = is_array($_POST['theme_settings'] ?? null) ? $this->saveThemeSettings($_POST['theme_settings']) : ['ok' => true];
             $this->themeSettings = $this->loadThemeSettings();
             if (($themeSave['ok'] ?? false) !== true) {
                 $msg = urlencode((string)($themeSave['message'] ?? 'Theme settings could not be saved.'));
-                $this->redirect('/admin/settings?saved=1&tab=theme&theme=fail&theme_msg=' . $msg);
+                $this->redirect('/admin/theme?theme=fail&theme_msg=' . $msg);
                 return;
             }
             $this->logActivity('settings.update', 'info', 'settings', $activeTab, 'Settings updated.', [
@@ -3687,7 +3695,49 @@ final class App
             'admin_section' => 'settings',
             'settings_form' => $this->extractSettingsForm($parsed),
             'storage' => $this->permissions->can($this->auth->user(), 'limits.manage') ? $this->buildStorageSummary() : [],
-            'theme_schema' => $this->theme->settingsSchema(),
+            'backup_snapshots' => $this->listBackupSnapshots(),
+            'backup_status' => $backupStatus,
+            'backup_message' => $backupMessage,
+            'settings_error' => $settingsError,
+            'active_tab' => $activeTab,
+        ]);
+    }
+
+    /** Theme settings: one screen, a tab for each section the theme declares. */
+    private function handleTheme(): void
+    {
+        $schema = $this->theme->settingsSchema();
+        $tabs = [];
+        foreach ($schema as $key => $section) {
+            if (array_filter($section['fields'], static fn(array $field): bool => !$field['hidden']) !== []) {
+                $tabs[] = $key;
+            }
+        }
+        $activeTab = (string)($_GET['tab'] ?? '');
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $activeTab = (string)($_POST['active_tab'] ?? $activeTab);
+            $save = $this->saveThemeSettings(is_array($_POST['theme_settings'] ?? null) ? $_POST['theme_settings'] : []);
+            $this->themeSettings = $this->loadThemeSettings();
+            if (($save['ok'] ?? false) !== true) {
+                $this->redirect('/admin/theme?theme=fail&tab=' . urlencode($activeTab) . '&theme_msg=' . urlencode((string)($save['message'] ?? 'Theme settings could not be saved.')));
+                return;
+            }
+            $this->logActivity('theme.update', 'info', 'settings', $this->theme->name(), 'Theme settings updated.', ['tab' => $activeTab]);
+            $this->redirect('/admin/theme?saved=1&tab=' . urlencode($activeTab));
+            return;
+        }
+        if (!in_array($activeTab, $tabs, true)) {
+            $activeTab = $tabs[0] ?? '';
+        }
+        $this->render('@admin/theme.twig', [
+            'user' => $this->auth->user(),
+            'types' => $this->content->getTypes(),
+            'admin_section' => 'theme',
+            'saved' => isset($_GET['saved']),
+            'theme_status' => (string)($_GET['theme'] ?? ''),
+            'theme_message' => trim((string)($_GET['theme_msg'] ?? '')),
+            'theme_schema' => $schema,
+            'theme_tabs' => $tabs,
             'theme_values' => $this->themeSettings,
             'theme_info' => [
                 'name' => $this->theme->name(),
@@ -3695,12 +3745,6 @@ final class App
                 'version' => $this->theme->version(),
                 'custom_dir' => is_dir($this->theme->customPath()),
             ],
-            'backup_snapshots' => $this->listBackupSnapshots(),
-            'backup_status' => $backupStatus,
-            'backup_message' => $backupMessage,
-            'theme_status' => $themeStatus,
-            'theme_message' => $themeMessage,
-            'settings_error' => $settingsError,
             'active_tab' => $activeTab,
         ]);
     }
@@ -7706,7 +7750,7 @@ final class App
     private function sanitizeSettingsTab(string $tab): string
     {
         $tab = strtolower(trim($tab));
-        $allowed = ['basics', 'menus', 'apis', 'theme', 'smtp', 'auth', 'backup', 'updates', 'limits'];
+        $allowed = ['basics', 'menus', 'apis', 'smtp', 'auth', 'backup', 'updates', 'limits'];
         if (!in_array($tab, $allowed, true)) {
             return 'basics';
         }

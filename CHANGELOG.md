@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-09-30 — One tab style for the whole admin
+- Tabs (the content editor, Settings, Theme, Logs, Users & Roles) now look the same and match the rest of the admin: quiet grey text on a hairline, a light wash on hover, and the current tab in dark text with a 2px dark underline. Before, the colours came from three different scripts and stylesheets that fought each other (dark filled tabs, boxed white ones, and blue underlines depending on the screen). Now the look is one rule in the stylesheet, keyed on `.active` / `aria-selected` / `aria-current`, with a visible keyboard focus ring and a dark-mode variant
+
+## 2026-09-30 — The theme has its own screen
+- **Theme** moved out of Settings into its own screen under **Manage** in the admin sidebar (after Menus). Every section the theme declares is a tab (Appearance, Brand, Header, Hero Layouts, Transparent Header, Footer, Social profiles, and whatever a theme adds), with one Save for all of them; the tab you were on is kept after saving, and `admin/theme?tab=header` opens a tab directly. Same permission as Settings (`settings.manage`); changes are written to the activity log
+- Settings lost its Theme tab (an old link to it lands on the new screen). Saving Settings no longer touches the theme options at all, so it cannot reset one by mistake. Choosing which theme the site uses stays in Settings > General, and menu locations stay in Settings > Menus
+
 ## 2026-09-30 — View site at the top, the version at the bottom
 - In the admin sidebar the **View site** button moved to the top, beside the site name (a small button with an arrow, announced as opening a new tab), and the **FarosCMS v…** version badge moved to the bottom, above the storage bar. The badge still turns blue and links to Updates when an update is available
 
