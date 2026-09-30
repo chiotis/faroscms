@@ -59,6 +59,9 @@ final class App
     private ?BackupManager $backupManagerService = null;
     private ?TaxonomyEditor $taxonomyEditorService = null;
     private ?RedirectAdmin $redirectAdminService = null;
+    private ?LanguageAlternates $languageAlternatesService = null;
+    private ?EntryTranslations $entryTranslationsService = null;
+    private ?ThemeStrings $themeStringsService = null;
     private ?PublicPaths $publicPathsService = null;
     private ?Taxonomies $taxonomyStore = null;
     /** @var array<string, mixed>|null */
@@ -337,7 +340,7 @@ final class App
             $slug = $segments[1] ?? null;
             if ($slug === null || $slug === '') {
                 $items = $this->content->getItems($type, $lang, $includeHidden, false);
-                $alternates = $this->buildAlternateUrlsForArchive($type);
+                $alternates = $this->languageAlternates()->forArchive($type);
                 $archive = $this->archiveContext($type, $lang, $items);
                 if ($archive['page'] > 1 && !$archive['filtered']) {
                     // Each page of a listing is its own page for search engines.
@@ -366,8 +369,8 @@ final class App
                 $item->meta['seo']['canonical'] ?? null,
                 $currentUrl
             );
-            $alternates = $this->buildAlternateUrlsForItem($type, $item->slug);
-            $languageLinks = $this->buildLanguageLinksForItem($type, $item);
+            $alternates = $this->languageAlternates()->forItem($type, $item->slug);
+            $languageLinks = $this->languageAlternates()->languageLinks($type, $item);
             if ($type === 'forms') {
                 $formState = $this->handleFormRequest($item, $lang, $path);
                 $this->render($this->resolveItemTemplate($item), [
@@ -411,8 +414,8 @@ final class App
             $page->meta['seo']['canonical'] ?? null,
             $currentUrl
         );
-        $alternates = $this->buildAlternateUrlsForItem('pages', $page->slug);
-        $languageLinks = $this->buildLanguageLinksForItem('pages', $page);
+        $alternates = $this->languageAlternates()->forItem('pages', $page->slug);
+        $languageLinks = $this->languageAlternates()->languageLinks('pages', $page);
         $template = $slug === $homeSlug ? 'templates/home.twig' : $this->resolveItemTemplate($page);
         $this->render($template, [
             'item' => $page,
@@ -2580,7 +2583,7 @@ final class App
             $type = $types[0] ?? 'pages';
         }
         $items = $this->content->getItems($type, $lang, true, false);
-        $translationLangs = $this->buildTranslationLangMatrix($type, $items);
+        $translationLangs = $this->entryTranslations()->matrix($type, $items);
         $statusOptions = array_values(array_unique(array_merge(['published', 'draft'], array_map(
             static fn(ContentItem $item): string => (string)($item->meta['status'] ?? 'published'),
             $items
@@ -2871,13 +2874,13 @@ final class App
             $translationId = (string)($_GET['translation_id'] ?? '');
         }
         if ($translationId === '') {
-            $translationId = $this->findTranslationIdBySlug($type, $slug);
+            $translationId = $this->contentEditor()->translationIdForSlug($type, $slug);
         }
         if ($translationId === '') {
-            $translationId = $this->generateTranslationId();
+            $translationId = ContentEditor::newTranslationId();
         }
         $metaForm['translation_id'] = $translationId;
-        $translations = $this->buildTranslationLinks($type, $slug, $translationId);
+        $translations = $this->entryTranslations()->links($type, $slug, $translationId);
         if ($isNew && $metaForm['date'] === '') {
             $metaForm['date'] = date('Y-m-d');
         }
@@ -2897,7 +2900,7 @@ final class App
             'prefix' => '/' . str_replace('__slug__', '', $this->buildContentPath($type, '__slug__', $lang, $homeSlug, $defaultLang)),
             // The home page and forms keep their address: the site and its stored submissions refer to it by name.
             'locked' => $type === 'forms' || ($type === 'pages' && $slug === $homeSlug && $lang === $defaultLang),
-            'siblings' => $itemExists ? array_column($this->translationSiblings($type, $slug, $lang), 'lang') : [],
+            'siblings' => $itemExists ? array_column($this->contentEditor()->translationSiblings($type, $slug, $lang), 'lang') : [],
             'old_addresses' => [],
         ];
         if ($slug !== '') {
@@ -3297,7 +3300,7 @@ final class App
         $counts = $this->permissions->can($this->auth->user(), 'content.manage')
             ? $this->linkScanner()->countBySource([RedirectRepository::normalizePath($publicPath)])
             : null;
-        $siblings = array_column($this->translationSiblings($type, $slug, $lang), 'lang');
+        $siblings = array_column($this->contentEditor()->translationSiblings($type, $slug, $lang), 'lang');
         $this->render('@admin/delete.twig', [
             'type' => $type,
             'slug' => $slug,
@@ -5048,53 +5051,30 @@ final class App
             $lang = $defaultLang;
         }
 
-        // Theme strings ship with the theme and are replaced by updates; edits made here are
-        // stored as overrides in custom/lang/<lang>.yaml, which updates never touch.
-        $inherited = $this->theme->inheritedTranslations($lang, $defaultLang);
-        $overrides = $this->theme->customTranslations($lang);
-
+        $strings = $this->themeStrings();
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $keys = is_array($_POST['keys'] ?? null) ? $_POST['keys'] : [];
-            $values = is_array($_POST['values'] ?? null) ? $_POST['values'] : [];
-            $reset = array_map('strval', is_array($_POST['reset'] ?? null) ? $_POST['reset'] : []);
-            $next = $overrides;
-
-            foreach ($keys as $index => $key) {
-                $key = trim((string)$key);
-                if ($key === '' || $this->isHiddenTranslationKey($key)) {
-                    continue;
-                }
-                $value = (string)($values[$index] ?? '');
-                if (in_array($key, $reset, true) || (array_key_exists($key, $inherited) && $inherited[$key] === $value)) {
-                    unset($next[$key]);
-                    continue;
-                }
-                $next[$key] = $value;
-            }
-
-            if (!$this->theme->writeCustomTranslations($lang, $next)) {
+            $result = $strings->save($lang, $defaultLang, $_POST);
+            if (!$result['ok']) {
                 $this->redirect('/admin/translations?lang=' . urlencode($lang) . '&error=write');
                 return;
             }
             $this->logActivity('translations.update', 'info', 'translation', $lang, 'Translations updated.', [
                 'lang' => $lang,
-                'overrides' => count($next),
+                'overrides' => $result['overrides'],
             ]);
             $this->redirect('/admin/translations?lang=' . urlencode($lang) . '&saved=1');
             return;
         }
 
-        $visible = $this->filterVisibleTranslationKeys(array_replace($inherited, $overrides));
-        $defaults = $this->filterVisibleTranslationKeys($this->theme->themeTranslations($defaultLang));
-        ksort($visible);
+        $screen = $strings->screen($lang, $defaultLang);
 
         $this->render('@admin/translations.twig', [
             'lang' => $lang,
             'languages' => $available,
-            'translations' => $visible,
-            'defaults' => $defaults,
-            'customized' => array_keys($this->filterVisibleTranslationKeys($overrides)),
-            'custom_file' => 'custom/lang/' . $lang . '.yaml',
+            'translations' => $screen['translations'],
+            'defaults' => $screen['defaults'],
+            'customized' => $screen['customized'],
+            'custom_file' => $screen['custom_file'],
             'saved' => isset($_GET['saved']),
             'write_error' => ($_GET['error'] ?? '') === 'write',
             'user' => $this->auth->user(),
@@ -5635,6 +5615,26 @@ final class App
         );
     }
 
+    private function languageAlternates(): LanguageAlternates
+    {
+        return $this->languageAlternatesService ??= new LanguageAlternates(
+            $this->content,
+            fn(): Taxonomies => $this->taxonomies(),
+            fn(): array => $this->settings,
+            fn(string $path): string => $this->buildAbsoluteUrl($path)
+        );
+    }
+
+    private function entryTranslations(): EntryTranslations
+    {
+        return $this->entryTranslationsService ??= new EntryTranslations($this->content, fn(): array => $this->settings);
+    }
+
+    private function themeStrings(): ThemeStrings
+    {
+        return $this->themeStringsService ??= new ThemeStrings($this->theme);
+    }
+
     private function contentCsv(): ContentCsv
     {
         return $this->contentCsvService ??= new ContentCsv(
@@ -5818,7 +5818,7 @@ final class App
         $titlePrefix = $kind === 'category'
             ? $this->translate('taxonomy.category', 'Category')
             : $this->translate('taxonomy.tag', 'Tag');
-        $alternates = $this->buildAlternateUrlsForTaxonomy($kind, $termSlug);
+        $alternates = $this->languageAlternates()->forTaxonomy($kind, $termSlug);
         $this->render($this->resolveTaxonomyTemplate($kind, $slug), [
             'items' => $archive['items'],
             'archive' => $archive,
@@ -5856,142 +5856,6 @@ final class App
             return $kind . '/' . $slug;
         }
         return $prefix . '/' . $kind . '/' . $slug;
-    }
-
-    /** @return array<string, string> */
-    private function buildLanguageLinksForItem(string $type, ContentItem $item): array
-    {
-        $available = $this->settings['languages']['available'] ?? [];
-        $defaultLang = $this->settings['languages']['default'] ?? 'en';
-        $homeSlug = $this->settings['home_page'] ?? 'index';
-        if ($homeSlug === '') {
-            $homeSlug = 'index';
-        }
-
-        $translationId = (string)($item->meta['translation_id'] ?? '');
-        $all = $this->content->getItems($type, null, true, false);
-        $matches = [];
-        foreach ($all as $candidate) {
-            if ($translationId !== '' && (string)($candidate->meta['translation_id'] ?? '') === $translationId) {
-                $matches[$candidate->lang] = $candidate;
-            }
-        }
-
-        $links = [];
-        foreach ($available as $lang) {
-            $target = $matches[$lang] ?? null;
-            if ($target === null && $translationId === '') {
-                foreach ($all as $candidate) {
-                    if ($candidate->lang === $lang && $candidate->slug === $item->slug) {
-                        $target = $candidate;
-                        break;
-                    }
-                }
-            }
-            if ($target) {
-                $path = $this->buildContentPath($type, $target->slug, $lang, $homeSlug, $defaultLang);
-                $links[$lang] = $path;
-            }
-        }
-
-        return $links;
-    }
-
-    /** @return array{urls: array<string, string>, default: string} */
-    private function buildAlternateUrlsForItem(string $type, string $slug): array
-    {
-        $defaultLang = $this->settings['languages']['default'] ?? 'en';
-        $available = $this->settings['languages']['available'] ?? [$defaultLang];
-        $homeSlug = $this->settings['home_page'] ?? 'index';
-        if ($homeSlug === '') {
-            $homeSlug = 'index';
-        }
-
-        $urls = [];
-        foreach ($available as $lang) {
-            $item = $this->content->find($type, $slug, $lang, false);
-            if (!$item) {
-                continue;
-            }
-            $path = $this->buildContentPath($type, $slug, $lang, $homeSlug, $defaultLang);
-            $urls[$lang] = $this->buildAbsoluteUrl($path);
-        }
-
-        return [
-            'urls' => $urls,
-            'default' => $urls[$defaultLang] ?? '',
-        ];
-    }
-
-    /** @return array{urls: array<string, string>, default: string} */
-    private function buildAlternateUrlsForArchive(string $type): array
-    {
-        $defaultLang = $this->settings['languages']['default'] ?? 'en';
-        $available = $this->settings['languages']['available'] ?? [$defaultLang];
-
-        $urls = [];
-        foreach ($available as $lang) {
-            $items = $this->content->getItems($type, $lang, false);
-            if (empty($items)) {
-                continue;
-            }
-            $path = $this->buildArchivePath($type, $lang, $defaultLang);
-            $urls[$lang] = $this->buildAbsoluteUrl($path);
-        }
-
-        return [
-            'urls' => $urls,
-            'default' => $urls[$defaultLang] ?? '',
-        ];
-    }
-
-    /** @return array{urls: array<string, string>, default: string} */
-    private function buildAlternateUrlsForTaxonomy(string $kind, string $slug): array
-    {
-        $defaultLang = $this->settings['languages']['default'] ?? 'en';
-        $available = $this->settings['languages']['available'] ?? [$defaultLang];
-        $slug = $this->slugify($slug);
-        $pathKind = $kind === 'category' ? 'category' : 'tag';
-        $key = $kind === 'category' ? 'categories' : 'tags';
-
-        $urls = [];
-        foreach ($available as $lang) {
-            if (!$this->hasTaxonomyItems($key, $slug, $lang)) {
-                continue;
-            }
-            $prefix = $lang === $defaultLang ? '' : $lang . '/';
-            $path = $prefix . $pathKind . '/' . $slug;
-            $urls[$lang] = $this->buildAbsoluteUrl($path);
-        }
-
-        return [
-            'urls' => $urls,
-            'default' => $urls[$defaultLang] ?? '',
-        ];
-    }
-
-    private function hasTaxonomyItems(string $key, string $slug, string $lang): bool
-    {
-        $term = $this->taxonomies()->findBySlug($key, $slug);
-        if ($term === null) {
-            return false;
-        }
-        $termId = (string)($term['id'] ?? '');
-        if ($termId === '') {
-            return false;
-        }
-        foreach ($this->content->getTypes() as $type) {
-            if ($type === 'pages') {
-                continue;
-            }
-            foreach ($this->content->getItems($type, $lang, false) as $item) {
-                $values = $this->normalizeMetaList($item->meta[$key] ?? null);
-                if (in_array($termId, $values, true)) {
-                    return true;
-                }
-            }
-        }
-        return false;
     }
 
     private function resolveTaxonomyTemplate(string $kind, string $slug): string
@@ -6077,100 +5941,6 @@ final class App
             ];
         }
         return $rows;
-    }
-
-    private function generateTranslationId(): string
-    {
-        return ContentEditor::newTranslationId();
-    }
-
-    private function findTranslationIdBySlug(string $type, string $slug): string
-    {
-        return $this->contentEditor()->translationIdForSlug($type, $slug);
-    }
-
-    /** @return array<int, array{lang: string, exists: bool, slug: string, title: string, edit_url: string, create_url: string}> */
-    private function buildTranslationLinks(string $type, string $slug, string $translationId): array
-    {
-        $available = $this->settings['languages']['available'] ?? [];
-        $items = $this->content->getItems($type, null, true);
-        $matches = [];
-        $fallback = [];
-
-        foreach ($items as $item) {
-            $itemId = (string)($item->meta['translation_id'] ?? '');
-            if ($translationId !== '' && $itemId !== '' && $itemId === $translationId) {
-                $matches[$item->lang] = $item;
-            } elseif ($itemId === '' && $item->slug === $slug) {
-                $fallback[$item->lang] = $item;
-            }
-        }
-
-        $rows = [];
-        foreach ($available as $lang) {
-            $item = $matches[$lang] ?? $fallback[$lang] ?? null;
-            $exists = $item !== null;
-            $targetSlug = $item ? $item->slug : $slug;
-            $rows[] = [
-                'lang' => $lang,
-                'exists' => $exists,
-                'slug' => $targetSlug,
-                'title' => $item ? (string)($item->meta['title'] ?? '') : '',
-                'edit_url' => $exists
-                    ? '/admin/edit?type=' . urlencode($type) . '&slug=' . urlencode($targetSlug) . '&lang=' . urlencode($lang)
-                    : '',
-                'create_url' => $exists
-                    ? ''
-                    : '/admin/edit?type=' . urlencode($type) . '&slug=' . urlencode($slug) . '&lang=' . urlencode($lang) . '&translation_id=' . urlencode($translationId),
-            ];
-        }
-
-        return $rows;
-    }
-
-    /** @param ContentItem[] $items */
-    private function buildTranslationLangMatrix(string $type, array $items): array
-    {
-        $all = $this->content->getItems($type, null, true);
-        $langsByKey = [];
-        $slugToId = [];
-        foreach ($all as $item) {
-            $id = (string)($item->meta['translation_id'] ?? '');
-            if ($id !== '' && !isset($slugToId[$item->slug])) {
-                $slugToId[$item->slug] = $id;
-            }
-        }
-        foreach ($all as $item) {
-            $key = $this->translationGroupKey($item, $slugToId);
-            $langsByKey[$key] ??= [];
-            if (!in_array($item->lang, $langsByKey[$key], true)) {
-                $langsByKey[$key][] = $item->lang;
-            }
-        }
-
-        $matrix = [];
-        foreach ($items as $item) {
-            $key = $this->translationGroupKey($item, $slugToId);
-            $langs = $langsByKey[$key] ?? [];
-            $other = array_values(array_filter($langs, fn($lang) => $lang !== $item->lang));
-            $matrix[$item->slug . '|' . $item->lang] = $other;
-        }
-
-        return $matrix;
-    }
-
-    /** @param array<string, string> $slugToId */
-    private function translationGroupKey(ContentItem $item, array $slugToId): string
-    {
-        $id = (string)($item->meta['translation_id'] ?? '');
-        if ($id !== '') {
-            return 'id:' . $id;
-        }
-        $fallbackId = $slugToId[$item->slug] ?? '';
-        if ($fallbackId !== '') {
-            return 'id:' . $fallbackId;
-        }
-        return 'slug:' . $item->slug;
     }
 
     private function stringifyCustomValue(mixed $value): string
@@ -6281,24 +6051,6 @@ final class App
     private function loadTranslations(string $lang): array
     {
         return $this->theme->translations($lang, (string)($this->settings['languages']['default'] ?? 'en'));
-    }
-
-    private function isHiddenTranslationKey(string $key): bool
-    {
-        return str_starts_with($key, 'nav.');
-    }
-
-    private function filterVisibleTranslationKeys(array $translations): array
-    {
-        $rows = [];
-        foreach ($translations as $key => $value) {
-            $key = (string)$key;
-            if ($this->isHiddenTranslationKey($key)) {
-                continue;
-            }
-            $rows[$key] = (string)$value;
-        }
-        return $rows;
     }
 
     /** @return array<int, array{label: string, value: string, status: string}> */
@@ -6447,16 +6199,6 @@ final class App
             return '';
         }
         return $lang . '/';
-    }
-
-    /**
-     * The other languages of an item that share its address (translations kept together by translation_id).
-     *
-     * @return array<int, array{lang: string, status: string}>
-     */
-    private function translationSiblings(string $type, string $slug, string $lang): array
-    {
-        return $this->contentEditor()->translationSiblings($type, $slug, $lang);
     }
 
     private function slugify(string $value): string

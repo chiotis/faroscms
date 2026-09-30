@@ -90,7 +90,7 @@ Direction: one all-purpose theme (`themes/default`) that grows with blocks and v
 
 ## Post-Theme Architecture
 - Refactor `src/App.php` into focused modules/services (in progress: BackupService, UpdateService, Mailer, MediaLibrary, ContentIndex, FormSubmissionRepository, LoginThrottle, SystemMetaRepository are extracted)
-- Split so far: menus, CSV import/export, structured data, robots.txt, form fields, site settings, taking backups, the taxonomies screen, redirects (`App.php` went from 9,800 to about 7,200 lines, with unit tests for each). Next candidates: the public taxonomy pages, translations (see `docs/architecture.md`)
+- Split so far: menus, CSV import/export, structured data, robots.txt, form fields, site settings, taking backups, the taxonomies screen, redirects, translations (`App.php` went from 9,800 to about 6,940 lines, with unit tests for each). Next candidates: the public taxonomy pages, the media, forms, users and content types screens (see `docs/architecture.md`)
 - Keep behavior identical during refactor (incremental extraction + regression checks)
 
 ## Later Development
