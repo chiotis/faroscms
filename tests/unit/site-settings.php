@@ -104,6 +104,18 @@ $dead = new SiteSettings(new SystemMetaRepository(new SystemDatabase('/nonexiste
 check('without a database, save says no', $dead->save('', $base), false);
 check('without a database, load gives the defaults', $dead->load()['title'], 'FarosCMS');
 
+// ---- the form as it arrives
+$f = SiteSettings::formFromPost(['title' => 'T', 'backup_auto_enabled' => 'on', 'google_enabled' => '', 'menu_location_keys' => ['a'], 'clear_secret' => ['smtp_pass', 7], 'robots_disallow' => "/a\nDisallow: /b\nhttps://x.test/c"]);
+check('a ticked box is 1, one that was not sent is 0', [$f['backup_auto_enabled'], $f['backup_remote_enabled'], $f['backup_remote_path_style'], $f['google_enabled']], ['1', '0', '0', '1']);
+check('text that was not sent is empty', [$f['title'], $f['tagline'], $f['smtp_host']], ['T', '', '']);
+check('the robots rules are cleaned on the way in', $f['robots_disallow'], "/a\n/b");
+check('a form without the robots box says so (null), so it does not clear them', SiteSettings::formFromPost([])['robots_disallow'], null);
+check('the boxes to clear secrets are a list of text', $f['clear_secrets'], ['smtp_pass', '7']);
+check('lists of menu places come as they are, or none', [$f['menu_location_keys'], $f['menu_location_values']], [['a'], []]);
+check('what needs permission is left to the caller', array_intersect(['storage_limit_mb', 'upload_limit_mb', 'upload_types'], array_keys($f)), []);
+$saved = $s->save($s->raw('site_settings', []), SiteSettings::formFromPost(['title' => 'From post', 'languages_available' => 'el, en', 'languages_default' => 'el', 'backup_auto_enabled' => '1', 'backup_schedule' => 'weekly']));
+check('and it saves as it is', [$saved, $s->load()['title'], $s->load()['backup']['auto']['enabled'], $s->load()['backup']['auto']['schedule'], $s->load()['backup']['remote']['enabled']], [true, 'From post', true, 'weekly', false]);
+
 exec('rm -rf ' . escapeshellarg($dir));
 echo $fail === 0 ? "\nALL PASSED\n" : "\n$fail FAILED\n";
 exit($fail === 0 ? 0 : 1);

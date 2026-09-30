@@ -66,6 +66,15 @@ final class App
     private ?SiteLimits $siteLimitsService = null;
     private ?SystemStatus $systemStatusService = null;
     private ?DashboardData $dashboardDataService = null;
+    private ?FormsAdmin $formsAdminService = null;
+    private ?FormProcessor $formProcessorService = null;
+    private ?SignIn $signInService = null;
+    private ?GoogleSignIn $googleSignInService = null;
+    private ?RoleAdmin $roleAdminService = null;
+    private ?UserAdmin $userAdminService = null;
+    private ?ContentTypeAdmin $contentTypeAdminService = null;
+    private ?ArchiveBuilder $archiveBuilderService = null;
+    private ?BackupAdmin $backupAdminService = null;
     private ?PublicPaths $publicPathsService = null;
     private ?Taxonomies $taxonomyStore = null;
     /** @var array<string, mixed>|null */
@@ -469,139 +478,7 @@ final class App
     private function archiveContext(string $type, string $lang, array $items): array
     {
         $definition = $this->contentTypes()->definition($type, $lang, $this->defaultLanguage());
-        return $this->buildArchive($definition['archive'], $definition['fields'], $definition, $lang, $items);
-    }
-
-    /**
-     * The archive of any list of entries (a content type, or the entries of a category or tag): filters, order, and pages
-     * from settings that a content type or a taxonomy chose. Filters come from the chosen taxonomies and, for a content
-     * type, from its filterable select fields.
-     *
-     * @param array<string, mixed> $settings resolved archive settings
-     * @param array<string, array<string, mixed>> $fields the declared fields of the type (none for a taxonomy)
-     * @param array<string, mixed>|null $definition the type's definition, when there is one
-     * @param ContentItem[] $items
-     * @return array<string, mixed>
-     */
-    private function buildArchive(array $settings, array $fields, ?array $definition, string $lang, array $items): array
-    {
-        // Facets: name => label, options (value => label), how to read an item's values.
-        $facets = [];
-        $taxonomyNames = $this->taxonomies()->names();
-        foreach ($settings['taxonomies'] as $taxonomy) {
-            if (in_array($taxonomy, $taxonomyNames, true)) {
-                $facets[$taxonomy] = ['label' => $this->titleFromSlug($taxonomy), 'kind' => 'taxonomy', 'labels' => []];
-            }
-        }
-        foreach ($fields as $key => $field) {
-            if ($field['filterable'] && !$field['hidden']) {
-                $facets[$key] = ['label' => $field['label'], 'kind' => 'field', 'labels' => $field['options']];
-            }
-        }
-        $valuesOf = function (ContentItem $item, string $name, array $facet): array {
-            if ($facet['kind'] === 'taxonomy') {
-                return $this->normalizeMetaList($item->meta[$name] ?? null);
-            }
-            $value = $item->meta['custom_fields'][$name] ?? '';
-            return is_scalar($value) && (string)$value !== '' ? [(string)$value] : [];
-        };
-
-        $requested = is_array($_GET['filter'] ?? null) ? $_GET['filter'] : [];
-        $filters = [];
-        $selected = [];
-        foreach ($facets as $name => $facet) {
-            $counts = [];
-            foreach ($items as $item) {
-                foreach ($valuesOf($item, $name, $facet) as $value) {
-                    $counts[$value] = ($counts[$value] ?? 0) + 1;
-                }
-            }
-            $options = [];
-            foreach ($counts as $value => $count) {
-                $value = (string)$value;
-                $label = $facet['kind'] === 'taxonomy'
-                    ? $this->taxonomyTermLabel($name, $value, $lang)
-                    : (string)($facet['labels'][$value] ?? $value);
-                $options[] = ['value' => $value, 'label' => $label !== '' ? $label : $value, 'count' => $count];
-            }
-            usort($options, static fn(array $a, array $b): int => strcasecmp($a['label'], $b['label']));
-            $choice = is_scalar($requested[$name] ?? null) ? (string)$requested[$name] : '';
-            if ($choice !== '' && !isset($counts[$choice])) {
-                $choice = '';
-            }
-            if ($choice !== '') {
-                $selected[$name] = $choice;
-            }
-            if (count($options) >= 2 || $choice !== '') {
-                $filters[] = ['name' => $name, 'label' => $facet['label'], 'kind' => $facet['kind'], 'options' => $options, 'selected' => $choice];
-            }
-        }
-
-        foreach ($selected as $name => $choice) {
-            $items = array_values(array_filter($items, fn(ContentItem $item): bool => in_array($choice, $valuesOf($item, $name, $facets[$name]), true)));
-        }
-
-        $title = static fn(ContentItem $item): string => mb_strtolower((string)($item->meta['title'] ?? $item->slug));
-        if (preg_match('/^field:([a-z][a-z0-9_]*):(asc|desc)$/', (string)$settings['order'], $m)) {
-            // By a declared field; items without a value go last in either direction.
-            [$key, $direction] = [$m[1], $m[2]];
-            $type_ = $fields[$key]['type'] ?? 'text';
-            $sortKey = static function (ContentItem $item) use ($key, $type_): string|float|null {
-                $value = $item->meta['custom_fields'][$key] ?? null;
-                if ($value === null || $value === '') {
-                    return null;
-                }
-                if ($type_ === 'number' || $type_ === 'decimal') {
-                    return is_numeric($value) ? (float)$value : null;
-                }
-                if ($type_ === 'date' && is_int($value)) {
-                    return gmdate('Y-m-d', $value);
-                }
-                return mb_strtolower((string)$value);
-            };
-            $withValue = array_values(array_filter($items, static fn(ContentItem $i): bool => $sortKey($i) !== null));
-            $without = array_values(array_filter($items, static fn(ContentItem $i): bool => $sortKey($i) === null));
-            usort($withValue, static fn(ContentItem $a, ContentItem $b): int => $direction === 'asc' ? $sortKey($a) <=> $sortKey($b) : $sortKey($b) <=> $sortKey($a));
-            $items = array_merge($withValue, $without);
-        } elseif ($settings['order'] === 'date_asc') {
-            $items = array_reverse($items);
-        } elseif ($settings['order'] === 'title_asc') {
-            usort($items, static fn(ContentItem $a, ContentItem $b): int => strcmp($title($a), $title($b)));
-        } elseif ($settings['order'] === 'title_desc') {
-            usort($items, static fn(ContentItem $a, ContentItem $b): int => strcmp($title($b), $title($a)));
-        }
-
-        $total = count($items);
-        $perPage = (int)$settings['per_page'];
-        $pages = $perPage > 0 ? max(1, (int)ceil($total / $perPage)) : 1;
-        $page = max(1, min($pages, (int)($_GET['page'] ?? 1)));
-        if ($perPage > 0) {
-            $items = array_slice($items, ($page - 1) * $perPage, $perPage);
-        }
-        $link = static function (int $number) use ($selected): string {
-            $query = [];
-            if ($selected !== []) {
-                $query['filter'] = $selected;
-            }
-            if ($number > 1) {
-                $query['page'] = $number;
-            }
-            return '?' . http_build_query($query);
-        };
-
-        return [
-            'definition' => $definition,
-            'settings' => $settings,
-            'items' => $items,
-            'total' => $total,
-            'filters' => $filters,
-            'filtered' => $selected !== [],
-            'page' => $page,
-            'pages' => $pages,
-            'prev' => $page > 1 ? $link($page - 1) : '',
-            'next' => $page < $pages ? $link($page + 1) : '',
-            'page_links' => $pages > 1 ? array_map(static fn(int $n): array => ['number' => $n, 'href' => $link($n), 'current' => $n === $page], range(1, $pages)) : [],
-        ];
+        return $this->archiveBuilder()->build($definition['archive'], $definition['fields'], $definition, $lang, $items, $_GET);
     }
 
     private function blockRenderer(string $lang, string $path): BlockRenderer
@@ -926,43 +803,36 @@ final class App
 
     private function handlePasswordLogin(): void
     {
-        $username = trim((string)($_POST['username'] ?? ''));
-        $password = (string)($_POST['password'] ?? '');
-        $address = (string)($_SERVER['REMOTE_ADDR'] ?? '');
-
-        $throttle = $this->loginThrottle->check($address, $username);
-        if ($throttle['blocked']) {
-            $minutes = max(1, (int)ceil($throttle['retry_after'] / 60));
-            $this->logActivity('auth.login_throttled', 'warning', 'user', $username, 'Login blocked after repeated failures.', [
-                'username' => $username,
-                'retry_after' => $throttle['retry_after'],
-            ], ['username' => $username]);
+        $outcome = $this->signIn()->password(trim((string)($_POST['username'] ?? '')), (string)($_POST['password'] ?? ''), (string)($_SERVER['REMOTE_ADDR'] ?? ''));
+        if ($outcome['status'] === 'blocked') {
             http_response_code(429);
-            header('Retry-After: ' . $throttle['retry_after']);
-            $this->renderLogin('Too many failed sign-in attempts. Try again in ' . $minutes . ' minute' . ($minutes === 1 ? '' : 's') . '.');
+            header('Retry-After: ' . $outcome['retry_after']);
+            $this->renderLogin($outcome['message']);
             return;
         }
-
-        if ($this->auth->attempt($username, $password)) {
-            $this->loginThrottle->recordSuccess($address, $username);
-            $signedIn = (string)($this->auth->user()['username'] ?? $username);
-            $this->logActivity('auth.login_success', 'info', 'user', $signedIn, 'User logged in.', [
-                'method' => 'password',
-            ]);
-            if ($this->auth->isShippedDefaultPassword($signedIn, $password)) {
+        if ($outcome['status'] === 'ok') {
+            if ($outcome['default_password']) {
                 $_SESSION['security_default_password'] = true;
-                $this->notifyDefaultPassword($signedIn);
+                $this->notifyDefaultPassword($outcome['username']);
             }
             $this->redirect('/admin');
             return;
         }
+        $this->renderLogin($outcome['message']);
+    }
 
-        $this->loginThrottle->recordFailure($address, $username);
-        $this->logActivity('auth.login_failure', 'warning', 'user', $username, 'Invalid password login attempt.', [
-            'method' => 'password',
-            'username' => $username,
-        ], ['username' => $username]);
-        $this->renderLogin('Invalid credentials.');
+    private function signIn(): SignIn
+    {
+        return $this->signInService ??= new SignIn(
+            $this->auth,
+            $this->loginThrottle,
+            fn(string $action, string $level, ?string $type, ?string $id, string $message, array $context, ?array $actor) => $this->logActivity($action, $level, $type, $id, $message, $context, $actor)
+        );
+    }
+
+    private function googleSignIn(): GoogleSignIn
+    {
+        return $this->googleSignInService ??= new GoogleSignIn(fn(): array => $this->settings, fn(string $path): string => $this->buildAbsoluteUrl($path));
     }
 
     private function notifyDefaultPassword(string $username): void
@@ -997,16 +867,15 @@ final class App
 
     private function renderLogin(string $error = ''): void
     {
-        $google = $this->googleAuthSettings();
         $this->render('@admin/login.twig', [
             'error' => $error,
-            'google_auth' => $google,
+            'google_auth' => $this->googleSignIn()->config(),
         ]);
     }
 
     private function handleGoogleLogin(): void
     {
-        $google = $this->googleAuthSettings();
+        $google = $this->googleSignIn()->config();
         if (!$google['ready']) {
             $this->renderLogin('Google Sign-In is not configured yet.');
             return;
@@ -1014,22 +883,14 @@ final class App
 
         $state = bin2hex(random_bytes(16));
         $_SESSION['google_oauth_state'] = $state;
-        $query = http_build_query([
-            'client_id' => $google['client_id'],
-            'redirect_uri' => $google['redirect_uri'],
-            'response_type' => 'code',
-            'scope' => 'openid email profile',
-            'state' => $state,
-            'access_type' => 'online',
-            'prompt' => 'select_account',
-        ]);
-        header('Location: https://accounts.google.com/o/oauth2/v2/auth?' . $query);
+        header('Location: ' . $this->googleSignIn()->authorizationUrl($google, $state));
         exit;
     }
 
     private function handleGoogleCallback(): void
     {
-        $google = $this->googleAuthSettings();
+        $sign = $this->googleSignIn();
+        $google = $sign->config();
         if (!$google['ready']) {
             $this->renderLogin('Google Sign-In is not configured yet.');
             return;
@@ -1049,36 +910,30 @@ final class App
             return;
         }
 
-        $token = $this->googleTokenRequest($code, $google);
+        $token = $sign->exchange($code, $google);
         if (!$token['ok']) {
             $this->renderLogin((string)$token['message']);
             return;
         }
-        $profile = $this->googleUserInfo((string)$token['access_token']);
+        $profile = $sign->profile((string)$token['access_token']);
         if (!$profile['ok']) {
             $this->renderLogin((string)$profile['message']);
             return;
         }
-
-        $email = strtolower(trim((string)($profile['email'] ?? '')));
-        $sub = trim((string)($profile['sub'] ?? ''));
-        $verified = (bool)($profile['email_verified'] ?? false);
-        if ($email === '' || !$verified) {
-            $this->renderLogin('Google account email is not verified.');
-            return;
-        }
-        if ($google['allowed_domain'] !== '' && !str_ends_with($email, '@' . $google['allowed_domain'])) {
-            $this->renderLogin('This Google account is not allowed for this FarosCMS installation.');
+        $accepted = $sign->accept($profile, $google);
+        if (!$accepted['ok']) {
+            $this->renderLogin($accepted['message']);
             return;
         }
 
+        $email = $accepted['email'];
         $user = $this->users->findByEmail($email);
         if (!$user || !$this->users->isActive($user)) {
             $this->renderLogin('No active FarosCMS user matches this Google account.');
             return;
         }
 
-        $this->users->linkGoogle((int)$user['id'], $sub, $email);
+        $this->users->linkGoogle((int)$user['id'], $accepted['sub'], $email);
         $user = $this->users->find((int)$user['id']) ?: $user;
         $this->auth->loginUser($user);
         $this->logActivity('auth.login_success', 'info', 'user', (string)($user['username'] ?? $email), 'User logged in.', [
@@ -1129,149 +984,15 @@ final class App
             return;
         }
 
-        $catalogue = PermissionService::catalogue();
-        $custom = $this->permissions->customRoles();
-
+        $roles = $this->roleAdmin();
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            if (!$this->systemMeta->isAvailable()) {
-                $this->redirect('/admin/roles?error=store');
-                return;
-            }
-            $action = (string)($_POST['action'] ?? 'save');
-            $key = strtolower(trim((string)($_POST['role'] ?? '')));
-
-            if ($action === 'create_role') {
-                $label = trim((string)preg_replace('/\s+/', ' ', (string)($_POST['label'] ?? '')));
-                if ($label === '') {
-                    $this->redirect('/admin/roles?error=label');
-                    return;
-                }
-                if (count($custom) >= PermissionService::MAX_CUSTOM_ROLES) {
-                    $this->redirect('/admin/roles?error=limit');
-                    return;
-                }
-                $from = (string)($_POST['from'] ?? 'blank');
-                $start = in_array($from, ['admin', 'editor', 'user'], true) ? $this->permissions->capabilitiesForRole($from) : [];
-                $newKey = PermissionService::newCustomKey($label, array_merge(array_keys($custom), array_keys(PermissionService::roles())));
-                $custom[$newKey] = [
-                    'label' => $label,
-                    'description' => trim((string)($_POST['description'] ?? '')),
-                    'capabilities' => $this->permissions->normalizeCapabilities($start),
-                ];
-                $this->systemMeta->setJson('custom_roles', $custom);
-                $made = new PermissionService(null, $custom);
-                $this->logActivity('roles.create', 'warning', 'role', $newKey, 'Role created.', [
-                    'label' => $made->customRoles()[$newKey]['label'],
-                    'copied_from' => in_array($from, ['admin', 'editor', 'user'], true) ? $from : '',
-                    'capabilities' => $made->customRoles()[$newKey]['capabilities'],
-                ]);
-                $this->redirect('/admin/roles?created=' . urlencode($newKey));
-                return;
-            }
-
-            if ($action === 'update_role' || $action === 'delete_role') {
-                if (!isset($custom[$key])) {
-                    $this->redirect('/admin/roles?error=unknown');
-                    return;
-                }
-                if ($action === 'delete_role') {
-                    // People still holding the role would lose all access, so it has to be free first.
-                    if ($this->users->countByRole($key, false) > 0) {
-                        $this->redirect('/admin/roles?error=in_use&role=' . urlencode($key));
-                        return;
-                    }
-                    unset($custom[$key]);
-                    $this->systemMeta->setJson('custom_roles', $custom);
-                    $this->logActivity('roles.delete', 'warning', 'role', $key, 'Role deleted.');
-                    $this->redirect('/admin/roles?deleted=1');
-                    return;
-                }
-                $custom[$key]['label'] = trim((string)($_POST['label'] ?? '')) ?: $custom[$key]['label'];
-                $custom[$key]['description'] = trim((string)($_POST['description'] ?? ''));
-                $this->systemMeta->setJson('custom_roles', $custom);
-                $this->logActivity('roles.update', 'info', 'role', $key, 'Role renamed or described.');
-                $this->redirect('/admin/roles?saved=1');
-                return;
-            }
-
-            // The permission table, and the "back to the built-in set" of one built-in role.
-            $before = [];
-            foreach (array_merge(PermissionService::CUSTOMIZABLE_ROLES, array_keys($custom)) as $role) {
-                $before[$role] = $this->permissions->capabilitiesForRole($role);
-            }
-            $inForm = is_array($_POST['in_form'] ?? null) ? array_map('strval', $_POST['in_form']) : array_keys($before);
-
-            $selected = [];
-            $newCustom = $custom;
-            if ($action === 'reset') {
-                $selected = $before;
-                if (in_array($key, PermissionService::CUSTOMIZABLE_ROLES, true)) {
-                    $selected[$key] = $this->permissions->defaultsForRole($key);
-                }
-            } else {
-                foreach ($before as $role => $caps) {
-                    // A role that was not on the form (made in another window meanwhile) keeps what it has.
-                    $posted = $_POST['caps'][$role] ?? [];
-                    $selected[$role] = in_array($role, $inForm, true)
-                        ? (is_array($posted) ? array_keys(array_filter($posted, static fn($v): bool => (string)$v === '1')) : [])
-                        : $caps;
-                }
-            }
-            foreach ($custom as $role => $definition) {
-                $newCustom[$role]['capabilities'] = $this->permissions->normalizeCapabilities($selected[$role] ?? $before[$role]);
-            }
-
-            $document = $this->permissions->saveable($selected);
-            $this->systemMeta->setJson('role_permissions', $document);
-            if ($newCustom !== $custom) {
-                $this->systemMeta->setJson('custom_roles', $newCustom);
-            }
-
-            $after = new PermissionService($document, $newCustom);
-            foreach ($before as $role => $was) {
-                $now = $after->capabilitiesForRole($role);
-                $added = array_values(array_diff($now, $was));
-                $removed = array_values(array_diff($was, $now));
-                if ($added !== [] || $removed !== []) {
-                    $this->logActivity('roles.update', 'warning', 'role', $role, 'Role permissions changed.', [
-                        'added' => $added,
-                        'removed' => $removed,
-                    ]);
-                }
-            }
-            $this->redirect('/admin/roles?saved=1');
+            $this->redirect($roles->apply($this->permissions, $_POST));
             return;
         }
 
-        $all = $this->permissions->allRoles();
-        $columns = [];
-        foreach (array_merge(PermissionService::CUSTOMIZABLE_ROLES, array_keys($custom)) as $role) {
-            $isCustom = isset($custom[$role]);
-            $columns[$role] = [
-                'label' => $all[$role]['label'],
-                'custom' => $isCustom,
-                'customized' => !$isCustom && $this->permissions->isCustomized($role),
-                'caps' => $this->permissions->capabilitiesForRole($role),
-                'defaults' => $isCustom ? [] : $this->permissions->defaultsForRole($role),
-                'users' => $this->users->countByRole($role),
-            ];
-        }
-        $groups = [];
-        foreach ($catalogue as $key => $capability) {
-            $groups[$capability['group']][$key] = $capability;
-        }
-        $mine = [];
-        foreach ($custom as $key => $definition) {
-            $mine[] = $definition + ['key' => $key, 'users_total' => $this->users->countByRole($key, false)];
-        }
+        $screen = $roles->screen($this->permissions);
 
-        $this->render('@admin/roles.twig', [
-            'roles' => $all,
-            'columns' => $columns,
-            'groups' => $groups,
-            'custom_roles' => $mine,
-            'can_add_role' => count($custom) < PermissionService::MAX_CUSTOM_ROLES,
-            'super_caps' => $this->permissions->capabilitiesForRole('superadmin'),
+        $this->render('@admin/roles.twig', $screen + [
             'locked' => ['admin.access', 'users.self'],
             'saved' => isset($_GET['saved']),
             'created' => (string)($_GET['created'] ?? ''),
@@ -1283,6 +1004,15 @@ final class App
             'admin_section' => 'roles',
             'current_type' => 'pages',
         ]);
+    }
+
+    private function roleAdmin(): RoleAdmin
+    {
+        return $this->roleAdminService ??= new RoleAdmin(
+            $this->systemMeta,
+            $this->users,
+            fn(string $action, string $level, ?string $type, ?string $id, string $message, array $context) => $this->logActivity($action, $level, $type, $id, $message, $context)
+        );
     }
 
     private function handleRedirects(): void
@@ -1764,116 +1494,50 @@ final class App
 
         if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $action = trim((string)($_POST['backup_action'] ?? ''));
-            if ($action === 'verify') {
-                $filename = $this->backups->sanitizeFilename((string)($_POST['filename'] ?? ''));
-                $verification = $this->backups->verify($filename);
-                $this->logActivity($verification['ok'] ? 'backup.verify_success' : 'backup.verify_failure', $verification['ok'] ? 'info' : 'error', 'backup', $filename, $verification['message'], [
-                    'checked' => $verification['checked'],
-                    'has_manifest' => $verification['has_manifest'],
-                    'errors' => $verification['errors'],
-                ]);
-                $this->redirect('/admin/backups?' . http_build_query([
-                    'backup' => $verification['ok'] ? ($verification['has_manifest'] ? 'ok' : 'warn') : 'fail',
-                    'backup_msg' => $filename . ': ' . $verification['message'],
-                ]));
-                return;
-            }
-
             if ($action === 'restore') {
                 $this->handleBackupRestore();
                 return;
             }
-
-            if ($action === 'create_full') {
-                $result = $this->backupManager()->createSnapshot();
-                if (($result['ok'] ?? false) === true) {
-                    $this->updateBackupLastRun(date('c'));
-                }
-                $this->backupManager()->recordRun($result);
-                $this->logActivity(($result['ok'] ?? false) ? 'backup.create_success' : 'backup.create_failure', BackupManager::logLevel($result), 'backup', (string)($result['filename'] ?? ''), (string)($result['message'] ?? 'Backup action completed.'), [
-                    'result' => $result,
-                    'source' => 'backups_module',
-                ]);
-                $this->backupManager()->notify($result, false);
-                $this->redirect('/admin/backups?' . http_build_query([
-                    'backup' => BackupManager::queryStatus($result),
-                    'backup_msg' => (string)($result['message'] ?? ''),
-                ]));
-                return;
-            }
-
-            if ($action === 'create_database') {
-                $result = $this->backupManager()->createDatabaseSnapshot();
-                $this->backupManager()->recordRun($result);
-                $this->logActivity(($result['ok'] ?? false) ? 'backup.database_success' : 'backup.database_failure', BackupManager::logLevel($result), 'backup', (string)($result['filename'] ?? ''), (string)($result['message'] ?? 'Database backup action completed.'), [
-                    'result' => $result,
-                    'source' => 'backups_module',
-                ]);
-                $this->backupManager()->notify($result, false);
-                $this->redirect('/admin/backups?' . http_build_query([
-                    'backup' => BackupManager::queryStatus($result),
-                    'backup_msg' => (string)($result['message'] ?? ''),
-                ]));
-                return;
-            }
-
-            if ($action === 'delete') {
-                $filename = $this->backups->sanitizeFilename((string)($_POST['filename'] ?? ''));
-                $result = $this->backups->delete($filename);
-                $this->logActivity(($result['ok'] ?? false) ? 'backup.delete_success' : 'backup.delete_failure', ($result['ok'] ?? false) ? 'warning' : 'error', 'backup', $filename, (string)($result['message'] ?? 'Backup delete action completed.'), [
-                    'filename' => $filename,
-                ]);
-                $this->redirect('/admin/backups?' . http_build_query([
-                    'deleted' => (($result['ok'] ?? false) ? 'ok' : 'fail'),
-                    'backup_msg' => (string)($result['message'] ?? ''),
-                ]));
+            $location = $this->backupAdmin()->apply($action, $_POST);
+            if ($location !== null) {
+                $this->redirect($location);
                 return;
             }
         }
 
-        $snapshots = $this->listBackupSnapshots();
-        $storageBytes = array_sum(array_map(fn(array $snapshot): int => (int)($snapshot['size'] ?? 0), $snapshots));
-        $schedule = $this->settings['backup']['auto'] ?? [];
-        if (!is_array($schedule)) {
-            $schedule = [];
-        }
-        $remote = $this->settings['backup']['remote'] ?? [];
-        if (!is_array($remote)) {
-            $remote = [];
-        }
-        $keep = (int)($this->settings['backup']['local']['keep'] ?? 20);
-        if ($keep < 1) {
-            $keep = 1;
-        }
-
-        $this->render('@admin/backups.twig', [
+        $this->render('@admin/backups.twig', $this->backupAdmin()->overview() + [
             'title' => 'Backups',
             'types' => $this->content->getTypes(),
             'user' => $this->auth->user(),
             'admin_section' => 'backups',
             'current_type' => 'pages',
-            'backup_snapshots' => $snapshots,
-            'backup_runs' => $this->backupRuns->recent(20),
             'backup_status' => (string)($_GET['backup'] ?? ''),
             'delete_status' => (string)($_GET['deleted'] ?? ''),
             'backup_message' => trim((string)($_GET['backup_msg'] ?? '')),
-            'backup_total' => count($snapshots),
-            'backup_storage_human' => Format::bytes($storageBytes),
-            'last_backup' => $snapshots[0] ?? null,
-            'backup_schedule' => [
-                'enabled' => $this->isTruthy($schedule['enabled'] ?? false),
-                'frequency' => (string)($schedule['schedule'] ?? 'daily'),
-                'last_run' => (string)($schedule['last_run'] ?? ''),
-                'keep' => $keep,
-            ],
-            'backup_remote' => [
-                'enabled' => $this->isTruthy($remote['enabled'] ?? false),
-                'provider' => (string)($remote['provider'] ?? 'custom'),
-                'bucket' => (string)($remote['bucket'] ?? ''),
-                'prefix' => (string)($remote['prefix'] ?? ''),
-                'keep' => (int)($remote['keep'] ?? 20),
-            ],
         ]);
+    }
+
+    private function backupAdmin(): BackupAdmin
+    {
+        return $this->backupAdminService ??= new BackupAdmin(
+            $this->backups,
+            $this->backupManager(),
+            $this->backupRuns,
+            $this->notifications,
+            $this->systemMeta,
+            fn(): array => $this->settings,
+            fn(string $isoDate) => $this->updateBackupLastRun($isoDate),
+            function (bool $ok): void {
+                $this->settings = $this->siteSettings()->load();
+                $this->themeSettings = $this->loadThemeSettings();
+                $this->menus()->forget();
+                $this->taxonomies()->forget();
+                if ($ok) {
+                    $this->rebuildContentIndex();
+                }
+            },
+            fn(string $action, string $level, ?string $type, ?string $id, string $message, array $context, ?array $actor) => $this->logActivity($action, $level, $type, $id, $message, $context, $actor)
+        );
     }
 
     private function renderBackupRestore(string $filename, string $error = '', array $selected = []): void
@@ -1882,40 +1546,18 @@ final class App
             $this->renderForbidden('Restoring backups is limited to superadmins.');
             return;
         }
-        $filename = $this->backups->sanitizeFilename($filename);
-        if ($this->backups->pathFor($filename) === null) {
+        $screen = $this->backupAdmin()->restoreScreen($filename, $selected);
+        if ($screen === null) {
             $this->redirect('/admin/backups?' . http_build_query(['backup' => 'fail', 'backup_msg' => 'Backup file not found.']));
             return;
         }
-        $verification = $this->backups->verify($filename);
-        $scopes = [];
-        foreach ($this->backups->restoreScopes() as $key => $scope) {
-            $count = (int)($verification['areas'][$key] ?? 0);
-            $scopes[] = $scope + [
-                'key' => $key,
-                'count' => $count,
-                'available' => $count > 0,
-                'checked' => $count > 0 && ($selected === [] || in_array($key, $selected, true)),
-            ];
-        }
-        $snapshot = null;
-        foreach ($this->backups->list() as $item) {
-            if ($item['filename'] === $filename) {
-                $snapshot = $item;
-                break;
-            }
-        }
 
-        $this->render('@admin/backup-restore.twig', [
+        $this->render('@admin/backup-restore.twig', $screen + [
             'title' => 'Restore backup',
             'types' => $this->content->getTypes(),
             'user' => $this->auth->user(),
             'admin_section' => 'backups',
             'current_type' => 'pages',
-            'filename' => $filename,
-            'snapshot' => $snapshot,
-            'verification' => $verification,
-            'scopes' => $scopes,
             'error' => $error,
             'current_version' => $this->updates()->currentVersion(),
         ]);
@@ -1927,100 +1569,17 @@ final class App
             $this->renderForbidden('Restoring backups is limited to superadmins.');
             return;
         }
-        $filename = $this->backups->sanitizeFilename((string)($_POST['filename'] ?? ''));
-        $scopeKeys = array_values(array_intersect(
-            array_map('strval', is_array($_POST['scopes'] ?? null) ? $_POST['scopes'] : []),
-            array_keys($this->backups->restoreScopes())
-        ));
-        if ($filename === '' || $this->backups->pathFor($filename) === null) {
-            $this->redirect('/admin/backups?' . http_build_query(['backup' => 'fail', 'backup_msg' => 'Backup file not found.']));
+        $outcome = $this->backupAdmin()->restore($_POST, $this->auth->user());
+        if ($outcome['location'] !== null) {
+            $this->redirect($outcome['location']);
             return;
         }
-        if ($scopeKeys === []) {
-            $this->renderBackupRestore($filename, 'Select at least one area to restore.');
-            return;
-        }
-        if (trim((string)($_POST['confirm_filename'] ?? '')) !== $filename) {
-            $this->renderBackupRestore($filename, 'Type the archive name exactly as shown to confirm the restore.', $scopeKeys);
-            return;
-        }
-
-        $verification = $this->backups->verify($filename, $theme);
-        if (!$verification['ok']) {
-            $this->renderBackupRestore($filename, 'The archive failed verification, so nothing was restored.', $scopeKeys);
-            return;
-        }
-        if (!$verification['has_manifest'] && empty($_POST['ack_unverified'])) {
-            $this->renderBackupRestore($filename, 'This archive has no checksum manifest. Tick the acknowledgement to restore it anyway.', $scopeKeys);
-            return;
-        }
-
-        // A safety snapshot of the current state is mandatory; without it there is no way back.
-        $safety = $this->backupManager()->createSnapshot('pre-restore', false, false);
-        if (($safety['ok'] ?? false) !== true) {
-            $this->backupManager()->recordRun($safety);
-            $this->renderBackupRestore($filename, 'The safety snapshot failed, so the restore was not started: ' . (string)($safety['message'] ?? ''), $scopeKeys);
-            return;
-        }
-
-        $actor = $this->auth->user();
-        $result = $this->backups->restore($filename, $scopeKeys);
-
-        // The system database may have been swapped: reload settings and write history into the active database.
-        $this->settings = $this->siteSettings()->load();
-        $this->themeSettings = $this->loadThemeSettings();
-        $this->menus()->forget();
-        $this->taxonomies()->forget();
-        $this->backupManager()->recordRun($safety);
-        if ($result['ok']) {
-            $this->rebuildContentIndex();
-        }
-        $this->logActivity($result['ok'] ? 'backup.restore_success' : 'backup.restore_failure', $result['ok'] ? 'warning' : 'error', 'backup', $filename, $result['message'], [
-            'scopes' => $scopeKeys,
-            'restored' => $result['restored'],
-            'skipped' => $result['skipped'],
-            'safety_snapshot' => (string)($safety['filename'] ?? ''),
-            'previous_dir' => (string)($result['previous_dir'] ?? ''),
-        ], $actor);
-        try {
-            $this->notifications->create([
-                'type' => $result['ok'] ? 'backup.restored' : 'backup.restore_failed',
-                'title' => $result['ok'] ? 'Backup restored' : 'Backup restore failed',
-                'body' => $result['message'] . ' Safety snapshot: ' . (string)($safety['filename'] ?? '') . '.',
-                'severity' => $result['ok'] ? 'warning' : 'error',
-                'target_url' => '/admin/backups',
-            ]);
-        } catch (\Throwable) {
-            // Notifications must never block the restore response.
-        }
-
-        if (!$result['ok']) {
-            $this->renderBackupRestore($filename, $result['message'] . ' Safety snapshot: ' . (string)($safety['filename'] ?? '') . '.', $scopeKeys);
-            return;
-        }
-        $message = $result['message'] . ' Safety snapshot: ' . (string)($safety['filename'] ?? '') . '.';
-        if ($result['skipped'] !== []) {
-            $message .= ' Not in archive: ' . implode(', ', $result['skipped']) . '.';
-        }
-        if (in_array('database', $result['restored'], true)) {
-            $message .= ' If your account does not exist in the restored database you will be signed out.';
-        }
-        $this->redirect('/admin/backups?' . http_build_query(['backup' => 'ok', 'backup_msg' => $message]));
+        $this->renderBackupRestore($outcome['filename'], $outcome['error'], $outcome['selected']);
     }
 
-    /** @return array{filename: string, created_at: string, verified: bool, version: string}|null */
     private function preUpdateBackupStatus(): ?array
     {
-        $meta = $this->systemMeta->getJson('pre_update_backup');
-        if (!is_array($meta) || ($meta['filename'] ?? '') === '' || $this->backups->pathFor((string)$meta['filename']) === null) {
-            return null;
-        }
-        return [
-            'filename' => (string)$meta['filename'],
-            'created_at' => (string)($meta['created_at'] ?? ''),
-            'verified' => ($meta['verified'] ?? false) === true,
-            'version' => (string)($meta['version'] ?? ''),
-        ];
+        return $this->backupAdmin()->preUpdateStatus();
     }
 
     private function handleUpdates(): void
@@ -2033,26 +1592,10 @@ final class App
                     $this->renderForbidden();
                     return;
                 }
-                $result = $this->backupManager()->createSnapshot('pre-update');
-                $this->backupManager()->recordRun($result);
-                $verification = ($result['ok'] ?? false) === true
-                    ? $this->backups->verify((string)$result['filename'])
-                    : ['ok' => false, 'message' => (string)($result['message'] ?? 'Backup failed.')];
-                if (($result['ok'] ?? false) === true) {
-                    $this->systemMeta->setJson('pre_update_backup', [
-                        'filename' => (string)$result['filename'],
-                        'created_at' => gmdate('c'),
-                        'verified' => $verification['ok'] === true,
-                        'version' => $updates->currentVersion(),
-                    ]);
-                }
-                $this->logActivity($verification['ok'] ? 'updates.pre_backup_success' : 'updates.pre_backup_failure', $verification['ok'] ? 'info' : 'error', 'backup', (string)($result['filename'] ?? ''), (string)$verification['message'], [
-                    'result' => $result,
-                ]);
-                $this->backupManager()->notify($result, false);
+                $made = $this->backupAdmin()->preUpdateBackup($updates->currentVersion());
                 $this->redirect('/admin/updates?' . http_build_query([
-                    'pre_backup' => $verification['ok'] ? 'ok' : 'fail',
-                    'pre_backup_msg' => $verification['ok'] ? 'Verified pre-update backup created: ' . (string)$result['filename'] : (string)$verification['message'],
+                    'pre_backup' => $made['ok'] ? 'ok' : 'fail',
+                    'pre_backup_msg' => $made['message'],
                 ]));
                 return;
             }
@@ -2165,82 +1708,21 @@ final class App
         }
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $payload = [
-                'username' => trim((string)($_POST['username'] ?? '')),
-                'email' => trim((string)($_POST['email'] ?? '')),
-                'display_name' => trim((string)($_POST['display_name'] ?? '')),
-                'role' => trim((string)($_POST['role'] ?? 'editor')),
-                'status' => trim((string)($_POST['status'] ?? 'active')),
-                'google_sub' => trim((string)($_POST['google_sub'] ?? '')),
-                'google_email' => trim((string)($_POST['google_email'] ?? '')),
-            ];
-            if ($id > 0 && !$this->permissions->canChangeAccessForUser($currentUser, $id)) {
-                $payload['role'] = (string)($user['role'] ?? 'user');
-                $payload['status'] = (string)($user['status'] ?? 'active');
-            }
-            if ($id > 0 && !$canManageUsers) {
-                $payload['google_sub'] = (string)($user['google_sub'] ?? '');
-                $payload['google_email'] = (string)($user['google_email'] ?? '');
-            }
-            $password = (string)($_POST['password'] ?? '');
-            $passwordConfirm = (string)($_POST['password_confirm'] ?? '');
-            if ($payload['username'] === '') {
-                $error = 'Username is required.';
-            } elseif ($id === 0 && $password === '') {
-                $error = 'Password is required for new users.';
-            } elseif ($password !== '' && $password !== $passwordConfirm) {
-                $error = 'Password confirmation does not match.';
-            } elseif ($password !== '' && mb_strlen($password) < 8) {
-                $error = 'Passwords must be at least 8 characters long.';
-            } elseif ($password !== '' && $this->auth->isShippedDefaultPassword($payload['username'], $password)) {
-                $error = 'Choose a password other than the one shipped with FarosCMS.';
-            } else {
-                if ($password !== '') {
-                    $payload['password_hash'] = $this->users->passwordHash($password);
+            $result = $this->userAdmin()->save($id, $user, $currentUser, $_POST);
+            if ($result['ok']) {
+                if ($result['password_changed'] && $result['id'] === $currentId) {
+                    unset($_SESSION['security_default_password']);
                 }
-                try {
-                    if ($id > 0) {
-                        $this->users->update($id, $payload);
-                        if ($id === $currentId && $password !== '') {
-                            unset($_SESSION['security_default_password']);
-                        }
-                        $this->logActivity('users.update', 'info', 'user', (string)$id, 'User updated.', [
-                            'username' => $payload['username'],
-                            'role' => $payload['role'],
-                            'status' => $payload['status'],
-                        ]);
-                    } else {
-                        $id = $this->users->create($payload);
-                        $this->logActivity('users.create', 'info', 'user', (string)$id, 'User created.', [
-                            'username' => $payload['username'],
-                            'role' => $payload['role'],
-                            'status' => $payload['status'],
-                        ]);
-                    }
-                    $this->redirect('/admin/users-edit?id=' . $id . '&saved=1');
-                    return;
-                } catch (\Throwable $e) {
-                    $error = 'User could not be saved. Check for duplicate usernames or invalid values.';
-                }
+                $this->redirect('/admin/users-edit?id=' . $result['id'] . '&saved=1');
+                return;
             }
-            $user = array_merge($user ?: [], $payload, ['id' => $id]);
+            $error = $result['error'];
+            $user = array_merge($user ?: [], $result['payload'], ['id' => $id]);
         }
 
         $this->render('@admin/user-edit.twig', [
             'title' => $canManageUsers ? ($id === 0 ? 'Add user' : 'Edit user') : 'Your profile',
-            'edited_user' => $user ?: [
-                'id' => 0,
-                'username' => '',
-                'email' => '',
-                'display_name' => '',
-                'role' => 'editor',
-                'status' => 'active',
-                'google_sub' => '',
-                'google_email' => '',
-                'created_at' => '',
-                'updated_at' => '',
-                'last_login_at' => '',
-            ],
+            'edited_user' => $user ?: UserAdmin::blank(),
             'roles' => $this->permissions->allRoles(),
             'is_new' => $id === 0,
             'error' => $error,
@@ -2253,6 +1735,16 @@ final class App
             'admin_section' => 'users',
             'current_type' => 'pages',
         ]);
+    }
+
+    private function userAdmin(): UserAdmin
+    {
+        return $this->userAdminService ??= new UserAdmin(
+            $this->users,
+            $this->auth,
+            $this->permissions,
+            fn(string $action, string $level, ?string $type, ?string $id, string $message, array $context) => $this->logActivity($action, $level, $type, $id, $message, $context)
+        );
     }
 
     private function handleUserDelete(): void
@@ -2593,7 +2085,7 @@ final class App
         }
         $formSubmissionsTotal = 0;
         if ($type === 'forms' && $slug !== '') {
-            $formSubmissions = $this->listFormSubmissions($slug);
+            $formSubmissions = $this->formsAdmin()->recent($slug);
             $formSubmissionsTotal = count($formSubmissions);
             $formSubmissions = array_slice($formSubmissions, 0, 10);
         }
@@ -3047,59 +2539,11 @@ final class App
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $activeTab = $this->sanitizeSettingsTab((string)($_POST['active_tab'] ?? $activeTab));
             $raw = $this->siteSettings()->raw('site_settings', $this->siteSettings()->defaults());
-            $form = [
-                'title' => (string)($_POST['title'] ?? ''),
-                'tagline' => (string)($_POST['tagline'] ?? ''),
-                'base_url' => (string)($_POST['base_url'] ?? ''),
-                'theme' => (string)($_POST['theme'] ?? ''),
-                'home_page' => (string)($_POST['home_page'] ?? ''),
-                'date_format' => (string)($_POST['date_format'] ?? ''),
-                // Only when the box was on the form that was sent, so a form without it does not clear the rules.
-                'robots_disallow' => isset($_POST['robots_disallow']) ? implode("\n", RobotsTxt::rules((string)$_POST['robots_disallow'])) : null,
+            $upload = $this->submittedUploadSettings();
+            $form = SiteSettings::formFromPost($_POST) + [
                 'storage_limit_mb' => $this->submittedStorageLimit(),
-                'upload_limit_mb' => $this->submittedUploadSettings()['mb'],
-                'upload_types' => $this->submittedUploadSettings()['types'],
-                'languages_default' => (string)($_POST['languages_default'] ?? ''),
-                'languages_available' => (string)($_POST['languages_available'] ?? ''),
-                'mail_driver' => (string)($_POST['mail_driver'] ?? ''),
-                'mail_from' => (string)($_POST['mail_from'] ?? ''),
-                'mail_from_name' => (string)($_POST['mail_from_name'] ?? ''),
-                'smtp_host' => (string)($_POST['smtp_host'] ?? ''),
-                'smtp_port' => (string)($_POST['smtp_port'] ?? ''),
-                'smtp_user' => (string)($_POST['smtp_user'] ?? ''),
-                'smtp_pass' => (string)($_POST['smtp_pass'] ?? ''),
-                'smtp_encryption' => (string)($_POST['smtp_encryption'] ?? ''),
-                'ses_key' => (string)($_POST['ses_key'] ?? ''),
-                'ses_secret' => (string)($_POST['ses_secret'] ?? ''),
-                'ses_region' => (string)($_POST['ses_region'] ?? ''),
-                'menu_location_header' => (string)($_POST['menu_location_header'] ?? ''),
-                'menu_location_footer' => (string)($_POST['menu_location_footer'] ?? ''),
-                'menu_location_keys' => $_POST['menu_location_keys'] ?? [],
-                'menu_location_values' => $_POST['menu_location_values'] ?? [],
-                'backup_auto_enabled' => isset($_POST['backup_auto_enabled']) ? '1' : '0',
-                'backup_schedule' => (string)($_POST['backup_schedule'] ?? ''),
-                'backup_keep_local' => (string)($_POST['backup_keep_local'] ?? ''),
-                'backup_remote_enabled' => isset($_POST['backup_remote_enabled']) ? '1' : '0',
-                'backup_remote_provider' => (string)($_POST['backup_remote_provider'] ?? ''),
-                'backup_remote_endpoint' => (string)($_POST['backup_remote_endpoint'] ?? ''),
-                'backup_remote_region' => (string)($_POST['backup_remote_region'] ?? ''),
-                'backup_remote_bucket' => (string)($_POST['backup_remote_bucket'] ?? ''),
-                'backup_remote_access_key' => (string)($_POST['backup_remote_access_key'] ?? ''),
-                'backup_remote_secret_key' => (string)($_POST['backup_remote_secret_key'] ?? ''),
-                'backup_remote_prefix' => (string)($_POST['backup_remote_prefix'] ?? ''),
-                'backup_remote_keep' => (string)($_POST['backup_remote_keep'] ?? ''),
-                'backup_remote_path_style' => isset($_POST['backup_remote_path_style']) ? '1' : '0',
-                'google_enabled' => isset($_POST['google_enabled']) ? '1' : '0',
-                'google_client_id' => (string)($_POST['google_client_id'] ?? ''),
-                'google_client_secret' => (string)($_POST['google_client_secret'] ?? ''),
-                'google_allowed_domain' => (string)($_POST['google_allowed_domain'] ?? ''),
-                'update_repository' => (string)($_POST['update_repository'] ?? ''),
-                'update_branch' => (string)($_POST['update_branch'] ?? ''),
-                'update_version_url' => (string)($_POST['update_version_url'] ?? ''),
-                'update_changelog_url' => (string)($_POST['update_changelog_url'] ?? ''),
-                'update_package_url' => (string)($_POST['update_package_url'] ?? ''),
-                'update_github_token' => (string)($_POST['update_github_token'] ?? ''),
-                'clear_secrets' => is_array($_POST['clear_secret'] ?? null) ? array_map('strval', $_POST['clear_secret']) : [],
+                'upload_limit_mb' => $upload['mb'],
+                'upload_types' => $upload['types'],
             ];
             $limitBefore = (int)($this->settings['limits']['storage_mb'] ?? 1024);
             $uploadBefore = [$this->siteLimits()->uploadLimitMb(), $this->media->allowedGroups()];
@@ -3593,62 +3037,21 @@ final class App
             return;
         }
 
-        $submissions = $this->loadFormSubmissionsRaw($slug);
-        $headers = ['id', 'submitted_at', 'site_title', 'form_title', 'form', 'lang', 'translation_id', 'ip', 'user_agent'];
-        $fieldKeys = [];
-        foreach ($submissions as $submission) {
-            foreach (array_keys($submission['fields'] ?? []) as $key) {
-                if (!in_array($key, $fieldKeys, true)) {
-                    $fieldKeys[] = $key;
-                }
-            }
-        }
-        sort($fieldKeys);
-        $headers = array_merge($headers, $fieldKeys);
-
-        $siteName = (string)($this->settings['title'] ?? 'site');
-        $siteSlug = $this->slugify($siteName);
-        if ($siteSlug === '') {
-            $siteSlug = 'site';
-        }
-        $formTitle = (string)($form->meta['title'] ?? $form->slug);
-        $formSlug = $this->slugify($formTitle);
-        if ($formSlug === '') {
-            $formSlug = $form->slug;
-        }
-        $filename = $siteSlug . '-' . $formSlug . '-submissions.csv';
+        $export = $this->formsAdmin()->export($form, (string)($this->settings['title'] ?? ''));
         $this->logActivity('forms.export', 'info', 'forms', $slug . ':' . $lang, 'Form submissions exported.', [
             'slug' => $slug,
             'lang' => $lang,
-            'submissions' => count($submissions),
-            'filename' => $filename,
+            'submissions' => $export['count'],
+            'filename' => $export['filename'],
         ]);
         header('Content-Type: text/csv; charset=utf-8');
-        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Content-Disposition: attachment; filename="' . $export['filename'] . '"');
         $output = fopen('php://output', 'w');
         if ($output === false) {
             return;
         }
-        $siteTitle = (string)($this->settings['title'] ?? '');
-        fputcsv($output, $headers, ',', '"', '');
-        foreach ($submissions as $submission) {
-            $row = [];
-            foreach ($headers as $header) {
-                if (in_array($header, ['id', 'submitted_at', 'form', 'lang', 'translation_id', 'ip', 'user_agent'], true)) {
-                    $row[] = $submission[$header] ?? '';
-                    continue;
-                }
-                if ($header === 'site_title') {
-                    $row[] = $siteTitle;
-                    continue;
-                }
-                if ($header === 'form_title') {
-                    $row[] = $formTitle;
-                    continue;
-                }
-                $value = $submission['fields'][$header] ?? '';
-                $row[] = $this->stringifySubmissionValue($value);
-            }
+        fputcsv($output, $export['headers'], ',', '"', '');
+        foreach ($export['rows'] as $row) {
             fputcsv($output, $row, ',', '"', '');
         }
         fclose($output);
@@ -3773,65 +3176,15 @@ final class App
             'q' => trim((string)($_GET['q'] ?? '')),
             'status' => trim((string)($_GET['status'] ?? '')),
         ];
-        $sort = (string)($_GET['sort'] ?? 'updated');
-        if (!in_array($sort, ['updated', 'submissions', 'name'], true)) {
-            $sort = 'updated';
-        }
-
-        $groups = [];
-        foreach ($this->content->getItems('forms', null, true, false) as $item) {
-            $groups[$item->slug][$item->lang] = $item;
-        }
-
-        $rows = [];
-        $totals = ['forms' => 0, 'published' => 0, 'submissions' => 0, 'recent' => 0];
-        foreach ($groups as $slug => $versions) {
-            $primary = $versions[$defaultLang] ?? reset($versions);
-            $stats = $this->formSubmissions->stats((string)$slug);
-            $notifications = is_array($primary->meta['notifications'] ?? null) ? $primary->meta['notifications'] : [];
-            $status = (string)($primary->meta['status'] ?? 'published');
-            $rows[] = [
-                'slug' => (string)$slug,
-                'title' => (string)($primary->meta['title'] ?? $slug),
-                'status' => $status,
-                'lang' => $primary->lang,
-                'field_count' => count(FormFields::normalize($primary->meta['fields'] ?? [])),
-                'languages' => array_keys($versions),
-                'missing_languages' => array_values(array_diff($languages, array_keys($versions))),
-                'submissions' => $stats['total'],
-                'recent' => $stats['last_7_days'],
-                'latest_submission' => $stats['latest'] !== '' ? $this->formatSubmissionDate($stats['latest']) : '',
-                'updated' => max(array_map(static fn(ContentItem $version): int => $version->mtime, $versions)),
-                'notifications' => $this->isTruthy($notifications['enabled'] ?? false),
-                'stores' => $this->isTruthy($primary->meta['store_submissions'] ?? ($this->settings['forms']['store_submissions'] ?? true)),
-                'shortcode' => '[form slug="' . $slug . '"]',
-            ];
-            $totals['forms']++;
-            $totals['published'] += $status === 'published' ? 1 : 0;
-            $totals['submissions'] += $stats['total'];
-            $totals['recent'] += $stats['last_7_days'];
-        }
-
-        if ($filters['q'] !== '') {
-            $needle = mb_strtolower($filters['q']);
-            $rows = array_values(array_filter($rows, static fn(array $row): bool => str_contains(mb_strtolower($row['title'] . ' ' . $row['slug']), $needle)));
-        }
-        if ($filters['status'] !== '') {
-            $rows = array_values(array_filter($rows, static fn(array $row): bool => $row['status'] === $filters['status']));
-        }
-        usort($rows, static fn(array $a, array $b): int => match ($sort) {
-            'submissions' => $b['submissions'] <=> $a['submissions'],
-            'name' => strcasecmp($a['title'], $b['title']),
-            default => $b['updated'] <=> $a['updated'],
-        });
+        $overview = $this->formsAdmin()->overview($filters, (string)($_GET['sort'] ?? 'updated'), $languages, $defaultLang, $this->isTruthy($this->settings['forms']['store_submissions'] ?? true));
 
         $this->render('@admin/forms-list.twig', [
             'title' => 'Forms',
-            'rows' => $rows,
-            'totals' => $totals,
+            'rows' => $overview['rows'],
+            'totals' => $overview['totals'],
             'filters' => $filters,
-            'sort' => $sort,
-            'filters_active' => $filters['q'] !== '' || $filters['status'] !== '' || $sort !== 'updated',
+            'sort' => $overview['sort'],
+            'filters_active' => $filters['q'] !== '' || $filters['status'] !== '' || $overview['sort'] !== 'updated',
             'languages' => $languages,
             'default_lang' => $defaultLang,
             'deleted' => isset($_GET['deleted']),
@@ -3846,12 +3199,7 @@ final class App
     {
         $slug = $this->slugify((string)($_GET['slug'] ?? ($_POST['slug'] ?? '')));
         $defaultLang = (string)($this->settings['languages']['default'] ?? 'en');
-        $versions = [];
-        foreach ($this->content->getItems('forms', null, true, false) as $item) {
-            if ($item->slug === $slug) {
-                $versions[$item->lang] = $item;
-            }
-        }
+        $versions = $this->formsAdmin()->versions($slug);
         if ($slug === '' || $versions === []) {
             $this->redirect('/admin/forms');
             return;
@@ -3859,24 +3207,14 @@ final class App
         $form = $versions[$defaultLang] ?? reset($versions);
 
         if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
-            $action = (string)($_POST['submission_action'] ?? '');
-            $ids = $action === 'delete'
-                ? [(string)($_POST['id'] ?? '')]
-                : (is_array($_POST['selected_ids'] ?? null) ? array_map('strval', $_POST['selected_ids']) : []);
-            $deleted = 0;
-            if (in_array($action, ['delete', 'bulk_delete'], true)) {
-                foreach ($ids as $id) {
-                    if ($this->formSubmissions->delete($slug, $id)) {
-                        $deleted++;
-                    }
-                }
-                if ($deleted > 0) {
-                    $this->logActivity('forms.submission_delete', 'warning', 'forms', $slug, $deleted === 1 ? 'Form submission deleted.' : 'Form submissions deleted.', [
-                        'slug' => $slug,
-                        'count' => $deleted,
-                        'ids' => array_slice($ids, 0, 50),
-                    ]);
-                }
+            $result = $this->formsAdmin()->deleteSubmissions($slug, $_POST);
+            $deleted = $result['deleted'];
+            if ($deleted > 0) {
+                $this->logActivity('forms.submission_delete', 'warning', 'forms', $slug, $deleted === 1 ? 'Form submission deleted.' : 'Form submissions deleted.', [
+                    'slug' => $slug,
+                    'count' => $deleted,
+                    'ids' => array_slice($result['ids'], 0, 50),
+                ]);
             }
             $return = $this->sanitizeAdminReturnUrl((string)($_POST['return_to'] ?? ''));
             parse_str((string)parse_url($return, PHP_URL_QUERY), $query);
@@ -3889,64 +3227,7 @@ final class App
             return;
         }
 
-        $filters = [
-            'lang' => $this->slugify((string)($_GET['lang'] ?? '')),
-            'q' => trim((string)($_GET['q'] ?? '')),
-            'date_from' => preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)($_GET['date_from'] ?? '')) ? (string)$_GET['date_from'] : '',
-            'date_to' => preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)($_GET['date_to'] ?? '')) ? (string)$_GET['date_to'] : '',
-        ];
-        $perPage = (int)($_GET['per_page'] ?? 25);
-        if (!in_array($perPage, [25, 50, 100], true)) {
-            $perPage = 25;
-        }
-        $all = $this->formSubmissions->all($slug);
-        $filtered = $this->formSubmissions->filter($all, $filters);
-        $total = count($filtered);
-        $totalPages = max(1, (int)ceil($total / $perPage));
-        $page = min(max(1, (int)($_GET['page'] ?? 1)), $totalPages);
-
-        $labels = [];
-        $formFields = FormFields::normalize($form->meta['fields'] ?? []);
-        foreach ($formFields as $field) {
-            $name = (string)($field['name'] ?? '');
-            if ($name !== '') {
-                $labels[$name] = (string)($field['label'] ?? $this->titleFromSlug($name));
-            }
-        }
-        $rows = [];
-        foreach (array_slice($filtered, ($page - 1) * $perPage, $perPage) as $entry) {
-            $fields = [];
-            foreach ($entry['fields'] as $key => $value) {
-                $fields[] = [
-                    'key' => (string)$key,
-                    'label' => $labels[(string)$key] ?? $this->titleFromSlug((string)$key),
-                    'value' => $this->stringifySubmissionValue($value),
-                ];
-            }
-            $summaryParts = [];
-            foreach ($fields as $field) {
-                if (in_array($field['key'], ['name', 'full_name', 'email'], true) || $field['value'] === '') {
-                    continue;
-                }
-                $summaryParts[] = $field['value'];
-                if (count($summaryParts) >= 2) {
-                    break;
-                }
-            }
-            $rows[] = [
-                'id' => $entry['id'],
-                'submitted_at' => $this->formatSubmissionDate((string)$entry['submitted_at']),
-                'lang' => (string)$entry['lang'],
-                'title' => $this->submissionTitle($entry['fields']),
-                'email' => $this->findReplyToEmail($entry['fields'], $formFields, ''),
-                'summary' => mb_strimwidth(implode(' · ', $summaryParts), 0, 120, '…'),
-                'fields' => $fields,
-                'ip' => (string)$entry['ip'],
-                'user_agent' => (string)$entry['user_agent'],
-            ];
-        }
-
-        $stats = $this->formSubmissions->stats($slug);
+        $page = $this->formsAdmin()->page($form, $_GET);
         $this->render('@admin/form-submissions.twig', [
             'title' => 'Submissions',
             'form' => [
@@ -3955,16 +3236,16 @@ final class App
                 'lang' => $form->lang,
                 'languages' => array_keys($versions),
             ],
-            'rows' => $rows,
-            'filters' => $filters,
-            'filters_active' => array_filter($filters) !== [],
-            'total_all' => count($all),
-            'total' => $total,
-            'recent' => $stats['last_7_days'],
-            'page' => $page,
-            'total_pages' => $totalPages,
-            'per_page' => $perPage,
-            'per_page_options' => [25, 50, 100],
+            'rows' => $page['rows'],
+            'filters' => $page['filters'],
+            'filters_active' => array_filter($page['filters']) !== [],
+            'total_all' => $page['total_all'],
+            'total' => $page['total'],
+            'recent' => $page['recent'],
+            'page' => $page['page'],
+            'total_pages' => $page['total_pages'],
+            'per_page' => $page['per_page'],
+            'per_page_options' => FormsAdmin::PER_PAGE_OPTIONS,
             'deleted_count' => (int)($_GET['deleted'] ?? 0),
             'error' => trim((string)($_GET['error'] ?? '')),
             'current_url' => $this->currentRequestPath(),
@@ -3974,6 +3255,16 @@ final class App
             'admin_section' => 'forms',
             'current_type' => 'forms',
         ]);
+    }
+
+    private function formsAdmin(): FormsAdmin
+    {
+        return $this->formsAdminService ??= new FormsAdmin($this->content, $this->formSubmissions);
+    }
+
+    private function formProcessor(): FormProcessor
+    {
+        return $this->formProcessorService ??= new FormProcessor(fn(string $key, string $fallback): string => $this->translate($key, $fallback));
     }
 
     private function handleContentExport(): void
@@ -4143,45 +3434,10 @@ final class App
         $default = $this->defaultLanguage();
         $manageable = array_values(array_filter($this->content->getTypes(), static fn(string $t): bool => $t !== 'forms'));
         $types = $this->contentTypes();
+        $admin = $this->contentTypeAdmin();
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $action = (string)($_POST['action'] ?? 'save');
-            if ($action === 'create') {
-                $name = $this->slugify((string)($_POST['name'] ?? ''));
-                $reserved = ['pages', 'settings', 'users', 'media', 'menus', 'taxonomies', 'forms', 'forms-submissions', 'search', 'tag', 'tags', 'category', 'categories', 'admin', 'uploads', 'assets', 'robots', 'sitemap', 'custom'];
-                if ($name === '' || !preg_match('/^[a-z][a-z0-9-]*$/', $name) || in_array($name, $reserved, true) || in_array($name, $manageable, true)) {
-                    $this->redirect('/admin/content-types?error=name');
-                    return;
-                }
-                $label = trim((string)($_POST['label'] ?? ''));
-                $dir = $this->contentDir . '/' . $name;
-                if (!is_dir($dir) && !@mkdir($dir, 0775, true) && !is_dir($dir)) {
-                    $this->redirect('/admin/content-types?error=write');
-                    return;
-                }
-                if (!$types->saveCustom($name, ['label' => $label !== '' ? $label : $this->titleFromSlug($name)])) {
-                    $this->redirect('/admin/content-types?error=write');
-                    return;
-                }
-                $this->logActivity('content_types.create', 'info', 'content_type', $name, 'Content type created.');
-                $this->redirect('/admin/content-types?type=' . urlencode($name) . '&saved=1');
-                return;
-            }
-
-            $type = $this->slugify((string)($_POST['type'] ?? ''));
-            if (!in_array($type, $manageable, true)) {
-                $this->redirect('/admin/content-types');
-                return;
-            }
-            $definition = $this->contentTypeFromInput($type, $default);
-            if (!$types->saveCustom($type, $definition)) {
-                $this->redirect('/admin/content-types?type=' . urlencode($type) . '&error=write');
-                return;
-            }
-            $this->logActivity('content_types.update', 'info', 'content_type', $type, 'Content type updated.', [
-                'fields' => count($definition['fields'] ?? []),
-            ]);
-            $this->redirect('/admin/content-types?type=' . urlencode($type) . '&saved=1');
+            $this->redirect((string)($_POST['action'] ?? 'save') === 'create' ? $admin->create($_POST, $manageable) : $admin->update($_POST, $manageable, $default));
             return;
         }
 
@@ -4196,32 +3452,11 @@ final class App
         if ($selected !== '' && in_array($selected, $manageable, true)) {
             $definition = $types->definition($selected, $default, $default);
             $themeDefinition = $types->themeDefinition($selected, $default, $default);
-            $rows = [];
-            foreach ($definition['fields'] as $key => $field) {
-                $options = [];
-                foreach ($field['type'] === 'select' ? $field['options'] : [] as $value => $label) {
-                    if ((string)$value !== '') {
-                        $options[] = $value . '|' . $label;
-                    }
-                }
-                $rows[] = [
-                    'key' => (string)$key,
-                    'label' => $field['label'],
-                    'help' => $field['help'],
-                    'type' => $field['type'],
-                    'options' => implode("\n", $options),
-                    'filterable' => $field['filterable'],
-                    'card' => $field['card'],
-                    'show' => $field['show'],
-                    'retired' => $field['hidden'],
-                    'from_theme' => isset($themeDefinition['fields'][$key]),
-                ];
-            }
             $this->render('@admin/content-type-edit.twig', [
                 'type' => $selected,
                 'definition' => $definition,
                 'theme_definition' => $themeDefinition,
-                'rows' => $rows,
+                'rows' => $admin->fieldRows($definition, $themeDefinition),
                 'field_types' => ContentTypes::FIELD_TYPES,
                 'layouts' => ContentTypes::LAYOUTS,
                 'orders' => ContentTypes::orderOptions($definition['fields']),
@@ -4231,177 +3466,18 @@ final class App
             return;
         }
 
-        $rows = [];
-        foreach ($manageable as $type) {
-            $definition = $types->definition($type, $default, $default);
-            $rows[] = [
-                'type' => $type,
-                'label' => $definition['label'],
-                'fields' => count(array_filter($definition['fields'], static fn(array $f): bool => !$f['hidden'])),
-                'origin' => $definition['origin'],
-                'layout' => $definition['archive']['layout'],
-            ];
-        }
-        $this->render('@admin/content-types.twig', ['types_list' => $rows] + $common);
+        $this->render('@admin/content-types.twig', ['types_list' => $admin->overview($manageable, $default)] + $common);
     }
 
-    /**
-     * The site's definition file for a type after applying a submitted form. Starts from what the file
-     * holds now (so keys the form does not know are kept) and writes only differences from the theme.
-     *
-     * @return array<string, mixed>
-     */
-    private function contentTypeFromInput(string $type, string $default): array
+    private function contentTypeAdmin(): ContentTypeAdmin
     {
-        $types = $this->contentTypes();
-        $theme = $types->themeDefinition($type, $default, $default);
-        $out = $types->customRaw($type);
-        $text = static fn(string $key): string => trim((string)preg_replace('/\s+/', ' ', (string)($_POST[$key] ?? '')));
-
-        foreach (['label', 'singular', 'description'] as $key) {
-            $submitted = $text($key);
-            if ($submitted === '' || $submitted === $theme[$key]) {
-                unset($out[$key]);
-            } else {
-                $out[$key] = $submitted;
-            }
-        }
-
-        // Archive: only what differs from the theme.
-        $archive = ContentTypes::archiveFromInput(
-            is_array($_POST['archive'] ?? null) ? $_POST['archive'] : [],
-            is_array($out['archive'] ?? null) ? $out['archive'] : [],
-            $theme['archive'],
-            $this->taxonomies()->names(),
-            true
+        return $this->contentTypeAdminService ??= new ContentTypeAdmin(
+            $this->contentTypes(),
+            $this->contentDir,
+            fn(): array => $this->taxonomies()->names(),
+            fn(string $key): bool => $this->isReservedFrontmatterKey($key),
+            fn(string $action, string $level, ?string $type, ?string $id, string $message, array $context) => $this->logActivity($action, $level, $type, $id, $message, $context)
         );
-        if ($archive === []) {
-            unset($out['archive']);
-        } else {
-            $out['archive'] = $archive;
-        }
-
-        // Fields.
-        $fields = is_array($out['fields'] ?? null) ? $out['fields'] : [];
-        $themeKeys = array_keys($theme['fields']);
-        $seen = [];
-        foreach (is_array($_POST['fields'] ?? null) ? $_POST['fields'] : [] as $row) {
-            if (!is_array($row)) {
-                continue;
-            }
-            $key = strtolower(trim((string)($row['key'] ?? '')));
-            if (!preg_match('/^[a-z][a-z0-9_]{0,39}$/', $key) || isset($seen[$key]) || $this->isReservedFrontmatterKey($key)) {
-                continue;
-            }
-            $seen[$key] = true;
-            $retired = FieldSchema::isTruthy($row['retired'] ?? false);
-            $card = FieldSchema::isTruthy($row['card'] ?? false);
-            $show = FieldSchema::isTruthy($row['show'] ?? false);
-            $filterable = FieldSchema::isTruthy($row['filterable'] ?? false);
-
-            if (in_array($key, $themeKeys, true)) {
-                // A theme field: only how it is used can change.
-                $base = $theme['fields'][$key];
-                $entry = is_array($fields[$key] ?? null) ? $fields[$key] : [];
-                $flags = ['card' => $card, 'show' => $show, 'hidden' => $retired];
-                if ($base['type'] === 'select') {
-                    $flags['filterable'] = $filterable;
-                }
-                foreach ($flags as $flag => $value) {
-                    if ($value === $base[$flag]) {
-                        unset($entry[$flag]);
-                    } else {
-                        $entry[$flag] = $value;
-                    }
-                }
-                if ($entry === []) {
-                    unset($fields[$key]);
-                } else {
-                    $fields[$key] = $entry;
-                }
-                continue;
-            }
-
-            // A site field: everything can change. Details the form does not offer are kept.
-            $type_ = in_array((string)($row['type'] ?? ''), ContentTypes::FIELD_TYPES, true) ? (string)$row['type'] : 'text';
-            $entry = is_array($fields[$key] ?? null) ? $fields[$key] : [];
-            $entry['type'] = $type_;
-            $label = trim((string)preg_replace('/\s+/', ' ', (string)($row['label'] ?? '')));
-            $currentLabel = trim((string)ContentTypes::pick($entry['label'] ?? '', $default, $default));
-            if ($label === '') {
-                $label = ucfirst(str_replace('_', ' ', $key));
-            }
-            if ($label !== $currentLabel) {
-                $entry['label'] = $label;
-            }
-            $help = trim((string)preg_replace('/\s+/', ' ', (string)($row['help'] ?? '')));
-            if ($help !== trim((string)ContentTypes::pick($entry['help'] ?? '', $default, $default))) {
-                if ($help === '') {
-                    unset($entry['help']);
-                } else {
-                    $entry['help'] = $help;
-                }
-            }
-            if ($type_ === 'select') {
-                $options = ['' => '—'];
-                foreach (preg_split('/\R/', (string)($row['options'] ?? '')) ?: [] as $line) {
-                    $line = trim($line);
-                    if ($line === '') {
-                        continue;
-                    }
-                    [$value, $optionLabel] = str_contains($line, '|') ? array_map('trim', explode('|', $line, 2)) : [$this->slugify($line), $line];
-                    $value = preg_replace('/[^a-z0-9_-]+/', '-', strtolower($value)) ?? '';
-                    $value = trim($value, '-');
-                    if ($value !== '' && $optionLabel !== '') {
-                        $options[$value] = $optionLabel;
-                    }
-                }
-                $existing = is_array($entry['options'] ?? null) ? $entry['options'] : [];
-                $existingText = [];
-                foreach ($existing as $value => $optionLabel) {
-                    if ((string)$value !== '') {
-                        $existingText[(string)$value] = (string)ContentTypes::pick($optionLabel, $default, $default);
-                    }
-                }
-                $newText = $options;
-                unset($newText['']);
-                if ($existingText !== $newText) {
-                    $entry['options'] = $options;
-                }
-                if ($filterable) {
-                    $entry['filterable'] = true;
-                } else {
-                    unset($entry['filterable']);
-                }
-            } else {
-                unset($entry['options'], $entry['filterable']);
-            }
-            foreach (['card' => $card, 'hidden' => $retired] as $flag => $value) {
-                if ($value) {
-                    $entry[$flag] = true;
-                } else {
-                    unset($entry[$flag]);
-                }
-            }
-            if ($show) {
-                unset($entry['show']);
-            } else {
-                $entry['show'] = false;
-            }
-            $fields[$key] = $entry;
-        }
-        // Site fields whose row was removed leave the definition; their stored values stay in the content.
-        foreach (array_keys($fields) as $key) {
-            if (!isset($seen[$key]) && !in_array((string)$key, $themeKeys, true)) {
-                unset($fields[$key]);
-            }
-        }
-        if ($fields === []) {
-            unset($out['fields']);
-        } else {
-            $out['fields'] = $fields;
-        }
-        return $out;
     }
 
     private function handleTranslations(): void
@@ -5031,6 +4107,14 @@ final class App
         );
     }
 
+    private function archiveBuilder(): ArchiveBuilder
+    {
+        return $this->archiveBuilderService ??= new ArchiveBuilder(
+            fn(): array => $this->taxonomies()->names(),
+            fn(string $taxonomy, string $termId, string $lang): string => $this->taxonomyTermLabel($taxonomy, $termId, $lang)
+        );
+    }
+
     private function contentCsv(): ContentCsv
     {
         return $this->contentCsvService ??= new ContentCsv(
@@ -5205,7 +4289,7 @@ final class App
         // Entries of several types come newest first, as within a single type.
         $when = static fn(ContentItem $i): int => strtotime((string)($i->meta['date'] ?? '')) ?: $i->mtime;
         usort($items, static fn(ContentItem $a, ContentItem $b): int => $when($b) <=> $when($a));
-        $archive = $this->buildArchive($settings, [], null, $lang, $items);
+        $archive = $this->archiveBuilder()->build($settings, [], null, $lang, $items, $_GET);
         if ($archive['page'] > 1 && !$archive['filtered']) {
             $viewDefaults['canonical_url'] = ($viewDefaults['canonical_url'] ?? '') . '?page=' . $archive['page'];
         }
@@ -5491,84 +4575,6 @@ final class App
         ];
     }
 
-    /** @return array<string, mixed> */
-    private function googleAuthSettings(): array
-    {
-        $config = $this->settings['auth']['google'] ?? [];
-        if (!is_array($config)) {
-            $config = [];
-        }
-        $clientId = trim((string)($config['client_id'] ?? ''));
-        $clientSecret = trim((string)($config['client_secret'] ?? ''));
-        $enabled = $this->isTruthy($config['enabled'] ?? false);
-        $allowedDomain = strtolower(trim((string)($config['allowed_domain'] ?? '')));
-        return [
-            'enabled' => $enabled,
-            'client_id' => $clientId,
-            'client_secret' => $clientSecret,
-            'allowed_domain' => $allowedDomain,
-            'redirect_uri' => $this->buildAbsoluteUrl('/admin/google-callback'),
-            'ready' => $enabled && $clientId !== '' && $clientSecret !== '',
-        ];
-    }
-
-    /** @param array<string, mixed> $google */
-    private function googleTokenRequest(string $code, array $google): array
-    {
-        if (!function_exists('curl_init')) {
-            return ['ok' => false, 'message' => 'PHP cURL is required for Google Sign-In.'];
-        }
-        $ch = curl_init('https://oauth2.googleapis.com/token');
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => http_build_query([
-                'code' => $code,
-                'client_id' => (string)$google['client_id'],
-                'client_secret' => (string)$google['client_secret'],
-                'redirect_uri' => (string)$google['redirect_uri'],
-                'grant_type' => 'authorization_code',
-            ]),
-            CURLOPT_HTTPHEADER => ['Content-Type: application/x-www-form-urlencoded'],
-            CURLOPT_TIMEOUT => 15,
-        ]);
-        $body = curl_exec($ch);
-        $status = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
-        $error = curl_error($ch);
-        if (!is_string($body) || $body === '' || $status < 200 || $status >= 300) {
-            return ['ok' => false, 'message' => 'Google token exchange failed.' . ($error !== '' ? ' ' . $error : '')];
-        }
-        $data = json_decode($body, true);
-        if (!is_array($data) || empty($data['access_token'])) {
-            return ['ok' => false, 'message' => 'Google token response was invalid.'];
-        }
-        return ['ok' => true, 'access_token' => (string)$data['access_token']];
-    }
-
-    private function googleUserInfo(string $accessToken): array
-    {
-        if (!function_exists('curl_init')) {
-            return ['ok' => false, 'message' => 'PHP cURL is required for Google Sign-In.'];
-        }
-        $ch = curl_init('https://openidconnect.googleapis.com/v1/userinfo');
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $accessToken],
-            CURLOPT_TIMEOUT => 15,
-        ]);
-        $body = curl_exec($ch);
-        $status = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
-        if (!is_string($body) || $body === '' || $status < 200 || $status >= 300) {
-            return ['ok' => false, 'message' => 'Google profile lookup failed.'];
-        }
-        $data = json_decode($body, true);
-        if (!is_array($data)) {
-            return ['ok' => false, 'message' => 'Google profile response was invalid.'];
-        }
-        $data['ok'] = true;
-        return $data;
-    }
-
     private function resolveArchiveTemplate(string $type): string
     {
         $singular = $this->singularizeType($type);
@@ -5698,7 +4704,7 @@ final class App
     private function handleFormRequest(ContentItem $form, string $lang, string $currentPath): array
     {
         $fields = FormFields::normalize($form->meta['fields'] ?? []);
-        $values = $this->defaultFormValues($fields);
+        $values = $this->formProcessor()->defaults($fields);
         $errors = [];
         $success = false;
         $message = (string)($form->meta['success_message'] ?? '');
@@ -5771,7 +4777,9 @@ final class App
             ];
         }
 
-        $values = $this->collectFormValues($fields, $_POST, $errors);
+        $collected = $this->formProcessor()->collect($fields, $_POST);
+        $values = $collected['values'];
+        $errors = $collected['errors'];
         if (!empty($errors)) {
             return [
                 'fields' => $fields,
@@ -5786,10 +4794,14 @@ final class App
         }
 
         if ($this->isTruthy($form->meta['store_submissions'] ?? $this->settings['forms']['store_submissions'] ?? true)) {
-            $this->storeFormSubmission($form, $values);
+            $this->formSubmissions->store($form->slug, $this->formProcessor()->record($form, $values, (string)($_SERVER['REMOTE_ADDR'] ?? ''), (string)($_SERVER['HTTP_USER_AGENT'] ?? '')));
         }
 
-        $this->sendFormNotifications($form, $values, $fields);
+        $formUrl = $this->buildAbsoluteUrl($this->buildContentPath('forms', $form->slug, $form->lang, $this->settings['home_page'] ?? 'index', $this->settings['languages']['default'] ?? 'en'));
+        $siteMail = is_array($this->settings['forms']['notifications'] ?? null) ? $this->settings['forms']['notifications'] : [];
+        foreach ($this->formProcessor()->emails($form, $values, $fields, $siteMail, $formUrl) as $message) {
+            $this->sendEmailMessage($message['to'], $message['subject'], $message['body'], $message['headers']);
+        }
         $this->markFormRateLimit($form->slug);
         $success = true;
 
@@ -5825,167 +4837,6 @@ final class App
         $_SESSION['form_rate'][$slug] = time();
     }
 
-    /** @return array<string, mixed> */
-    private function defaultFormValues(array $fields): array
-    {
-        $values = [];
-        foreach ($fields as $field) {
-            $name = (string)($field['name'] ?? '');
-            if ($name === '') {
-                continue;
-            }
-            $default = $field['default'] ?? '';
-            if (($field['type'] ?? '') === 'checkboxes') {
-                if (is_array($default)) {
-                    $values[$name] = $default;
-                } else {
-                    $values[$name] = FormFields::parseOptions((string)$default);
-                }
-                continue;
-            }
-            if (($field['type'] ?? '') === 'checkbox') {
-                $values[$name] = $this->isTruthy($default) ? '1' : '';
-                continue;
-            }
-            $values[$name] = $default;
-        }
-        return $values;
-    }
-
-    /** @param array<int, array<string, mixed>> $fields */
-    private function collectFormValues(array $fields, array $payload, array &$errors): array
-    {
-        $values = [];
-        foreach ($fields as $field) {
-            $name = (string)($field['name'] ?? '');
-            if ($name === '') {
-                continue;
-            }
-            $type = (string)($field['type'] ?? 'text');
-            $required = (bool)($field['required'] ?? false);
-            $options = $field['options'] ?? [];
-            $optionValues = array_map(fn ($opt) => $opt['value'], is_array($options) ? $options : []);
-
-            if ($type === 'checkboxes') {
-                $raw = $payload[$name] ?? [];
-                $rawValues = is_array($raw) ? $raw : [];
-                $clean = [];
-                foreach ($rawValues as $value) {
-                    $value = trim((string)$value);
-                    if ($value === '') {
-                        continue;
-                    }
-                    if (!empty($optionValues) && !in_array($value, $optionValues, true)) {
-                        continue;
-                    }
-                    $clean[] = $value;
-                }
-                $values[$name] = $clean;
-                if ($required && empty($clean)) {
-                    $errors[$name] = $this->translate('form.error.required', 'This field is required.');
-                }
-                continue;
-            }
-
-            if ($type === 'checkbox') {
-                $checked = isset($payload[$name]) && (string)($payload[$name]) !== '';
-                $values[$name] = $checked ? '1' : '';
-                if ($required && !$checked) {
-                    $errors[$name] = $this->translate('form.error.required', 'This field is required.');
-                }
-                continue;
-            }
-
-            $value = trim((string)($payload[$name] ?? ''));
-            if ($type === 'email' && $value !== '' && !filter_var($value, FILTER_VALIDATE_EMAIL)) {
-                $errors[$name] = $this->translate('form.error.email', 'Please enter a valid email.');
-            }
-            if ($type === 'url' && $value !== '' && !filter_var($value, FILTER_VALIDATE_URL)) {
-                $errors[$name] = $this->translate('form.error.url', 'Please enter a valid URL.');
-            }
-            if (in_array($type, ['number', 'range'], true) && $value !== '' && !is_numeric($value)) {
-                $errors[$name] = $this->translate('form.error.numeric', 'Please enter a numeric value.');
-            }
-            if (in_array($type, ['select', 'radio'], true) && $value !== '' && !empty($optionValues) && !in_array($value, $optionValues, true)) {
-                $errors[$name] = $this->translate('form.error.option', 'Please select a valid option.');
-            }
-            if ($required && $value === '') {
-                $errors[$name] = $this->translate('form.error.required', 'This field is required.');
-            }
-            $values[$name] = $value;
-        }
-        return $values;
-    }
-
-    private function storeFormSubmission(ContentItem $form, array $values): void
-    {
-        $this->formSubmissions->store($form->slug, [
-            'form' => $form->slug,
-            'lang' => $form->lang,
-            'translation_id' => (string)($form->meta['translation_id'] ?? ''),
-            'submitted_at' => date('c'),
-            'ip' => (string)($_SERVER['REMOTE_ADDR'] ?? ''),
-            'user_agent' => (string)($_SERVER['HTTP_USER_AGENT'] ?? ''),
-            'fields' => $values,
-        ]);
-    }
-
-    /** @return array<int, array<string, mixed>> */
-    private function listFormSubmissions(string $slug): array
-    {
-        $rawEntries = $this->loadFormSubmissionsRaw($slug);
-        $entries = [];
-        foreach ($rawEntries as $data) {
-            $fields = [];
-            foreach (($data['fields'] ?? []) as $key => $value) {
-                $fields[] = [
-                    'label' => $this->titleFromSlug((string)$key),
-                    'value' => $this->stringifySubmissionValue($value),
-                ];
-            }
-            $entries[] = [
-                'id' => (string)($data['id'] ?? ''),
-                'submitted_at' => $this->formatSubmissionDate((string)($data['submitted_at'] ?? '')),
-                'title' => $this->submissionTitle($data['fields'] ?? []),
-                'fields' => $fields,
-            ];
-        }
-        usort($entries, function (array $a, array $b): int {
-            return strcmp((string)($b['submitted_at'] ?? ''), (string)($a['submitted_at'] ?? ''));
-        });
-        return $entries;
-    }
-
-    /** @return array<int, array<string, mixed>> */
-    private function loadFormSubmissionsRaw(string $slug): array
-    {
-        return $this->formSubmissions->all($slug);
-    }
-
-    private function submissionTitle(mixed $fields): string
-    {
-        if (is_array($fields)) {
-            foreach (['name', 'full_name', 'email'] as $key) {
-                if (isset($fields[$key]) && trim((string)$fields[$key]) !== '') {
-                    return trim((string)$fields[$key]);
-                }
-            }
-        }
-        return 'Submission';
-    }
-
-    private function formatSubmissionDate(string $value): string
-    {
-        if ($value === '') {
-            return '';
-        }
-        $timestamp = strtotime($value);
-        if ($timestamp === false) {
-            return $value;
-        }
-        return date('Y-m-d H:i', $timestamp);
-    }
-
     private function cleanupImportPreviewCache(): void
     {
         if (!isset($_SESSION['content_import_preview']) || !is_array($_SESSION['content_import_preview'])) {
@@ -5998,114 +4849,6 @@ final class App
                 unset($_SESSION['content_import_preview'][$token]);
             }
         }
-    }
-
-    private function stringifySubmissionValue(mixed $value): string
-    {
-        if (is_array($value)) {
-            return implode(', ', array_map('strval', $value));
-        }
-        return trim((string)$value);
-    }
-
-    private function sendFormNotifications(ContentItem $form, array $values, array $fields): void
-    {
-        $notifications = $form->meta['notifications'] ?? [];
-        if (!is_array($notifications)) {
-            $notifications = [];
-        }
-        $enabled = $this->isTruthy($notifications['enabled'] ?? false);
-        $to = trim((string)($notifications['to'] ?? ''));
-        $subject = trim((string)($notifications['subject'] ?? ''));
-        if ($subject === '') {
-            $subject = 'New submission: ' . (string)($form->meta['title'] ?? $form->slug);
-        }
-        $body = $this->buildFormEmailBody($form, $values, $fields);
-
-        $from = trim((string)($this->settings['forms']['notifications']['from'] ?? ''));
-        $fromName = trim((string)($this->settings['forms']['notifications']['from_name'] ?? ''));
-        if ($from === '') {
-            $from = 'noreply@localhost';
-        }
-        $fromHeader = $fromName !== '' ? $fromName . ' <' . $from . '>' : $from;
-        $headers = [
-            'From' => $fromHeader,
-        ];
-        $replyToField = trim((string)($notifications['reply_to_field'] ?? ''));
-        $replyEmail = $this->findReplyToEmail($values, $fields, $replyToField);
-        if ($replyEmail !== '') {
-            $headers['Reply-To'] = $replyEmail;
-        }
-        $cc = trim((string)($notifications['cc'] ?? ''));
-        if ($cc !== '') {
-            $headers['Cc'] = $cc;
-        }
-        $bcc = trim((string)($notifications['bcc'] ?? ''));
-        if ($bcc !== '') {
-            $headers['Bcc'] = $bcc;
-        }
-
-        if ($enabled && $to !== '') {
-            $this->sendEmailMessage($to, $subject, $body, $headers);
-        }
-
-        if ($this->isTruthy($notifications['auto_reply'] ?? false) && $replyEmail !== '') {
-            $autoSubject = trim((string)($notifications['auto_reply_subject'] ?? ''));
-            if ($autoSubject === '') {
-                $autoSubject = 'Thanks for your message';
-            }
-            $autoMessage = trim((string)($notifications['auto_reply_message'] ?? ''));
-            if ($autoMessage === '') {
-                $autoMessage = "Thanks for contacting us.\n\nWe received your submission and will get back to you soon.";
-            }
-            if ($this->isTruthy($notifications['auto_reply_include'] ?? false)) {
-                $autoMessage .= "\n\n---\n\n" . $body;
-            }
-            $this->sendEmailMessage($replyEmail, $autoSubject, $autoMessage, [
-                'From' => $fromHeader,
-            ]);
-        }
-    }
-
-    private function buildFormEmailBody(ContentItem $form, array $values, array $fields): string
-    {
-        $lines = [];
-        $lines[] = 'Form: ' . (string)($form->meta['title'] ?? $form->slug);
-        $lines[] = 'URL: ' . $this->buildAbsoluteUrl($this->buildContentPath('forms', $form->slug, $form->lang, $this->settings['home_page'] ?? 'index', $this->settings['languages']['default'] ?? 'en'));
-        $lines[] = '';
-        foreach ($fields as $field) {
-            $name = (string)($field['name'] ?? '');
-            if ($name === '') {
-                continue;
-            }
-            $label = (string)($field['label'] ?? $name);
-            $value = $values[$name] ?? '';
-            $lines[] = $label . ': ' . $this->stringifySubmissionValue($value);
-        }
-        return implode("\n", $lines);
-    }
-
-    private function findReplyToEmail(array $values, array $fields, string $replyToField): string
-    {
-        if ($replyToField !== '' && isset($values[$replyToField])) {
-            $candidate = trim((string)$values[$replyToField]);
-            if (filter_var($candidate, FILTER_VALIDATE_EMAIL)) {
-                return $candidate;
-            }
-        }
-        foreach ($fields as $field) {
-            if (($field['type'] ?? '') === 'email') {
-                $name = (string)($field['name'] ?? '');
-                $candidate = trim((string)($values[$name] ?? ''));
-                if (filter_var($candidate, FILTER_VALIDATE_EMAIL)) {
-                    return $candidate;
-                }
-            }
-        }
-        if (isset($values['email']) && filter_var($values['email'], FILTER_VALIDATE_EMAIL)) {
-            return (string)$values['email'];
-        }
-        return '';
     }
 
     private function mailer(): Mailer
@@ -6157,7 +4900,7 @@ final class App
             return '';
         }
         $fields = FormFields::normalize($form->meta['fields'] ?? []);
-        $values = $this->defaultFormValues($fields);
+        $values = $this->formProcessor()->defaults($fields);
         $errors = [];
         $success = isset($_GET['sent']) && (string)($_GET['form'] ?? '') === $form->slug;
         $message = (string)($form->meta['success_message'] ?? '');
