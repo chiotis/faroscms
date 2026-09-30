@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-09-30 — Line endings, roadmap, and the Actions warnings
+- Saving content from the editor now writes line breaks as LF. Browsers send a text box's line breaks as CRLF, so a page edited in the admin came out with some lines ending in CRLF and Git warned about it on every commit (and would show whole files as changed). Applies to the Markdown body and to raw front matter typed in the Advanced tab. `.gitattributes` also keeps code, docs, and tests LF on every machine, and marks fonts and images as binary
+- The GitHub Actions workflow uses `actions/checkout@v7` (v4 ran on Node 20, which is being retired) and a fixed `ubuntu-24.04` runner instead of `ubuntu-latest`, which changes version on 19 October
+- The roadmap is brought up to date: what has been done since it was last edited is listed, and items that were done or no longer apply (custom roles, the right utility rail, image transforms, the first theme polish list) are removed
+
 ## 2026-09-30 — A lighter repository
 - The `_reference/` folder (the old PicolinoCMS code and the admin HTML templates the admin was built from, 39 MB in 5,600 files) and the unused `scripts/vendorize.py` are removed from the repository; they stay in the Git history. The working notes `docs/todo.md`, `docs/migration-plan.md` and `docs/admin-gap-list.md` and the local `.claude/` folder are no longer tracked (they are in `.gitignore`). Full backups no longer list `_reference/` as excluded, since the folder is gone
 

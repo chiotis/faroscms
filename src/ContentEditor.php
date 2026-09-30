@@ -46,8 +46,9 @@ final class ContentEditor
         $postedSlug = Slug::plain((string)($post['slug'] ?? ''));
         $slug = $postedSlug;
         $lang = Slug::plain((string)($post['lang'] ?? ($this->settings['languages']['default'] ?? 'en')));
-        $frontmatter = trim((string)($post['frontmatter'] ?? ''));
-        $body = rtrim((string)($post['body'] ?? ''));
+        // Browsers send line breaks in a text box as CRLF; files keep LF, so a file does not change every line in Git.
+        $frontmatter = trim(str_replace(["\r\n", "\r"], "\n", (string)($post['frontmatter'] ?? '')));
+        $body = rtrim(str_replace(["\r\n", "\r"], "\n", (string)($post['body'] ?? '')));
         $title = trim((string)($post['title'] ?? ''));
         $status = trim((string)($post['status'] ?? 'published'));
         $visible = isset($post['visible']) && (string)($post['visible']) === '1';
