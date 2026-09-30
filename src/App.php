@@ -93,6 +93,7 @@ final class App
         $this->media->restrictTo(is_array($this->settings['limits']['upload_types'] ?? null) ? $this->settings['limits']['upload_types'] : []);
         $this->images = new Images($this->basePath . '/public', $this->contentDir . '/media');
         $this->content = new ContentRepository($this->contentDir, $markdown, $this->settings);
+        $this->content->onUnreadable(fn(string $type, string $path, string $message) => $this->reportUnreadableContent($type, $path, $message));
         $this->auth = new Auth($this->contentDir . '/users/users.yaml', $this->users);
 
         $this->twig = $this->initTwig();
@@ -3024,8 +3025,15 @@ final class App
             $frontmatter = $this->defaultFrontmatter($type, $slug);
         }
         $meta = [];
+        $frontMatterError = trim((string)($_GET['frontmatter_error'] ?? ''));
         if ($frontmatter !== '') {
-            $meta = Yaml::parse($frontmatter) ?: [];
+            try {
+                $meta = Yaml::parse($frontmatter) ?: [];
+            } catch (\Throwable $e) {
+                // The editor still opens, with the raw front matter to fix by hand.
+                $meta = [];
+                $frontMatterError = $e->getMessage();
+            }
         }
         $pageBlocks = is_array($meta) && is_array($meta['blocks'] ?? null) ? array_values($meta['blocks']) : [];
         if ($pageBlocks !== [] && $type !== 'forms') {
@@ -3155,6 +3163,7 @@ final class App
             'lang' => $lang,
             'title_from_slug' => $this->titleFromSlug($slug),
             'frontmatter' => $frontmatter,
+            'front_matter_error' => $frontMatterError,
             'body' => $body,
             'main_image' => $mainImage,
             'meta_form' => $metaForm,
@@ -3362,6 +3371,16 @@ final class App
             }
         }
 
+        $postedFrontMatter = trim((string)($_POST['frontmatter'] ?? ''));
+        if ($postedFrontMatter !== '') {
+            try {
+                Yaml::parse($postedFrontMatter);
+            } catch (\Throwable $e) {
+                // Nothing is written: the raw front matter must be readable first.
+                $this->redirect('/admin/edit?type=' . urlencode($type) . '&slug=' . urlencode((string)($_POST['original_slug'] ?? $_POST['slug'] ?? '')) . '&lang=' . urlencode((string)($_POST['original_lang'] ?? $_POST['lang'] ?? '')) . '&frontmatter_error=' . urlencode($e->getMessage()));
+                return;
+            }
+        }
         $result = $this->contentEditor()->save(
             $type,
             $_POST,
@@ -5588,6 +5607,30 @@ final class App
             }
         } catch (\Throwable) {
             // Email logging must never block sending or form handling.
+        }
+    }
+
+    /** Tells the admins that a content file has front matter nobody can read, once for each file until it is fixed. */
+    private function reportUnreadableContent(string $type, string $path, string $message): void
+    {
+        try {
+            $filename = basename($path, '.md');
+            $lang = (string)($this->settings['languages']['default'] ?? 'en');
+            $slug = $filename;
+            if (preg_match('/^(.*)\.([a-z]{2})$/', $filename, $m)) {
+                $slug = $m[1];
+                $lang = $m[2];
+            }
+            $this->notifications->createIfMissing([
+                'type' => 'content.unreadable',
+                'title' => 'A content file cannot be read',
+                'body' => $type . '/' . basename($path) . ': ' . $message,
+                'severity' => 'error',
+                'target_url' => '/admin/edit?type=' . urlencode($type) . '&slug=' . urlencode($slug) . '&lang=' . urlencode($lang),
+                'context' => ['type' => $type, 'file' => basename($path), 'error' => $message],
+            ]);
+        } catch (\Throwable) {
+            // Reporting must never be what breaks a page.
         }
     }
 

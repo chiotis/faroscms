@@ -157,6 +157,9 @@
                   {% if item.meta.seo is defined and item.meta.seo.noindex %}
                     {{ ui.badge('Noindex', 'pink') }}
                   {% endif %}
+                  {% if item.meta.front_matter_error is defined %}
+                    <span title="{{ item.meta.front_matter_error }}">{{ ui.badge('Unreadable', 'red') }}</span>
+                  {% endif %}
                 </td>
                 <td class="px-4 py-2.5">
                   <div class="flex flex-wrap items-center gap-1">

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace FarosCMS;
 
 use League\CommonMark\MarkdownConverter;
+use Symfony\Component\Yaml\Exception\ParseException;
 use Symfony\Component\Yaml\Yaml;
 
 final class ContentRepository
@@ -16,11 +17,29 @@ final class ContentRepository
     /** @var array<string, array<string, ContentItem>> */
     private array $cache = [];
 
+    /** @var array<string, string> files whose front matter could not be read, path => what the parser said */
+    private array $unreadable = [];
+
+    /** @var (\Closure(string, string, string): void)|null told about each file that cannot be read: type, path, message */
+    private ?\Closure $onUnreadable = null;
+
     public function __construct(string $contentDir, MarkdownConverter $markdown, array $settings)
     {
         $this->contentDir = rtrim($contentDir, '/');
         $this->markdown = $markdown;
         $this->settings = $settings;
+    }
+
+    /** Called once for each file whose front matter cannot be read, so the site can tell someone. @param \Closure(string, string, string): void $callback */
+    public function onUnreadable(\Closure $callback): void
+    {
+        $this->onUnreadable = $callback;
+    }
+
+    /** @return array<string, string> files that could not be read so far, path => message */
+    public function unreadable(): array
+    {
+        return $this->unreadable;
     }
 
     /** @return string[] */
@@ -164,8 +183,22 @@ final class ContentRepository
         $body = $raw;
 
         if (preg_match('/\A---\s*\R(.*?)\R---\s*\R(.*)\z/s', $raw, $matches)) {
-            $meta = Yaml::parse($matches[1]) ?: [];
             $body = $matches[2];
+            try {
+                $parsed = Yaml::parse($matches[1]) ?: [];
+                if (!is_array($parsed)) {
+                    throw new ParseException('The front matter is not a list of fields.');
+                }
+                $meta = $parsed;
+            } catch (ParseException $e) {
+                // One file with a typo must not take the whole site down: it counts as an unpublished draft (so no visitor
+                // sees half a page) that the admin flags, and its text stays in the file for someone to fix.
+                $meta = ['status' => 'draft', 'visible' => false, 'front_matter_error' => $e->getMessage()];
+                $this->unreadable[$path] = $e->getMessage();
+                if ($this->onUnreadable !== null) {
+                    ($this->onUnreadable)($type, $path, $e->getMessage());
+                }
+            }
         }
 
         $filename = basename($path, '.md');

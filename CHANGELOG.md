@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-09-30 — A typo in one file no longer takes the site down
+- A content file whose front matter cannot be read (for example an unquoted comma inside `{ … }`) used to make **every page** of the site fail with a fatal error. Now only that file is affected: it is treated as an unpublished draft (visitors do not see it, and it is not in the sitemap), shows an **Unreadable** badge in the content list, and every admin gets one notification (per file) with the file name, what the parser said, and a link to it. The rest of the site, the admin lists, search, and the dashboard carry on
+- The editor still opens such a file, with a red notice, the parser's message, and the raw front matter in the Advanced tab to correct. Saving front matter that still cannot be read writes nothing and returns to the editor with the reason (before, it was an error page). Once it reads again the page is public again and the badge is gone
+
 ## 2026-09-30 — Every message in the bottom bar
 - All admin messages now use the bottom bar, including on screens with no Save button (Updates "Check status", Media, Menus, Import, Backups, and the like). Before, only screens with an action bar did; the others still showed the old boxes in the corner. On a screen without a bar, one with no buttons slides up for the message (same colours, countdown line, Dismiss, Escape, and queueing) and away again. The old corner toasts, the copy "URL copied" box, and the boxes that some screens drew themselves are gone; the last inline error boxes (Import, Backup restore) are messages too now. Explanations with their own buttons (the address-change notice, the delete page) and the permanent banners (default password, storage) stay where they are, since they are not passing messages
 
