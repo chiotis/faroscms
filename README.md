@@ -8,7 +8,7 @@ Markdown and YAML content · Twig themes with a block editor · multilingual · 
 
 [![PHP 8.1+](https://img.shields.io/badge/PHP-8.1%2B-777bb4?logo=php&logoColor=white)](#requirements)
 [![License: MIT](https://img.shields.io/badge/license-MIT-2ea44f)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-1200%2B%20checks-2ea44f)](#tests)
+[![Tests](https://github.com/chiotis/faroscms/actions/workflows/tests.yml/badge.svg)](https://github.com/chiotis/faroscms/actions/workflows/tests.yml)
 [![No build step](https://img.shields.io/badge/server-no%20Node%20%C2%B7%20no%20Composer-4f46e5)](#requirements)
 
 <br>
@@ -145,6 +145,8 @@ tests/run.sh          # everything: unit checks and browser-level HTTP tests
 tests/run.sh unit     # the fast PHP checks
 tests/run.sh blocks   # one HTTP test by name
 ```
+
+GitHub Actions runs the same suite on PHP 8.1, 8.3 and 8.5 for every push to `main` and every pull request ([workflow](.github/workflows/tests.yml)).
 
 See [tests/README.md](tests/README.md) for what is covered and what is not (real browsers and screen readers are checked by hand and with the audit script).
 

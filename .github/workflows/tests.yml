@@ -1,0 +1,36 @@
+name: Tests
+
+# The whole suite (PHP unit checks and the browser-level HTTP tests) on every push to main and on pull requests.
+# It needs only PHP and Python 3; the repository already contains vendor/ and the compiled admin CSS, so there is no install step.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  suite:
+    name: PHP ${{ matrix.php }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.1', '8.3', '8.5']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pdo_sqlite, mbstring, gd, zip, curl, fileinfo, exif, intl, simplexml, openssl
+          coverage: none
+
+      - name: Run the suite
+        run: tests/run.sh

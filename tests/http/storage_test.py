@@ -26,6 +26,7 @@ def pad_to(fraction, limit_mb=10):
     if os.path.exists(path): os.remove(path)
     need = int(limit_mb * MB * fraction) - used()
     with open(path, 'wb') as f: f.write(b'\0' * max(0, need))
+    run("delete from system_meta where key='storage_usage'")  # the size is kept for 12 hours; this changed the folder behind its back
 def is_settings(f): return any(x[0] == 'title' for x in f['fields']) and any(x[0] == 'date_format' for x in f['fields'])
 def set_limit(c, value, unit='mb'):
     return c.submit('/admin/settings', is_settings, {'storage_limit_value': str(value), 'storage_limit_unit': unit})

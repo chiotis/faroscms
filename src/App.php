@@ -1272,11 +1272,8 @@ final class App
         if ($this->storageSummary !== null) {
             return $this->storageSummary;
         }
-        $parts = [
-            'uploads' => $this->directorySize($this->basePath . '/public/uploads'),
-            'content' => $this->directorySize($this->contentDir),
-            'system' => $this->directorySize($this->basePath . '/storage'),
-        ];
+        $stored = $this->storageMeasurement();
+        $parts = $stored['parts'];
         $used = array_sum($parts);
         $diskFree = (int)(disk_free_space($this->basePath) ?: 0);
         $limit = $this->storageLimitBytes();
@@ -1299,9 +1296,74 @@ final class App
             'percent' => max(0, min(100, $percent)),
             'percent_of_limit' => $limit > 0 ? $percent : null,
             'level' => $level,
+            'measured_at' => $stored['measured_at'],
             'full' => $limit > 0 && $used >= $limit,
             'label' => $limit > 0 ? $this->formatFileSize($used) . ' / ' . $this->formatFileSize($limit) : $this->formatFileSize($used),
         ];
+    }
+
+    /** How long a measurement of the folders is trusted, in seconds. Walking every file is slow on a big site. */
+    private const STORAGE_CACHE_SECONDS = 43200;
+
+    /**
+     * The size of uploads, content and the system folder, from the copy kept in the system database while it is
+     * younger than twelve hours, otherwise measured again (and kept). Uploads and deletions in the media library
+     * adjust the kept copy, so the limit still holds between measurements.
+     *
+     * @return array{parts: array{uploads: int, content: int, system: int}, measured_at: int}
+     */
+    private function storageMeasurement(): array
+    {
+        $kept = $this->systemMeta->getJson('storage_usage');
+        $keys = ['uploads', 'content', 'system'];
+        if (is_array($kept) && is_array($kept['parts'] ?? null)) {
+            $age = time() - (int)($kept['measured_at'] ?? 0);
+            $whole = count(array_filter($keys, static fn(string $key): bool => is_int($kept['parts'][$key] ?? null))) === count($keys);
+            // A clock that moved backwards (a negative age) counts as expired too.
+            if ($whole && $age >= 0 && $age < self::STORAGE_CACHE_SECONDS) {
+                return ['parts' => array_intersect_key($kept['parts'], array_flip($keys)), 'measured_at' => (int)$kept['measured_at']];
+            }
+        }
+        return $this->measureStorage();
+    }
+
+    /** Walks the folders now and keeps the result. @return array{parts: array{uploads: int, content: int, system: int}, measured_at: int} */
+    private function measureStorage(): array
+    {
+        $measured = [
+            'parts' => [
+                'uploads' => $this->directorySize($this->basePath . '/public/uploads'),
+                'content' => $this->directorySize($this->contentDir),
+                'system' => $this->directorySize($this->basePath . '/storage'),
+            ],
+            'measured_at' => time(),
+        ];
+        $this->systemMeta->setJson('storage_usage', $measured);
+        $this->storageSummary = null;
+        return $measured;
+    }
+
+    /** Adds or takes off bytes in the kept measurement of the uploads folder, so a new file counts at once. */
+    private function noteUploadsChange(int $bytes): void
+    {
+        $kept = $this->systemMeta->getJson('storage_usage');
+        if ($bytes === 0 || !is_array($kept) || !is_int($kept['parts']['uploads'] ?? null)) {
+            return;
+        }
+        $kept['parts']['uploads'] = max(0, $kept['parts']['uploads'] + $bytes);
+        $this->systemMeta->setJson('storage_usage', $kept);
+        $this->storageSummary = null;
+    }
+
+    /** Deletes a media item and takes its size off the kept measurement. */
+    private function deleteMediaItem(string $id): bool
+    {
+        $size = (int)($this->media->find($id)['size_bytes'] ?? 0);
+        if (!$this->media->delete($id)) {
+            return false;
+        }
+        $this->noteUploadsChange(-$size);
+        return true;
     }
 
     /** The storage the site may use in bytes, or 0 for no limit. */
@@ -3357,12 +3419,13 @@ final class App
                 try {
                     $this->media->ensureDirectories();
                     $uploaded = $this->media->upload($upload, '', $this->currentUsername(), $this->maxUploadBytes());
+                    $this->noteUploadsChange((int)($upload['size'] ?? 0));
                     if ((string)($uploaded['kind'] ?? '') === 'image') {
                         $uploadedImage = isset($uploaded['direct_url']) ? (string)$uploaded['direct_url'] : null;
                     } else {
                         $uploadedId = (string)($uploaded['id'] ?? '');
                         if ($uploadedId !== '') {
-                            $this->media->delete($uploadedId);
+                            $this->deleteMediaItem($uploadedId);
                         }
                     }
                 } catch (\Throwable) {
@@ -3565,6 +3628,17 @@ final class App
             return;
         }
 
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['storage_action'] ?? '') === 'recalculate') {
+            if ($this->permissions->can($this->auth->user(), 'limits.manage')) {
+                $this->measureStorage();
+                $this->logActivity('limits.storage_recalculate', 'info', 'settings', 'storage', 'Storage use measured again.');
+                $this->redirect('/admin/settings?tab=limits&storage=measured');
+                return;
+            }
+            $this->redirect('/admin/settings?tab=limits');
+            return;
+        }
+
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $activeTab = $this->sanitizeSettingsTab((string)($_POST['active_tab'] ?? $activeTab));
             $raw = $this->loadSettingsRaw('site_settings', $this->defaultSettings());
@@ -3718,6 +3792,7 @@ final class App
         $this->render('@admin/settings.twig', [
             'user' => $this->auth->user(),
             'saved' => $saved,
+            'storage_measured' => (string)($_GET['storage'] ?? '') === 'measured',
             'test_status' => $testStatus,
             'types' => $this->content->getTypes(),
             'admin_section' => 'settings',
@@ -4185,6 +4260,7 @@ final class App
                     }
                     try {
                         $uploaded = $this->media->upload($upload, $tagsCsv, $this->currentUsername(), $this->maxUploadBytes());
+                        $this->noteUploadsChange((int)($upload['size'] ?? 0));
                         $uploadedCount++;
                         $this->logActivity('media.upload', 'info', 'media', (string)($uploaded['id'] ?? ''), 'Media uploaded.', [
                             'filename' => (string)($uploaded['filename'] ?? ''),
@@ -4244,7 +4320,7 @@ final class App
                     $redirectMedia(['error' => 'Invalid media item.']);
                     return;
                 }
-                if (!$this->media->delete($id)) {
+                if (!$this->deleteMediaItem($id)) {
                     $redirectMedia(['error' => 'Media item not found.']);
                     return;
                 }
@@ -4307,7 +4383,7 @@ final class App
 
                 $deletedCount = 0;
                 foreach ($selectedIds as $id) {
-                    if ($this->media->delete($id)) {
+                    if ($this->deleteMediaItem($id)) {
                         $deletedCount++;
                     }
                 }
