@@ -3727,6 +3727,8 @@ final class App
                 'theme' => (string)($_POST['theme'] ?? ''),
                 'home_page' => (string)($_POST['home_page'] ?? ''),
                 'date_format' => (string)($_POST['date_format'] ?? ''),
+                // Only when the box was on the form that was sent, so a form without it does not clear the rules.
+                'robots_disallow' => isset($_POST['robots_disallow']) ? implode("\n", RobotsTxt::rules((string)$_POST['robots_disallow'])) : null,
                 'storage_limit_mb' => $this->submittedStorageLimit(),
                 'upload_limit_mb' => $this->submittedUploadSettings()['mb'],
                 'upload_types' => $this->submittedUploadSettings()['types'],
@@ -6900,10 +6902,7 @@ final class App
     private function renderRobots(): void
     {
         header('Content-Type: text/plain; charset=utf-8');
-        $sitemap = $this->buildAbsoluteUrl('sitemap.xml');
-        echo "User-agent: *\n";
-        echo "Allow: /\n";
-        echo "Sitemap: " . $sitemap . "\n";
+        echo RobotsTxt::render($this->buildAbsoluteUrl('sitemap.xml'), is_array($this->settings['seo']['robots_disallow'] ?? null) ? $this->settings['seo']['robots_disallow'] : []);
     }
 
     private function handleTaxonomy(array $segments, string $lang, array $viewDefaults): void
@@ -7516,6 +7515,7 @@ final class App
             'home_page' => (string)($merged['home_page'] ?? ''),
             'date_format' => (string)($merged['date_format'] ?? ''),
             'storage_limit_mb' => max(0, (int)($merged['limits']['storage_mb'] ?? 1024)),
+            'robots_disallow' => implode("\n", RobotsTxt::rules(is_array($merged['seo']['robots_disallow'] ?? null) ? $merged['seo']['robots_disallow'] : [])),
             'upload_limit_mb' => max(0, (int)($merged['limits']['upload_mb'] ?? $merged['media']['max_upload_mb'] ?? 20)),
             'upload_types' => is_array($merged['limits']['upload_types'] ?? null) ? array_values(array_intersect(array_keys(MediaLibrary::UPLOAD_GROUPS), array_map('strval', $merged['limits']['upload_types']))) : array_keys(MediaLibrary::UPLOAD_GROUPS),
             'languages_default' => (string)($merged['languages']['default'] ?? 'el'),
@@ -7602,6 +7602,9 @@ final class App
             return false;
         }
 
+        // Kept apart: a box left out of the form (null) is not the same as a box that was emptied.
+        $robotsSubmitted = array_key_exists('robots_disallow', $form) && $form['robots_disallow'] !== null;
+        $robotsText = (string)($form['robots_disallow'] ?? '');
         foreach ($form as $key => $value) {
             if (is_array($value)) {
                 $form[$key] = array_map(fn($item) => trim((string)$item), $value);
@@ -7621,6 +7624,17 @@ final class App
         $data['theme'] = $form['theme'] !== '' ? $form['theme'] : ($data['theme'] ?? 'default');
         $data['home_page'] = $form['home_page'] !== '' ? $form['home_page'] : ($data['home_page'] ?? 'index');
         $data['date_format'] = $form['date_format'] !== '' ? $form['date_format'] : ($data['date_format'] ?? 'd/m/Y');
+        if ($robotsSubmitted) {
+            $rules = RobotsTxt::rules($robotsText);
+            if ($rules === []) {
+                unset($data['seo']['robots_disallow']);
+                if (($data['seo'] ?? []) === []) {
+                    unset($data['seo']);
+                }
+            } else {
+                $data['seo']['robots_disallow'] = $rules;
+            }
+        }
         // Every form value was turned into text above: an empty one means the field was not submitted.
         if (is_numeric($form['storage_limit_mb'] ?? null)) {
             $data['limits']['storage_mb'] = (int)$form['storage_limit_mb'];
