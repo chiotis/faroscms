@@ -128,7 +128,7 @@ st, hdr, _ = post(root, action='delete_role', role='editor'); check('a built-in 
 st, hdr, _ = post(root, action='delete_role', role='nothing'); check('an unknown role is refused', 'error=unknown' in loc(hdr))
 
 # ---- someone whose role disappears from the settings cannot do anything
-db().execute("update users set role='ghost' where username='odd1'"); db().commit()
+conn = db(); conn.execute("update users set role='ghost' where username='odd1'"); conn.commit(); conn.close()  # one connection, closed: an open write transaction would lock the site's database
 odd = Client(); st, _, _ = odd.login('odd1', 'Sturdy-pass-99')
 st, _, _ = odd.get('/admin/content?type=pages'); check('a person whose role no longer exists reaches nothing', st in (302, 403), st)
 

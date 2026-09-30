@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-09-30 — Works on PHP 8.1 again
+- One migration in the system database was declared with the return type `null`, which only exists from PHP 8.2, so on PHP 8.1 (the stated minimum) every page failed with a fatal error. It is `void` now. Found by the new GitHub Actions run on PHP 8.1
+- A test of roles left a database connection with an open write transaction, which locked the database for the rest of the run on Linux (each request waited five seconds); it closes its connection now
+
 ## 2026-09-30 — Tests run on every push
 - A GitHub Actions workflow (`.github/workflows/tests.yml`) runs the whole suite (PHP unit checks and the HTTP tests) on PHP 8.1, 8.3 and 8.5 for every push to `main` and every pull request. The README's Tests badge is now the live result of that workflow
 

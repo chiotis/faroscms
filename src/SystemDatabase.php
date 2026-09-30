@@ -324,7 +324,7 @@ final class SystemDatabase
         $pdo->exec('CREATE INDEX IF NOT EXISTS idx_backup_runs_created ON backup_runs (created_at)');
     }
 
-    private function addGoogleAuthColumns(PDO $pdo): null
+    private function addGoogleAuthColumns(PDO $pdo): void
     {
         $columns = [];
         foreach ($pdo->query('PRAGMA table_info(users)') as $row) {
@@ -337,6 +337,5 @@ final class SystemDatabase
             $pdo->exec('ALTER TABLE users ADD COLUMN google_email TEXT');
         }
         $pdo->exec('CREATE INDEX IF NOT EXISTS idx_users_google_sub ON users (google_sub)');
-        return null;
     }
 }
