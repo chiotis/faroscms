@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-09-30 — View site at the top, the version at the bottom
+- In the admin sidebar the **View site** button moved to the top, beside the site name (a small button with an arrow, announced as opening a new tab), and the **FarosCMS v…** version badge moved to the bottom, above the storage bar. The badge still turns blue and links to Updates when an update is available
+
+## 2026-09-30 — Content types, Redirects and Translations under Manage
+- **Content types**, **Redirects** and **Translations** moved from the System group to **Manage** in the admin sidebar, after Taxonomies and before History, since they shape and organise the content rather than the installation. Their addresses and permissions did not change. The Content types item now also tells screen readers when it is the current page
+
 ## 2026-09-30 — The sidebar shows the site's own name
 - The top of the admin sidebar no longer has the "FC" logo square. It shows the **Site name** from Settings (cut with "…" when it is long, with the full name on hover), and the version badge now reads **FarosCMS v0.1.0**. The name follows Settings, so a client's admin carries the client's name
 
