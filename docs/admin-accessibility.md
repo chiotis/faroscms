@@ -9,8 +9,9 @@ Every admin screen (dashboard, content lists and editors with each tab, media, t
 tab, menus, forms, taxonomies, users, roles, redirects, translations, logs, backups, updates, system, content types,
 import, history) was scanned with axe-core (WCAG 2.0, 2.1 and 2.2 level A and AA, plus its best-practice rules) in light
 mode, in dark mode, and at phone width (375 px). The states that only exist after a click were scanned too: the icon
-picker, the image picker, the confirmation dialog, the message in the bottom bar, the phone sidebar, and the block
-editor with every block open. The result is zero violations.
+picker, the image picker, the confirmation dialog, the message in the bottom bar, the phone sidebar, the block
+editor with every block open, and the Taxonomies screen (list, rows selected, a row removed, the term dialog, the
+settings tab). The result is zero violations.
 
 Not covered: screen readers and real assistive technology (run through it by hand before a release), and the text over
 photos in the media grid, which a tool cannot judge.

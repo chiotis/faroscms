@@ -126,6 +126,9 @@ html.dark body.bg-slate-100 { background-color: #0b1120; }
 .dark .text-blue-700,
 .dark .text-blue-800,
 .dark .text-blue-600 { color: #60a5fa; }
+.dark .text-blue-900 { color: #bfdbfe; }
+.dark .border-blue-100 { border-color: rgba(96, 165, 250, .3); }
+.dark .hover\:bg-blue-100:hover { background-color: rgba(96, 165, 250, .22); }
 .dark .text-amber-700,
 .dark .text-amber-600,
 .dark .text-amber-800 { color: #fbbf24; }

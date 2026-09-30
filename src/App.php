@@ -57,6 +57,7 @@ final class App
     private ?ContentCsv $contentCsvService = null;
     private ?SiteSettings $siteSettingsService = null;
     private ?BackupManager $backupManagerService = null;
+    private ?TaxonomyEditor $taxonomyEditorService = null;
     private ?Taxonomies $taxonomyStore = null;
     /** @var array<string, mixed>|null */
     private ?array $storageSummary = null;
@@ -2794,6 +2795,24 @@ final class App
         if ($filters['status'] !== '') {
             $items = array_values(array_filter($items, static fn(ContentItem $item): bool => (string)($item->meta['status'] ?? 'published') === $filters['status']));
         }
+        // Filed under a term: the link from Taxonomies. Anything that is not a term of a taxonomy is ignored.
+        $filters['taxonomy'] = '';
+        $filters['term'] = '';
+        $termFilter = null;
+        $filterTaxonomy = $this->slugify((string)($_GET['taxonomy'] ?? ''));
+        $filterTerm = $this->slugify((string)($_GET['term'] ?? ''));
+        if ($filterTaxonomy !== '' && $filterTerm !== '' && in_array($filterTaxonomy, $this->taxonomies()->names(), true)
+            && in_array($filterTerm, array_column($this->taxonomies()->load($filterTaxonomy)['terms'], 'id'), true)) {
+            $filters['taxonomy'] = $filterTaxonomy;
+            $filters['term'] = $filterTerm;
+            $termFilter = [
+                'taxonomy' => $filterTaxonomy,
+                'term' => $filterTerm,
+                'taxonomy_title' => $this->taxonomies()->load($filterTaxonomy)['title'],
+                'label' => $this->taxonomies()->label($filterTaxonomy, $filterTerm, $lang),
+            ];
+            $items = array_values(array_filter($items, fn(ContentItem $item): bool => in_array($filterTerm, $this->normalizeMetaList($item->meta[$filterTaxonomy] ?? null), true)));
+        }
 
         $this->render('@admin/list.twig', [
             'items' => $items,
@@ -2806,7 +2825,8 @@ final class App
             'deleted' => $deleted,
             'translation_langs' => $translationLangs,
             'filters' => $filters,
-            'filters_active' => $filters['q'] !== '' || $filters['status'] !== '',
+            'filters_active' => $filters['q'] !== '' || $filters['status'] !== '' || $termFilter !== null,
+            'term_filter' => $termFilter,
             'status_options' => $statusOptions,
             'bulk_status' => (string)($_GET['bulk'] ?? ''),
             'bulk_message' => trim((string)($_GET['bulk_msg'] ?? '')),
@@ -3936,123 +3956,79 @@ final class App
         $default = $this->defaultLanguage();
         $languages = array_map('strval', $this->settings['languages']['available'] ?? [$default]);
         $store = $this->taxonomies();
+        $editor = $this->taxonomyEditor();
         $taxonomyNames = $store->names();
         $taxonomy = $this->slugify((string)($_GET['taxonomy'] ?? $_POST['taxonomy'] ?? ($taxonomyNames[0] ?? 'tags')));
         if (!in_array($taxonomy, $taxonomyNames, true)) {
             $taxonomy = $taxonomyNames[0] ?? 'tags';
         }
-        $current = $store->load($taxonomy);
-        $listable = array_values(array_filter($this->content->getTypes(), static fn(string $t): bool => !in_array($t, ['pages', 'forms'], true)));
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $title = trim((string)($_POST['taxonomy_title'] ?? $current['title']));
-            $post = static fn(string $key): array => is_array($_POST[$key] ?? null) ? $_POST[$key] : [];
-            $ids = $post('term_id');
-            $slugs = $post('term_slug');
-            $labels = $post('term_label');
-            $rows = [];
-            for ($i = 0, $count = max(count($ids), count($slugs)); $i < $count; $i++) {
-                $row = ['id' => trim((string)($ids[$i] ?? '')), 'slug' => (string)($slugs[$i] ?? ''), 'labels' => []];
-                foreach ($languages as $langCode) {
-                    $row['labels'][$langCode] = trim((string)($labels[$langCode][$i] ?? ''));
-                }
-                $rows[] = $row;
-            }
-            $prepared = $store->prepare($taxonomy, $rows, $default);
-
-            // How the pages of this taxonomy look: only what differs from the defaults is written.
-            $submitted = is_array($_POST['archive'] ?? null) ? $_POST['archive'] : [];
-            $archive = ContentTypes::archiveFromInput(
-                $submitted,
-                $current['archive'],
-                ContentTypes::resolveArchive([], static fn(mixed $v): mixed => $v),
-                array_values(array_diff($taxonomyNames, [$taxonomy])),
-                false
-            );
-            $types = array_values(array_intersect($listable, Taxonomies::typeList($submitted['types'] ?? null)));
-            if ($types === [] || count($types) === count($listable)) {
-                unset($archive['types']);
-            } else {
-                $archive['types'] = $types;
-            }
-
-            $store->save($taxonomy, $title, $prepared['terms'], $archive);
-
-            // A term whose address changed leaves the old one behind, in every language, like a page does.
-            $kind = Taxonomies::kind($taxonomy);
-            $by = $this->currentUsername();
-            foreach ($prepared['moved'] as $move) {
-                foreach ($languages as $langCode) {
-                    $prefix = $langCode === $default ? '' : $langCode . '/';
-                    $this->redirects->moved($prefix . $kind . '/' . $move['from'], $prefix . $kind . '/' . $move['to'], $by, $taxonomy);
-                }
-                $this->menus()->relink($kind . '/' . $move['from'], $kind . '/' . $move['to']);
-            }
-            foreach (array_merge($prepared['added'], array_column($prepared['moved'], 'id')) as $termId) {
-                foreach ($languages as $langCode) {
-                    $this->redirects->removeSource(($langCode === $default ? '' : $langCode . '/') . $kind . '/' . $store->slug($taxonomy, $termId));
-                }
-            }
-            $usage = $this->termUsage($taxonomy);
-            $orphaned = array_sum(array_map(static fn(string $id): int => $usage[$id] ?? 0, $prepared['removed']));
+            $result = $editor->apply($taxonomy, $_POST, $languages, $default, $this->currentUsername());
             $this->logActivity('taxonomies.update', 'info', 'taxonomy', $taxonomy, 'Taxonomy updated.', [
-                'title' => $title,
-                'terms' => count($prepared['terms']),
-                'renamed' => count($prepared['moved']),
-                'removed' => count($prepared['removed']),
+                'title' => $result['title'],
+                'terms' => $result['terms'],
+                'added' => $result['added'],
+                'renamed' => $result['moved'],
+                'removed' => $result['removed'],
             ]);
             $this->redirect('/admin/taxonomies?taxonomy=' . urlencode($taxonomy) . '&saved=1'
-                . ($prepared['moved'] !== [] ? '&moved=' . count($prepared['moved']) : '')
-                . ($prepared['removed'] !== [] ? '&removed=' . count($prepared['removed']) . '&orphaned=' . $orphaned : ''));
+                . ($result['moved'] > 0 ? '&moved=' . $result['moved'] : '')
+                . ($result['removed'] > 0 ? '&removed=' . $result['removed'] . '&orphaned=' . $result['orphaned'] : ''));
             return;
         }
 
-        $usage = $this->termUsage($taxonomy);
+        $current = $store->load($taxonomy);
+        $listable = $editor->listableTypes();
+        $usage = $editor->usage($taxonomyNames, true);
         $terms = [];
         foreach ($current['terms'] as $term) {
-            $term['used'] = $usage[$term['id']] ?? 0;
+            $byType = $usage[$taxonomy][$term['id']] ?? [];
+            $term['used'] = array_sum($byType);
+            $term['used_by_type'] = $byType;
             $terms[] = $term;
         }
-        $settings = $store->archive($taxonomy, $default, $default);
+        $tabs = [];
+        foreach ($taxonomyNames as $name) {
+            $tabs[] = [
+                'name' => $name,
+                'title' => $store->load($name)['title'],
+                'terms' => count($store->load($name)['terms']),
+                'filed' => array_sum(array_map('array_sum', $usage[$name] ?? [])),
+            ];
+        }
+        $types = $this->content->getTypes();
         $this->render('@admin/taxonomies.twig', [
-            'types' => $this->content->getTypes(),
+            'types' => $types,
             'user' => $this->auth->user(),
             'admin_section' => 'taxonomies',
             'taxonomy_names' => $taxonomyNames,
+            'taxonomy_tabs' => $tabs,
             'taxonomy' => $taxonomy,
             'taxonomy_title' => $current['title'],
             'taxonomy_terms' => $terms,
             'taxonomy_kind' => Taxonomies::kind($taxonomy),
             'languages' => $languages,
-            'archive' => $settings,
+            'default_language' => $default,
+            'archive' => $store->archive($taxonomy, $default, $default),
             'layouts' => ContentTypes::LAYOUTS,
             'orders' => ContentTypes::ORDERS,
             'other_taxonomies' => array_values(array_diff($taxonomyNames, [$taxonomy])),
             'listable_types' => $listable,
             'type_labels' => array_combine($listable, array_map(fn(string $t): string => $this->contentTypes()->definition($t, 'en', $default)['label'], $listable)),
+            'type_names' => array_combine($types, array_map(fn(string $t): string => $this->contentTypes()->definition($t, 'en', $default)['label'], $types)),
             'saved' => isset($_GET['saved']),
             'moved' => (int)($_GET['moved'] ?? 0),
             'removed' => (int)($_GET['removed'] ?? 0),
             'orphaned' => (int)($_GET['orphaned'] ?? 0),
+            'can_redirects' => $this->permissions->can($this->auth->user(), 'redirects.manage'),
             'error' => '',
         ]);
     }
 
-    /** @return array<string, int> how many entries (any type, any language, drafts too) are filed under each term of a taxonomy */
-    private function termUsage(string $taxonomy): array
+    private function taxonomyEditor(): TaxonomyEditor
     {
-        $counts = [];
-        foreach ($this->content->getTypes() as $type) {
-            if ($type === 'forms') {
-                continue;
-            }
-            foreach ($this->content->getItems($type, null, true, false) as $item) {
-                foreach ($this->normalizeMetaList($item->meta[$taxonomy] ?? null) as $termId) {
-                    $counts[$termId] = ($counts[$termId] ?? 0) + 1;
-                }
-            }
-        }
-        return $counts;
+        return $this->taxonomyEditorService ??= new TaxonomyEditor($this->taxonomies(), $this->redirects, $this->content, fn(): Menus => $this->menus());
     }
 
     /** The settings texts that can point at uploads (logo, social image, and the like), for the usage scan. @return list<array{label: string, url: string, kind: string, text: string}> */
@@ -6047,7 +6023,8 @@ final class App
             'archive' => $archive,
             'type' => $key,
             'archive_title' => $settings['title'] !== '' ? $fill($settings['title']) : $titlePrefix . ': ' . $label,
-            'archive_subtitle' => $fill($settings['subtitle']),
+            'archive_subtitle' => $settings['subtitle'] !== '' ? $fill($settings['subtitle']) : $this->taxonomies()->description($key, $termId, $lang, $this->defaultLanguage()),
+            'term_description' => $this->taxonomies()->description($key, $termId, $lang, $this->defaultLanguage()),
             'block_styles' => [$this->theme->blockStylesheetUrl(rtrim((string)($this->settings['base_url'] ?? ''), '/'), ['latest'])],
             'alternate_urls' => $alternates['urls'],
             'alternate_default' => $alternates['default'],
