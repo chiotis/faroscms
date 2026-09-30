@@ -55,6 +55,7 @@ final class App
     private ?Menus $menuStore = null;
     private ?StructuredData $structuredDataService = null;
     private ?ContentCsv $contentCsvService = null;
+    private ?SiteSettings $siteSettingsService = null;
     private ?Taxonomies $taxonomyStore = null;
     /** @var array<string, mixed>|null */
     private ?array $storageSummary = null;
@@ -68,7 +69,7 @@ final class App
         $this->systemDatabase = new SystemDatabase($this->basePath . '/storage');
         $this->systemDatabase->initialize();
         $this->systemMeta = new SystemMetaRepository($this->systemDatabase);
-        $this->settings = $this->loadSettings();
+        $this->settings = $this->siteSettings()->load();
         $this->theme = new Theme($this->basePath, (string)($this->settings['theme'] ?? Theme::DEFAULT_NAME));
         $this->themeSettings = $this->loadThemeSettings();
         $this->menus()->ensureDefaults();
@@ -2480,7 +2481,7 @@ final class App
         $result = $this->backups->restore($filename, $scopeKeys);
 
         // The system database may have been swapped: reload settings and write history into the active database.
-        $this->settings = $this->loadSettings();
+        $this->settings = $this->siteSettings()->load();
         $this->themeSettings = $this->loadThemeSettings();
         $this->menus()->forget();
         $this->taxonomies()->forget();
@@ -3572,7 +3573,7 @@ final class App
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $activeTab = $this->sanitizeSettingsTab((string)($_POST['active_tab'] ?? $activeTab));
-            $raw = $this->loadSettingsRaw('site_settings', $this->defaultSettings());
+            $raw = $this->siteSettings()->raw('site_settings', $this->siteSettings()->defaults());
             $form = [
                 'title' => (string)($_POST['title'] ?? ''),
                 'tagline' => (string)($_POST['tagline'] ?? ''),
@@ -3629,14 +3630,14 @@ final class App
             ];
             $limitBefore = (int)($this->settings['limits']['storage_mb'] ?? 1024);
             $uploadBefore = [$this->uploadLimitMb(), $this->media->allowedGroups()];
-            if (!$this->saveSettings($raw, $form)) {
+            if (!$this->siteSettings()->save($raw, $form)) {
                 $this->redirect('/admin/settings?' . http_build_query([
                     'tab' => $activeTab,
                     'settings_error' => 'Settings could not be saved because the SQLite system database is unavailable.',
                 ]));
                 return;
             }
-            $this->settings = $this->loadSettings();
+            $this->settings = $this->siteSettings()->load();
             $limitAfter = (int)($this->settings['limits']['storage_mb'] ?? 1024);
             $this->media->restrictTo(is_array($this->settings['limits']['upload_types'] ?? null) ? $this->settings['limits']['upload_types'] : []);
             $uploadAfter = [$this->uploadLimitMb(), $this->media->allowedGroups()];
@@ -3720,8 +3721,8 @@ final class App
             return;
         }
 
-        $raw = $this->loadSettingsRaw('site_settings', $this->defaultSettings());
-        $parsed = $this->parseSettingsYaml($raw);
+        $raw = $this->siteSettings()->raw('site_settings', $this->siteSettings()->defaults());
+        $parsed = $this->siteSettings()->parse($raw);
         $this->render('@admin/settings.twig', [
             'user' => $this->auth->user(),
             'saved' => $saved,
@@ -3729,7 +3730,7 @@ final class App
             'test_status' => $testStatus,
             'types' => $this->content->getTypes(),
             'admin_section' => 'settings',
-            'settings_form' => $this->extractSettingsForm($parsed),
+            'settings_form' => $this->siteSettings()->formValues($parsed),
             'storage' => $this->permissions->can($this->auth->user(), 'limits.manage') ? $this->buildStorageSummary() : [],
             'upload_groups' => MediaLibrary::UPLOAD_GROUPS,
             'server_upload_mb' => $this->serverUploadCap() > 0 ? (int)floor($this->serverUploadCap() / 1048576) : 0,
@@ -5825,110 +5826,9 @@ final class App
         ]);
     }
 
-    private function loadSettings(): array
-    {
-        $defaults = $this->defaultSettings();
-        $raw = $this->loadSettingsRaw('site_settings', $defaults);
-        if ($raw === '') {
-            return $defaults;
-        }
-
-        try {
-            $data = Yaml::parse($raw);
-        } catch (\Throwable) {
-            return $defaults;
-        }
-        if (!is_array($data)) {
-            return $defaults;
-        }
-
-        return array_replace_recursive($defaults, $data);
-    }
-
-    private function defaultSettings(): array
-    {
-        return [
-            'title' => 'FarosCMS',
-            'tagline' => 'A flat-file CMS powered by Markdown and Twig.',
-            'base_url' => '',
-            'theme' => 'default',
-            'home_page' => 'index',
-            'date_format' => 'd/m/Y',
-            // What the site may use: set by the super admin only (Settings > Limits). 0 means no limit.
-            'limits' => [
-                'storage_mb' => 1024,
-            ],
-            'languages' => [
-                'default' => 'el',
-                'available' => ['el', 'en'],
-            ],
-            'content_types' => ['pages', 'posts', 'projects', 'forms'],
-            'forms' => [
-                'store_submissions' => true,
-                'notifications' => [
-                    'driver' => 'smtp',
-                    'from' => '',
-                    'from_name' => '',
-                    'smtp' => [
-                        'host' => '',
-                        'port' => '',
-                        'username' => '',
-                        'password' => '',
-                        'encryption' => '',
-                    ],
-                    'ses' => [
-                        'key' => '',
-                        'secret' => '',
-                        'region' => '',
-                    ],
-                ],
-                'antispam' => [
-                    'honeypot' => 'website',
-                    'rate_limit_seconds' => 20,
-                ],
-            ],
-            'menu_locations' => [
-                'header' => 'main',
-                'footer' => 'footer',
-            ],
-            'backup' => [
-                'auto' => [
-                    'enabled' => false,
-                    'schedule' => 'daily',
-                    'last_run' => '',
-                ],
-                'local' => [
-                    'keep' => 20,
-                ],
-                'remote' => [
-                    'enabled' => false,
-                    'provider' => 'custom',
-                    'endpoint' => '',
-                    'region' => '',
-                    'bucket' => '',
-                    'access_key' => '',
-                    'secret_key' => '',
-                    'prefix' => '',
-                    'keep' => 20,
-                    'path_style' => false,
-                ],
-            ],
-            'updates' => [
-                'channel' => 'stable',
-                'repository' => 'chiotis/faroscms',
-                'branch' => 'main',
-                'version_url' => 'https://raw.githubusercontent.com/chiotis/faroscms/main/VERSION',
-                'changelog_url' => 'https://raw.githubusercontent.com/chiotis/faroscms/main/CHANGELOG.md',
-                'package_url' => 'https://github.com/chiotis/faroscms/archive/refs/heads/main.zip',
-                'github_token' => '',
-                'latest_version' => '',
-            ],
-        ];
-    }
-
     private function loadThemeSettings(): array
     {
-        $raw = $this->loadSettingsRaw('theme_settings', $this->defaultThemeSettings());
+        $raw = $this->siteSettings()->raw('theme_settings', $this->defaultThemeSettings());
         $data = [];
         if (trim($raw) !== '') {
             try {
@@ -5945,49 +5845,6 @@ final class App
     private function defaultThemeSettings(): array
     {
         return $this->theme->defaultSettings();
-    }
-
-    private function loadSettingsRaw(string $key, array $defaults): string
-    {
-        $legacyPath = $this->legacySettingsPath($key);
-        $legacyRaw = $legacyPath !== '' && is_file($legacyPath) ? (string)file_get_contents($legacyPath) : '';
-
-        if ($this->systemDatabase->isAvailable()) {
-            $raw = $this->getSystemMeta($key);
-            if ($raw !== null) {
-                return $raw;
-            }
-
-            // Installs upgraded from the YAML settings era keep their values on first load.
-            $raw = trim($legacyRaw) !== '' ? $legacyRaw : Yaml::dump($defaults, 4, 2);
-            $this->setSystemMeta($key, $raw);
-            return $raw;
-        }
-
-        return trim($legacyRaw) !== '' ? $legacyRaw : Yaml::dump($defaults, 4, 2);
-    }
-
-    /** @return array<string, mixed> */
-    private function parseSettingsYaml(string $raw): array
-    {
-        if (trim($raw) === '') {
-            return [];
-        }
-        try {
-            $data = Yaml::parse($raw);
-        } catch (\Throwable) {
-            return [];
-        }
-        return is_array($data) ? $data : [];
-    }
-
-    private function legacySettingsPath(string $key): string
-    {
-        return match ($key) {
-            'site_settings' => $this->contentDir . '/settings/site.yaml',
-            'theme_settings' => $this->contentDir . '/settings/theme.yaml',
-            default => '',
-        };
     }
 
     private function getSystemMeta(string $key): ?string
@@ -6040,6 +5897,11 @@ final class App
     private function taxonomyTermLabel(string $taxonomy, string $termId, ?string $lang = null): string
     {
         return $this->taxonomies()->label($taxonomy, $termId, $lang !== null && $lang !== '' ? $lang : $this->currentLang);
+    }
+
+    private function siteSettings(): SiteSettings
+    {
+        return $this->siteSettingsService ??= new SiteSettings($this->systemMeta, $this->contentDir);
     }
 
     private function contentCsv(): ContentCsv
@@ -6630,14 +6492,6 @@ final class App
         return Format::commaList($value);
     }
 
-    private function normalizeLanguageList(string $value): array
-    {
-        $items = $this->parseCommaList($value);
-        $items = array_map(fn($item) => $this->slugify((string)$item), $items);
-        $items = array_values(array_filter($items, fn($item) => $item !== ''));
-        return array_values(array_unique($items));
-    }
-
     private function resolveCanonicalUrl(?string $override, string $fallback): string
     {
         if ($override === null || trim($override) === '') {
@@ -6713,341 +6567,6 @@ final class App
             $rows[$key] = (string)$value;
         }
         return $rows;
-    }
-
-    private function extractSettingsForm(array $parsed): array
-    {
-        $defaults = $this->loadSettings();
-        $merged = array_replace_recursive($defaults, $parsed);
-        $locationsRaw = $merged['menu_locations'] ?? [];
-        if (!is_array($locationsRaw)) {
-            $locationsRaw = [];
-        }
-        $menuLocations = [];
-        foreach ($locationsRaw as $key => $value) {
-            $key = $this->slugify((string)$key);
-            $value = $this->slugify((string)$value);
-            if ($key === '' || $value === '') {
-                continue;
-            }
-            $menuLocations[$key] = $value;
-        }
-        if (!isset($menuLocations['header'])) {
-            $menuLocations['header'] = 'main';
-        }
-        if (!isset($menuLocations['footer'])) {
-            $menuLocations['footer'] = 'footer';
-        }
-        $extraLocationKeys = [];
-        $extraLocationValues = [];
-        foreach ($menuLocations as $key => $value) {
-            if (in_array($key, ['header', 'footer'], true)) {
-                continue;
-            }
-            $extraLocationKeys[] = $key;
-            $extraLocationValues[] = $value;
-        }
-        $backupSchedule = (string)($merged['backup']['auto']['schedule'] ?? 'daily');
-        if (!in_array($backupSchedule, ['daily', 'weekly', 'monthly'], true)) {
-            $backupSchedule = 'daily';
-        }
-        $backupKeep = (int)($merged['backup']['local']['keep'] ?? 20);
-        if ($backupKeep < 1) {
-            $backupKeep = 1;
-        }
-        $remoteProvider = (string)($merged['backup']['remote']['provider'] ?? 'custom');
-        if (!in_array($remoteProvider, $this->backupRemoteProviders(), true)) {
-            $remoteProvider = 'custom';
-        }
-        $remoteKeep = (int)($merged['backup']['remote']['keep'] ?? 20);
-        if ($remoteKeep < 1) {
-            $remoteKeep = 1;
-        }
-
-        return [
-            'title' => (string)($merged['title'] ?? ''),
-            'tagline' => (string)($merged['tagline'] ?? ''),
-            'base_url' => (string)($merged['base_url'] ?? ''),
-            'theme' => (string)($merged['theme'] ?? ''),
-            'home_page' => (string)($merged['home_page'] ?? ''),
-            'date_format' => (string)($merged['date_format'] ?? ''),
-            'storage_limit_mb' => max(0, (int)($merged['limits']['storage_mb'] ?? 1024)),
-            'robots_disallow' => implode("\n", RobotsTxt::rules(is_array($merged['seo']['robots_disallow'] ?? null) ? $merged['seo']['robots_disallow'] : [])),
-            'upload_limit_mb' => max(0, (int)($merged['limits']['upload_mb'] ?? $merged['media']['max_upload_mb'] ?? 20)),
-            'upload_types' => is_array($merged['limits']['upload_types'] ?? null) ? array_values(array_intersect(array_keys(MediaLibrary::UPLOAD_GROUPS), array_map('strval', $merged['limits']['upload_types']))) : array_keys(MediaLibrary::UPLOAD_GROUPS),
-            'languages_default' => (string)($merged['languages']['default'] ?? 'el'),
-            'languages_available' => implode(', ', $merged['languages']['available'] ?? []),
-            'mail_driver' => (string)($merged['forms']['notifications']['driver'] ?? 'smtp'),
-            'mail_from' => (string)($merged['forms']['notifications']['from'] ?? ''),
-            'mail_from_name' => (string)($merged['forms']['notifications']['from_name'] ?? ''),
-            'smtp_host' => (string)($merged['forms']['notifications']['smtp']['host'] ?? ''),
-            'smtp_port' => (string)($merged['forms']['notifications']['smtp']['port'] ?? ''),
-            'smtp_user' => (string)($merged['forms']['notifications']['smtp']['username'] ?? ''),
-            'smtp_encryption' => (string)($merged['forms']['notifications']['smtp']['encryption'] ?? ''),
-            'ses_key' => (string)($merged['forms']['notifications']['ses']['key'] ?? ''),
-            'ses_region' => (string)($merged['forms']['notifications']['ses']['region'] ?? ''),
-            'menu_location_header' => (string)($menuLocations['header'] ?? 'main'),
-            'menu_location_footer' => (string)($menuLocations['footer'] ?? 'footer'),
-            'menu_location_keys' => $extraLocationKeys,
-            'menu_location_values' => $extraLocationValues,
-            'backup_auto_enabled' => $this->isTruthy($merged['backup']['auto']['enabled'] ?? false),
-            'backup_schedule' => $backupSchedule,
-            'backup_last_run' => (string)($merged['backup']['auto']['last_run'] ?? ''),
-            'backup_keep_local' => (string)$backupKeep,
-            'backup_remote_enabled' => $this->isTruthy($merged['backup']['remote']['enabled'] ?? false),
-            'backup_remote_provider' => $remoteProvider,
-            'backup_remote_endpoint' => (string)($merged['backup']['remote']['endpoint'] ?? ''),
-            'backup_remote_region' => (string)($merged['backup']['remote']['region'] ?? ''),
-            'backup_remote_bucket' => (string)($merged['backup']['remote']['bucket'] ?? ''),
-            'backup_remote_access_key' => (string)($merged['backup']['remote']['access_key'] ?? ''),
-            'backup_remote_prefix' => (string)($merged['backup']['remote']['prefix'] ?? ''),
-            'backup_remote_keep' => (string)$remoteKeep,
-            'backup_remote_path_style' => $this->isTruthy($merged['backup']['remote']['path_style'] ?? false),
-            'google_enabled' => $this->isTruthy($merged['auth']['google']['enabled'] ?? false),
-            'google_client_id' => (string)($merged['auth']['google']['client_id'] ?? ''),
-            'google_allowed_domain' => (string)($merged['auth']['google']['allowed_domain'] ?? ''),
-            'update_repository' => (string)($merged['updates']['repository'] ?? 'chiotis/faroscms'),
-            'update_branch' => (string)($merged['updates']['branch'] ?? 'main'),
-            'update_version_url' => (string)($merged['updates']['version_url'] ?? ''),
-            'update_changelog_url' => (string)($merged['updates']['changelog_url'] ?? ''),
-            'update_package_url' => (string)($merged['updates']['package_url'] ?? ''),
-        ] + $this->maskedSettingsSecrets($merged);
-    }
-
-    /**
-     * Secrets never travel back to the browser; the form only learns whether one is stored.
-     *
-     * @return array<string, string|bool>
-     */
-    private function maskedSettingsSecrets(array $settings): array
-    {
-        $form = [];
-        foreach ($this->settingsSecretPaths() as $field => $path) {
-            $form[$field] = '';
-            $form[$field . '_set'] = trim((string)ArrayPath::get($settings, $path)) !== '';
-        }
-        return $form;
-    }
-
-    /** @return array<string, array<int, string>> form field => settings path */
-    private function settingsSecretPaths(): array
-    {
-        return [
-            'smtp_pass' => ['forms', 'notifications', 'smtp', 'password'],
-            'ses_secret' => ['forms', 'notifications', 'ses', 'secret'],
-            'google_client_secret' => ['auth', 'google', 'client_secret'],
-            'backup_remote_secret_key' => ['backup', 'remote', 'secret_key'],
-            'update_github_token' => ['updates', 'github_token'],
-        ];
-    }
-
-    private function saveSettings(string $raw, array $form): bool
-    {
-        if (!$this->systemDatabase->isAvailable()) {
-            return false;
-        }
-
-        // Kept apart: a box left out of the form (null) is not the same as a box that was emptied.
-        $robotsSubmitted = array_key_exists('robots_disallow', $form) && $form['robots_disallow'] !== null;
-        $robotsText = (string)($form['robots_disallow'] ?? '');
-        foreach ($form as $key => $value) {
-            if (is_array($value)) {
-                $form[$key] = array_map(fn($item) => trim((string)$item), $value);
-            } else {
-                $form[$key] = trim((string)$value);
-            }
-        }
-        $data = $this->parseSettingsYaml($raw);
-        $existingSecrets = [];
-        foreach ($this->settingsSecretPaths() as $field => $path) {
-            $existingSecrets[$field] = (string)(ArrayPath::get($data, $path) ?? '');
-        }
-
-        $data['title'] = $form['title'] !== '' ? $form['title'] : ($data['title'] ?? 'FarosCMS');
-        $data['tagline'] = $form['tagline'] !== '' ? $form['tagline'] : ($data['tagline'] ?? '');
-        $data['base_url'] = $form['base_url'];
-        $data['theme'] = $form['theme'] !== '' ? $form['theme'] : ($data['theme'] ?? 'default');
-        $data['home_page'] = $form['home_page'] !== '' ? $form['home_page'] : ($data['home_page'] ?? 'index');
-        $data['date_format'] = $form['date_format'] !== '' ? $form['date_format'] : ($data['date_format'] ?? 'd/m/Y');
-        if ($robotsSubmitted) {
-            $rules = RobotsTxt::rules($robotsText);
-            if ($rules === []) {
-                unset($data['seo']['robots_disallow']);
-                if (($data['seo'] ?? []) === []) {
-                    unset($data['seo']);
-                }
-            } else {
-                $data['seo']['robots_disallow'] = $rules;
-            }
-        }
-        // Every form value was turned into text above: an empty one means the field was not submitted.
-        if (is_numeric($form['storage_limit_mb'] ?? null)) {
-            $data['limits']['storage_mb'] = (int)$form['storage_limit_mb'];
-        }
-        if (is_numeric($form['upload_limit_mb'] ?? null)) {
-            $data['limits']['upload_mb'] = (int)$form['upload_limit_mb'];
-        }
-        if (is_string($form['upload_types'] ?? null) && $form['upload_types'] !== '') {
-            $data['limits']['upload_types'] = explode(',', $form['upload_types']);
-        }
-
-        $available = $this->normalizeLanguageList($form['languages_available']);
-        if (empty($available) && isset($data['languages']['available']) && is_array($data['languages']['available'])) {
-            $available = array_values(array_filter(array_map('strval', $data['languages']['available'])));
-        }
-        if (empty($available)) {
-            $available = ['el', 'en'];
-        }
-
-        $defaultLang = $this->slugify($form['languages_default']);
-        if ($defaultLang === '' && isset($data['languages']['default'])) {
-            $defaultLang = (string)$data['languages']['default'];
-        }
-        if ($defaultLang === '') {
-            $defaultLang = $available[0] ?? 'el';
-        }
-        if (!in_array($defaultLang, $available, true)) {
-            array_unshift($available, $defaultLang);
-            $available = array_values(array_unique($available));
-        }
-
-        $data['languages'] = [
-            'default' => $defaultLang,
-            'available' => $available,
-        ];
-
-        $data['forms']['notifications'] = $data['forms']['notifications'] ?? [];
-        $driver = $form['mail_driver'] !== '' ? $form['mail_driver'] : ($data['forms']['notifications']['driver'] ?? 'smtp');
-        if (!in_array($driver, ['smtp', 'ses'], true)) {
-            $driver = 'smtp';
-        }
-        $data['forms']['notifications']['driver'] = $driver;
-        $data['forms']['notifications']['from'] = $form['mail_from'];
-        $data['forms']['notifications']['from_name'] = $form['mail_from_name'];
-        $data['forms']['notifications']['smtp'] = [
-            'host' => $form['smtp_host'],
-            'port' => $form['smtp_port'] !== '' ? (int)$form['smtp_port'] : '',
-            'username' => $form['smtp_user'],
-            'password' => $form['smtp_pass'],
-            'encryption' => $form['smtp_encryption'],
-        ];
-        $data['forms']['notifications']['ses'] = [
-            'key' => $form['ses_key'],
-            'secret' => $form['ses_secret'],
-            'region' => $form['ses_region'],
-        ];
-
-        $locations = [];
-        $headerMenu = $this->slugify((string)($form['menu_location_header'] ?? ''));
-        $footerMenu = $this->slugify((string)($form['menu_location_footer'] ?? ''));
-        $locations['header'] = $headerMenu !== '' ? $headerMenu : 'main';
-        $locations['footer'] = $footerMenu !== '' ? $footerMenu : 'footer';
-        $extraKeys = $form['menu_location_keys'] ?? [];
-        $extraValues = $form['menu_location_values'] ?? [];
-        if (is_array($extraKeys) && is_array($extraValues)) {
-            foreach ($extraKeys as $index => $key) {
-                $k = $this->slugify((string)$key);
-                $v = $this->slugify((string)($extraValues[$index] ?? ''));
-                if ($k === '' || $v === '' || in_array($k, ['header', 'footer'], true)) {
-                    continue;
-                }
-                $locations[$k] = $v;
-            }
-        }
-        $data['menu_locations'] = $locations;
-        unset($data['menu']);
-
-        $backupSchedule = strtolower((string)($form['backup_schedule'] ?? 'daily'));
-        if (!in_array($backupSchedule, ['daily', 'weekly', 'monthly'], true)) {
-            $backupSchedule = 'daily';
-        }
-        $backupAutoEnabled = $this->isTruthy($form['backup_auto_enabled'] ?? false);
-        $backupKeep = (int)($form['backup_keep_local'] ?? 20);
-        if ($backupKeep < 1) {
-            $backupKeep = 1;
-        }
-        $backupLastRun = (string)($data['backup']['auto']['last_run'] ?? '');
-        $remoteProvider = strtolower((string)($form['backup_remote_provider'] ?? 'custom'));
-        if (!in_array($remoteProvider, $this->backupRemoteProviders(), true)) {
-            $remoteProvider = 'custom';
-        }
-        $remoteKeep = (int)($form['backup_remote_keep'] ?? 20);
-        if ($remoteKeep < 1) {
-            $remoteKeep = 1;
-        }
-
-        $data['backup'] = [
-            'auto' => [
-                'enabled' => $backupAutoEnabled,
-                'schedule' => $backupSchedule,
-                'last_run' => $backupLastRun,
-            ],
-            'local' => [
-                'keep' => $backupKeep,
-            ],
-            'remote' => [
-                'enabled' => $this->isTruthy($form['backup_remote_enabled'] ?? false),
-                'provider' => $remoteProvider,
-                'endpoint' => (string)($form['backup_remote_endpoint'] ?? ''),
-                'region' => (string)($form['backup_remote_region'] ?? ''),
-                'bucket' => (string)($form['backup_remote_bucket'] ?? ''),
-                'access_key' => (string)($form['backup_remote_access_key'] ?? ''),
-                'secret_key' => (string)($form['backup_remote_secret_key'] ?? ''),
-                'prefix' => trim((string)($form['backup_remote_prefix'] ?? ''), '/'),
-                'keep' => $remoteKeep,
-                'path_style' => $this->isTruthy($form['backup_remote_path_style'] ?? false),
-            ],
-        ];
-
-        $data['auth']['google'] = [
-            'enabled' => $this->isTruthy($form['google_enabled'] ?? false),
-            'client_id' => (string)($form['google_client_id'] ?? ''),
-            'client_secret' => (string)($form['google_client_secret'] ?? ''),
-            'allowed_domain' => strtolower(trim((string)($form['google_allowed_domain'] ?? ''))),
-        ];
-
-        $existingUpdates = is_array($data['updates'] ?? null) ? $data['updates'] : [];
-        $repository = trim((string)($form['update_repository'] ?? ''));
-        if ($repository === '') {
-            $repository = 'chiotis/faroscms';
-        }
-        $branch = trim((string)($form['update_branch'] ?? ''));
-        if ($branch === '') {
-            $branch = 'main';
-        }
-        $data['updates'] = [
-            'channel' => (string)($existingUpdates['channel'] ?? 'stable'),
-            'repository' => $repository,
-            'branch' => $branch,
-            'version_url' => (string)($form['update_version_url'] ?? ''),
-            'changelog_url' => (string)($form['update_changelog_url'] ?? ''),
-            'package_url' => (string)($form['update_package_url'] ?? ''),
-            'github_token' => '',
-            'latest_version' => (string)($existingUpdates['latest_version'] ?? ''),
-        ];
-
-        // Blank secret inputs keep the stored value; only an explicit "remove" clears it.
-        $clear = is_array($form['clear_secrets'] ?? null) ? $form['clear_secrets'] : [];
-        foreach ($this->settingsSecretPaths() as $field => $path) {
-            $submitted = (string)($form[$field] ?? '');
-            if (in_array($field, $clear, true)) {
-                $value = '';
-            } elseif ($submitted !== '') {
-                $value = $submitted;
-            } else {
-                $value = $existingSecrets[$field] ?? '';
-            }
-            ArrayPath::set($data, $path, $value);
-        }
-
-        $this->setSystemMeta('site_settings', Yaml::dump($data, 4, 2));
-        return true;
-    }
-
-    /** @return string[] */
-    private function backupRemoteProviders(): array
-    {
-        return ['custom', 'aws_s3', 'backblaze_b2', 'cloudflare_r2', 'wasabi', 'digitalocean_spaces', 'minio'];
     }
 
     /** @return array<int, array{label: string, value: string, status: string}> */
@@ -7608,14 +7127,14 @@ final class App
 
     private function updateBackupLastRun(string $isoDate): void
     {
-        $raw = $this->loadSettingsRaw('site_settings', $this->defaultSettings());
-        $data = $this->parseSettingsYaml($raw);
+        $raw = $this->siteSettings()->raw('site_settings', $this->siteSettings()->defaults());
+        $data = $this->siteSettings()->parse($raw);
         $data['backup']['auto']['last_run'] = $isoDate;
         $yaml = Yaml::dump($data, 4, 2);
         if ($this->systemDatabase->isAvailable()) {
             $this->setSystemMeta('site_settings', $yaml);
         }
-        $this->settings = $this->loadSettings();
+        $this->settings = $this->siteSettings()->load();
     }
 
     /** @return array{fields: array, values: array, errors: array, success: bool, message: string, action: string, honeypot: string, redirect: string} */
