@@ -1,0 +1,12 @@
+{# The tabs of the Logs section: Activity and Email. Each is its own screen (its own filters and pages), so these are links. current: 'activity' or 'email'. #}
+{% set tab_class = 'tab-button shrink-0 border-b-2 border-transparent px-3 py-2.5 text-sm font-medium text-slate-500 transition hover:text-slate-800' %}
+<nav class="mb-4 overflow-x-auto border-b border-slate-200" aria-label="Logs">
+  <div class="flex min-w-max gap-1">
+    {% if can('activity.manage') %}
+      <a href="{{ url('admin/activity-logs') }}" class="{{ tab_class }}{% if current == 'activity' %} active{% endif %}"{% if current == 'activity' %} aria-current="page"{% endif %}>Activity</a>
+    {% endif %}
+    {% if can('email_logs.manage') %}
+      <a href="{{ url('admin/email-logs') }}" class="{{ tab_class }}{% if current == 'email' %} active{% endif %}"{% if current == 'email' %} aria-current="page"{% endif %}>Email</a>
+    {% endif %}
+  </div>
+</nav>

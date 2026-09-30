@@ -117,16 +117,12 @@
             Roles
           </a>
         {% endif %}
-        {% if can('activity.manage') %}
-          <a href="{{ url('admin/activity-logs') }}" class="{{ nav_base }} {{ section == 'activity' ? nav_active : nav_idle }}">
-            <svg class="h-4 w-4 {{ section == 'activity' ? 'text-white/80' : 'text-slate-400 group-hover:text-slate-600' }}" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6M9 12h6M9 17h3M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z"/></svg>
-            Activity
-          </a>
-        {% endif %}
-        {% if can('email_logs.manage') %}
-          <a href="{{ url('admin/email-logs') }}" class="{{ nav_base }} {{ section == 'email_logs' ? nav_active : nav_idle }}">
-            <svg class="h-4 w-4 {{ section == 'email_logs' ? 'text-white/80' : 'text-slate-400 group-hover:text-slate-600' }}" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l9 6 9-6M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-            Email logs
+        {% if can('activity.manage') or can('email_logs.manage') %}
+          {# One entry for both logs; the tabs inside pick which. #}
+          {% set in_logs = section in ['activity', 'email_logs'] %}
+          <a href="{{ url(can('activity.manage') ? 'admin/activity-logs' : 'admin/email-logs') }}" class="{{ nav_base }} {{ in_logs ? nav_active : nav_idle }}"{% if in_logs %} aria-current="page"{% endif %}>
+            <svg class="h-4 w-4 {{ in_logs ? 'text-white/80' : 'text-slate-400 group-hover:text-slate-600' }}" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6M9 12h6M9 17h3M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z"/></svg>
+            Logs
           </a>
         {% endif %}
         {% if can('backups.manage') %}
