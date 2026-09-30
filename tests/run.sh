@@ -4,7 +4,7 @@
 #   tests/run.sh            everything
 #   tests/run.sh unit       the PHP checks only (fast, no server)
 #   tests/run.sh http       the browser-level tests only
-#   tests/run.sh redirects  one HTTP test by name (editor, roles, import, redirects, save, history, taxonomies, links, delete, blocks, hero_layouts, mobile_menu, bottom_bar, logs, users_tabs, sidebar, sidebar_brand, theme_page, media_upload, custom_roles, storage)
+#   tests/run.sh redirects  one HTTP test by name (editor, roles, import, redirects, save, history, taxonomies, links, delete, blocks, hero_layouts, mobile_menu, bottom_bar, logs, users_tabs, sidebar, sidebar_brand, theme_page, media_upload, upload_limits, custom_roles, storage)
 #
 # The HTTP tests never touch your site: they run against a temporary copy of the code with the small
 # content set in tests/fixtures, on a free local port, and remove it afterwards. They need PHP and Python 3
@@ -66,7 +66,7 @@ PYCOPY
   for _ in $(seq 1 50); do curl -s -o /dev/null "http://127.0.0.1:$port/" && break; sleep 0.1; done
 
   echo "HTTP tests (temporary copy on port $port)"
-  for name in editor roles import redirects save history taxonomies links delete blocks hero_layouts mobile_menu bottom_bar logs users_tabs sidebar sidebar_brand theme_page media_upload custom_roles storage; do
+  for name in editor roles import redirects save history taxonomies links delete blocks hero_layouts mobile_menu bottom_bar logs users_tabs sidebar sidebar_brand theme_page media_upload upload_limits custom_roles storage; do
     [ -n "$only" ] && [ "$only" != "$name" ] && continue
     # Every test starts from the same clean site.
     rm -rf "$work/app/content" "$work/app/storage" "$work/app/custom" "$work/app/public/uploads"
@@ -86,7 +86,7 @@ case "$MODE" in
   all) run_unit; echo; run_http ;;
   unit) run_unit ;;
   http) run_http ;;
-  editor|roles|import|redirects|save|history|taxonomies|links|delete|blocks|hero_layouts|mobile_menu|bottom_bar|logs|users_tabs|sidebar|sidebar_brand|theme_page|media_upload|custom_roles|storage) run_http "$MODE" ;;
+  editor|roles|import|redirects|save|history|taxonomies|links|delete|blocks|hero_layouts|mobile_menu|bottom_bar|logs|users_tabs|sidebar|sidebar_brand|theme_page|media_upload|upload_limits|custom_roles|storage) run_http "$MODE" ;;
   *) echo "Unknown option: $MODE"; exit 2 ;;
 esac
 
