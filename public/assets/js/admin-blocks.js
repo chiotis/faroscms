@@ -52,6 +52,17 @@
     image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/>'
   };
 
+  /* The wireframe a block shows in the picker: the markup of its preview.svg (see BlockRegistry::previewMarkup), or a plain
+     stack of boxes for a block that has none. */
+  var PREVIEW_FALLBACK = '<rect x="8" y="8" width="48" height="12" rx="3"/><rect x="8" y="24" width="48" height="16" rx="3" fill="currentColor" fill-opacity=".14"/>';
+
+  function thumb(markup) {
+    return el('span', {
+      class: 'grid h-14 w-[4.5rem] shrink-0 place-items-center rounded-md border border-slate-200 bg-slate-50 text-slate-500 transition group-hover:border-blue-200 group-hover:bg-blue-50 group-hover:text-blue-600',
+      html: '<svg viewBox="0 0 64 48" class="h-11 w-14" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">' + (markup || PREVIEW_FALLBACK) + '</svg>'
+    });
+  }
+
   function svg(name, cls) {
     return '<svg class="' + (cls || 'h-4 w-4') + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICONS[name] + '</svg>';
   }
@@ -454,10 +465,14 @@
 
   function presetCard(preset, onChoose) {
     var card = el('div', { class: 'relative rounded-md border border-slate-200 transition hover:border-blue-300 hover:bg-blue-50/50' });
-    var choose = el('button', { type: 'button', class: 'block w-full px-3 py-2.5 pr-10 text-left' }, [
-      el('span', { class: 'block text-sm font-semibold text-slate-900', text: preset.label }),
-      el('span', { class: 'mt-0.5 block text-xs text-slate-500', text: preset.description || '' }),
-      el('span', { class: 'mt-1 block text-[11px] text-slate-400', text: preset.blocks.map(function (b) { return definitions[b.type] ? definitions[b.type].label : b.type; }).join(' · ') + (preset.origin === 'custom' ? ' · saved on this site' : '') })
+    var first = preset.blocks[0] && definitions[preset.blocks[0].type];
+    var choose = el('button', { type: 'button', class: 'group flex w-full items-center gap-3 p-2.5 pr-10 text-left' }, [
+      thumb(first ? first.preview : ''),
+      el('span', { class: 'min-w-0' }, [
+        el('span', { class: 'block text-sm font-semibold text-slate-900', text: preset.label }),
+        el('span', { class: 'mt-0.5 block text-xs text-slate-500', text: preset.description || '' }),
+        el('span', { class: 'mt-1 block text-[11px] text-slate-400', text: preset.blocks.map(function (b) { return definitions[b.type] ? definitions[b.type].label : b.type; }).join(' · ') + (preset.origin === 'custom' ? ' · saved on this site' : '') })
+      ])
     ]);
     choose.addEventListener('click', function () { onChoose(preset); });
     card.appendChild(choose);
@@ -501,11 +516,15 @@
     var grid = el('div', { class: 'grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3' });
 
     if (pickerTab === 'blocks') {
+      var options = [];
       Object.keys(definitions).forEach(function (type) {
         var def = definitions[type];
-        var option = el('button', { type: 'button', class: 'rounded-md border border-slate-200 px-3 py-2.5 text-left transition hover:border-blue-300 hover:bg-blue-50/50' }, [
-          el('span', { class: 'block text-sm font-semibold text-slate-900', text: def.label + (def.origin === 'custom' ? ' (custom)' : '') }),
-          el('span', { class: 'mt-0.5 block text-xs text-slate-500', text: def.description })
+        var option = el('button', { type: 'button', class: 'group flex w-full items-center gap-3 rounded-lg border border-slate-200 bg-white p-2.5 text-left transition hover:border-blue-300 hover:shadow-sm' }, [
+          thumb(def.preview),
+          el('span', { class: 'min-w-0' }, [
+            el('span', { class: 'block text-sm font-semibold text-slate-900', text: def.label + (def.origin === 'custom' ? ' (custom)' : '') }),
+            el('span', { class: 'mt-0.5 block text-xs leading-snug text-slate-500', text: def.description })
+          ])
         ]);
         option.addEventListener('click', function () {
           var block = newBlock(type);
@@ -513,8 +532,24 @@
           closePicker(true);
           render(block._id, 'toggle');
         });
+        options.push({ node: option, text: (def.label + ' ' + def.description + ' ' + type).toLowerCase() });
         grid.appendChild(option);
       });
+      // A box to narrow the list by name or by what the block does.
+      var empty = el('p', { class: 'hidden text-sm text-slate-500', text: 'No block matches.' });
+      var search = el('input', { type: 'search', class: CLS.input + ' mb-3 max-w-sm', placeholder: 'Search blocks', 'aria-label': 'Search blocks' });
+      search.addEventListener('input', function () {
+        var term = search.value.trim().toLowerCase();
+        var shown = 0;
+        options.forEach(function (o) {
+          var match = term === '' || o.text.indexOf(term) !== -1;
+          o.node.classList.toggle('hidden', !match);
+          if (match) shown++;
+        });
+        empty.classList.toggle('hidden', shown > 0);
+      });
+      picker.appendChild(search);
+      grid.appendChild(empty);
     } else if (pickerTab === 'sections') {
       var sections = presets.filter(function (p) { return p.kind === 'section'; });
       if (!sections.length) grid.appendChild(el('p', { class: 'text-sm text-slate-500', text: 'No sections yet.' }));

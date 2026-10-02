@@ -165,6 +165,7 @@ The blocks showcase page (`/blocks`, hidden, admins only) shows every block and 
 Create `blocks/<type>/` with three files:
 
 - `block.yaml`: `label`, `description`, `variants`, optional default `tone` and `spacing`, and `fields` (FieldSchema types plus `markdown`, `link`, `repeater` with `fields`/`max`, `icon`, and `options_from: content_types | forms`).
+- `preview.svg` (optional): the one-colour wireframe the editor's block picker shows beside the block's name. Draw it on a 64 by 48 grid with `fill="none" stroke="currentColor"` shapes (`rect`, `path`, `circle`, `line`, `polygon`; `fill="currentColor" fill-opacity=".14"` for tinted areas). Only those shapes and a few presentation attributes are kept; a block without one shows a placeholder.
 - `block.twig`: receives `block` (checked values; Markdown fields also as `<key>_html`), `heading_tag`, `item_heading_tag`, `block_uid` (use `{{ block_uid }}-title` as the heading id), `block_first`, and the page context. Import `components/ui.twig` for `section_header`, `actions`, and `initials`.
 - `block.css`: styles scoped to `.block-<type>`, using the tokens from `site.css`. It is loaded only on pages that use the block, bundled with the other blocks of the page into one request.
 - `block.js` (optional): progressive enhancement only; the block must work without it. Loaded deferred and bundled the same way (`/_themes/default/_blocks.js?b=…`).
