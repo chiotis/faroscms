@@ -13,7 +13,7 @@ namespace FarosCMS;
  */
 final class SettingsAdmin
 {
-    public const TABS = ['basics', 'menus', 'apis', 'smtp', 'auth', 'backup', 'updates', 'limits'];
+    public const TABS = ['basics', 'apis', 'smtp', 'auth', 'backup', 'updates', 'limits'];
 
     /**
      * @param \Closure(): SiteLimits $limits
