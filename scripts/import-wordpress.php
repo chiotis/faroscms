@@ -45,7 +45,6 @@ $lang = (string)$opt['lang'];
 $defaultLang = $opt['default-lang'] !== '' ? (string)$opt['default-lang'] : $lang;
 
 $media = new MediaLibrary($opt['content'], $opt['uploads']);
-$media->ensureDirectories();
 $importer = new WordPressImporter(
     new WordPressReader($site, static fn(string $url): ?array => WordPressHttp::get($url)),
     $opt['content'],
@@ -105,6 +104,7 @@ if (!$opt['apply']) {
 }
 
 echo "\nImporting ...\n";
+$media->ensureDirectories();
 $result = $importer->apply($plan);
 if (!is_dir($opt['out'])) {
     mkdir($opt['out'], 0775, true);
