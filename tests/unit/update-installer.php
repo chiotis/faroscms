@@ -61,7 +61,10 @@ $makeSite = function (string $version) use ($site, $put, &$opened): void {
     foreach ($opened as $open) { $open->close(); }
     $opened = [];
     gc_collect_cycles();
-    exec('rm -rf ' . escapeshellarg($site));
+    // The old site is moved out of the way, not deleted: a database file deleted and made again at the same path can reuse
+    // the inode, and SQLite may then refuse to open it while the process still remembers the old one.
+    static $made = 0;
+    if (is_dir($site)) { rename($site, $site . '-old' . (++$made)); }
     foreach (['src/App.php' => '<?php // old code', 'src/Old.php' => 'only in the old version', 'admin/templates/a.twig' => 'old admin', 'vendor/autoload.php' => '<?php // old vendor', 'themes/default/theme.yaml' => 'name: default # old', 'themes/mine/theme.yaml' => 'name: mine', 'starter/content/pages/a.md' => 'old starter',
         'public/index.php' => '<?php // old index', 'public/.htaccess' => '# old htaccess', 'public/assets/css/app.css' => '/* old */', 'public/uploads/.htaccess' => '# old uploads rules', 'custom/README.md' => 'old readme',
         'VERSION' => $version . "\n", 'CHANGELOG.md' => '# old', 'README.md' => 'old', 'LICENSE' => 'old', 'update.md' => 'old', 'composer.json' => '{}',
