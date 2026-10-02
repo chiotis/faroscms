@@ -508,7 +508,8 @@ final class Theme
         return true;
     }
 
-    private static function fileVersion(string $file): string
+    /** A short stamp that changes when a file does (its date and size), for the end of an asset address. */
+    public static function fileVersion(string $file): string
     {
         return base_convert((string)((int)@filemtime($file)), 10, 36) . base_convert((string)((int)@filesize($file)), 10, 36);
     }

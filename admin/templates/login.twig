@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>Sign in - FarosCMS</title>
-  <link rel="stylesheet" href="{{ url('assets/css/admin.build.css') }}">
-  <link rel="stylesheet" href="{{ url('assets/css/app.css') }}">
+  <link rel="stylesheet" href="{{ asset('css/admin.build.css') }}">
+  <link rel="stylesheet" href="{{ asset('css/app.css') }}">
 </head>
 <body class="flex min-h-full items-center justify-center bg-slate-100 px-4 py-8 font-sans text-slate-800 antialiased">
   <button type="button" data-theme-toggle class="fixed right-4 top-4 rounded-md p-1.5 text-slate-500 hover:bg-white" aria-label="Toggle theme"></button>
@@ -63,6 +63,6 @@
     <p class="mt-4 text-center text-xs text-slate-400">Authorized personnel only</p>
   </main>
 
-  <script src="{{ url('assets/js/admin.js') }}"></script>
+  <script src="{{ asset('js/admin.js') }}"></script>
 </body>
 </html>

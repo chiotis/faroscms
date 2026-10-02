@@ -18,14 +18,21 @@ final class TwigFunctions
      * @param \Closure(string): string $absoluteUrl the full address of a public path
      * @param \Closure(): StructuredData $structuredData
      */
-    public static function register(Environment $twig, string $baseUrl, Theme $theme, Images $images, \Closure $absoluteUrl, \Closure $structuredData): void
+    public static function register(Environment $twig, string $baseUrl, Theme $theme, Images $images, \Closure $absoluteUrl, \Closure $structuredData, ?string $publicDir = null): void
     {
         $baseUrl = rtrim($baseUrl, '/');
         $add = static function (string $name, callable $function, bool $html = false) use ($twig): void {
             $twig->addFunction(new TwigFunction($name, $function, $html ? ['is_safe' => ['html']] : []));
         };
 
-        $add('asset', static fn(string $path): string => $baseUrl . '/assets/' . ltrim($path, '/'));
+        // The address of a file in public/assets, with a stamp that changes when the file does: a browser or a CDN that kept
+        // the old stylesheet or script (they are told to keep it for a month) then asks for the new one after an update.
+        $add('asset', static function (string $path) use ($baseUrl, $publicDir): string {
+            $path = ltrim($path, '/');
+            $url = $baseUrl . '/assets/' . $path;
+            $file = $publicDir !== null ? $publicDir . '/assets/' . $path : '';
+            return $file !== '' && !str_contains($path, '..') && is_file($file) ? $url . '?v=' . Theme::fileVersion($file) : $url;
+        });
         $add('theme_asset', static fn(string $path): string => $theme->assetUrl($baseUrl, $path));
         $add('custom_asset', static fn(string $path): string => $theme->customAssetUrl($baseUrl, $path));
         $add('admin_asset', static fn(string $path): string => $baseUrl . '/admin-assets/' . ltrim($path, '/'));
