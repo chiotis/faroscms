@@ -2,6 +2,7 @@ label: Slider
 description: Slides you scroll through, with previous and next buttons. Works by swiping, with the keyboard, and without JavaScript. Never moves by itself unless you turn that on.
 variants:
   full: One large slide at a time
+  banner: Wide banner, a text panel over the picture
   multi: Several slides at once
 tone: default
 fields:
@@ -14,6 +15,21 @@ fields:
   intro:
     type: textarea
     label: Introduction
+  width:
+    type: select
+    label: Width
+    default: contained
+    options:
+      contained: 'Within the page width'
+      full: 'Full width of the screen'
+    help: 'Full width runs the slides edge to edge; the text inside stays in line with the page. Set the block spacing to None to sit against the header.'
+  navigation:
+    type: select
+    label: Arrows and dots
+    default: below
+    options:
+      below: 'Below the slides'
+      inside: 'Over the slides'
   per_view:
     type: select
     label: Slides visible at once (several)
@@ -40,3 +56,7 @@ fields:
       text: { type: textarea, label: Text }
       link_label: { type: text, label: Link text }
       url: { type: link, label: Link }
+      link_label_2: { type: text, label: Second link text, help: 'Shown as buttons beside the first in the Wide banner layout.' }
+      url_2: { type: link, label: Second link }
+      link_label_3: { type: text, label: Third link text }
+      url_3: { type: link, label: Third link }

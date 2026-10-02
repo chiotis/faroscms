@@ -104,6 +104,11 @@
   --n-border: #e2e6ec;
   --n-border-strong: #c3cad5;
 
+  /* The near-black behind pictures, panels and the footer: a palette can tint it. */
+  --ink: #0b1220;
+  --ink-rgb: 11 18 32;
+  --ink-2: #172033;
+
   /* Neutrals, dark (also used by the contrast tone) */
   --d-bg: #0b1220;
   --d-surface: #111a2c;
@@ -146,6 +151,28 @@
 :root[data-theme="amber"] {
   --accent-l: #b45309; --accent-l-hover: #92400e; --accent-l-soft: #fdf3e4;
   --accent-d: #fcd34d; --accent-d-hover: #fde68a; --accent-d-soft: #2a2010;
+}
+
+:root[data-theme="garnet"] {
+  /* Deep red on warm paper: a classic, bookish look. The neutrals are warm too, in light mode only. */
+  --accent-l: #8f1d1d; --accent-l-hover: #701414; --accent-l-soft: #fbeeec;
+  --accent-d: #f4a8a0; --accent-d-hover: #f9c9c3; --accent-d-soft: #2d1818;
+  --n-bg: #fffdf8; --n-surface: #f8f1e4; --n-surface-2: #f0e5d0;
+  --n-text: #261b14; --n-muted: #5b4a3d; --n-border: #eadfca; --n-border-strong: #cdbb9b;
+  /* Dark surfaces (dark mode, the footer, panels over pictures) are a warm charcoal, not blue. */
+  --ink: #323130; --ink-rgb: 50 49 48; --ink-2: #403e3c;
+  --d-bg: #232120; --d-surface: #2c2a28; --d-surface-2: #373432;
+  --d-text: #f4efea; --d-muted: #c6bdb5; --d-border: #433f3b; --d-border-strong: #5f5853;
+  --accent-contrast-d: #232120;
+  --bar-highlight: #ffd23f;
+}
+
+/* Solid colours only: no decorative gradients behind headings or in cards. */
+:root[data-glow="solid"] .single-hero-split::before,
+:root[data-glow="solid"] .single-hero-minimal::before,
+:root[data-glow="solid"] .block-hero::before,
+:root[data-glow="solid"] .block-cta.block--card .cta-inner::before {
+  display: none;
 }
 
 :root[data-font="serif"] {
@@ -396,8 +423,8 @@ hr {
 
 /* Two neighbouring sections on the same background share one gap. A full-width cover image is its own background,
    so the section after it keeps its own top space. */
-.block.tone-default:not(.block--cover, .block-hero.block--steps) + .block.tone-default:not(.block-hero),
-.block.tone-muted + .block.tone-muted {
+.block.tone-default:not(.block--cover, .block-hero.block--steps, .space-none) + .block.tone-default:not(.block-hero),
+.block.tone-muted:not(.space-none) + .block.tone-muted {
   padding-top: 0;
 }
 
@@ -789,10 +816,20 @@ ul.checklist li::before {
 /* 5. Header and navigation ---------------------------------------------------- */
 
 .site-header {
+  --header-bg: var(--color-bg);
   position: relative;
   z-index: 50;
   border-bottom: 1px solid var(--color-border);
-  background: var(--color-bg);
+  background: var(--header-bg);
+}
+
+/* The row with the logo can be a solid tint; the menu bar below keeps its own colour. */
+.site-header.row-muted {
+  --header-bg: var(--color-surface);
+}
+
+.site-header.row-soft {
+  --header-bg: var(--accent-soft);
 }
 
 .header-spacer {
@@ -805,7 +842,7 @@ body.header-sticky .site-header {
   left: 0;
   right: 0;
   z-index: 60;
-  background: color-mix(in srgb, var(--color-bg) 88%, transparent);
+  background: color-mix(in srgb, var(--header-bg) 88%, transparent);
   -webkit-backdrop-filter: saturate(1.6) blur(14px);
   backdrop-filter: saturate(1.6) blur(14px);
   box-shadow: 0 12px 32px -24px rgb(15 23 42 / 0.4);
@@ -1088,7 +1125,7 @@ body.header-sticky .site-header {
   position: fixed;
   inset: 0;
   z-index: 120;
-  background: rgb(11 18 32 / 0.55);
+  background: rgb(var(--ink-rgb) / 0.55);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.25s var(--ease);
@@ -1187,7 +1224,7 @@ body.mobile-menu-open .mobile-drawer--fullscreen {
   inset: 0 0 auto;
   border-bottom: 1px solid var(--color-border);
   border-radius: 0 0 var(--radius-l) var(--radius-l);
-  box-shadow: 0 24px 48px -24px rgb(11 18 32 / 0.5);
+  box-shadow: 0 24px 48px -24px rgb(var(--ink-rgb) / 0.5);
   transform: translateY(-100%);
 }
 
@@ -1196,7 +1233,7 @@ body.mobile-menu-open .mobile-drawer--fullscreen {
   padding-bottom: env(safe-area-inset-bottom);
   border-top: 1px solid var(--color-border);
   border-radius: var(--radius-l) var(--radius-l) 0 0;
-  box-shadow: 0 -24px 48px -24px rgb(11 18 32 / 0.5);
+  box-shadow: 0 -24px 48px -24px rgb(var(--ink-rgb) / 0.5);
   transform: translateY(100%);
 }
 
@@ -1433,6 +1470,47 @@ body.header-solid .site-header[data-sticky="always"] {
   color: var(--accent-contrast-l);
 }
 
+/* The page the visitor is on stands out in the bar (a palette can set --bar-highlight). */
+.header-bar.tone-accent .nav-item.is-active > .nav-link:not(.nav-cta) {
+  background: transparent;
+  color: var(--bar-highlight, var(--accent-contrast-l));
+  font-weight: 700;
+}
+
+/* A search box in the header: the icon stays only where there is no room for the box. */
+.header-search {
+  display: none;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+}
+
+.header-search input[type="search"] {
+  width: 11rem;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-s);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--step--1);
+}
+
+.header-search .btn {
+  padding: 0.45rem 0.9rem;
+  font-size: var(--step--1);
+}
+
+@media (min-width: 900px) {
+  .has-search-field .header-search {
+    display: flex;
+  }
+
+  .has-search-field .header-tools .search-link {
+    display: none;
+  }
+}
+
 /* Stacked: brand left, contacts and tools right, menu in the bar below. */
 .header--stacked .header-tools {
   margin-left: auto;
@@ -1518,7 +1596,7 @@ body.has-transparent-header:not(.header-solid) .site-header.is-on-dark[data-stic
   --color-bg: transparent;
   --accent: #ffffff;
   --accent-hover: #e8edf4;
-  --accent-contrast: #0b1220;
+  --accent-contrast: var(--ink);
   --color-focus: #ffffff;
   color: #ffffff;
 }
@@ -1533,7 +1611,7 @@ body.has-transparent-header:not(.header-solid) .site-header.is-on-dark[data-stic
 
 /* A photo behind the title area: a darker top edge under the transparent header keeps its light text readable. */
 .has-transparent-header .main-shell > .single-hero.has-image:first-child::before {
-  background-image: linear-gradient(180deg, rgb(11 18 32 / 0.6), rgb(11 18 32 / 0.8)), var(--hero-image);
+  background-image: linear-gradient(180deg, rgb(var(--ink-rgb) / 0.6), rgb(var(--ink-rgb) / 0.8)), var(--hero-image);
 }
 
 /* The same when the page opens with its title area: room for the header on top of each layout's own space. */
@@ -1633,7 +1711,7 @@ body.has-transparent-header:not(.header-solid) .site-header.is-on-dark[data-stic
 
 .single-hero.has-image {
   /* Dark underneath the photo: the light text stays readable while the picture loads, or if it never does. */
-  background: var(--hero-bg, #0b1220);
+  background: var(--hero-bg, var(--ink));
   color: #f8fafc;
 }
 
@@ -1642,7 +1720,7 @@ body.has-transparent-header:not(.header-solid) .site-header.is-on-dark[data-stic
   position: absolute;
   inset: 0;
   z-index: 0;
-  background-image: linear-gradient(180deg, rgb(11 18 32 / 0.25), rgb(11 18 32 / 0.8)), var(--hero-image);
+  background-image: linear-gradient(180deg, rgb(var(--ink-rgb) / 0.25), rgb(var(--ink-rgb) / 0.8)), var(--hero-image);
   background-position: center;
   background-size: cover;
 }
@@ -1813,7 +1891,7 @@ body.has-transparent-header:not(.header-solid) .site-header.is-on-dark[data-stic
   align-items: end;
   min-height: min(70vh, 40rem);
   border-bottom: 0;
-  background: #0b1220;
+  background: var(--ink);
   color: #ffffff;
   color-scheme: dark;
   --color-text: #ffffff;
@@ -1851,8 +1929,8 @@ body.has-transparent-header:not(.header-solid) .site-header.is-on-dark[data-stic
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(90deg, rgb(11 18 32 / 0.55) 0%, rgb(11 18 32 / 0.15) 65%, transparent 100%),
-    linear-gradient(180deg, rgb(11 18 32 / 0.25) 0%, rgb(11 18 32 / 0.35) 40%, rgb(11 18 32 / 0.88) 100%);
+    linear-gradient(90deg, rgb(var(--ink-rgb) / 0.55) 0%, rgb(var(--ink-rgb) / 0.15) 65%, transparent 100%),
+    linear-gradient(180deg, rgb(var(--ink-rgb) / 0.25) 0%, rgb(var(--ink-rgb) / 0.35) 40%, rgb(var(--ink-rgb) / 0.88) 100%);
 }
 
 @media (max-width: 900px) {
@@ -2294,7 +2372,7 @@ p.form-error {
   --accent: var(--accent-d);
   --accent-hover: var(--accent-d-hover);
   --color-focus: var(--accent-d);
-  background: var(--footer-bg, #0b1220);
+  background: var(--footer-bg, var(--ink));
   color: var(--color-text);
 }
 
@@ -2303,7 +2381,7 @@ p.form-error {
   position: absolute;
   inset: 0;
   z-index: 0;
-  background-image: linear-gradient(180deg, rgb(11 18 32 / 0.55), rgb(11 18 32 / 0.9)), var(--footer-image);
+  background-image: linear-gradient(180deg, rgb(var(--ink-rgb) / 0.55), rgb(var(--ink-rgb) / 0.9)), var(--footer-image);
   background-position: center;
   background-size: cover;
 }
@@ -2402,7 +2480,7 @@ p.form-error {
 .footer-icons a:hover,
 .drawer-icons a:hover {
   background: var(--color-text);
-  color: var(--color-bg, #0b1220);
+  color: var(--color-bg, var(--ink));
 }
 
 .footer-icons svg,
@@ -2445,6 +2523,35 @@ p.form-error {
   flex-wrap: wrap;
   gap: 0.5rem 1.4rem;
   margin: 0;
+}
+
+.footer--bar .site-footer-inner {
+  padding-top: 0;
+}
+
+.footer-barrow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-xs) var(--space-l);
+  padding-block: var(--space-m);
+}
+
+.footer-barrow .footer-copy {
+  margin: 0;
+}
+
+.footer-barrow .footer-inline-nav .footer-list-1,
+.footer-barrow .footer-inline-nav > .footer-list {
+  gap: 0;
+}
+
+/* Links in a row, a thin line between them. */
+.footer-barrow .footer-inline-nav .footer-item + .footer-item {
+  margin-left: 0.8rem;
+  padding-left: 0.8rem;
+  border-left: 1px solid var(--color-border-strong);
 }
 
 .footer--centered .footer-compact {

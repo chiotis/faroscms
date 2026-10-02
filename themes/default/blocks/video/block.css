@@ -13,7 +13,7 @@
   overflow: hidden;
   aspect-ratio: 16 / 9;
   border-radius: var(--radius-l);
-  background: #0b1220;
+  background: var(--ink);
   box-shadow: var(--shadow-m);
 }
 
@@ -52,14 +52,14 @@
   position: absolute;
   inset: 0;
   z-index: 1;
-  background: linear-gradient(180deg, rgb(8 12 22 / 0.05), rgb(8 12 22 / 0.4));
+  background: linear-gradient(180deg, rgb(var(--ink-rgb) / 0.05), rgb(var(--ink-rgb) / 0.4));
   transition: background-color 0.25s var(--ease);
 }
 
 .video-poster-fallback {
   background:
     radial-gradient(60% 90% at 85% 10%, color-mix(in srgb, var(--accent) 55%, transparent), transparent 70%),
-    linear-gradient(135deg, #0b1220, #172033);
+    linear-gradient(135deg, var(--ink), var(--ink-2));
 }
 
 .video-button {
@@ -73,7 +73,7 @@
   aspect-ratio: 1;
   border-radius: 50%;
   background: #ffffff;
-  color: #0b1220;
+  color: var(--ink);
   box-shadow: 0 10px 30px rgb(0 0 0 / 0.35);
   translate: -50% -50%;
   transition: transform 0.25s var(--ease);
@@ -101,7 +101,7 @@
   z-index: 2;
   padding: 0.15rem 0.55rem;
   border-radius: var(--radius-s);
-  background: rgb(8 12 22 / 0.78);
+  background: rgb(var(--ink-rgb) / 0.78);
   color: #ffffff;
   font-size: var(--step--1);
   font-variant-numeric: tabular-nums;
@@ -178,7 +178,7 @@
 }
 
 .video-dialog::backdrop {
-  background: rgb(8 12 22 / 0.92);
+  background: rgb(var(--ink-rgb) / 0.92);
 }
 
 .video-dialog-stage {
@@ -209,7 +209,7 @@
   height: 3rem;
   border: 1px solid rgb(255 255 255 / 0.35);
   border-radius: 999px;
-  background: rgb(11 18 32 / 0.6);
+  background: rgb(var(--ink-rgb) / 0.6);
   color: #ffffff;
   font-size: 1.5rem;
   line-height: 1;

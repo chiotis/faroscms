@@ -1,0 +1,91 @@
+# Profile for a WordPress site built on the "Themelio" theme (apostolosdoxiadis.com): where its pages keep what the
+# REST API does not give, and how the home page is laid out here. Copy it and change the XPath for another theme.
+#   php scripts/import-wordpress.php https://example.com --profile=docs/wordpress-profiles/themelio.yaml
+
+# What to write into custom/content-types/ when the site has no definition yet.
+content_types:
+  books:
+    label: { en: Books }
+    singular: { en: Book }
+    description: { en: 'Novels, graphic novels and essay collections.' }
+    archive: { title: Books, subtitle: 'Novels, graphic novels and essay collections.', layout: cards, columns: '4', per_page: 12, order: title, taxonomies: [categories], show_excerpt: false, show_meta: false }
+  theater:
+    label: { en: Theater }
+    singular: { en: Play }
+    description: { en: 'Plays and productions.' }
+    archive: { title: Theater, subtitle: 'Plays and productions.', layout: cards, columns: '3', per_page: 12, order: title, taxonomies: [categories], show_excerpt: false, show_meta: false }
+
+# Custom post types the API does not show. The key is WordPress's own name (the sitemap is /wp-sitemap-posts-<name>-1.xml).
+types:
+  book:
+    content_type: books
+    front: { hero_layout: minimal }
+    title: "//h1[contains(@class,'term-title')]"
+    image: "//p[contains(@class,'book-cover')]//img/@src"
+    summary: "//div[contains(@class,'panel')]"
+    tabs:
+      labels: "//dl[contains(@class,'tabs')]//a"
+      panels: "//ul[contains(@class,'tabs-content')]/li"
+  theater:
+    content_type: theater
+    front: { hero_layout: minimal }
+    title: "//h1[contains(@class,'term-title')]"
+    image: "//p[contains(@class,'book-cover')]//img/@src"
+    summary: "//div[contains(@class,'panel')]"
+    tabs:
+      labels: "//dl[contains(@class,'tabs')]//a"
+      panels: "//ul[contains(@class,'tabs-content')]/li"
+
+# Their categories are not in the API: read them from the category archives that list those pages.
+categories_of_custom_types: true
+
+# The lists of those types: old address => the content type that now lists them.
+archives:
+  book: books
+  theater: theater
+
+# The slides of the home page, read from the home page itself.
+slides:
+  items: "//div[@id='homeslider']/div[contains(@class,'content')]"
+  background: style
+  title: ".//h1"
+  text: ".//div[contains(@class,'slide-text')]/p[1]"
+  buttons: ".//span[contains(@class,'button')]//a"
+
+# The menus, read from the home page. The key is the menu here (written with --menus).
+menus:
+  main:
+    list: "//ul[contains(@class,'sf-menu')]"
+  footer:
+    list: "//ul[contains(@class,'footer-menu')]"
+
+# The logo picture on the home page: brought into the library; set it in Theme settings > Brand > Logo.
+logo: "//h1[@id='logo']//img/@src"
+
+# The home page as blocks. @slides, @image (the picture the page text starts with) and @body (the text after it) are filled
+# in, and @page:<content type>:<old address>:<title|text|image|address|excerpt> takes a field of a page read above.
+home:
+  blocks:
+    - type: slider
+      variant: banner
+      width: full
+      navigation: inside
+      spacing: none
+      autoplay: '8'
+      items: '@slides'
+    - type: columns
+      variant: image-side
+      items:
+        - image: '@image'
+          text: '@body'
+        - eyebrow: "Apostolos' books"
+          title: '@page:books:uncle-petros-and-goldbachs-conjecture:title'
+          url: '@page:books:uncle-petros-and-goldbachs-conjecture:address'
+          image: '@page:books:uncle-petros-and-goldbachs-conjecture:image'
+          text: '@page:books:uncle-petros-and-goldbachs-conjecture:excerpt'
+          link_label: Continue reading
+
+# The look that goes with it, set in Admin > Theme settings (the importer does not change settings):
+#   Appearance: Palette Garnet, Mode Light
+#   Header: Layout Stacked, Header background Muted, Menu bar background Palette colour, Search A search box in the header
+#   Footer: Layout Bar

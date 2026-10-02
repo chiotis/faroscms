@@ -8,7 +8,7 @@
 #   - retire a field by marking it `hidden: true` (it keeps its stored value), not by deleting it.
 name: default
 label: FarosCMS Default
-version: 1.13.0
+version: 1.14.0
 description: All-purpose FarosCMS theme.
 
 menu_locations:
@@ -57,6 +57,7 @@ settings:
           teal: Teal
           rose: Rose
           amber: Amber
+          garnet: 'Garnet (deep red on warm paper)'
       font:
         type: select
         label: Font
@@ -66,6 +67,14 @@ settings:
           display: 'Serif headings, Inter text'
           serif: Serif
           system: 'System fonts (no download)'
+      glow:
+        type: select
+        label: Decoration
+        default: soft
+        help: The soft coloured glows behind headings and in cards. Solid keeps every surface a flat colour.
+        options:
+          soft: Soft glows
+          solid: Solid colours only
       shape:
         type: select
         label: Corners
@@ -97,6 +106,22 @@ settings:
           on_scroll: Slides in after scrolling
           always: Always at the top
           'off': Scrolls away
+      row_tone:
+        type: select
+        label: Header background
+        default: default
+        help: The row with the logo. A solid colour, not a gradient.
+        options:
+          default: Page background
+          muted: Muted (the soft surface colour)
+          soft: Soft tint of the palette colour
+      search:
+        type: select
+        label: Search
+        default: icon
+        options:
+          icon: 'An icon that opens the search page'
+          field: 'A search box in the header'
       bar_tone:
         type: select
         label: Menu bar background (stacked)
@@ -329,6 +354,7 @@ settings:
         options:
           columns: Columns
           simple: One row
+          bar: 'Bar: copyright on the left, links on the right'
           centered: Centered
       summary:
         type: textarea

@@ -65,6 +65,7 @@ It is built for the kind of site an agency or freelancer hands to a client: a go
 git clone https://github.com/chiotis/faroscms.git
 cd faroscms
 php scripts/use-starter.php        # copies the demo site from starter/ into content/ and public/uploads/
+php scripts/import-wordpress.php https://example.com   # what moving a WordPress site over would do (add --apply; see docs/wordpress-import.md)
 php -S 127.0.0.1:8087 -t public public/index.php
 ```
 

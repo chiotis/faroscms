@@ -292,7 +292,7 @@
   min-height: 24rem;
   overflow: hidden;
   border-radius: var(--radius-l);
-  background: linear-gradient(135deg, #0b1220, #1a2438);
+  background: linear-gradient(135deg, var(--ink), var(--ink-2));
   color: #ffffff;
   isolation: isolate;
 }
@@ -315,7 +315,7 @@
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: linear-gradient(180deg, rgb(8 12 22 / 0) 30%, rgb(8 12 22 / 0.88) 100%);
+  background: linear-gradient(180deg, rgb(var(--ink-rgb) / 0) 30%, rgb(var(--ink-rgb) / 0.88) 100%);
 }
 
 .block-latest.block--overlay .latest-body,

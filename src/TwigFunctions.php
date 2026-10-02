@@ -33,6 +33,15 @@ final class TwigFunctions
         $add('image', static fn(string $src, array $options = []): string => $images->render($src, $options), true);
         $add('icon', static fn(string $name, string $class = ''): string => $theme->icon($name, $class), true);
 
+        // The words of a piece of HTML, for a card's summary when an entry has no excerpt: no tags, no Markdown marks
+        // (the HTML is what the Markdown became), entities as characters, one space between the paragraphs.
+        $add('plain_text', static function (mixed $html): string {
+            $html = mb_substr((string)$html, 0, 6000);
+            $html = preg_replace('#</(?:p|h[1-6]|li|div|tr|td|th|blockquote|figcaption|dd|dt)>|<br\s*/?>#i', '$0 ', $html) ?? $html;
+            $text = html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            return trim(preg_replace('/\s+/u', ' ', str_replace("\u{00A0}", ' ', $text)) ?? $text);
+        });
+
         // The icon set as JSON ({name: svg}) for the admin's icon picker, one library for every place an icon is chosen.
         $add('icon_library_json', static function () use ($theme): string {
             $library = [];

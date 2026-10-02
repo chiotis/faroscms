@@ -146,9 +146,9 @@
   --color-border-strong: rgb(255 255 255 / 0.6);
   --accent: #ffffff;
   --accent-hover: #e8edf4;
-  --accent-contrast: #0b1220;
+  --accent-contrast: var(--ink);
   --color-focus: #ffffff;
-  background: #0b1220;
+  background: var(--ink);
 }
 
 .hero-cover-media {
@@ -173,8 +173,8 @@
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(90deg, rgb(11 18 32 / 0.55) 0%, rgb(11 18 32 / 0.15) 65%, transparent 100%),
-    linear-gradient(180deg, rgb(11 18 32 / 0.25) 0%, rgb(11 18 32 / 0.35) 40%, rgb(11 18 32 / 0.88) 100%);
+    linear-gradient(90deg, rgb(var(--ink-rgb) / 0.55) 0%, rgb(var(--ink-rgb) / 0.15) 65%, transparent 100%),
+    linear-gradient(180deg, rgb(var(--ink-rgb) / 0.25) 0%, rgb(var(--ink-rgb) / 0.35) 40%, rgb(var(--ink-rgb) / 0.88) 100%);
 }
 
 .block-hero:is(.block--cover, .block--steps) .eyebrow {
