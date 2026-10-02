@@ -8,12 +8,12 @@ content_types:
     label: { en: Books }
     singular: { en: Book }
     description: { en: 'Novels, graphic novels and essay collections.' }
-    archive: { title: Books, subtitle: 'Novels, graphic novels and essay collections.', layout: cards, columns: '4', per_page: 12, order: title, show_excerpt: false, show_meta: false }
+    archive: { title: Books, subtitle: 'Novels, graphic novels and essay collections.', layout: cards, columns: '4', per_page: 12, order: title, taxonomies: [categories], show_excerpt: false, show_meta: false }
   theater:
     label: { en: Theater }
     singular: { en: Play }
     description: { en: 'Plays and productions.' }
-    archive: { title: Theater, subtitle: 'Plays and productions.', layout: cards, columns: '3', per_page: 12, order: title, show_excerpt: false, show_meta: false }
+    archive: { title: Theater, subtitle: 'Plays and productions.', layout: cards, columns: '3', per_page: 12, order: title, taxonomies: [categories], show_excerpt: false, show_meta: false }
 
 # Custom post types the API does not show. The key is WordPress's own name (the sitemap is /wp-sitemap-posts-<name>-1.xml).
 types:
@@ -35,6 +35,9 @@ types:
     tabs:
       labels: "//dl[contains(@class,'tabs')]//a"
       panels: "//ul[contains(@class,'tabs-content')]/li"
+
+# Their categories are not in the API: read them from the category archives that list those pages.
+categories_of_custom_types: true
 
 # The lists of those types: old address => the content type that now lists them.
 archives:

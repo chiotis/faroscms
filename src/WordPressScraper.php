@@ -66,6 +66,48 @@ final class WordPressScraper
         return $entries;
     }
 
+    /**
+     * Which categories the pages of custom types are in. The API does not say, but the archive page of each category lists them,
+     * so those pages are read (a following page only while the one before had some of them).
+     *
+     * @param string[] $entryLinks the addresses of the custom pages
+     * @param array<int, array{id: int, link: string, count: int}> $terms the categories of the site
+     * @return array<string, int[]> address of a custom page => the ids of its categories
+     */
+    public function categoryIds(array $entryLinks, array $terms): array
+    {
+        $wanted = [];
+        foreach ($entryLinks as $link) {
+            $wanted[rtrim($link, '/')] = $link;
+        }
+        $found = [];
+        foreach ($terms as $term) {
+            if ($term['count'] < 1 || $term['link'] === '') {
+                continue;
+            }
+            for ($page = 1; $page <= 20; $page++) {
+                $html = $this->reader->page(rtrim($term['link'], '/') . ($page > 1 ? '/page/' . $page : '') . '/');
+                if ($html === null) {
+                    break;
+                }
+                $hits = 0;
+                if (preg_match_all('/href=["\']?([^"\'\s>]+)/i', $html, $links)) {
+                    foreach ($links[1] as $href) {
+                        $key = rtrim(html_entity_decode($href, ENT_QUOTES | ENT_HTML5, 'UTF-8'), '/');
+                        if (isset($wanted[$key]) && !isset($found[$wanted[$key]][$term['id']])) {
+                            $found[$wanted[$key]][$term['id']] = true;
+                            $hits++;
+                        }
+                    }
+                }
+                if ($hits === 0 || !str_contains($html, '/page/' . ($page + 1))) {
+                    break;
+                }
+            }
+        }
+        return array_map(static fn(array $ids): array => array_keys($ids), $found);
+    }
+
     /** The address of the site's logo picture, found on the home page ('' when the profile has no rule or nothing is found). */
     public function logo(): string
     {

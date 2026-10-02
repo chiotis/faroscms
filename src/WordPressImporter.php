@@ -148,7 +148,13 @@ final class WordPressImporter
         foreach (array_keys((array)($this->profile['menus'] ?? [])) as $menuKey) {
             $menus[(string)$menuKey] = $this->scraper?->menu((string)$menuKey) ?? [];
         }
-        foreach ($this->scraper?->entries() ?? [] as $entry) {
+        $scraped = $this->scraper?->entries() ?? [];
+        $inCategories = [];
+        if ($scraped !== [] && ($this->profile['categories_of_custom_types'] ?? false) && $categories !== []) {
+            $inCategories = $this->scraper->categoryIds(array_column($scraped, 'link'), $categories);
+        }
+        foreach ($scraped as $entry) {
+            $entry['category_ids'] = $inCategories[$entry['link']] ?? [];
             $type = $entry['type'];
             $slug = $this->slugFor($entry + ['title' => $entry['title']], false, $slugs[$type] ?? []);
             $slugs[$type][$slug] = true;
@@ -429,7 +435,7 @@ final class WordPressImporter
     private function render(array $entry, array $terms): array
     {
         if (isset($entry['post_type'])) {
-            return $this->renderScraped($entry);
+            return $this->renderScraped($entry, $terms);
         }
         $converter = new HtmlToMarkdown(fn(string $address, string $kind): string => $this->resolve($address, $kind));
         $body = $converter->convert((string)$entry['html']);
@@ -480,9 +486,10 @@ final class WordPressImporter
      * A page of a custom type (a book, a play): the cover and the description side by side, and the tabs as a Tabs block.
      *
      * @param array<string, mixed> $entry
+     * @param array<string, array<int, array<string, mixed>>> $terms
      * @return array{front: array<string, mixed>, body: string, notes: string[]}
      */
-    private function renderScraped(array $entry): array
+    private function renderScraped(array $entry, array $terms): array
     {
         $converter = new HtmlToMarkdown(fn(string $address, string $kind): string => $this->resolve($address, $kind));
         $summary = trim($converter->convert((string)$entry['summary']));
@@ -494,6 +501,10 @@ final class WordPressImporter
         // Front matter the profile wants on every page of the type (the opening layout, say).
         foreach ((array)($this->profile['types'][$entry['post_type']]['front'] ?? []) as $key => $value) {
             $front[(string)$key] = $value;
+        }
+        $categories = $this->withParents($entry['category_ids'] ?? [], $terms['categories'] ?? []);
+        if ($categories !== []) {
+            $front['categories'] = $categories;
         }
         $blocks = [];
         if ($summary !== '' || $image !== '') {

@@ -36,6 +36,7 @@ A theme's custom post types ("books", "events", "slides" are often kept out of t
 |---|---|
 | `types` | A custom post type: its pages are found in the site's sitemap (`/wp-sitemap-posts-<type>-1.xml`); XPath for the `title`, the cover `image`, the `summary` and the `tabs` (`labels`, `panels`); `content_type` is where they go here, `front` is front matter added to each. A page becomes a Text and image block (cover beside the description) and a Tabs block; a tab with nothing in it is dropped. |
 | `content_types` | Definitions written to `custom/content-types/` when the site has none for that type. |
+| `categories_of_custom_types` | `true` to find which categories each page of those types is in, by reading the archive page of every category (the API does not say). Each page is also put in the categories above its own. |
 | `archives` | The old address of a list and the content type that lists it now (`book: books`): links and redirects follow. |
 | `slides` | The slides of the home page: where each is, how its picture (a CSS background) and title, text and buttons are found. |
 | `menus` | A menu read from the home page (`list` is the XPath of its `<ul>`); written to `content/menus/<key>.yaml` only with `--menus`, because it replaces a menu of that name. |

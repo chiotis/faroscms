@@ -43,6 +43,8 @@ $png = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42m
 $raw = [
     '/wp-sitemap-posts-book-1.xml' => '<?xml version="1.0"?><urlset><url><loc>' . $SITE . '/book/the-novel/</loc></url><url><loc>' . $SITE . '/book/no-tabs/</loc></url></urlset>',
     '/book/the-novel/' => '<html><body><h1 class="term-title">The Novel</h1><p class="book-cover"><img src="' . $SITE . '/wp-content/uploads/2013/cover-207x300.png"></p><div class="panel"><p><strong>The Novel</strong> is about <a href="/about/">the author</a>.</p></div><dl class="tabs"><dd><a href="#f">Features</a></dd><dd><a href="#l">Links</a></dd><dd><a href="#e">Editions</a></dd></dl><ul class="tabs-content"><li id="f"><p>Praise for it.</p></li><li id="l"><p><a href="https://shop.example/x">Buy</a></p></li><li id="e"> </li></ul></body></html>',
+    '/category/news/c3-logicomix/' => '<html><body><a href="' . $SITE . '/book/the-novel/">The Novel</a><a href="/page/2/">older</a><a href="' . $SITE . '/page/2">x</a></body></html>',
+    '/category/reviews/' => '<html><body><a href="' . $SITE . '/book/the-novel/">The Novel</a></body></html>',
     '/book/no-tabs/' => '<html><body><h1 class="term-title">No Tabs</h1><div class="panel"><p>Short.</p></div></body></html>',
     '/' => '<html><body><h1 id="logo"><a href="/"><img src="' . $SITE . '/wp-content/themes/old/logo.png?v=1" alt="Old"></a></h1><ul class="sf-menu"><li><a href="' . $SITE . '/">Home</a></li><li><a href="' . $SITE . '/book">Books</a><ul class="sub-menu"><li><a href="' . $SITE . '/category/news/">News</a></li></ul></li><li><a href="https://elsewhere.test/">Out</a></li></ul>'
         . '<div id="homeslider"><div class="content" style="background:url(' . $SITE . '/wp-content/uploads/2013/cover-980x250.png) no-repeat center top"><h1>First</h1><div class="slide-text"><p>Text one.</p><p>More</p></div></div>'
@@ -199,6 +201,7 @@ $profile = [
         'tabs' => ['labels' => "//dl[contains(@class,'tabs')]//a", 'panels' => "//ul[contains(@class,'tabs-content')]/li"],
     ]],
     'archives' => ['book' => 'books'],
+    'categories_of_custom_types' => true,
     'slides' => ['items' => "//div[@id='homeslider']/div[contains(@class,'content')]", 'background' => 'style', 'title' => './/h1', 'text' => ".//div[contains(@class,'slide-text')]/p[1]", 'buttons' => ".//span[contains(@class,'button')]//a"],
     'menus' => ['main' => ['list' => "//ul[contains(@class,'sf-menu')]"]],
     'logo' => "//h1[@id='logo']//img/@src",
@@ -224,6 +227,8 @@ check('a book is written under its content type, with the profile\'s front matte
 $coverS = substr(sha1("$SITE/wp-content/uploads/2013/cover.png"), 0, 16);
 check('its cover is the main image and sits beside the description', [$book['main_image'], $book['blocks'][0]['type'], $book['blocks'][0]['variant'], $book['blocks'][0]['image'], $book['blocks'][0]['image_ratio']], ["/uploads/media/$coverS.png", 'text-image', 'image-left', "/uploads/media/$coverS.png", 'portrait']);
 check('the description is Markdown with its links rewritten', $book['blocks'][0]['body'], '**The Novel** is about [the author](/about)' . '.');
+check('a page of a custom type is in the categories whose archive lists it, and the ones above them', $book['categories'], ['reviews', 'news-logicomix', 'news']);
+check('a page no archive lists is in none', array_key_exists('categories', $front("$root/content/books/no-tabs.md")), false);
 check('the tabs are a Tabs block, without the empty panel', array_map(fn($t) => $t['label'], $book['blocks'][1]['items']), ['Features', 'Links']);
 check('a tab\'s text is Markdown', $book['blocks'][1]['items'][1]['text'], '[Buy](https://shop.example/x)');
 $noTabs = $front("$root/content/books/no-tabs.md");
