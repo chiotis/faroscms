@@ -128,6 +128,30 @@ final class EntryForm
             unset($withoutBlocks['blocks']);
             $frontmatter = $withoutBlocks === [] ? '' : trim(Yaml::dump($withoutBlocks, 10, 2, Yaml::DUMP_MULTI_LINE_LITERAL_BLOCK));
         }
+        // A new form starts from a ready-made one the person chose, or, when it is the translation of a form, from that form in the
+        // default language (the labels are then there to be translated).
+        $starterName = '';
+        $copiedFrom = '';
+        if ($type === 'forms' && $isNew && is_array($meta)) {
+            $starter = null;
+            $template = FormTemplates::get(Slug::plain((string)($query['template'] ?? '')), $lang);
+            if ($template !== null) {
+                $starter = [
+                    'title' => $template['title'], 'fields' => $template['fields'], 'notifications' => $template['notifications'],
+                    'submit_label' => $template['submit_label'], 'success_message' => $template['success_message'],
+                ];
+                $starterName = $template['name'];
+            } elseif ($slug !== '' && $lang !== $defaultLang) {
+                $source = $this->content->find('forms', $slug, $defaultLang, true, false);
+                if ($source !== null) {
+                    $starter = array_intersect_key($source->meta, array_flip(['title', 'fields', 'notifications', 'submit_label', 'success_message', 'redirect_url', 'antispam', 'store_submissions']));
+                    $copiedFrom = $defaultLang;
+                }
+            }
+            if ($starter !== null) {
+                $meta = array_merge($meta, $starter);
+            }
+        }
         if (is_array($meta)) {
             $mainImage = (string)($meta['main_image'] ?? '');
             $metaForm['title'] = $isNew ? (string)($meta['title'] ?? '') : (string)($meta['title'] ?? Slug::title($slug));
@@ -157,7 +181,7 @@ final class EntryForm
             $metaForm['excerpt'] = (string)($meta['excerpt'] ?? '');
             $metaForm['custom_fields'] = $this->extractCustomFields($meta, $this->types->declaredKeys($type));
             if ($type === 'forms') {
-                $formFields = FormFields::forAdmin($meta['fields'] ?? []);
+                $formFields = FormFields::forBuilder($meta['fields'] ?? [], !$isNew);
                 $notifications = $meta['notifications'] ?? [];
                 if (is_array($notifications)) {
                     $formNotifications['enabled'] = Format::isTruthy($notifications['enabled'] ?? false);
@@ -266,15 +290,29 @@ final class EntryForm
             'admin_section' => $type === 'forms' ? 'forms' : 'content',
             'current_type' => $type,
             'form_fields' => $formFields,
+            'form_starter' => $starterName,
+            'form_copied_from' => $copiedFrom,
+            'form_builder_json' => $type === 'forms' ? $this->builderJson($formFields, $slug, $lang, !$isNew) : '',
             'form_notifications' => $formNotifications,
             'form_settings' => $formSettings,
             'form_submissions' => $formSubmissions,
             'form_submissions_total' => $formSubmissionsTotal,
-            'form_field_types' => FormFields::types(),
             'block_editor_json' => $type === 'forms' ? '' : $this->blockEditorJson($pageBlocks, $lang),
             'page_templates' => $type === 'forms' ? [] : $this->theme->pageTemplates(),
             'opening' => $this->openingChoices($type),
         ];
+    }
+
+    /** What the form builder starts with, as JSON for the page. @param array<int, array<string, mixed>> $fields */
+    private function builderJson(array $fields, string $slug, string $lang, bool $existing): string
+    {
+        return (string)json_encode([
+            'fields' => $fields,
+            'slug' => $slug,
+            'lang' => $lang,
+            'existing' => $existing,
+            'shortcode' => $slug !== '' ? '[form slug="' . $slug . '"]' : '',
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE);
     }
 
     /**

@@ -41,16 +41,21 @@
         {% if has_error %}<small class="form-error" id="{{ field_id }}-error">{{ form_errors[field.name] }}</small>{% endif %}
       {% endset %}
 
+      {% set width_class = field.width ? ' form-w-' ~ field.width : '' %}
       {% if field.type == 'hidden' %}
         <input type="hidden" name="{{ field.name }}" value="{{ value }}">
+      {% elseif field.type == 'heading' %}
+        <h3 class="form-heading{{ width_class }}">{{ field.label }}</h3>
+      {% elseif field.type == 'paragraph' %}
+        <p class="form-text{{ width_class }}">{{ field.label }}</p>
       {% elseif field.type == 'textarea' %}
-        <div class="form-field">
+        <div class="form-field{{ width_class }}">
           <label for="{{ field_id }}"><span>{{ field.label }}{{ required_mark }}</span></label>
           <textarea id="{{ field_id }}" name="{{ field.name }}" rows="{{ field.rows|default(5) }}" placeholder="{{ field.placeholder }}"{% if field.required %} required aria-required="true"{% endif %}{% if has_error %} aria-invalid="true"{% endif %}{% if describedby %} aria-describedby="{{ describedby }}"{% endif %}>{{ value }}</textarea>
           {{ messages }}
         </div>
       {% elseif field.type == 'select' %}
-        <div class="form-field">
+        <div class="form-field{{ width_class }}">
           <label for="{{ field_id }}"><span>{{ field.label }}{{ required_mark }}</span></label>
           <select id="{{ field_id }}" name="{{ field.name }}"{% if field.required %} required aria-required="true"{% endif %}{% if has_error %} aria-invalid="true"{% endif %}{% if describedby %} aria-describedby="{{ describedby }}"{% endif %}>
             <option value="">{{ t('form.select', 'Select') }}</option>
@@ -62,7 +67,7 @@
         </div>
       {% elseif field.type == 'radio' or field.type == 'checkboxes' %}
         {% set selected = value is iterable ? value : [value] %}
-        <fieldset{% if describedby %} aria-describedby="{{ describedby }}"{% endif %}{% if field.required and field.type == 'radio' %} aria-required="true"{% endif %}>
+        <fieldset{% if width_class %} class="{{ width_class|trim }}"{% endif %}{% if describedby %} aria-describedby="{{ describedby }}"{% endif %}{% if field.required and field.type == 'radio' %} aria-required="true"{% endif %}>
           <legend>{{ field.label }}{{ required_mark }}</legend>
           {% for option in field.options %}
             <label class="inline">
@@ -78,7 +83,7 @@
         </fieldset>
       {% elseif field.type == 'checkbox' %}
         {% set checked = value == '1' or value == true %}
-        <div class="form-field">
+        <div class="form-field{{ width_class }}">
           <label class="inline" for="{{ field_id }}">
             <input type="checkbox" id="{{ field_id }}" name="{{ field.name }}" value="1" {% if checked %}checked{% endif %}{% if field.required %} required aria-required="true"{% endif %}{% if has_error %} aria-invalid="true"{% endif %}{% if describedby %} aria-describedby="{{ describedby }}"{% endif %}>
             <span>{{ field.label }}{{ required_mark }}</span>
@@ -87,7 +92,7 @@
         </div>
       {% else %}
         {% set autocomplete = autocomplete_by_name[field.name] ?? autocomplete_by_type[field.type] ?? '' %}
-        <div class="form-field">
+        <div class="form-field{{ width_class }}">
           <label for="{{ field_id }}"><span>{{ field.label }}{{ required_mark }}</span></label>
           <input type="{{ field.type }}" id="{{ field_id }}" name="{{ field.name }}" value="{{ value }}" placeholder="{{ field.placeholder }}"
             {%- if autocomplete %} autocomplete="{{ autocomplete }}"{% endif %}

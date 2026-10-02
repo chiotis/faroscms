@@ -770,6 +770,7 @@ final class App
         'menus-edit' => 'handleMenus',
         'media' => 'handleMedia',
         'forms' => 'handleFormsList',
+        'forms-new' => 'handleFormsNew',
         'form-submissions' => 'handleFormSubmissions',
         'forms-export' => 'handleFormsExport',
         'import' => 'handleContentImport',
@@ -1595,7 +1596,7 @@ final class App
         }
         $slug = Slug::plain((string)($_GET['slug'] ?? ''));
         $lang = Slug::plain((string)($_GET['lang'] ?? $this->defaultLanguage()));
-        $this->render('@admin/edit.twig', $this->entryForm()->form($type, $slug, $lang, $_GET, $this->permissions->can($this->auth->user(), 'redirects.manage')) + ['user' => $this->auth->user()]);
+        $this->render($type === 'forms' ? '@admin/form-edit.twig' : '@admin/edit.twig', $this->entryForm()->form($type, $slug, $lang, $_GET, $this->permissions->can($this->auth->user(), 'redirects.manage')) + ['user' => $this->auth->user()]);
     }
 
     private function contentTypes(): ContentTypes
@@ -1783,8 +1784,32 @@ final class App
         }
         $slug = $this->slugify((string)($_GET['slug'] ?? ''));
         $lang = $this->slugify((string)($_GET['lang'] ?? ($this->settings['languages']['default'] ?? 'en')));
+        $template = $this->slugify((string)($_GET['template'] ?? ''));
+        if ($type === 'forms' && $slug === '' && $template === '') {
+            // A new form starts from a ready-made one, or from nothing.
+            $this->redirect('/admin/forms-new?lang=' . urlencode($lang));
+            return;
+        }
 
-        $this->redirect('/admin/edit?type=' . urlencode($type) . '&slug=' . urlencode($slug) . '&lang=' . urlencode($lang));
+        $this->redirect('/admin/edit?type=' . urlencode($type) . '&slug=' . urlencode($slug) . '&lang=' . urlencode($lang) . ($template !== '' ? '&template=' . urlencode($template) : ''));
+    }
+
+    private function handleFormsNew(): void
+    {
+        $languages = array_map('strval', $this->settings['languages']['available'] ?? [$this->defaultLanguage()]);
+        $lang = $this->slugify((string)($_GET['lang'] ?? $this->defaultLanguage()));
+        if (!in_array($lang, $languages, true)) {
+            $lang = $this->defaultLanguage();
+        }
+        $this->render('@admin/forms-new.twig', [
+            'templates' => FormTemplates::all($lang),
+            'lang' => $lang,
+            'languages' => $languages,
+            'admin_section' => 'forms',
+            'current_type' => 'forms',
+            'types' => $this->content->getTypes(),
+            'user' => $this->auth->user(),
+        ]);
     }
 
     private function handleSettings(): void

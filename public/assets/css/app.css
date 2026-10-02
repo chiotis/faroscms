@@ -352,3 +352,17 @@ body.menu-dragging, body.menu-dragging * { cursor: grabbing !important; user-sel
   box-shadow: 0 10px 25px -8px rgba(15, 23, 42, .5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
+/* Form builder (admin-form-builder.js): the bar of a field shows on hover and focus, the stage narrows for the phone view,
+   and the preview hides what is only for editing. */
+.fb-bar { opacity: 0; transition: opacity .12s; }
+.fb-field:hover .fb-bar, .fb-field:focus-within .fb-bar, .fb-field[aria-current="true"] .fb-bar { opacity: 1; }
+@media (hover: none) { .fb-bar { opacity: 1; } }
+.fb-field:focus-visible { outline: 2px solid #1d4ed8; outline-offset: 2px; }
+.fb-narrow .fb-field { grid-column: 1 / -1 !important; }
+body.fb-dragging, body.fb-dragging * { cursor: grabbing !important; user-select: none; }
+.fb-drag-ghost {
+  position: fixed; left: 0; top: 0; z-index: 90; max-width: 14rem; pointer-events: none;
+  padding: .35rem .7rem; border-radius: .5rem; background: #0f172a; color: #fff; font-size: .8125rem; font-weight: 600;
+  box-shadow: 0 10px 25px -8px rgba(15, 23, 42, .5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+

@@ -22,7 +22,7 @@ Before the application boots, `public/index.php` hands `/_themes/…` and `/_cus
 | `PermissionService` | Role capabilities (`superadmin`, `admin`, `editor`, `user`), the capability catalogue, the super admin's per-role changes (`system_meta.role_permissions`) and roles of the site's own (`system_meta.custom_roles`), and route-to-capability mapping; unmapped routes are administrator-only. |
 | `ContentEditor` | Saving a content item from the editor form: address (from the title, made unique, kept or changed), front matter from the submitted fields, raw HTML guard, writing the file, moving translations, redirects. Takes the submitted fields and returns what happened; knows nothing about requests, sessions, or menus. |
 | `HtmlGuard` | Neutralises raw HTML for people without `content.raw_html`, leaving HTML already stored in a file alone. |
-| `FormFields` | Form editor field types and cleaning of submitted field rows. |
+| `FormFields` | Form field types (including the two that only show something), widths, the choices of a field, and cleaning of what the form builder sends (no two fields share a name). |
 | `ContentPaths` | File names and public paths of content from the language and home page settings. |
 | `FrontMatter` | Splits a content file into its YAML and body. |
 | `RevisionRepository`, `LineDiff` | The history of content files in `content_revisions` (capture, baseline, rename, prune, deleted items) and the line comparison shown in Admin > History. `ContentEditor` records a version around every save and can restore one. |
@@ -79,7 +79,7 @@ Before the application boots, `public/index.php` hands `/_themes/…` and `/_cus
 | `StructuredData` | The JSON-LD graph of a page (organization, website and search, article or page, breadcrumb) and its script tag. |
 | `RobotsTxt` | The rules typed in Settings > General > Search engines, checked, and the robots.txt they make. |
 | `MediaUsage` | Where each uploaded file is used (content and settings), kept between visits under a fingerprint of what it read. |
-| `FormFields` | Form field kinds, and how stored fields are read for the site and the editor and cleaned when the editor sends them. |
+| `FormFields`, `FormTemplates` | Form field kinds, and how stored fields are read for the site and the builder and cleaned when the builder sends them; and the ready-made forms the New form screen offers (English and Greek). The builder itself is `public/assets/js/admin-form-builder.js`, drawn from one JSON block in `form-edit.twig`. |
 | `Theme` | Frontend theme manifest (`theme.yaml`), settings schema and resolution, template lookup across `custom/` and the theme, asset URLs, layered translations and `custom/lang` overrides. |
 | `ThemeAssets` | Serves theme and `custom/` assets from outside `public/` with type allowlist, path checks, and caching. |
 | `FieldSchema` | Declarative field definitions (text, markdown, link, image, select, toggle, number, repeater, …): defaults, validation of stored values, and form input handling. Used by theme settings and blocks. |

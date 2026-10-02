@@ -28,11 +28,11 @@ final class FormProcessor
         $values = [];
         foreach ($fields as $field) {
             $name = (string)($field['name'] ?? '');
-            if ($name === '') {
+            $type = (string)($field['type'] ?? '');
+            if ($name === '' || FormFields::isDisplay($type)) {
                 continue;
             }
             $default = $field['default'] ?? '';
-            $type = (string)($field['type'] ?? '');
             if ($type === 'checkboxes') {
                 $values[$name] = is_array($default) ? $default : FormFields::parseOptions((string)$default);
             } elseif ($type === 'checkbox') {
@@ -59,10 +59,10 @@ final class FormProcessor
         $required = fn(): string => ($this->translate)('form.error.required', 'This field is required.');
         foreach ($fields as $field) {
             $name = (string)($field['name'] ?? '');
-            if ($name === '') {
+            $type = (string)($field['type'] ?? 'text');
+            if ($name === '' || FormFields::isDisplay($type)) {
                 continue;
             }
-            $type = (string)($field['type'] ?? 'text');
             $isRequired = (bool)($field['required'] ?? false);
             $options = $field['options'] ?? [];
             $optionValues = array_map(static fn($option) => $option['value'], is_array($options) ? $options : []);
@@ -145,7 +145,7 @@ final class FormProcessor
     public function emails(ContentItem $form, array $values, array $fields, array $siteMail, string $formUrl): array
     {
         $notifications = is_array($form->meta['notifications'] ?? null) ? $form->meta['notifications'] : [];
-        $subject = trim((string)($notifications['subject'] ?? ''));
+        $subject = self::fill(trim((string)($notifications['subject'] ?? '')), $values, $fields);
         if ($subject === '') {
             $subject = 'New submission: ' . (string)($form->meta['title'] ?? $form->slug);
         }
@@ -175,8 +175,8 @@ final class FormProcessor
             $messages[] = ['to' => $to, 'subject' => $subject, 'body' => $body, 'headers' => $headers];
         }
         if (Format::isTruthy($notifications['auto_reply'] ?? false) && $replyEmail !== '') {
-            $autoSubject = trim((string)($notifications['auto_reply_subject'] ?? ''));
-            $autoMessage = trim((string)($notifications['auto_reply_message'] ?? ''));
+            $autoSubject = self::fill(trim((string)($notifications['auto_reply_subject'] ?? '')), $values, $fields);
+            $autoMessage = self::fill(trim((string)($notifications['auto_reply_message'] ?? '')), $values, $fields);
             if ($autoMessage === '') {
                 $autoMessage = "Thanks for contacting us.\n\nWe received your submission and will get back to you soon.";
             }
@@ -188,13 +188,35 @@ final class FormProcessor
         return $messages;
     }
 
+    /**
+     * A text with what was answered put in: {full-name} becomes the answer of the field called full-name. A word in
+     * braces that is not a field of the form is left as it is.
+     *
+     * @param array<string, mixed> $values
+     * @param array<int, array<string, mixed>> $fields
+     */
+    public static function fill(string $text, array $values, array $fields): string
+    {
+        if ($text === '' || !str_contains($text, '{')) {
+            return $text;
+        }
+        $known = [];
+        foreach ($fields as $field) {
+            $name = (string)($field['name'] ?? '');
+            if ($name !== '' && !FormFields::isDisplay((string)($field['type'] ?? ''))) {
+                $known['{' . $name . '}'] = str_replace(["\r", "\n"], ' ', self::text($values[$name] ?? ''));
+            }
+        }
+        return strtr($text, $known);
+    }
+
     /** The text of the notification: the form, where it is, and each field with what was sent. @param array<string, mixed> $values @param array<int, array<string, mixed>> $fields */
     public function body(ContentItem $form, array $values, array $fields, string $formUrl): string
     {
         $lines = ['Form: ' . (string)($form->meta['title'] ?? $form->slug), 'URL: ' . $formUrl, ''];
         foreach ($fields as $field) {
             $name = (string)($field['name'] ?? '');
-            if ($name === '') {
+            if ($name === '' || FormFields::isDisplay((string)($field['type'] ?? ''))) {
                 continue;
             }
             $lines[] = (string)($field['label'] ?? $name) . ': ' . self::text($values[$name] ?? '');

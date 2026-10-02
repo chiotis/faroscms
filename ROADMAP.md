@@ -94,6 +94,7 @@ Direction: one all-purpose theme (`themes/default`) that grows with blocks and v
 - Keep behavior identical during refactor (incremental extraction + regression checks)
 
 ## Later Development
+- Form builder: showing a field only when another has an answer (conditional logic), file upload fields (the storage limit, the file types and where the files are kept need deciding), forms in several steps, and a rating field. The builder, the site's form template and `FormProcessor` would all need to know about a condition, so it is a feature of its own
 - Search improvements (weighted + highlights)
 - Runtime page/data cache implementation (filesystem backend + targeted invalidation)
 - Theme switcher in settings + preview mode

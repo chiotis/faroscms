@@ -8,7 +8,7 @@
 #   - retire a field by marking it `hidden: true` (it keeps its stored value), not by deleting it.
 name: default
 label: FarosCMS Default
-version: 1.14.0
+version: 1.15.0
 description: All-purpose FarosCMS theme.
 
 menu_locations:
