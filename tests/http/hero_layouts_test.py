@@ -40,6 +40,10 @@ plain = post.rsplit('/', 1)[0] + '/plain'
 layouts(default='default')
 st, cls, inner, _ = header('/about')
 check('default: a plain title header', st == 200 and cls == 'single-hero' and '<h1>Σχετικά</h1>' in inner and 'single-hero-subtitle' in inner, (st, cls))
+# Without an excerpt the line under the title is left out; it is not the site tagline.
+open('app/content/posts/bare.md', 'w', encoding='utf-8').write("---\ntitle: Bare post\nstatus: published\nvisible: true\ndate: '2026-03-02'\n---\n\nText.\n")
+st, cls, inner, _ = header(post.rsplit('/', 1)[0] + '/bare')
+check('default: no excerpt, no line under the title', st == 200 and '<h1>Bare post</h1>' in inner and 'single-hero-subtitle' not in inner, (st, inner[:300]))
 st, cls, inner, _ = header(plain)
 check('default: a post shows its tags and categories above the title', 'has-image' in cls and 'class="single-hero-meta"' in inner and 'design' in inner.lower() and 'A short summary.' in inner, (cls, inner[:300]))
 layouts(default='centered')
