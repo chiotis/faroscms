@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.27 — 2026-10-02 — After an update the admin no longer shows an old stylesheet
+- **Fixed: the admin looked broken after an update** (the new menu editor in one column instead of two) when a CDN such as Cloudflare, or the browser, still had the old `admin.build.css`: those files were served for a month under an unchanged address. The admin's stylesheets and scripts now carry a stamp that changes with the file (`admin.build.css?v=…`), like the theme's already did, so an update is picked up at once. Template function `asset('css/…')` does this for any file in `public/assets`; the admin templates use it. Until a site has this version, purge the CDN's copy of `/assets/css/admin.build.css` (and `app.css`, `admin*.js`) once
+
 ## 0.1.26 — 2026-10-02 — Updating a site from an older version works again
 - **Fixed: a site on an older version refused the update** ("The package holds a file an update may not write (scripts/import-wordpress.php)"). An update is installed by the installer of the site being updated, which refuses any single file it does not know; 0.1.24 and 0.1.25 added the importer script to the package. The importer is no longer in the package (run it from a copy of the repository, as `docs/wordpress-import.md` says). A new check in `release-package.php` fails when the package holds a single file the installer of 0.1.23 does not know, so this cannot happen again unnoticed
 

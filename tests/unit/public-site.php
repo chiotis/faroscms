@@ -168,6 +168,16 @@ $twig2 = new Twig(new ArrayLoader(['i' => "{{ icon_library_json()|length > 2 ? '
 TwigFunctions::register($twig2, 'https://s.test', $theme, new Images("$dir/public"), $absolute, fn() => $structured);
 check('the icon library is a JSON object of the icons', explode('|', $twig2->render('i'))[0], 'full');
 
+// ---- the address of a file in public/assets carries a stamp that changes with the file
+@mkdir("$dir/public/assets/css", 0775, true);
+file_put_contents("$dir/public/assets/css/a.css", 'a{}');
+$twig4 = new Twig(new ArrayLoader(['s' => "{{ asset('css/a.css') }}|{{ asset('/css/a.css') }}|{{ asset('css/none.css') }}|{{ asset('../index.php') }}"]), ['autoescape' => 'html']);
+TwigFunctions::register($twig4, 'https://s.test/', $theme, new Images("$dir/public"), $absolute, fn() => $structured, "$dir/public");
+$first = explode('|', $twig4->render('s'));
+check('a file that exists has a version stamp, a file that does not has none, and a path that climbs out is not looked up', [preg_match('#^https://s\.test/assets/css/a\.css\?v=[a-z0-9]+$#', $first[0]), $first[0] === $first[1], $first[2], $first[3]], [1, true, 'https://s.test/assets/css/none.css', 'https://s.test/assets/../index.php']);
+file_put_contents("$dir/public/assets/css/a.css", 'a{color:red}');
+check('the stamp changes when the file does (so a cached copy is asked for again)', explode('|', $twig4->render('s'))[0] !== $first[0], true);
+
 exec('rm -rf ' . escapeshellarg($dir));
 echo $fail === 0 ? "\nALL PASSED\n" : "\n$fail FAILED\n";
 exit($fail === 0 ? 0 : 1);

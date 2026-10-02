@@ -2408,7 +2408,8 @@ final class App
             $this->theme,
             $this->images,
             fn(string $path): string => $this->buildAbsoluteUrl($path),
-            fn(): StructuredData => $this->structuredData()
+            fn(): StructuredData => $this->structuredData(),
+            $this->basePath . '/public'
         );
 
         // Declared fields of a content item, ready to print: content_fields(item) for its page,
