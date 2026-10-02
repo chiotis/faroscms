@@ -31,28 +31,37 @@ final class ContentTypeAdmin
     }
 
     /**
-     * The types the theme ships, with whether each is on and how many files it has. Pages and forms are the CMS's own and are
-     * not here; types of the site's own are always on and are not here either.
+     * Every content type in one list: the ones in use first (in the order the admin menu has them), then the ready-made ones the
+     * theme ships that are off. `switchable` types are the theme's; pages and the site's own types are always on.
      *
-     * @param string[] $enabled the types that are on
-     * @return array<int, array{type: string, label: string, description: string, fields: int, enabled: bool, items: int}>
+     * @param string[] $manageable the types that are on and can be edited here (not forms)
+     * @return array<int, array{type: string, label: string, description: string, fields: int, items: int, layout: string, origin: string, enabled: bool, switchable: bool}>
      */
-    public function catalogue(array $enabled, string $default): array
+    public function typeRows(array $manageable, string $default): array
     {
-        $rows = [];
-        foreach ($this->types->catalogue() as $type) {
-            if (in_array($type, ['pages', 'forms'], true)) {
-                continue;
-            }
-            $definition = $this->types->themeDefinition($type, $default, $default);
-            $rows[] = [
+        $catalogue = array_values(array_diff($this->types->catalogue(), ['pages', 'forms']));
+        $row = function (string $type, bool $enabled) use ($catalogue, $default): array {
+            $definition = $enabled ? $this->types->definition($type, $default, $default) : $this->types->themeDefinition($type, $default, $default);
+            return [
                 'type' => $type,
                 'label' => $definition['label'],
                 'description' => $definition['description'],
                 'fields' => count(array_filter($definition['fields'], static fn(array $f): bool => !$f['hidden'])),
-                'enabled' => in_array($type, $enabled, true),
                 'items' => count(glob($this->contentDir . '/' . $type . '/*.md') ?: []),
+                'layout' => $definition['archive']['layout'],
+                'origin' => $definition['origin'],
+                'enabled' => $enabled,
+                'switchable' => in_array($type, $catalogue, true),
             ];
+        };
+        $rows = [];
+        foreach ($manageable as $type) {
+            $rows[] = $row($type, true);
+        }
+        foreach ($catalogue as $type) {
+            if (!in_array($type, $manageable, true)) {
+                $rows[] = $row($type, false);
+            }
         }
         return $rows;
     }

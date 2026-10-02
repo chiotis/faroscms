@@ -2310,8 +2310,7 @@ final class App
         }
 
         $this->render('@admin/content-types.twig', [
-            'types_list' => $admin->overview($manageable, $default),
-            'catalogue' => $admin->catalogue($this->content->getTypes(), $default),
+            'types_list' => $admin->typeRows($manageable, $default),
             'toggled' => (string)($_GET['toggled'] ?? ''),
             'toggled_type' => $this->slugify((string)($_GET['type_name'] ?? '')),
         ] + $common);

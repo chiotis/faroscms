@@ -19,7 +19,8 @@ def toggle(client, type_name, on):
 
 # ---- the screen
 st, _, html = root.get('/admin/content-types')
-check('the screen lists the ready-made types', st == 200 and 'Ready-made content types' in html and 'value="books"' in html)
+check('one list holds every type, with a switch beside Edit', st == 200 and 'Ready-made content types' not in html and 'Content types in use' not in html and 'value="books"' in html and 'Enable<span' in html and 'Disable<span' in html)
+check('pages are always on', 'Always on' in html)
 check('pages are not in the list to switch', not any(toggle_form('pages')(f) for f in root.forms(html=html)))
 check('books start off', re.search(r'name="type" value="books">\s*<input type="hidden" name="enabled" value="1"', html) is not None)
 check('posts and projects start on', all(re.search(r'name="type" value="%s">\s*<input type="hidden" name="enabled" value="0"' % t, html) for t in ('posts', 'projects')))
@@ -44,7 +45,7 @@ st, _, _ = pub.get('/books'); check('and it stays off', st == 404, st)
 st, hdrs, _ = toggle(root, 'books', True)
 check('switching books on goes back to the screen', st in (302, 303) and 'toggled=on' in (hdrs.get('Location') or ''), (st, hdrs.get('Location')))
 st, _, html = root.get('/admin/content-types?toggled=on&type_name=books')
-check('with a message, and the type is now in use', 'Books is on' in html and 'content-types?type=books' in html)
+check('with a message, and the type is now in use', 'Books is enabled' in html and 'content-types?type=books' in html)
 st, _, html = pub.get('/books'); check('the archive page exists', st == 200 and 'Books' in html, st)
 st, _, html = root.get('/admin/content?type=posts'); check('books is in the admin menu', 'type=books' in html)
 st, _, html = root.get('/admin/edit?type=books')

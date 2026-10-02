@@ -50,9 +50,14 @@ check('a type of the site\'s own is on with its folder', in_array('events', $rep
 exec('rm -rf ' . escapeshellarg("$root/content/books"));
 $log = [];
 $admin = new ContentTypeAdmin($types, "$root/content", fn() => ['categories'], fn(string $key) => false, function (string $action, string $level, ?string $type, ?string $id, string $message, array $ctx) use (&$log) { $log[] = [$action, $id]; }, fn(string $type, bool $on): bool => $settings->setContentType($type, $on));
-$rows = fn() => array_column($admin->catalogue($repo()->getTypes(), 'en'), 'enabled', 'type');
-check('the screen lists the catalogue with what is on, and never pages or forms', $rows(), ['books' => false, 'posts' => true, 'projects' => true]);
-check('with its label, what it is for and the number of fields', array_map(fn($r) => [$r['label'], $r['fields'] > 0, $r['description'] !== ''], array_values(array_filter($admin->catalogue([], 'en'), fn($r) => $r['type'] === 'books'))), [['Books', true, true]]);
+$manageable = fn() => array_values(array_diff($repo()->getTypes(), ['forms']));
+$all = fn() => $admin->typeRows($manageable(), 'en');
+$rows = function () use ($all): array { $r = array_filter(array_column($all(), 'enabled', 'type'), fn($v, $k) => $k !== 'pages' && $k !== 'events', ARRAY_FILTER_USE_BOTH); ksort($r); return $r; };
+check('one list holds every type: the ones in use first, then the ready-made ones that are off', array_column($all(), 'type'), ['pages', 'posts', 'projects', 'events', 'books']);
+check('what is on and what is off', array_column($all(), 'enabled', 'type'), ['pages' => true, 'posts' => true, 'projects' => true, 'events' => true, 'books' => false]);
+check('only the theme\'s types can be switched; pages and the site\'s own types are always on', array_column($all(), 'switchable', 'type'), ['pages' => false, 'posts' => true, 'projects' => true, 'events' => false, 'books' => true]);
+$bookRow = array_values(array_filter($all(), fn($r) => $r['type'] === 'books'))[0];
+check('a row has its label, what it is for, fields, files, layout and where it is defined', [$bookRow['label'], $bookRow['description'] !== '', $bookRow['fields'], $bookRow['items'], $bookRow['layout'], $bookRow['origin']], ['Books', true, 7, 0, 'cards', 'theme']);
 check('switching books on goes back to the list and is logged', [$admin->toggle(['type' => 'books', 'enabled' => '1']), end($log)], ['/admin/content-types?toggled=on&type_name=books', ['content_types.enable', 'books']]);
 check('now it is on even with no files', in_array('books', $repo()->getTypes(), true), true);
 check('and it keeps its place in the list', array_slice($repo()->getTypes(), 0, 5), ['pages', 'posts', 'projects', 'forms', 'books']);
