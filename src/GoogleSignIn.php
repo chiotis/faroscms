@@ -64,7 +64,7 @@ final class GoogleSignIn
      */
     public function exchange(string $code, array $config): array
     {
-        if ($this->http === null && !function_exists('curl_init')) {
+        if ($this->http === null && !(function_exists('curl_init') && function_exists('curl_exec'))) {
             return ['ok' => false, 'message' => 'PHP cURL is required for Google Sign-In.'];
         }
         $reply = $this->call(self::TOKEN_URL, [
@@ -91,7 +91,7 @@ final class GoogleSignIn
     /** @return array<string, mixed> the profile with `ok` true, or `ok` false and a `message` */
     public function profile(string $accessToken): array
     {
-        if ($this->http === null && !function_exists('curl_init')) {
+        if ($this->http === null && !(function_exists('curl_init') && function_exists('curl_exec'))) {
             return ['ok' => false, 'message' => 'PHP cURL is required for Google Sign-In.'];
         }
         $reply = $this->call(self::PROFILE_URL, [CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $accessToken]], 'profile');

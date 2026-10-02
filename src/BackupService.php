@@ -333,7 +333,8 @@ final class BackupService
         }
         $zip->close();
 
-        $free = @disk_free_space($this->basePath);
+        // A host can switch the function off; then there is nothing to compare with.
+        $free = function_exists('disk_free_space') ? @disk_free_space($this->basePath) : false;
         if ($free !== false && $bytes > $free) {
             $this->removeTree($work);
             return $fail('Not enough free disk space to restore this archive.');

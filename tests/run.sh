@@ -7,7 +7,9 @@
 #   tests/run.sh redirects  one HTTP test by name (editor, roles, import, redirects, save, history, taxonomies, links, delete, blocks, hero_layouts, mobile_menu, bottom_bar, logs, users_tabs, sidebar, sidebar_brand, theme_page, media_upload, upload_limits, notifications, bad_yaml, custom_roles, storage, storage_cache, line_endings, media_usage, media_picker, admin_a11y, seo_jsonld, robots, media_usage_cache, update_install, setup, fresh_install)
 #
 # The HTTP tests never touch your site: they run against a temporary copy of the code with the small
-# content set in tests/fixtures, on a free local port, and remove it afterwards. They need PHP and Python 3
+# content set in tests/fixtures, on a free local port, and remove it afterwards. The server runs with the functions that
+# shared hosts often switch off (set_time_limit, ignore_user_abort, disk_free_space, opcache_reset, curl_exec) disabled, because
+# calling a disabled function is a fatal error and the code must cope. They need PHP and Python 3
 # (standard library only).
 set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -31,7 +33,7 @@ report() { # name output
 
 run_unit() {
   echo "Unit checks"
-  for spec in "blocks:tests/unit/blocks.php" "content-types:tests/unit/content-types.php" "revisions:tests/unit/revisions.php" "taxonomies:tests/unit/taxonomies.php" "links:tests/unit/links.php" "robots:tests/unit/robots.php" "menus:tests/unit/menus.php" "content-csv:tests/unit/content-csv.php" "form-fields:tests/unit/form-fields.php" "site-settings:tests/unit/site-settings.php" "backup-manager:tests/unit/backup-manager.php" "taxonomy-editor:tests/unit/taxonomy-editor.php" "redirect-admin:tests/unit/redirect-admin.php" "translations:tests/unit/translations.php" "media-admin:tests/unit/media-admin.php" "site-limits:tests/unit/site-limits.php" "system-status:tests/unit/system-status.php" "forms:tests/unit/forms.php" "accounts:tests/unit/accounts.php" "content-type-admin:tests/unit/content-type-admin.php" "archive-builder:tests/unit/archive-builder.php" "backup-admin:tests/unit/backup-admin.php" "content-screens:tests/unit/content-screens.php" "admin-screens:tests/unit/admin-screens.php" "public-site:tests/unit/public-site.php" "settings-and-front:tests/unit/settings-and-front.php" "release-package:tests/unit/release-package.php" "update-installer:tests/unit/update-installer.php" "first-admin:tests/unit/first-admin.php" "permissions:scripts/check-permissions.php" "slugs-and-redirects:scripts/check-slugs.php" "content-blocks:scripts/check-blocks.php"; do
+  for spec in "blocks:tests/unit/blocks.php" "content-types:tests/unit/content-types.php" "revisions:tests/unit/revisions.php" "taxonomies:tests/unit/taxonomies.php" "links:tests/unit/links.php" "robots:tests/unit/robots.php" "menus:tests/unit/menus.php" "content-csv:tests/unit/content-csv.php" "form-fields:tests/unit/form-fields.php" "site-settings:tests/unit/site-settings.php" "backup-manager:tests/unit/backup-manager.php" "taxonomy-editor:tests/unit/taxonomy-editor.php" "redirect-admin:tests/unit/redirect-admin.php" "translations:tests/unit/translations.php" "media-admin:tests/unit/media-admin.php" "site-limits:tests/unit/site-limits.php" "system-status:tests/unit/system-status.php" "forms:tests/unit/forms.php" "accounts:tests/unit/accounts.php" "content-type-admin:tests/unit/content-type-admin.php" "archive-builder:tests/unit/archive-builder.php" "backup-admin:tests/unit/backup-admin.php" "content-screens:tests/unit/content-screens.php" "admin-screens:tests/unit/admin-screens.php" "public-site:tests/unit/public-site.php" "settings-and-front:tests/unit/settings-and-front.php" "release-package:tests/unit/release-package.php" "update-installer:tests/unit/update-installer.php" "update-installer-restricted:tests/unit/update-installer-restricted.php" "first-admin:tests/unit/first-admin.php" "permissions:scripts/check-permissions.php" "slugs-and-redirects:scripts/check-slugs.php" "content-blocks:scripts/check-blocks.php"; do
     local name="${spec%%:*}" file="${spec#*:}" out
     out=$(cd "$ROOT" && php "$file" 2>&1)
     if [ "$name" = "content-blocks" ]; then
@@ -60,7 +62,7 @@ def ignore(directory, names):
 shutil.copytree(root, dst, ignore=ignore, dirs_exist_ok=True)
 PYCOPY
   port="$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); print(s.getsockname()[1])')"
-  (cd "$work/app" && export PHP_CLI_SERVER_WORKERS=4 && exec php -S "127.0.0.1:$port" -t public public/index.php >"$work/server.log" 2>&1) &
+  (cd "$work/app" && export PHP_CLI_SERVER_WORKERS=4 && exec php -d disable_functions=set_time_limit,ignore_user_abort,disk_free_space,opcache_reset,curl_exec -S "127.0.0.1:$port" -t public public/index.php >"$work/server.log" 2>&1) &
   pid=$!
   trap 'kill '"$pid"' 2>/dev/null; wait '"$pid"' 2>/dev/null; rm -rf '"$work" EXIT
   for _ in $(seq 1 50); do curl -s -o /dev/null "http://127.0.0.1:$port/" && break; sleep 0.1; done

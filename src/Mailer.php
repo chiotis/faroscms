@@ -284,7 +284,7 @@ final class Mailer
         ];
         $url = 'https://' . $host . $uri;
 
-        if (function_exists('curl_init')) {
+        if (function_exists('curl_init') && function_exists('curl_exec')) {
             $ch = curl_init($url);
             curl_setopt_array($ch, [
                 CURLOPT_POST => true,
