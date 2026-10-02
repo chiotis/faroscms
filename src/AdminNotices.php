@@ -43,6 +43,32 @@ final class AdminNotices
         }
     }
 
+    /**
+     * Tells the admin how an install ended. Each attempt is its own notice, and one that failed or could not be checked is a warning.
+     *
+     * @param array{status: string, message: string, from: string, to: string} $result
+     */
+    public function installResult(array $result): void
+    {
+        try {
+            $installed = in_array($result['status'], ['installed', 'unverified'], true);
+            $this->notifications->create([
+                'type' => $installed ? 'update.installed' : 'update.install_failed',
+                'title' => match ($result['status']) {
+                    'installed' => 'FarosCMS ' . $result['to'] . ' is installed',
+                    'unverified' => 'FarosCMS ' . $result['to'] . ' is installed, but was not checked',
+                    'rolled_back' => 'Update to ' . $result['to'] . ' was undone',
+                    default => 'Update to ' . $result['to'] . ' did not happen',
+                },
+                'body' => $result['message'],
+                'severity' => $result['status'] === 'installed' ? 'success' : ($result['status'] === 'unverified' ? 'warning' : 'error'),
+                'target_url' => '/admin/updates',
+                'context' => ['from' => $result['from'], 'to' => $result['to'], 'status' => $result['status']],
+            ]);
+        } catch (\Throwable) {
+        }
+    }
+
     /** Raises what is due: the update notice for those who manage updates, and a notice for each system check that is not fine. */
     public function sync(bool $seesUpdates): void
     {

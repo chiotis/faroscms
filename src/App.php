@@ -58,6 +58,7 @@ final class App
     private ?PublicForms $publicFormsService = null;
     private ?SettingsAdmin $settingsAdminService = null;
     private ?AdminChrome $adminChromeService = null;
+    private ?UpdateInstaller $updateInstallerService = null;
     private ?MenuAdmin $menuAdminService = null;
     private ?LogAdmin $logAdminService = null;
     private ?AdminNotices $adminNoticesService = null;
@@ -147,6 +148,16 @@ final class App
 
         $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
         $path = trim($path, '/');
+
+        // While an update replaces the code the public site says so; the admin stays open.
+        if (!str_starts_with($path, 'admin') && (new MaintenanceMode($this->basePath))->blocks((string)($_SERVER['HTTP_X_FAROS_UPDATE'] ?? ''))) {
+            http_response_code(503);
+            header('Retry-After: 60');
+            header('Cache-Control: no-store');
+            header('Content-Type: text/html; charset=utf-8');
+            echo MaintenanceMode::page();
+            return;
+        }
 
         if (str_starts_with($path, 'admin')) {
             $this->sendSecurityHeaders(true);
@@ -267,12 +278,26 @@ final class App
         );
     }
 
+    private function updateInstaller(): UpdateInstaller
+    {
+        return $this->updateInstallerService ??= new UpdateInstaller(
+            $this->basePath,
+            $this->systemDatabase,
+            new MaintenanceMode($this->basePath),
+            fn(string $url, string $destination, int $maxBytes): ?string => UpdateNetwork::download($url, $destination, $maxBytes),
+            fn(string $token, string $version): array => UpdateNetwork::checkSite($this->getBaseUrl(), $token),
+            fn(string $level, string $message, array $context) => $this->logActivity('updates.install_step', $level, 'updates', 'install', $message, $context)
+        );
+    }
+
     private function updateAdmin(): UpdateAdmin
     {
         return $this->updateAdminService ??= new UpdateAdmin(
             fn(): UpdateService => $this->updates(),
             $this->adminNotices(),
             fn(): BackupAdmin => $this->backupAdmin(),
+            fn(): UpdateInstaller => $this->updateInstaller(),
+            $this->systemMeta,
             $this->backups,
             $this->contentDir,
             $this->basePath,
@@ -1401,6 +1426,14 @@ final class App
             }
             if ($action === 'check') {
                 $this->redirect($admin->check());
+                return;
+            }
+            if ($action === 'install') {
+                $this->redirect($admin->install());
+                return;
+            }
+            if ($action === 'rollback') {
+                $this->redirect($admin->rollback());
                 return;
             }
         }

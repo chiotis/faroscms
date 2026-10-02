@@ -481,7 +481,7 @@
         <div class="{{ section_class }}">
           <div class="{{ section_header_class }}">
             <h2 class="text-sm font-semibold text-slate-900">Update Source</h2>
-            <p class="mt-0.5 text-xs text-slate-400">GitHub repository used by the read-only Updates module.</p>
+            <p class="mt-0.5 text-xs text-slate-400">GitHub repository the Updates screen looks at, and installs new versions from.</p>
           </div>
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label class="block">
@@ -503,6 +503,11 @@
             <label class="block sm:col-span-2">
               <span class="mb-1 block text-sm font-medium text-slate-700">Package URL</span>
               <input type="url" name="update_package_url" value="{{ settings_form.update_package_url }}" placeholder="https://github.com/chiotis/faroscms/archive/refs/heads/main.zip" class="{{ input_class }}">
+            </label>
+            <label class="block sm:col-span-2">
+              <span class="mb-1 block text-sm font-medium text-slate-700">Release manifest URL</span>
+              <input type="url" name="update_release_url" value="{{ settings_form.update_release_url }}" placeholder="https://github.com/chiotis/faroscms/releases/latest/download/release.json" class="{{ input_class }}">
+              <span class="mt-1 block text-xs text-slate-400">Where the package to install is described (its version, size and checksum). Leave blank to use the latest release of the repository above.</span>
             </label>
             <label class="block sm:col-span-2">
               <span class="mb-1 block text-sm font-medium text-slate-700">GitHub token</span>

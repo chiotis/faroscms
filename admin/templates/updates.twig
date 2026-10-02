@@ -10,6 +10,10 @@
     <template data-flash data-type="success">Update status refreshed from {{ update_repository }}.</template>
   {% endif %}
 
+  {% if install_status %}
+    <template data-flash data-type="{{ install_status == 'installed' ? 'success' : 'error' }}">{{ install_message }}</template>
+  {% endif %}
+
   {% if pre_backup_status %}
     <template data-flash data-type="error">{{ pre_backup_message ?: (pre_backup_status == 'ok' ? 'Pre-update backup created.' : 'Pre-update backup failed.') }}</template>
   {% endif %}
@@ -34,7 +38,7 @@
     </div>
   </div>
 
-  {% if has_update %}
+  {% if has_update or install_available %}
     <div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4">
       <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div class="flex items-start gap-3">
@@ -42,12 +46,31 @@
             <svg class="h-5 w-5 text-amber-600" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0 0l-4-4m4 4l4-4M4 19h16"/></svg>
           </span>
           <div>
-            <p class="text-sm font-semibold text-amber-900">Update available: {{ latest_version }}</p>
-            <p class="text-xs text-amber-700">Download and install actions stay disabled until package verification and rollback are wired.</p>
+            <p class="text-sm font-semibold text-amber-900">Update available: {{ install_available ? release.version : latest_version }}</p>
+            {% if install_available %}
+              <p class="text-xs text-amber-800">Only the code is replaced. Your pages, posts, media, custom files and settings are not touched, and if the new version does not start the current one is put back.</p>
+            {% else %}
+              <p class="text-xs text-amber-800">The package of this version is not published yet. Check again in a few minutes.</p>
+            {% endif %}
           </div>
         </div>
-        <button type="button" class="{{ disabled_button }}" disabled>Apply disabled</button>
+        {% if install_ready %}
+          <form method="post" action="{{ url('admin/updates') }}" data-confirm="Install version {{ release.version }}? The public site is closed for a minute while the code is replaced. Your pages, media and settings are not touched, and if the new version does not start the current one is put back." data-confirm-button="Install {{ release.version }}">
+            {{ csrf_field() }}
+            <input type="hidden" name="updates_action" value="install">
+            <button type="submit" class="{{ primary_button }}">Install {{ release.version }}</button>
+          </form>
+        {% else %}
+          <button type="button" class="{{ disabled_button }}" disabled>Install {{ install_available ? release.version : '' }}</button>
+        {% endif %}
       </div>
+      {% if install_available and install_blockers %}
+        <ul class="mt-3 space-y-1 border-t border-amber-200 pt-3 text-xs text-amber-900">
+          {% for blocker in install_blockers %}
+            <li class="flex gap-2"><span class="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-amber-500"></span><span>{{ blocker }}</span></li>
+          {% endfor %}
+        </ul>
+      {% endif %}
     </div>
   {% elseif update_source_status == 'unreachable' %}
     <div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4">
@@ -124,13 +147,13 @@
       <div class="rounded-lg border border-slate-200 bg-white p-4">
         <h2 class="text-sm font-semibold text-slate-900">Update status</h2>
         <dl class="mt-3 space-y-2 text-sm">
-          <div class="flex justify-between gap-3"><dt class="text-slate-500">Mode</dt><dd class="font-medium text-slate-900">GitHub read-only</dd></div>
+          <div class="flex justify-between gap-3"><dt class="text-slate-500">Mode</dt><dd class="font-medium text-slate-900">Install from release package</dd></div>
           <div class="flex justify-between gap-3"><dt class="text-slate-500">Repository</dt><dd class="max-w-40 truncate text-right font-medium text-slate-900">{{ update_repository }}</dd></div>
           <div class="flex justify-between gap-3"><dt class="text-slate-500">Branch</dt><dd class="font-medium text-slate-900">{{ update_branch }}</dd></div>
           <div class="flex justify-between gap-3"><dt class="text-slate-500">Remote version</dt><dd class="font-medium text-slate-900">{{ remote_version ?: 'Unavailable' }}</dd></div>
           <div class="flex justify-between gap-3"><dt class="text-slate-500">Last checked</dt><dd class="max-w-44 truncate text-right font-medium text-slate-900" title="{{ update_checked_at }}">{{ update_checked_at ? update_checked_at|date('Y-m-d H:i') : 'Never' }}</dd></div>
           <div class="flex justify-between gap-3"><dt class="text-slate-500">Auto check</dt><dd class="font-medium text-slate-900">Every 12 hours</dd></div>
-          <div class="flex justify-between gap-3"><dt class="text-slate-500">Install action</dt><dd class="font-medium text-slate-900">Disabled</dd></div>
+          <div class="flex justify-between gap-3"><dt class="text-slate-500">Install</dt><dd class="font-medium text-slate-900">{{ install_ready ? 'Ready' : (install_available ? 'Needs attention' : 'Nothing to install') }}</dd></div>
         </dl>
       </div>
 
@@ -183,9 +206,39 @@
         {% endif %}
       </div>
 
-      <div class="rounded-lg border border-amber-200 bg-amber-50 p-4">
-        <h2 class="text-sm font-semibold text-amber-900">Install flow pending</h2>
-        <p class="mt-1 text-xs leading-relaxed text-amber-800">One-click install stays disabled until package checksums, staged install, and automatic rollback are built (see docs/update-workflow.md). Until then, update with git or a ZIP deploy after taking the pre-update backup above.</p>
+      <div class="rounded-lg border border-slate-200 bg-white p-4">
+        <h2 class="text-sm font-semibold text-slate-900">Install</h2>
+        {% if release %}
+          <dl class="mt-3 space-y-2 text-sm">
+            <div class="flex justify-between gap-3"><dt class="text-slate-500">Package</dt><dd class="font-medium text-slate-900">{{ release.version }}</dd></div>
+            <div class="flex justify-between gap-3"><dt class="text-slate-500">Size</dt><dd class="font-medium text-slate-900">{{ (release.size / 1048576)|number_format(1) }} MB</dd></div>
+            <div class="flex justify-between gap-3"><dt class="text-slate-500">Needs PHP</dt><dd class="font-medium text-slate-900">{{ release.min_php }}+</dd></div>
+            <div class="flex justify-between gap-3"><dt class="text-slate-500">SHA-256</dt><dd class="max-w-40 truncate font-mono text-xs text-slate-900" title="{{ release.sha256 }}">{{ release.sha256|slice(0, 16) }}…</dd></div>
+          </dl>
+        {% else %}
+          <p class="mt-2 text-xs text-slate-500">No release package was found at the source, so there is nothing to install. Use <strong>Check status</strong> to look again.</p>
+        {% endif %}
+        {% if install_checks %}
+          <ul class="mt-3 divide-y divide-slate-50 border-t border-slate-100">
+            {% for check in install_checks %}
+              <li class="flex items-center justify-between gap-3 py-2 text-sm">
+                <span class="text-slate-600">{{ check.label }}</span>
+                <span class="inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset {{ check.ok ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' : 'bg-red-50 text-red-700 ring-red-200' }}">{{ check.ok ? 'ok' : 'blocked' }}</span>
+              </li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+        <p class="mt-3 text-xs leading-relaxed text-slate-500">The package is checked against its published checksum before anything changes. The public site is closed while the code is swapped, the new version is asked whether it starts, and if it does not the old one is put back.</p>
+        {% if last_install %}
+          <p class="mt-3 border-t border-slate-100 pt-3 text-xs text-slate-500">Last time: {{ last_install.message }} <span class="text-slate-400">({{ last_install.at|date('Y-m-d H:i') }})</span></p>
+        {% endif %}
+        {% if rollback_target %}
+          <form method="post" action="{{ url('admin/updates') }}" class="mt-3" data-confirm="Put version {{ rollback_target }} back? Only the code changes; your pages, media and settings stay as they are." data-confirm-button="Put {{ rollback_target }} back">
+            {{ csrf_field() }}
+            <input type="hidden" name="updates_action" value="rollback">
+            <button type="submit" class="{{ secondary_button }} w-full justify-center">Put version {{ rollback_target }} back</button>
+          </form>
+        {% endif %}
       </div>
 
       <div class="rounded-lg border border-slate-200 bg-white p-4">
