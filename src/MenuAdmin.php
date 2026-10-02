@@ -11,12 +11,25 @@ namespace FarosCMS;
  */
 final class MenuAdmin
 {
+    /** The most items one menu keeps; the editor sends them all in one field, so a runaway request is cut off. */
+    public const MAX_ITEMS = 300;
+    private const MAX_JSON = 600000;
+
     /**
      * @param \Closure(): array<string, mixed> $settings
      * @param \Closure(string, string, ?string, ?string, string, array<string, mixed>): void $log records an activity: action, level, subject type, subject id, message, context
+     * @param ?MenuSources $sources what the editor offers to add (without it, only a typed link)
+     * @param ?\Closure(string, string): string $themeText the theme's text for a label key in a language, '' when it has none
+     * @param ?\Closure(string, string): bool $setLocation puts a menu in a place of the theme (location, menu key); null when the person may not
      */
-    public function __construct(private Menus $menus, private \Closure $settings, private \Closure $log)
-    {
+    public function __construct(
+        private Menus $menus,
+        private \Closure $settings,
+        private \Closure $log,
+        private ?MenuSources $sources = null,
+        private ?\Closure $themeText = null,
+        private ?\Closure $setLocation = null
+    ) {
     }
 
     /**
@@ -114,6 +127,7 @@ final class MenuAdmin
             return ['location' => '/admin/menus', 'view' => []];
         }
 
+        $error = '';
         if ($isPost) {
             if ((string)($post['menu_action'] ?? 'save') === 'delete') {
                 $path = $this->menus->path($key);
@@ -128,48 +142,144 @@ final class MenuAdmin
             if ($title === '') {
                 $title = Slug::title($key);
             }
-            $items = $this->menus->fromAdminRows(
-                $post['menu_label_key'] ?? [],
-                $post['menu_label_lang'] ?? [],
-                $post['menu_url'] ?? [],
-                $post['menu_class'] ?? [],
-                $post['menu_target'] ?? [],
-                $post['menu_depth'] ?? [],
-                $languages
-            );
-            $this->menus->write($key, ['title' => $title, 'items' => $items]);
-            $this->menus->forget();
-            ($this->log)('menus.update', 'info', 'menu', $key, 'Menu updated.', [
-                'title' => $title,
-                'items' => count($items),
-            ]);
-            return ['location' => '/admin/menus-edit?key=' . urlencode($key) . '&saved=1', 'view' => []];
+            $rows = $this->decodeRows((string)($post['menu_json'] ?? ''));
+            if ($rows === null) {
+                $error = 'The menu could not be read, so nothing was saved. Reload the page and try again.';
+            } else {
+                $items = $this->menus->fromRows($rows, array_map('strval', $languages));
+                $this->menus->write($key, ['title' => $title, 'items' => $items]);
+                $this->menus->forget();
+                $placed = $this->saveLocations($key, $post);
+                ($this->log)('menus.update', 'info', 'menu', $key, 'Menu updated.', [
+                    'title' => $title,
+                    'items' => count($this->menus->flatten($items, $languages)),
+                    'locations' => $placed,
+                ]);
+                return ['location' => '/admin/menus-edit?key=' . urlencode($key) . '&saved=1', 'view' => []];
+            }
         }
 
         $menu = $this->menus->load($key);
-        $items = $this->menus->flatten($menu['items'] ?? [], $languages);
-        if ($items === []) {
-            // An empty menu opens with one empty row to fill in.
-            $items[] = [
-                'depth' => '1',
-                'label_key' => '',
-                'labels' => array_fill_keys(array_map('strval', $languages), ''),
-                'url' => '',
-                'class' => '',
-                'target' => '',
-            ];
+        $title = (string)($menu['title'] ?? Slug::title($key));
+        if ($isPost && $error !== '') {
+            $title = trim((string)($post['menu_title'] ?? '')) ?: $title;
         }
 
         return ['location' => '', 'view' => [
             'admin_section' => 'menus',
             'menu_key' => $key,
+            'menu_title' => $title,
             'languages' => $languages,
-            'menu_title' => (string)($menu['title'] ?? Slug::title($key)),
-            'menu_items' => $items,
+            'editor_json' => $this->editorJson($key, $title, $menu['items'] ?? [], $languages),
             'saved' => isset($get['saved']),
             'created' => isset($get['created']),
             'deleted' => isset($get['deleted']),
-            'error' => '',
+            'error' => $error,
         ]];
+    }
+
+    /** The rows the editor sent, or null when they are not a list of rows (or are far more than a menu holds). */
+    private function decodeRows(string $json): ?array
+    {
+        if ($json === '' || strlen($json) > self::MAX_JSON) {
+            return null;
+        }
+        $rows = json_decode($json, true);
+        if (!is_array($rows) || !array_is_list($rows) || count($rows) > self::MAX_ITEMS) {
+            return null;
+        }
+        return $rows;
+    }
+
+    /**
+     * Puts the menu in the places that were ticked, and gives back the places it was in to the theme's own menu when they
+     * were unticked. Nothing happens when the person may not change settings, or the form had no places in it.
+     *
+     * @param array<string, mixed> $post
+     * @return string[] the places the menu is in afterwards
+     */
+    private function saveLocations(string $key, array $post): array
+    {
+        $ticked = array_map('strval', is_array($post['menu_locations'] ?? null) ? $post['menu_locations'] : []);
+        $places = $this->menus->locations();
+        if ($this->setLocation === null || !isset($post['menu_locations_present'])) {
+            return array_values(array_map(static fn(array $p): string => $p['key'], array_filter($places, static fn(array $p): bool => $p['menu'] === $key)));
+        }
+        $in = [];
+        foreach ($places as $place) {
+            $mine = $place['menu'] === $key;
+            $wanted = in_array($place['key'], $ticked, true);
+            if ($wanted && !$mine) {
+                ($this->setLocation)($place['key'], $key);
+                $mine = true;
+            } elseif (!$wanted && $mine && $place['default'] !== '' && $place['default'] !== $key) {
+                ($this->setLocation)($place['key'], $place['default']);
+                $mine = false;
+            }
+            if ($mine) {
+                $in[] = $place['key'];
+            }
+        }
+        return $in;
+    }
+
+    /**
+     * Everything the editor starts with, as JSON for the page: the items (one row each, with their depth, and the theme's
+     * text where a label is left to the theme), the languages, what can be added, and the places of the theme.
+     *
+     * @param array<int, array<string, mixed>> $items
+     * @param string[] $languages
+     */
+    private function editorJson(string $key, string $title, array $items, array $languages): string
+    {
+        $languages = array_map('strval', $languages);
+        $settings = ($this->settings)();
+        $defaultLang = (string)($settings['languages']['default'] ?? $languages[0] ?? 'en');
+        $rows = [];
+        foreach ($this->menus->flatten($items, $languages) as $row) {
+            $row['depth'] = (int)$row['depth'];
+            $hints = [];
+            foreach ($languages as $language) {
+                $hints[$language] = $row['label_key'] !== '' && $this->themeText !== null ? trim(($this->themeText)($row['label_key'], $language)) : '';
+                if ($hints[$language] === $row['label_key']) {
+                    $hints[$language] = '';
+                }
+            }
+            $row['hints'] = $hints;
+            $rows[] = $row;
+        }
+        $places = [];
+        foreach ($this->menus->locations() as $place) {
+            $places[] = [
+                'key' => $place['key'],
+                'label' => $place['label'],
+                'menu' => $place['menu'],
+                'locked' => $place['menu'] === $key && ($place['default'] === $key || $place['default'] === ''),
+            ];
+        }
+        $payload = [
+            'key' => $key,
+            'title' => $title,
+            'default_language' => $defaultLang,
+            'languages' => array_map(static fn(string $code): array => ['code' => $code, 'name' => self::languageName($code)], $languages),
+            'items' => $rows,
+            'groups' => $this->sources?->groups() ?? [],
+            'locations' => $places,
+            'can_place' => $this->setLocation !== null,
+            'max_items' => self::MAX_ITEMS,
+        ];
+        return (string)json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE);
+    }
+
+    /** What a language is called in the language itself ("Ελληνικά", "English"); the code when the server cannot say. */
+    public static function languageName(string $code): string
+    {
+        if (class_exists(\Locale::class)) {
+            $name = \Locale::getDisplayLanguage($code, $code);
+            if (is_string($name) && $name !== '' && $name !== $code) {
+                return mb_strtoupper(mb_substr($name, 0, 1)) . mb_substr($name, 1);
+            }
+        }
+        return ['el' => 'Ελληνικά', 'en' => 'English', 'de' => 'Deutsch', 'fr' => 'Français', 'es' => 'Español', 'it' => 'Italiano'][$code] ?? strtoupper($code);
     }
 }

@@ -35,16 +35,24 @@ check('items nest three levels', $items[1]['children'][0]['children'][0]['label'
 check('and no deeper', isset($items[1]['children'][0]['children'][0]['children']), false);
 check('anything that is not a list gives no items', $m->normalize('nope'), []);
 
-// ---- the admin form: rows with depths become a tree
-$rows = $m->fromAdminRows(['', '', '', '', ''], ['el' => ['A', 'B', 'C', 'D', ''], 'en' => ['', '', '', '', '']], ['a', 'b', 'c', 'd', ''], ['', '', '', '', ''], ['', '', '', '', ''], ['1', '2', '3', '2', '1'], ['el', 'en']);
+// ---- the editor: rows with depths become a tree
+$row = fn(int $depth, string $el, string $url = 'x', array $more = []) => $more + ['depth' => $depth, 'labels' => ['el' => $el, 'en' => ''], 'url' => $url];
+$rows = $m->fromRows([$row(1, 'A', 'a'), $row(2, 'B', 'b'), $row(3, 'C', 'c'), $row(2, 'D', 'd'), $row(1, '', '')], ['el', 'en']);
 check('depths nest rows under the row above', [count($rows), $rows[0]['label'] ?? '', count($rows[0]['children'])], [1, '', 2]);
 check('a level under a level nests again', $rows[0]['children'][0]['children'][0]['labels']['el'], 'C');
 check('a second child goes next to the first', $rows[0]['children'][1]['labels']['el'], 'D');
 check('an empty row is skipped', count($rows), 1);
-$jump = $m->fromAdminRows([''], ['el' => ['Only']], ['x'], [''], [''], ['3'], ['el', 'en']);
-check('a first row that claims to be deep is brought up to the top', count($jump), 1);
+check('a first row that claims to be deep is brought up to the top', count($m->fromRows([$row(3, 'Only')], ['el', 'en'])), 1);
+check('so is a row that is more than one level below the one above', [count($m->fromRows([$row(1, 'A'), $row(3, 'B')], ['el', 'en'])[0]['children']), isset($m->fromRows([$row(1, 'A'), $row(3, 'B')], ['el', 'en'])[0]['children'][0]['children'])], [1, false]);
+check('a depth outside 1 to 3 is held to it', count($m->fromRows([$row(0, 'A'), $row(9, 'B')], ['el', 'en'])), 1);
+check('rows that are not a list of rows give no items', [$m->fromRows('x', ['el']), $m->fromRows([1, 'a', null], ['el'])], [[], []]);
+$more = $m->fromRows([$row(1, 'A', 'a', ['class' => ' nav-cta ', 'target' => '_blank', 'hidden' => true, 'label_key' => 'nav.main.home']), $row(1, 'B', 'b', ['hidden' => 'false'])], ['el', 'en']);
+check('class, target, theme key and hidden are kept (trimmed)', [$more[0]['class'], $more[0]['target'], $more[0]['label_key'], $more[0]['hidden']], ['nav-cta', '_blank', 'nav.main.home', true]);
+check('hidden is only set on an item that is hidden', isset($more[1]['hidden']), false);
+check('a label in a language the site does not have is dropped', array_keys($m->fromRows([$row(1, 'A', 'a', ['labels' => ['el' => 'A', 'de' => 'Ä']])], ['el', 'en'])[0]['labels']), ['el', 'en']);
 $flat = $m->flatten($rows, ['el', 'en']);
 check('flattening gives one row per item with its depth', array_map(fn($r) => $r['depth'] . $r['labels']['el'], $flat), ['1A', '2B', '3C', '2D']);
+check('and says which are hidden', array_column($m->flatten($more, ['el', 'en']), 'hidden'), [true, false]);
 
 // ---- writing and reading
 $m->write('main', ['title' => 'Main Menu', 'items' => $items]);
@@ -73,6 +81,7 @@ check('the list has the default menus and the custom one, sorted', $m2->keys(), 
 file_put_contents($fresh . '/menus/legacy.en.yaml', "title: x\n");
 check('a file with a language suffix is not a menu', in_array('legacy', $m2->keys(), true) || in_array('legacy.en', $m2->keys(), true), false);
 check('the admin list has a title for each', array_column($m2->listForAdmin(), 'title'), ['Footer Menu', 'Main Menu', 'Side']);
+check('and how many items each has (all levels), and the places it is shown in', array_map(fn($r) => $r['key'] . ':' . $r['items'] . ':' . implode('+', $r['places']), $m2->listForAdmin()), ['footer:7:Footer', 'main:9:Header', 'side:0:Sidebar']);
 
 // ---- which menu is where, with labels and the active item
 $m->write('main', ['title' => 'Main', 'items' => [
@@ -99,6 +108,31 @@ check('a parent is on the trail, and active too, when a child is the page', [$on
 check('a page below an item keeps it active', $m->forTheme('en', 'about/team')['header'][1]['is_active'], true);
 check('the language prefix in an address is ignored', [$m->forTheme('en', 'en/about')['header'][1]['is_active'], $menus['header'][5]['is_active']], [true, true]);
 check('another site and a mail link are never active', [$menus['header'][3]['is_active'], $menus['header'][4]['is_active']], [false, false]);
+
+// ---- what the file keeps, and hidden items
+$m->write('lean', ['title' => 'Lean', 'items' => [
+    ['labels' => ['el' => 'Α', 'en' => ''], 'url' => 'a'],
+    ['label' => 'Skip', 'url' => 'skip', 'hidden' => true, 'class' => 'k', 'children' => [['label' => 'Child', 'url' => 'child']]],
+]]);
+$file = file_get_contents($dir . '/menus/lean.yaml');
+check('the file has only what is set', [str_contains($file, "label_key"), str_contains($file, "target"), str_contains($file, "en: ''"), str_contains($file, 'hidden: true'), str_contains($file, 'class: k')], [false, false, false, true, true]);
+check('and reads back whole', [$m->load('lean')['items'][0]['labels'], $m->load('lean')['items'][1]['hidden'], $m->load('lean')['items'][1]['children'][0]['label']], [['el' => 'Α', 'en' => ''], true, 'Child']);
+$withLean = $settings;
+$withLean['menu_locations']['sidebar'] = 'lean';
+$m3 = new Menus($dir, fn() => $withLean, $translate, fn() => $locations);
+check('a hidden item is not offered to the theme, nor what is under it', array_column($m3->forTheme('el', '')['sidebar'], 'label'), ['Α']);
+check('and it stays in the menu', count($m->load('lean')['items']), 2);
+
+// ---- the places of the theme
+$places = $m3->locations();
+check('the places are the header and footer first, then the theme\'s own, with the menu each shows', array_map(fn($p) => $p['key'] . '=' . $p['menu'], $places), ['header=main', 'footer=footer', 'sidebar=lean']);
+check('and the menu the theme starts with', array_map(fn($p) => $p['default'], $places), ['main', 'footer', 'side']);
+$bare = ['languages' => $settings['languages']];
+$m4 = new Menus($dir, fn() => $bare, $translate, fn() => $locations);
+check('a place the settings do not set shows the theme\'s own menu', array_column($m4->locations(), 'menu'), ['main', 'footer', 'side']);
+$strip = $bare + ['menu_locations' => ['strip' => 'extra']];
+$m5 = new Menus($dir, fn() => $strip, $translate, fn() => $locations);
+check('a place only the settings know is listed with a title made from its key', array_values(array_filter($m5->locations(), fn($p) => $p['key'] === 'strip'))[0], ['key' => 'strip', 'label' => 'Strip', 'default' => '', 'menu' => 'extra']);
 
 // ---- addresses that change
 $m->relink('about', 'about-us');

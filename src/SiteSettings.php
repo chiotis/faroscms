@@ -390,6 +390,22 @@ final class SiteSettings
         return true;
     }
 
+    /** Shows a menu in a place of the theme ("header", "footer"). Returns false when the settings cannot be written. */
+    public function setMenuLocation(string $location, string $menu): bool
+    {
+        $location = Slug::plain($location);
+        $menu = Slug::plain($menu);
+        if (!$this->meta->isAvailable() || $location === '' || $menu === '') {
+            return false;
+        }
+        $data = $this->parse($this->raw('site_settings', $this->defaults()));
+        $places = is_array($data['menu_locations'] ?? null) ? $data['menu_locations'] : [];
+        $places[$location] = $menu;
+        $data['menu_locations'] = $places;
+        $this->meta->set('site_settings', Yaml::dump($data, 4, 2));
+        return true;
+    }
+
     public function save(string $raw, array $form): bool
     {
         if (!$this->meta->isAvailable()) {

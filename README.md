@@ -131,7 +131,7 @@ Read [docs/theming.md](docs/theming.md) for the contract and [docs/theme-develop
 
 ### The admin
 
-A calm, fixed layout: content types and Media under **Content**, Forms, Menus, Theme, Taxonomies, Redirects, Translations and History under **Manage**, and Users & Roles, Logs, Backups, Updates and Settings under **System**. Every screen with a form ends in one fixed Save bar that also carries messages. Settings are split into tabs, and choosing an icon anywhere opens one shared picker.
+A calm, fixed layout: content types and Media under **Content**, Forms, Menus (a two-panel editor: pick what the site has, drag it into place, set each link's labels in every language), Theme, Taxonomies, Redirects, Translations and History under **Manage**, and Users & Roles, Logs, Backups, Updates and Settings under **System**. Every screen with a form ends in one fixed Save bar that also carries messages. Settings are split into tabs, and choosing an icon anywhere opens one shared picker.
 
 ## Security
 

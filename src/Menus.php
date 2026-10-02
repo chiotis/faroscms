@@ -157,9 +157,10 @@ final class Menus
         return $keys;
     }
 
-    /** @return array<int, array{key: string, title: string, updated: string}> */
+    /** @return array<int, array{key: string, title: string, updated: string, items: int, places: string[]}> */
     public function listForAdmin(): array
     {
+        $places = $this->locations();
         $rows = [];
         foreach ($this->keys() as $key) {
             $path = $this->path($key);
@@ -169,6 +170,8 @@ final class Menus
                 'key' => $key,
                 'title' => (string)($menu['title'] ?? Slug::title($key)),
                 'updated' => $mtime > 0 ? date('Y-m-d H:i', $mtime) : '',
+                'items' => count($this->flatten($menu['items'] ?? [], [])),
+                'places' => array_values(array_map(static fn(array $p): string => $p['label'], array_filter($places, static fn(array $p): bool => $p['menu'] === $key))),
             ];
         }
         return $rows;
@@ -214,13 +217,49 @@ final class Menus
         if ($title === '') {
             $title = Slug::title($key);
         }
-        $items = $this->normalize($menu['items'] ?? []);
         $payload = [
             'title' => $title,
-            'items' => $items,
+            'items' => $this->lean($this->normalize($menu['items'] ?? [])),
         ];
         file_put_contents($path, Yaml::dump($payload, 4, 2));
         $this->menusCache = [];
+    }
+
+    /**
+     * The items as the file keeps them: only what is set (an item with no class has no `class:` line).
+     *
+     * @param array<int, array<string, mixed>> $items
+     * @return array<int, array<string, mixed>>
+     */
+    private function lean(array $items): array
+    {
+        $rows = [];
+        foreach ($items as $item) {
+            $row = [];
+            foreach (['label', 'label_key'] as $field) {
+                if (($item[$field] ?? '') !== '') {
+                    $row[$field] = $item[$field];
+                }
+            }
+            $labels = array_filter(is_array($item['labels'] ?? null) ? $item['labels'] : [], static fn($text): bool => $text !== '');
+            if ($labels !== []) {
+                $row['labels'] = $labels;
+            }
+            $row['url'] = (string)($item['url'] ?? '');
+            foreach (['class', 'target'] as $field) {
+                if (($item[$field] ?? '') !== '') {
+                    $row[$field] = $item[$field];
+                }
+            }
+            if (!empty($item['hidden'])) {
+                $row['hidden'] = true;
+            }
+            if (!empty($item['children']) && is_array($item['children'])) {
+                $row['children'] = $this->lean($item['children']);
+            }
+            $rows[] = $row;
+        }
+        return $rows;
     }
 
     /** @return array<int, array<string, mixed>> */
@@ -273,6 +312,9 @@ final class Menus
                 'class' => $class,
                 'target' => $target,
             ];
+            if (Format::isTruthy($row['hidden'] ?? false)) {
+                $item['hidden'] = true;
+            }
             if (!empty($children)) {
                 $item['children'] = $children;
             }
@@ -281,7 +323,7 @@ final class Menus
         return $rows;
     }
 
-    /** @return array<int, array{depth: string, label_key: string, labels: array<string, string>, url: string, class: string, target: string}> */
+    /** @return array<int, array{depth: string, label_key: string, labels: array<string, string>, url: string, class: string, target: string, hidden: bool}> */
     public function flatten(mixed $items, array $languages, int $depth = 1): array
     {
         $depth = max(1, min(3, $depth));
@@ -300,6 +342,7 @@ final class Menus
                 'url' => trim((string)($item['url'] ?? '')),
                 'class' => trim((string)($item['class'] ?? '')),
                 'target' => trim((string)($item['target'] ?? '')),
+                'hidden' => !empty($item['hidden']),
             ];
             if ($depth < 3 && isset($item['children']) && is_array($item['children'])) {
                 $rows = array_merge($rows, $this->flatten($item['children'], $languages, $depth + 1));
@@ -308,42 +351,43 @@ final class Menus
         return $rows;
     }
 
-    /** @return array<int, array<string, mixed>> */
-    public function fromAdminRows(mixed $labelKeys, mixed $labelLangs, mixed $urls, mixed $classes, mixed $targets, mixed $depths, array $languages): array
+    /**
+     * The items of a menu from the rows the editor sends: a flat list in the order shown, each row with its depth (1 to 3).
+     * A row that claims to be deeper than the row above allows is brought up to the level it can have, and an empty row is
+     * skipped.
+     *
+     * @param array<int, mixed> $rows each: depth, label_key, labels (by language), url, class, target, hidden
+     * @param string[] $languages
+     * @return array<int, array<string, mixed>>
+     */
+    public function fromRows(mixed $rows, array $languages): array
     {
-        $labelKeys = is_array($labelKeys) ? $labelKeys : [];
-        $labelLangs = is_array($labelLangs) ? $labelLangs : [];
-        $urls = is_array($urls) ? $urls : [];
-        $classes = is_array($classes) ? $classes : [];
-        $targets = is_array($targets) ? $targets : [];
-        $depths = is_array($depths) ? $depths : [];
-
-        $count = max(count($labelKeys), count($urls), count($classes), count($targets), count($depths));
+        if (!is_array($rows)) {
+            return [];
+        }
         $roots = [];
         $stack = [];
 
-        for ($i = 0; $i < $count; $i++) {
-            $labelKey = trim((string)($labelKeys[$i] ?? ''));
+        foreach ($rows as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $sourceLabels = is_array($row['labels'] ?? null) ? $row['labels'] : [];
             $labels = [];
             $hasLabels = false;
             foreach ($languages as $language) {
                 $language = (string)$language;
-                $langRows = is_array($labelLangs[$language] ?? null) ? $labelLangs[$language] : [];
-                $value = trim((string)($langRows[$i] ?? ''));
+                $value = trim((string)($sourceLabels[$language] ?? ''));
                 $labels[$language] = $value;
-                if ($value !== '') {
-                    $hasLabels = true;
-                }
+                $hasLabels = $hasLabels || $value !== '';
             }
-            $url = trim((string)($urls[$i] ?? ''));
-            $class = trim((string)($classes[$i] ?? ''));
-            $target = trim((string)($targets[$i] ?? ''));
+            $labelKey = trim((string)($row['label_key'] ?? ''));
+            $url = trim((string)($row['url'] ?? ''));
             if ($labelKey === '' && !$hasLabels && $url === '') {
                 continue;
             }
 
-            $depth = (int)($depths[$i] ?? 1);
-            $depth = max(1, min(3, $depth));
+            $depth = max(1, min(3, (int)($row['depth'] ?? 1)));
             while ($depth > 1 && !isset($stack[$depth - 1])) {
                 $depth--;
             }
@@ -352,8 +396,9 @@ final class Menus
                 'label_key' => $labelKey,
                 'labels' => $labels,
                 'url' => $url,
-                'class' => $class,
-                'target' => $target,
+                'class' => trim((string)($row['class'] ?? '')),
+                'target' => trim((string)($row['target'] ?? '')),
+                'hidden' => Format::isTruthy($row['hidden'] ?? false),
             ];
 
             if ($depth === 1) {
@@ -362,8 +407,7 @@ final class Menus
                 continue;
             }
 
-            $parentDepth = $depth - 1;
-            $parent = &$this->nodeByStack($roots, $stack, $parentDepth);
+            $parent = &$this->nodeByStack($roots, $stack, $depth - 1);
             if (!isset($parent['children']) || !is_array($parent['children'])) {
                 $parent['children'] = [];
             }
@@ -391,17 +435,44 @@ final class Menus
         return $ref;
     }
 
+    /**
+     * The places the site shows a menu in: the theme's, header and footer, and any the settings add. Each says which menu
+     * is shown there now and which one the theme starts with.
+     *
+     * @return array<int, array{key: string, label: string, default: string, menu: string}>
+     */
+    public function locations(): array
+    {
+        $assigned = $this->settings()['menu_locations'] ?? [];
+        $assigned = is_array($assigned) ? $assigned : [];
+        $places = [];
+        $defined = array_replace(['header' => ['label' => 'Header', 'default' => 'main'], 'footer' => ['label' => 'Footer', 'default' => 'footer']], ($this->menuLocations)());
+        foreach ($defined as $key => $definition) {
+            $key = Slug::plain((string)$key);
+            if ($key === '') {
+                continue;
+            }
+            $default = Slug::plain((string)($definition['default'] ?? ''));
+            $places[$key] = ['key' => $key, 'label' => (string)($definition['label'] ?? Slug::title($key)), 'default' => $default, 'menu' => $default];
+        }
+        foreach ($assigned as $key => $menu) {
+            $key = Slug::plain((string)$key);
+            $menu = Slug::plain((string)$menu);
+            if ($key === '' || $menu === '') {
+                continue;
+            }
+            $places[$key] ??= ['key' => $key, 'label' => Slug::title($key), 'default' => '', 'menu' => ''];
+            $places[$key]['menu'] = $menu;
+        }
+        return array_values($places);
+    }
+
     /** @return array<string, array<int, array<string, mixed>>> */
     public function forTheme(string $lang, string $currentPath): array
     {
-        $locations = $this->settings()['menu_locations'] ?? [];
-        if (!is_array($locations)) {
-            $locations = [];
-        }
-        foreach (($this->menuLocations)() + ['header' => ['default' => 'main'], 'footer' => ['default' => 'footer']] as $location => $definition) {
-            if (!isset($locations[$location]) || trim((string)$locations[$location]) === '') {
-                $locations[$location] = $definition['default'];
-            }
+        $locations = [];
+        foreach ($this->locations() as $place) {
+            $locations[$place['key']] = $place['menu'];
         }
 
         $resolved = [];
@@ -435,7 +506,7 @@ final class Menus
         $defaultLang = (string)($this->settings()['languages']['default'] ?? 'el');
         $rows = [];
         foreach ($items as $item) {
-            if (!is_array($item)) {
+            if (!is_array($item) || !empty($item['hidden'])) {
                 continue;
             }
             $labels = is_array($item['labels'] ?? null) ? $item['labels'] : [];

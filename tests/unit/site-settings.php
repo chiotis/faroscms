@@ -116,6 +116,12 @@ check('what needs permission is left to the caller', array_intersect(['storage_l
 $saved = $s->save($s->raw('site_settings', []), SiteSettings::formFromPost(['title' => 'From post', 'languages_available' => 'el, en', 'languages_default' => 'el', 'backup_auto_enabled' => '1', 'backup_schedule' => 'weekly']));
 check('and it saves as it is', [$saved, $s->load()['title'], $s->load()['backup']['auto']['enabled'], $s->load()['backup']['auto']['schedule'], $s->load()['backup']['remote']['enabled']], [true, 'From post', true, 'weekly', false]);
 
+// ---- a menu put in a place of the theme, from the menu editor
+check('a menu is put in a place', [$s->setMenuLocation('footer', 'extra'), $s->load()['menu_locations']['footer']], [true, 'extra']);
+check('and the places already set stay', $s->load()['menu_locations']['header'], 'main');
+check('a place made only of the settings is kept too', [$s->setMenuLocation('Side Bar', 'Other Menu'), $s->load()['menu_locations']['side-bar']], [true, 'other-menu']);
+check('a place or a menu with no name is refused', [$s->setMenuLocation('', 'x'), $s->setMenuLocation('x', ' ')], [false, false]);
+
 exec('rm -rf ' . escapeshellarg($dir));
 echo $fail === 0 ? "\nALL PASSED\n" : "\n$fail FAILED\n";
 exit($fail === 0 ? 0 : 1);

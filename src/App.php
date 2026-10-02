@@ -61,6 +61,8 @@ final class App
     private ?UpdateInstaller $updateInstallerService = null;
     private ?FirstAdmin $firstAdminService = null;
     private ?MenuAdmin $menuAdminService = null;
+    /** @var array<string, array<string, string>> the theme's text by language, for the labels the menu editor leaves to the theme */
+    private array $menuStrings = [];
     private ?LogAdmin $logAdminService = null;
     private ?AdminNotices $adminNoticesService = null;
     private ?UpdateAdmin $updateAdminService = null;
@@ -257,7 +259,15 @@ final class App
         return $this->menuAdminService ??= new MenuAdmin(
             $this->menus(),
             fn(): array => $this->settings,
-            fn(string $action, string $level, ?string $type, ?string $id, string $message, array $context) => $this->logActivity($action, $level, $type, $id, $message, $context)
+            fn(string $action, string $level, ?string $type, ?string $id, string $message, array $context) => $this->logActivity($action, $level, $type, $id, $message, $context),
+            new MenuSources($this->content, fn(): Taxonomies => $this->taxonomies(), fn(): array => $this->settings),
+            function (string $key, string $lang): string {
+                $this->menuStrings[$lang] ??= $this->loadTranslations($lang);
+                return (string)($this->menuStrings[$lang][$key] ?? '');
+            },
+            $this->permissions->can($this->auth->user(), 'settings.manage')
+                ? fn(string $location, string $menu): bool => $this->siteSettings()->setMenuLocation($location, $menu)
+                : null
         );
     }
 

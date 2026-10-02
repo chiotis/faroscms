@@ -45,13 +45,75 @@ check('a copy with no title takes the title of the other', $menus->load('copy2')
 
 check('with no menu asked for the first one opens', $menuAdmin->edit([], [], false)['location'], '/admin/menus-edit?key=copy');
 check('a menu that does not exist goes back to the list', $menuAdmin->edit(['key' => 'nope'], [], false)['location'], '/admin/menus');
-$e = $menuAdmin->edit(['key' => 'main', 'saved' => '1'], [], false)['view'];
-check('a menu opens with its title and items, one row per item and the languages', [$e['menu_key'], $e['menu_title'], count($e['menu_items']), $e['languages'], $e['saved']], ['main', 'Main Menu', 1, ['el', 'en'], true]);
+$md = new MarkdownConverter((function () { $e = new Environment([]); $e->addExtension(new CommonMarkCoreExtension()); return $e; })());
+file_put_contents("$dir/content/pages/about.md", "---\ntitle: Σχετικά\ntranslation_id: t1\n---\n\nText\n");
+file_put_contents("$dir/content/pages/about.en.md", "---\ntitle: About\ntranslation_id: t1\n---\n\nText\n");
+file_put_contents("$dir/content/pages/index.md", "---\ntitle: Αρχική\n---\n\nText\n");
+$placed = [];
+$editorMenus = new Menus("$dir/content", fn() => $settings, fn(string $k, ?string $f = null) => $f ?? $k, fn() => ['sidebar' => ['label' => 'Sidebar', 'default' => 'side-bar']]);
+$editorAdmin = new MenuAdmin(
+    $editorMenus,
+    fn() => $settings,
+    $logger,
+    new FarosCMS\MenuSources(new ContentRepository("$dir/content", $md, $settings), fn() => new Taxonomies("$dir/content", ['el', 'en']), fn() => $settings),
+    fn(string $key, string $lang) => $key === 'nav.main.about' ? ['el' => 'Σχετικά', 'en' => 'About us'][$lang] : '',
+    function (string $location, string $menu) use (&$placed): bool { $placed[] = "$location=$menu"; return true; }
+);
+(new Taxonomies("$dir/content", ['el', 'en']))->save('categories', 'Categories', [['id' => 'news', 'slug' => 'news', 'labels' => ['el' => 'Νέα', 'en' => 'News'], 'descriptions' => []]]);
+$e = $editorAdmin->edit(['key' => 'main', 'saved' => '1'], [], false)['view'];
+$payload = json_decode($e['editor_json'], true);
+check('a menu opens with its title, and the page gets the data for the editor', [$e['menu_key'], $e['menu_title'], $e['languages'], $e['saved'], $payload['key'], $payload['default_language'], $payload['max_items']], ['main', 'Main Menu', ['el', 'en'], true, 'main', 'el', 300]);
+check('the items come as rows with their depth, the labels of every language and what the theme says for a theme key', [count($payload['items']), $payload['items'][0]['depth'], array_keys($payload['items'][0]['labels']), $payload['items'][0]['hints']], [1, 1, ['el', 'en'], ['el' => '', 'en' => '']]);
+check('the languages are named in themselves', array_column($payload['languages'], 'name', 'code'), ['el' => 'Ελληνικά', 'en' => 'English']);
+$editorMenus->write('with-key', ['title' => 'K', 'items' => [['label_key' => 'nav.main.about', 'url' => 'about'], ['label_key' => 'nav.main.nope', 'url' => '']]]);
+$k = json_decode($editorAdmin->edit(['key' => 'with-key'], [], false)['view']['editor_json'], true);
+check('a label left to the theme shows the theme\'s text in each language, and nothing when the theme has none', [$k['items'][0]['hints'], $k['items'][1]['hints']], [['el' => 'Σχετικά', 'en' => 'About us'], ['el' => '', 'en' => '']]);
+$groups = array_column($payload['groups'], null, 'id');
+check('what can be added: pages, posts, the lists, and the taxonomies that have terms (tags have none here)', array_keys($groups), ['pages', 'posts', 'lists', 'taxonomy-categories']);
+check('a page is offered once for all its languages, with its title in each', array_map(fn($i) => [$i['title'], $i['url'], $i['labels']], $groups['pages']['items']), [['Σχετικά', 'about', ['el' => 'Σχετικά', 'en' => 'About']]]);
+check('the home page is offered with the lists, with the list of each type and the search', array_map(fn($i) => $i['url'], $groups['lists']['items']), ['', 'posts', 'search']);
+check('a category is offered with the address a menu item takes, and its name in each language', [$groups['taxonomy-categories']['items'][0]['url'], $groups['taxonomy-categories']['items'][0]['labels'], $groups['taxonomy-categories']['items'][0]['detail']], ['category/news', ['el' => 'Νέα', 'en' => 'News'], 'Category']);
+check('and the places of the theme, with the menu each shows and which cannot be changed from here', [array_column($payload['locations'], 'menu', 'key'), array_column($payload['locations'], 'locked', 'key'), $payload['can_place']], [['header' => 'main', 'footer' => 'footer', 'sidebar' => 'side-bar'], ['header' => true, 'footer' => false, 'sidebar' => false], true]);
 $e = $menuAdmin->edit(['key' => 'side-bar'], [], false)['view'];
-check('an empty menu opens with one empty row to fill in', [count($e['menu_items']), $e['menu_items'][0]['depth'], array_keys($e['menu_items'][0]['labels'])], [1, '1', ['el', 'en']]);
+$bare = json_decode($e['editor_json'], true);
+check('an empty menu opens with no rows, and without the sources and places when the screen has none', [$bare['items'], $bare['groups'], $bare['can_place']], [[], [], false]);
 $log = [];
-$r = $menuAdmin->edit(['key' => 'side-bar'], ['menu_action' => 'save', 'menu_title' => '', 'menu_label_key' => ['', ''], 'menu_label_lang' => [['el' => 'Αρχική', 'en' => 'Home'], ['el' => 'Επαφή', 'en' => 'Contact']], 'menu_url' => ['/', 'contact'], 'menu_class' => ['', ''], 'menu_target' => ['', ''], 'menu_depth' => ['1', '1']], true);
+$rows = fn(array $list) => json_encode($list);
+$r = $editorAdmin->edit(['key' => 'side-bar'], ['menu_action' => 'save', 'menu_title' => '', 'menu_json' => $rows([
+    ['depth' => 1, 'labels' => ['el' => 'Αρχική', 'en' => 'Home'], 'url' => '/'],
+    ['depth' => 1, 'labels' => ['el' => 'Επαφή', 'en' => 'Contact'], 'url' => 'contact', 'class' => 'nav-cta', 'hidden' => true],
+    ['depth' => 2, 'labels' => ['el' => 'Παιδί'], 'url' => 'child'],
+])], true);
+$menus->forget();
 check('saving writes the items and the title (from the key when empty) and goes back to the editor', [$r['location'], count($menus->load('side-bar')['items']), $menus->load('side-bar')['title'], $log[0][0]], ['/admin/menus-edit?key=side-bar&saved=1', 2, 'Side Bar', 'menus.update']);
+check('the nesting and the attributes are kept', [$menus->load('side-bar')['items'][1]['children'][0]['url'], $menus->load('side-bar')['items'][1]['class'], $menus->load('side-bar')['items'][1]['hidden']], ['child', 'nav-cta', true]);
+foreach (['', 'not json', '{"a":1}', '"x"', json_encode(array_fill(0, MenuAdmin::MAX_ITEMS + 1, ['depth' => 1, 'url' => 'a']))] as $bad) {
+    $before = file_get_contents($menus->path('side-bar'));
+    $r = $editorAdmin->edit(['key' => 'side-bar'], ['menu_action' => 'save', 'menu_title' => 'Typed', 'menu_json' => $bad], true);
+    check('a field that is not a list of items saves nothing, and the editor opens again with the reason and the title typed: ' . substr($bad, 0, 12), [$r['location'], $r['view']['error'] !== '', $r['view']['menu_title'], file_get_contents($menus->path('side-bar')) === $before], ['', true, 'Typed', true]);
+}
+$placed = [];
+$editorAdmin->edit(['key' => 'side-bar'], ['menu_action' => 'save', 'menu_json' => $rows([]), 'menu_locations_present' => '1', 'menu_locations' => ['footer', 'header']], true);
+check('ticked places get the menu, and a place already showing it is left alone', $placed, ['header=side-bar', 'footer=side-bar']);
+$placed = [];
+$editorAdmin->edit(['key' => 'main'], ['menu_action' => 'save', 'menu_json' => $rows([['depth' => 1, 'url' => 'a']]), 'menu_locations_present' => '1', 'menu_locations' => []], true);
+check('a place unticked goes back to the theme\'s own menu, unless this is that menu', $placed, []);
+$shown = $settings + ['menu_locations' => ['header' => 'side-bar']];
+$shownMenus = new Menus("$dir/content", fn() => $shown, fn(string $k, ?string $f = null) => $f ?? $k, fn() => []);
+$shownAdmin = new MenuAdmin($shownMenus, fn() => $shown, $logger, null, null, function (string $location, string $menu) use (&$placed): bool { $placed[] = "$location=$menu"; return true; });
+$placed = [];
+$shownAdmin->edit(['key' => 'side-bar'], ['menu_action' => 'save', 'menu_json' => $rows([]), 'menu_locations_present' => '1', 'menu_locations' => []], true);
+check('a place unticked goes back to the theme\'s own menu', $placed, ['header=main']);
+$placed = [];
+$shownAdmin->edit(['key' => 'side-bar'], ['menu_action' => 'save', 'menu_json' => $rows([]), 'menu_locations_present' => '1', 'menu_locations' => ['header']], true);
+check('and one that stays ticked is left alone', $placed, []);
+$placed = [];
+$editorAdmin->edit(['key' => 'side-bar'], ['menu_action' => 'save', 'menu_json' => $rows([])], true);
+check('a form without places in it changes none', $placed, []);
+$plain = new MenuAdmin($editorMenus, fn() => $settings, $logger);
+$plain->edit(['key' => 'side-bar'], ['menu_action' => 'save', 'menu_json' => $rows([]), 'menu_locations_present' => '1', 'menu_locations' => ['header']], true);
+check('and without the right to change settings no place is changed', $placed, []);
+@unlink("$dir/content/taxonomies/categories.yaml");
 $log = [];
 $r = $menuAdmin->edit(['key' => 'side-bar'], ['menu_action' => 'delete'], true);
 check('deleting removes the file and goes to the list', [$r['location'], is_file($menus->path('side-bar')), $log], ['/admin/menus?deleted=1', false, [['menus.delete', 'warning', 'side-bar']]]);
