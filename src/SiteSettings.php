@@ -58,6 +58,8 @@ final class SiteSettings
                 'available' => ['el', 'en'],
             ],
             'content_types' => ['pages', 'posts', 'projects', 'forms'],
+            // Types from the theme's catalogue the site switched off (Admin > Content types).
+            'content_types_off' => [],
             'forms' => [
                 'store_submissions' => true,
                 'notifications' => [
@@ -355,6 +357,37 @@ final class SiteSettings
             'backup_remote_secret_key' => ['backup', 'remote', 'secret_key'],
             'update_github_token' => ['updates', 'github_token'],
         ];
+    }
+
+    /**
+     * Switches a content type from the theme's catalogue on or off. Switching on lists the type and takes it off the list of
+     * those switched off; switching off adds it to that list (the files of the type are not touched). Pages and forms cannot
+     * be switched off. Returns false when the settings cannot be written.
+     */
+    public function setContentType(string $type, bool $on): bool
+    {
+        if (!$this->meta->isAvailable() || !preg_match('/^[a-z][a-z0-9_-]*$/', $type) || (!$on && in_array($type, ['pages', 'forms'], true))) {
+            return false;
+        }
+        $data = $this->parse($this->raw('site_settings', $this->defaults()));
+        $listed = array_values(array_filter(array_map('strval', is_array($data['content_types'] ?? null) ? $data['content_types'] : $this->defaults()['content_types'])));
+        $off = array_values(array_filter(array_map('strval', is_array($data['content_types_off'] ?? null) ? $data['content_types_off'] : [])));
+        if ($on) {
+            if (!in_array($type, $listed, true)) {
+                $listed[] = $type;
+            }
+            $off = array_values(array_diff($off, [$type]));
+        } elseif (!in_array($type, $off, true)) {
+            $off[] = $type;
+        }
+        $data['content_types'] = $listed;
+        if ($off === []) {
+            unset($data['content_types_off']);
+        } else {
+            $data['content_types_off'] = $off;
+        }
+        $this->meta->set('site_settings', Yaml::dump($data, 4, 2));
+        return true;
     }
 
     public function save(string $raw, array $form): bool

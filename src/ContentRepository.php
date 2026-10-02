@@ -23,8 +23,13 @@ final class ContentRepository
     /** @var (\Closure(string, string, string): void)|null told about each file that cannot be read: type, path, message */
     private ?\Closure $onUnreadable = null;
 
-    public function __construct(string $contentDir, MarkdownConverter $markdown, array $settings)
+    /** @var (\Closure(): string[])|null the content types the theme ships, which a site switches on and off */
+    private ?\Closure $catalogue;
+
+    /** @param (\Closure(): string[])|null $catalogue */
+    public function __construct(string $contentDir, MarkdownConverter $markdown, array $settings, ?\Closure $catalogue = null)
     {
+        $this->catalogue = $catalogue;
         $this->contentDir = rtrim($contentDir, '/');
         $this->markdown = $markdown;
         $this->settings = $settings;
@@ -42,8 +47,31 @@ final class ContentRepository
         return $this->unreadable;
     }
 
-    /** @return string[] */
+    /**
+     * The content types that are on. A type is on when the site lists it or has a folder for it, unless it was switched off
+     * (`content_types_off`; pages and forms cannot be). A type from the theme's catalogue that is not listed needs
+     * content in its folder to count, so an empty folder does not switch a prebuilt type on.
+     *
+     * @return string[]
+     */
     public function getTypes(): array
+    {
+        $off = array_map('strval', is_array($this->settings['content_types_off'] ?? null) ? $this->settings['content_types_off'] : []);
+        $catalogue = $this->catalogue !== null ? ($this->catalogue)() : [];
+        $listed = array_map('strval', is_array($this->settings['content_types'] ?? null) ? $this->settings['content_types'] : []);
+        return array_values(array_filter($this->typesOnDisk(), function (string $type) use ($off, $catalogue, $listed): bool {
+            if (!in_array($type, ['pages', 'forms'], true) && in_array($type, $off, true)) {
+                return false;
+            }
+            if (in_array($type, $catalogue, true) && !in_array($type, $listed, true)) {
+                return (glob($this->contentDir . '/' . $type . '/*.md') ?: []) !== [];
+            }
+            return true;
+        }));
+    }
+
+    /** @return string[] */
+    private function typesOnDisk(): array
     {
         $types = [];
         $excluded = ['settings', 'users', 'media', 'menus', 'taxonomies', 'forms-submissions'];

@@ -177,6 +177,10 @@ Admin > Edit > **Blocks** lists the page's blocks: add (from a picker with each 
 
 A content type is a folder in `content/` (`posts`, `projects`, or one you create). A **definition** adds two things: the fields an editor fills in, and how the type's archive page looks. Definitions are optional; a type without one behaves as before.
 
+**The catalogue.** Every definition the theme ships is a ready-made type a site can have (today: posts, projects, books). **Admin → Content types → Ready-made content types** switches each on or off; pages (and forms, which belong to the CMS) are always on. A type that is off is hidden from the admin, the site, the sitemap and search, and its files are kept; switching it on again brings it back. A type counts as on when it is listed in the site settings (`content_types`) or already has files in its folder, unless it was switched off (`content_types_off`); an empty folder does not switch a prebuilt type on. To add a type to the catalogue, add `themes/<theme>/content-types/<type>.yaml` (and `templates/single-<singular>.twig` if its pages need their own layout). Types a site creates itself are not in the catalogue and are always on.
+
+The **Books** type has the fields author, publisher, year, ISBN, language and a buy link, an archive of cards (A to Z, filtered by category), and its own page layout (`templates/single-book.twig`): the cover beside the title, author, summary (the excerpt), facts and buy button, then the text and blocks (Tabs suit reviews and editions).
+
 Definitions live in `themes/default/content-types/<type>.yaml` (shipped with the theme) and `custom/content-types/<type>.yaml` (the site's own, kept across updates). When both exist they are merged: fields are added or changed one by one, and archive settings replace the theme's one by one. **Admin > Content types** edits the site file and writes only what differs from the theme, so theme improvements keep arriving.
 
 ```yaml

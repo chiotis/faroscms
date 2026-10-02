@@ -1,6 +1,6 @@
 {# Page or post body: the fields of its content type, then its blocks when it has any, otherwise the Markdown text at reading width. #}
 {% set type_facts = content_fields(item) %}
-{% if type_facts %}
+{% if type_facts and not facts_shown|default(false) %}
   <div class="site-wrap single-facts">
     {% include 'components/type-fields.twig' with {item: item, lang_prefix: lang_prefix|default('')} only %}
   </div>

@@ -13,8 +13,54 @@
 
   {% if saved %}<template data-flash data-type="success">Saved.</template>{% endif %}
   {% if error == 'name' %}<template data-flash data-type="error">Use a new name made of letters, numbers, and dashes. Some names are reserved.</template>{% endif %}
+  {% if toggled == 'on' %}<template data-flash data-type="success">{{ toggled_type|title }} is on: it has its own list in the admin and its pages on the site.</template>{% endif %}
+  {% if toggled == 'off' %}<template data-flash data-type="success">{{ toggled_type|title }} is off: it is hidden from the admin and the site. Its files are kept, and switching it on again brings it back.</template>{% endif %}
+  {% if error == 'type' %}<template data-flash data-type="error">That type cannot be switched.</template>{% endif %}
+  {% if error == 'settings' %}<template data-flash data-type="error">Could not save the setting. Check that the system database is writable.</template>{% endif %}
   {% if error == 'write' %}<template data-flash data-type="error">Could not write to the custom/ folder. Check that it is writable.</template>{% endif %}
 
+  {% if catalogue %}
+    <section class="mb-6" aria-labelledby="catalogue-heading">
+      <h2 id="catalogue-heading" class="text-sm font-semibold text-slate-900">Ready-made content types</h2>
+      <p class="mt-0.5 mb-3 text-xs text-slate-400">Pages are always on. Switch on the others when the site needs them; a type that is off is hidden from the admin and the site, and its files are kept.</p>
+      <div class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+        <table class="w-full text-sm">
+          <caption class="sr-only">Content types the theme provides</caption>
+          <thead>
+            <tr class="border-b border-slate-100 bg-slate-50/50 text-left text-xs font-medium text-slate-400">
+              <th scope="col" class="px-4 py-2 font-medium">Type</th>
+              <th scope="col" class="px-4 py-2 font-medium">What it is for</th>
+              <th scope="col" class="px-4 py-2 font-medium">Fields</th>
+              <th scope="col" class="px-4 py-2 font-medium">Files</th>
+              <th scope="col" class="px-4 py-2 font-medium">State</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-50">
+            {% for row in catalogue %}
+              <tr class="hover:bg-slate-50">
+                <th scope="row" class="px-4 py-2.5 text-left font-medium text-slate-900">{{ row.label }} <code class="ml-1 text-xs font-normal text-slate-400">{{ row.type }}</code></th>
+                <td class="px-4 py-2.5 text-slate-600">{{ row.description }}</td>
+                <td class="px-4 py-2.5 text-slate-600">{{ row.fields }}</td>
+                <td class="px-4 py-2.5 text-slate-600">{{ row.items }}</td>
+                <td class="px-4 py-2.5">
+                  <form method="post" class="flex items-center gap-2">
+                    {{ csrf_field() }}
+                    <input type="hidden" name="action" value="toggle">
+                    <input type="hidden" name="type" value="{{ row.type }}">
+                    <input type="hidden" name="enabled" value="{{ row.enabled ? '0' : '1' }}">
+                    <span class="{{ row.enabled ? 'text-emerald-700' : 'text-slate-500' }} text-xs font-medium">{{ row.enabled ? 'On' : 'Off' }}</span>
+                    <button type="submit" class="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50">{{ row.enabled ? 'Switch off' : 'Switch on' }}<span class="sr-only"> {{ row.label }}</span></button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  {% endif %}
+
+  <h2 class="mb-2 text-sm font-semibold text-slate-900">Content types in use</h2>
   <div class="mb-4 overflow-x-auto rounded-lg border border-slate-200 bg-white">
     <table class="w-full text-sm">
       <thead>

@@ -1,0 +1,27 @@
+{% extends 'layouts/base.twig' %}
+
+{#
+  A book: the cover beside the title, the author, the summary (the excerpt), the facts and a buy link; then the text and the
+  blocks, such as Tabs for reviews and editions. Fields are those of the Books content type.
+#}
+{% block content %}
+  {% set prefix = lang_prefix|default('') %}
+  {% set cover = item.meta.main_image ?? '' %}
+  {% set fields = item.meta.custom_fields ?? {} %}
+  {% set buy = link_url(fields.buy_url ?? '', prefix) %}
+  <section class="book-hero">
+    <div class="site-wrap book-hero-inner{% if not cover %} no-cover{% endif %}">
+      {% if cover %}
+        <div class="book-cover media-frame">{{ image(cover, {alt: item.meta.title, priority: true, sizes: '(min-width: 800px) 22rem, 70vw', max_width: 900}) }}</div>
+      {% endif %}
+      <div class="book-summary">
+        <h1 class="book-title">{{ item.meta.title }}</h1>
+        {% if fields.author|default('') %}<p class="book-author">{{ fields.author }}</p>{% endif %}
+        {% if item.meta.excerpt|default('') %}<p class="book-lead">{{ item.meta.excerpt }}</p>{% endif %}
+        {% include 'components/type-fields.twig' with {item: item, lang_prefix: prefix} only %}
+        {% if buy %}<p class="book-buy"><a class="btn btn-primary" href="{{ buy }}">{{ fields.buy_label|default('') ?: t('book.buy', 'Buy the book') }}{{ icon('arrow-right', 'btn-icon') }}</a></p>{% endif %}
+      </div>
+    </div>
+  </section>
+  {% include 'components/page-body.twig' with {facts_shown: true} %}
+{% endblock %}

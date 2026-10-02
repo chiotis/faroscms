@@ -2,24 +2,20 @@
 # REST API does not give, and how the home page is laid out here. Copy it and change the XPath for another theme.
 #   php scripts/import-wordpress.php https://example.com --profile=docs/wordpress-profiles/themelio.yaml
 
-# What to write into custom/content-types/ when the site has no definition yet.
+# What to write into custom/content-types/ when the site has no definition yet. Books come with the theme (switch the type on in
+# Admin > Content types, or it is on as soon as it has files); the plays are this site's own.
 content_types:
-  books:
-    label: { en: Books }
-    singular: { en: Book }
-    description: { en: 'Novels, graphic novels and essay collections.' }
-    archive: { title: Books, subtitle: 'Novels, graphic novels and essay collections.', layout: cards, columns: '4', per_page: 12, order: title, taxonomies: [categories], show_excerpt: false, show_meta: false }
   theater:
     label: { en: Theater }
     singular: { en: Play }
     description: { en: 'Plays and productions.' }
-    archive: { title: Theater, subtitle: 'Plays and productions.', layout: cards, columns: '3', per_page: 12, order: title, taxonomies: [categories], show_excerpt: false, show_meta: false }
+    archive: { title: Theater, subtitle: 'Plays and productions.', layout: cards, columns: '3', per_page: 12, order: title_asc, taxonomies: [categories], show_excerpt: false, show_meta: false }
 
 # Custom post types the API does not show. The key is WordPress's own name (the sitemap is /wp-sitemap-posts-<name>-1.xml).
 types:
   book:
     content_type: books
-    front: { hero_layout: minimal }
+    summary_in: excerpt
     title: "//h1[contains(@class,'term-title')]"
     image: "//p[contains(@class,'book-cover')]//img/@src"
     summary: "//div[contains(@class,'panel')]"
