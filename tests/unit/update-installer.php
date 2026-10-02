@@ -236,7 +236,7 @@ $onHealth = null;
 $makeSite('0.1.0');
 $health = ['reached' => false, 'ok' => false, 'message' => 'no answer from https://site.test'];
 $r = $build()->install($pkg['manifest'], '0.1.0', true);
-check('when the site cannot be asked, the new version stays, the site is opened, and it says to look', [$ok($r), str_contains($r['message'], 'no answer from https://site.test'), $code('VERSION'), (new MaintenanceMode($site))->state(), $build()->rollbackTarget('0.2.0')], [['unverified', 'health'], true, "0.2.0\n", null, '0.1.0']);
+check('when the site cannot be asked, the new version stays, the site is opened, and it says to look (' . $r['message'] . ')', [$ok($r), str_contains($r['message'], 'no answer from https://site.test'), $code('VERSION'), (new MaintenanceMode($site))->state(), $build()->rollbackTarget('0.2.0')], [['unverified', 'health'], true, "0.2.0\n", null, '0.1.0']);
 $health = ['reached' => true, 'ok' => true, 'message' => 'the site answered'];
 
 // ---- a swap that fails half way is undone
