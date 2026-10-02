@@ -8,6 +8,8 @@ node_modules/
 # Site-specific customizations are not part of the FarosCMS codebase.
 custom/*
 !custom/README.md
+# Packages built by scripts/build-release.php.
+/build/
 # The site's own data is never part of the code: its pages, posts and media, and its uploads. A demo site to start from is in starter/.
 /content/
 /public/uploads/*
