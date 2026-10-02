@@ -406,8 +406,9 @@ final class UpdateInstaller
         } catch (\Throwable) {
         }
         if (!@copy($this->database->path(), $target) || filesize($target) < 1) {
+            $problem = error_get_last()['message'] ?? '';
             @unlink($target);
-            return 'Could not make a copy of the database' . ($why !== '' ? ' (' . $why . ')' : '') . '.';
+            return 'Could not make a copy of the database (' . trim($why . ' ' . $problem) . '; the database is ' . (is_file($this->database->path()) ? 'there' : 'not there') . ' at ' . $this->database->path() . ', the folder for the copy is ' . (is_dir(dirname($target)) ? 'there' : 'not there') . ').';
         }
         return null;
     }
