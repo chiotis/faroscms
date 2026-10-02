@@ -21,7 +21,7 @@ Direction: one all-purpose theme (`themes/default`) that grows with blocks and v
 - Limits (done): storage limit (measured every 12 hours, adjusted on uploads and deletes), largest upload, and the kinds of file allowed
 - Resilience (done): a content file with unreadable front matter is treated as a draft and reported, and the rest of the site carries on
 - Tests on GitHub Actions (done): the whole suite on PHP 8.1, 8.3 and 8.5 for every push and pull request
-- Next candidates: draft preview links (not now), admin-level user management with limits, better search, import improvements, further App.php splitting
+- Next candidates: draft preview links (not now), admin-level user management with limits, better search, import improvements, finishing the App.php split
 - Style references from the owner can refine the design system at any point (tokens and block CSS)
 - Phase 6 (done): content types with declared fields, an admin screen for them, archive layouts, filters, and pagination
 - Phase 7 (done): demo content rebuilt with blocks, accessibility pass with axe-core, theme developer guide and audit script
@@ -90,7 +90,7 @@ Direction: one all-purpose theme (`themes/default`) that grows with blocks and v
 
 ## Post-Theme Architecture
 - Refactor `src/App.php` into focused modules/services (in progress: BackupService, UpdateService, Mailer, MediaLibrary, ContentIndex, FormSubmissionRepository, LoginThrottle, SystemMetaRepository are extracted)
-- Split so far: menus, CSV import/export, structured data, robots.txt, form fields, site settings, taking backups, the taxonomies screen, redirects, translations, media, storage limits and the dashboard, forms, sign-in, users and roles, content types, archives and backups (`App.php` went from 9,800 to about 5,000 lines, with unit tests for each). Next candidates: the screens that edit content, menus, logs, the Twig set-up, and the public side (see `docs/architecture.md`)
+- Split so far: menus, CSV import/export, structured data, robots.txt, form fields, site settings, taking backups, the taxonomies screen, redirects, translations, media, storage limits and the dashboard, forms, sign-in, users and roles, content types, archives and backups (`App.php` went from 9,800 to about 3,300 lines, with unit tests for each), including the content screens, menus, logs, updates, term pages, public forms and the sitemap. Next candidates: the settings handler, the front page of each kind, and the admin chrome `render()` adds (see `docs/architecture.md`)
 - Keep behavior identical during refactor (incremental extraction + regression checks)
 
 ## Later Development
