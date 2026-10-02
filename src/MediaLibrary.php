@@ -569,7 +569,8 @@ final class MediaLibrary
             }
             $ids[$id] = true;
         }
-        return array_keys($ids);
+        // An id made only of digits becomes a number as an array key; the callers want text.
+        return array_map('strval', array_keys($ids));
     }
 
     /** @return string[] */
