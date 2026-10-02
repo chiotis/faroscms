@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.24 — 2026-10-02 — Moving a WordPress site over (first part)
+- **`php scripts/import-wordpress.php <site>`** reads a WordPress site through its public REST API and brings its pages, posts, categories, tags and pictures over. It first says what it would do (how many are new, what is left alone, which files it would fetch, which links it cannot resolve) and changes nothing until `--apply` is added. Every imported file records where it came from, so running it again updates it and never makes a second copy; a file of the site's own is not overwritten. See `docs/wordpress-import.md`
+- The HTML becomes Markdown (`HtmlToMarkdown`): structure is kept; inline styles, Word's classes, float classes, empty paragraphs and broken markup are cleaned; a table used only to place a picture beside text is taken apart; YouTube, Vimeo and similar embeds stay; the rest is listed in the report
+- Categories are flattened (the same name under two parents gets its parent in the name and address), pictures and files go into the media library under an id made from their address (sizes WordPress made are the picture itself; a file the old site no longer has is dropped from the text and listed), links between pages are rewritten, and the run writes a `redirects.txt` of old addresses to paste into Admin → Redirects → Import
+- `MediaLibrary::import()` brings in a file that is already on disk under an id the caller chooses
+- Tests: `html-to-markdown.php` (61 checks) and `wordpress-import.php` (56 checks, answering from a made-up site)
+- Not yet: the site's custom post types (they are not in the REST API), menus, and the look of the site. Those come next
+
 ## 0.1.23 — 2026-10-02 — A media id made only of digits
 - **Fixed a rare error in the Media screen.** A media id is 16 random hexadecimal characters, and about one in two thousand is only digits. PHP turns such a text into a number when it is used as an array key, and the next function wanted text, so selecting that file for a bulk action (tags, delete) failed with a type error. Ids are now kept as text. It showed up as an occasional failure of the test suite on PHP 8.5
 

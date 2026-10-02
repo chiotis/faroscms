@@ -393,7 +393,7 @@ final class MediaLibrary
     }
 
     /** @param array<string, mixed> $upload @return array<string, mixed> */
-    public function upload(array $upload, string $tagsCsv = '', string $uploadedBy = '', int $maxBytes = 20971520): array
+    public function upload(array $upload, string $tagsCsv = '', string $uploadedBy = '', int $maxBytes = 20971520, string $fixedId = '', string $alt = ''): array
     {
         $error = (int)($upload['error'] ?? UPLOAD_ERR_NO_FILE);
         if ($error !== UPLOAD_ERR_OK) {
@@ -435,10 +435,17 @@ final class MediaLibrary
             throw new \RuntimeException('SVG files with scripts or external content are not allowed.');
         }
 
-        do {
-            $id = bin2hex(random_bytes(8));
-            $id = $this->sanitizeId($id);
-        } while ($id === '' || is_file($this->metaPath($id)));
+        if ($fixedId !== '') {
+            $id = $this->sanitizeId($fixedId);
+            if ($id === '' || is_file($this->metaPath($id))) {
+                throw new \RuntimeException('That media id is not available.');
+            }
+        } else {
+            do {
+                $id = bin2hex(random_bytes(8));
+                $id = $this->sanitizeId($id);
+            } while ($id === '' || is_file($this->metaPath($id)));
+        }
 
         $storedName = $id . ($extension !== '' ? '.' . $extension : '');
         $relativePath = 'media/' . $storedName;
@@ -471,9 +478,29 @@ final class MediaLibrary
             'uploaded_by' => $uploadedBy,
             'created_at' => $now,
             'updated_at' => $now,
+            'alt' => $alt,
         ];
         $this->saveMeta($meta);
         return $this->find($id) ?? $meta;
+    }
+
+    /**
+     * Brings in a file that is already on disk (downloaded from another site, say) under an id chosen by the caller, so
+     * bringing it in again finds it instead of keeping a second copy. Checked like an upload; the file is moved, not copied.
+     *
+     * @return array<string, mixed> the library entry
+     */
+    public function import(string $file, string $name, string $id, string $alt = '', string $by = '', int $maxBytes = 20971520): array
+    {
+        $id = $this->sanitizeId($id);
+        if ($id === '') {
+            throw new \RuntimeException('The media id must be 16 hexadecimal characters.');
+        }
+        $existing = $this->find($id);
+        if ($existing !== null) {
+            return $existing;
+        }
+        return $this->upload(['error' => UPLOAD_ERR_OK, 'tmp_name' => $file, 'name' => $name, 'size' => (int)(filesize($file) ?: 0)], '', $by, $maxBytes, $id, $alt);
     }
 
     private function isSafeSvg(string $path): bool
