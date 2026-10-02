@@ -21,6 +21,8 @@ It needs PHP and Python 3 (standard library only). Nothing touches your site: th
 | `tests/unit/html-to-markdown.php` | HTML turned into Markdown: text, lists, tables, embeds, what is dropped, what is reported |
 | `tests/unit/wordpress-import.php` | Reading a WordPress site, the plan that changes nothing, writing pages, posts, terms and media, redirects, doing it again, files of the site's own |
 | `tests/unit/content-type-catalogue.php` | The types the theme ships, which are on, switching on and off, files kept, pages and forms always on |
+| `tests/unit/form-templates.php` | The ready-made forms: each whole (fields survive storing, emails use fields it has), in English, Greek and another language |
+| `tests/http/form_builder_test.py` | The form builder end to end: the New form screen and its templates, the builder's data, saving and cleaning what it sends, headings and widths on the site, a translation as a copy, an editor kept out |
 | `tests/http/menu_editor_test.py` | The menu editor end to end: the data it starts with, saving the items, a hidden item, a field that cannot be read, putting a menu in a place, an editor without the right to change settings, deleting |
 | `tests/http/catalogue_test.py` | The Content types screen end to end: books off then on, its archive, a book page, the sitemap, an editor kept out |
 | `tests/unit/links.php` | Which links to an address are found and rewritten, and which are left alone |

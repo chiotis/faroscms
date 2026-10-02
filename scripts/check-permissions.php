@@ -21,7 +21,7 @@ $actions = [
     'content' => [1,1,1,0], 'content-bulk' => [1,1,1,0], 'search' => [1,1,1,0], 'edit' => [1,1,1,0], 'revisions' => [1,1,1,0], 'links' => [1,1,1,0], 'save' => [1,1,1,0], 'delete' => [1,1,1,0], 'new' => [1,1,1,0], 'block-presets' => [1,1,1,0], 'media-picker' => [1,1,1,0],
     'media' => [1,1,1,0], 'files' => [1,1,1,0], 'taxonomies' => [1,1,1,0],
     'menus' => [1,1,0,0], 'menus-new' => [1,1,0,0], 'menus-edit' => [1,1,0,0],
-    'forms' => [1,1,0,0], 'form-submissions' => [1,1,0,0], 'forms-export' => [1,1,0,0], 'export' => [1,1,0,0], 'import' => [1,1,0,0],
+    'forms' => [1,1,0,0], 'forms-new' => [1,1,0,0], 'form-submissions' => [1,1,0,0], 'forms-export' => [1,1,0,0], 'export' => [1,1,0,0], 'import' => [1,1,0,0],
     'settings' => [1,1,0,0], 'theme' => [1,1,0,0], 'system' => [1,1,0,0], 'content-types' => [1,1,0,0], 'translations' => [1,1,0,0],
     'activity-logs' => [1,1,0,0], 'email-logs' => [1,1,0,0], 'backups' => [1,1,0,0], 'updates' => [1,1,0,0],
     'notification-read' => [1,1,0,0], 'notifications-read-all' => [1,1,0,0],

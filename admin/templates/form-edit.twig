@@ -1,0 +1,540 @@
+{#
+  The form builder. The Build tab is drawn by public/assets/js/admin-form-builder.js from the JSON below (a palette of
+  fields, the form as a canvas, and an inspector for the field that is selected) and sends its fields back as one JSON
+  field (form_fields_json). Everything else here is an ordinary form: the settings, the emails, and the parts every
+  entry has (translations, history, the front matter).
+#}
+{% macro toggle(name, checked, title, hint, extra) %}
+  <label class="flex cursor-pointer items-start gap-3 text-sm text-slate-800">
+    <span class="relative mt-0.5 inline-flex shrink-0">
+      <input type="checkbox" name="{{ name }}" value="1" {% if checked %}checked{% endif %} class="peer sr-only"{{ extra|default('')|raw }}>
+      <span class="h-5 w-9 rounded-full bg-slate-300 transition peer-checked:bg-blue-600 peer-focus-visible:ring-2 peer-focus-visible:ring-blue-500 peer-focus-visible:ring-offset-1" aria-hidden="true"></span>
+      <span class="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition peer-checked:translate-x-4" aria-hidden="true"></span>
+    </span>
+    <span><span class="block font-medium">{{ title }}</span>{% if hint %}<span class="block text-xs text-slate-500">{{ hint }}</span>{% endif %}</span>
+  </label>
+{% endmacro %}
+{% extends '@admin/base.twig' %}
+{% set page_heading = address.exists ? 'Edit form' : 'New form' %}
+
+{% block content %}
+  {% set section_class = 'rounded-lg border border-slate-200 bg-white p-4' %}
+  {% set section_header_class = 'mb-3 border-b border-slate-100 pb-3' %}
+  {% set tab_class = 'tab-button shrink-0 border-b-2 border-transparent px-3 py-2.5 text-sm font-medium text-slate-500 transition hover:text-slate-800' %}
+  {% set primary_button_class = 'inline-flex shrink-0 items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm no-underline transition hover:bg-blue-700' %}
+  {% set secondary_button_class = 'inline-flex shrink-0 items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm no-underline transition hover:bg-slate-50' %}
+  {% set danger_button_class = 'inline-flex shrink-0 items-center gap-1.5 rounded-md border border-red-200 bg-white px-3 py-1.5 text-sm font-medium text-red-600 shadow-sm transition hover:bg-red-50' %}
+  {% set tool_btn = 'inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40' %}
+  {% set switch_class = 'peer sr-only' %}
+  {% set input_class = 'w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-300' %}
+  {% set textarea_class = input_class %}
+  {% set label_class = 'mb-1 block text-sm font-medium text-slate-700' %}
+
+  {% import _self as ui %}
+
+  {% if saved and not restored %}
+    <template data-flash data-type="success">Saved.</template>
+  {% endif %}
+  {% if restored %}
+    <template data-flash data-type="success">Version restored. The text it replaced is kept in the history.</template>
+  {% endif %}
+  {% if front_matter_error %}
+    <div class="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900" role="alert">
+      <strong class="font-semibold">The front matter of this form cannot be read.</strong>
+      Correct the YAML in the <em>Advanced</em> tab and save.
+      <span class="mt-1 block font-mono text-xs text-red-800">{{ front_matter_error }}</span>
+    </div>
+  {% endif %}
+  {% if form_starter %}
+    <div class="mb-3 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900" role="status">Started from <strong>{{ form_starter }}</strong>. Change anything you like, then save.</div>
+  {% endif %}
+  {% if form_copied_from %}
+    <div class="mb-3 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900" role="status">The fields and messages were copied from the {{ form_copied_from|upper }} version of this form. Translate the labels and texts, then save.</div>
+  {% endif %}
+
+  <div data-form-builder>
+  <script type="application/json" id="form-builder-data">{{ form_builder_json|raw }}</script>
+
+  <form method="post" action="{{ url('admin/save') }}" class="space-y-4" data-form-builder-form autocomplete="off">
+    {{ csrf_field() }}
+    <input type="hidden" name="type" value="forms">
+    <input type="hidden" name="translation_id" value="{{ meta_form.translation_id }}">
+    <input type="hidden" name="original_slug" value="{{ slug }}">
+    <input type="hidden" name="original_lang" value="{{ lang }}">
+    <input type="hidden" name="slug" value="{{ slug }}">
+    <input type="hidden" name="lang" value="{{ lang }}">
+    <input type="hidden" name="form_fields_json" value="" data-fb-json>
+    <header class="flex flex-wrap items-start justify-between gap-3">
+      <div class="min-w-0 flex-1">
+        <label class="block max-w-2xl">
+          <span class="sr-only">Form name</span>
+          <input type="text" name="title" value="{{ meta_form.title }}" placeholder="Form name" class="{{ input_class }} text-lg font-semibold" data-fb-title>
+        </label>
+        <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+          <span class="inline-flex items-center rounded bg-slate-100 px-1.5 py-0.5 font-semibold uppercase text-slate-600">{{ lang }}</span>
+          <label class="inline-flex items-center gap-1.5">
+            <span class="font-medium text-slate-600">Status</span>
+            <select name="status" class="rounded-md border border-slate-300 bg-white py-1 pl-2 pr-7 text-xs font-medium text-slate-700">
+              <option value="published" {% if meta_form.status == 'published' %}selected{% endif %}>Published</option>
+              <option value="draft" {% if meta_form.status == 'draft' %}selected{% endif %}>Draft</option>
+            </select>
+          </label>
+          {% if slug %}
+            <span class="flex flex-wrap items-center gap-1.5">
+              <span class="text-slate-500">Put it on a page with</span>
+              <code class="whitespace-nowrap rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-medium text-slate-700" data-fb-shortcode>[form slug="{{ slug }}"]</code>
+              <button type="button" class="rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[11px] font-medium text-slate-600 hover:bg-slate-50" data-copy='[form slug="{{ slug }}"]'>Copy</button>
+            </span>
+          {% else %}
+            <span>The shortcode to put it on a page appears after the first save.</span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <a class="{{ secondary_button_class }}" href="{{ url('admin/forms') }}">
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+          Back to forms
+        </a>
+      </div>
+    </header>
+
+    <div class="overflow-x-auto border-b border-slate-200">
+      <div class="flex min-w-max gap-1" role="tablist" aria-label="Form">
+        <button type="button" role="tab" class="{{ tab_class }} active" data-tab="build">Build <span class="tab-count" data-fb-count></span></button>
+        <button type="button" role="tab" class="{{ tab_class }}" data-tab="settings">Settings</button>
+        <button type="button" role="tab" class="{{ tab_class }}" data-tab="email">Email</button>
+        <button type="button" role="tab" class="{{ tab_class }}" data-tab="submissions">Submissions{% if form_submissions_total %} <span class="tab-count">{{ form_submissions_total }}</span>{% endif %}</button>
+        <button type="button" role="tab" class="{{ tab_class }}" data-tab="page">Page</button>
+        <button type="button" role="tab" class="{{ tab_class }}" data-tab="translations">Translations</button>
+        {% if address.exists %}
+          <button type="button" role="tab" class="{{ tab_class }}" data-tab="history">History{% if history_total %} <span class="tab-count">{{ history_total }}</span>{% endif %}</button>
+        {% endif %}
+        <button type="button" role="tab" class="{{ tab_class }}" data-tab="advanced">Advanced</button>
+      </div>
+    </div>
+
+    {# ---- Build #}
+    <div class="tab-panel active" role="tabpanel" data-panel="build">
+      <noscript><div class="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">The form builder needs JavaScript. The fields are kept as they are when you save.</div></noscript>
+
+      <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div class="flex flex-wrap items-center gap-2">
+          <a href="#fb-palette-wrap" class="{{ tool_btn }} no-underline lg:hidden">
+            <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
+            Add a field
+          </a>
+          <button type="button" class="{{ tool_btn }}" data-fb-undo disabled>
+            <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 14L4 9l5-5M4 9h10a6 6 0 010 12h-3"/></svg>
+            Undo
+          </button>
+          <button type="button" class="{{ tool_btn }}" data-fb-redo disabled>
+            <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 14l5-5-5-5M20 9H10a6 6 0 000 12h3"/></svg>
+            Redo
+          </button>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <div class="inline-flex rounded-md border border-slate-300 bg-white p-0.5" role="group" aria-label="View">
+            <button type="button" class="rounded px-2.5 py-1 text-xs font-semibold" data-fb-mode="edit" aria-pressed="true">Edit</button>
+            <button type="button" class="rounded px-2.5 py-1 text-xs font-semibold" data-fb-mode="preview" aria-pressed="false">Preview</button>
+          </div>
+          <div class="inline-flex rounded-md border border-slate-300 bg-white p-0.5" role="group" aria-label="Screen width">
+            <button type="button" class="rounded px-2.5 py-1 text-xs font-semibold" data-fb-device="desktop" aria-pressed="true">Desktop</button>
+            <button type="button" class="rounded px-2.5 py-1 text-xs font-semibold" data-fb-device="phone" aria-pressed="false">Phone</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid items-start gap-4 lg:grid-cols-[15rem_minmax(0,1fr)] xl:grid-cols-[15rem_minmax(0,1fr)_20rem]" data-fb-layout>
+        <aside id="fb-palette-wrap" class="order-2 scroll-mt-4 rounded-lg border border-slate-200 bg-white lg:order-1 lg:sticky lg:top-4" aria-labelledby="fb-palette-title" data-fb-palette-wrap>
+          <div class="border-b border-slate-200 px-4 py-3">
+            <h2 id="fb-palette-title" class="text-sm font-semibold text-slate-900">Add a field</h2>
+            <p class="mt-0.5 text-xs text-slate-500">Click to add, or drag it into the form.</p>
+          </div>
+          <div class="max-h-[60vh] overflow-y-auto p-3 lg:max-h-[calc(100vh-14rem)]" data-fb-palette></div>
+        </aside>
+
+        <section class="order-1 min-w-0 lg:order-2" aria-label="The form">
+          <div class="mx-auto transition-all" data-fb-stage>
+            <div class="relative rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6" data-fb-canvas-wrap>
+              <ul class="grid grid-cols-6 gap-3" data-fb-canvas aria-label="Fields of the form"></ul>
+              <div class="pointer-events-none absolute z-10 hidden rounded-full bg-blue-500" data-fb-drop aria-hidden="true"></div>
+              <div class="hidden flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-200 px-6 py-12 text-center" data-fb-empty>
+                <div class="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
+                  <svg class="h-6 w-6 text-slate-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2M9 12h6M9 16h4"/></svg>
+                </div>
+                <h3 class="mt-3 text-sm font-semibold text-slate-900">This form has no fields yet</h3>
+                <p class="mt-1 max-w-sm text-sm text-slate-500">Drag a field here from the left, or start with one of these.</p>
+                <div class="mt-3 flex flex-wrap justify-center gap-2" data-fb-quick></div>
+              </div>
+              <div class="mt-5 border-t border-slate-100 pt-4" data-fb-submit-row>
+                <button type="button" class="rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white" data-fb-submit-preview tabindex="-1">Submit</button>
+                <button type="button" class="ml-2 text-xs font-medium text-blue-700 underline hover:text-blue-900" data-fb-edit-button>Change the button and messages</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <aside class="order-3 rounded-lg border border-slate-200 bg-white lg:col-span-2 xl:col-span-1 xl:sticky xl:top-4" aria-labelledby="fb-inspector-title" data-fb-inspector-wrap>
+          <div class="border-b border-slate-200 px-4 py-3">
+            <h2 id="fb-inspector-title" class="text-sm font-semibold text-slate-900" data-fb-inspector-title>Field</h2>
+          </div>
+          <div class="max-h-[none] overflow-y-auto p-4 xl:max-h-[calc(100vh-14rem)]" data-fb-inspector></div>
+        </aside>
+      </div>
+      <p class="sr-only" id="fb-drag-help">Press the arrow keys on a handle: up or down to move the field, left or right to make it narrower or wider.</p>
+    </div>
+
+    {# ---- Settings #}
+    <div class="tab-panel hidden space-y-4" role="tabpanel" data-panel="settings">
+      <div class="grid gap-4 lg:grid-cols-2">
+        <section class="{{ section_class }}">
+          <div class="{{ section_header_class }}">
+            <h2 class="text-sm font-semibold text-slate-900">Button</h2>
+            <p class="mt-0.5 text-xs text-slate-500">The text on the button that sends the form.</p>
+          </div>
+          <label class="block">
+            <span class="{{ label_class }}">Button text</span>
+            <input type="text" name="form_submit_label" value="{{ form_settings.submit_label }}" placeholder="Submit" class="{{ input_class }}" data-fb-submit-label>
+          </label>
+        </section>
+
+        <section class="{{ section_class }}">
+          <div class="{{ section_header_class }}">
+            <h2 class="text-sm font-semibold text-slate-900">After it is sent</h2>
+            <p class="mt-0.5 text-xs text-slate-500">What the visitor sees.</p>
+          </div>
+          <div class="grid gap-3">
+            <label class="block">
+              <span class="{{ label_class }}">Thank-you message</span>
+              <textarea name="form_success_message" rows="3" class="{{ textarea_class }}">{{ form_settings.success_message }}</textarea>
+            </label>
+            <label class="block">
+              <span class="{{ label_class }}">Go to another page instead <span class="font-normal text-slate-500">(optional)</span></span>
+              <input type="text" name="form_redirect_url" value="{{ form_settings.redirect_url }}" placeholder="/thank-you" class="{{ input_class }}">
+            </label>
+          </div>
+        </section>
+
+        <section class="{{ section_class }}">
+          <div class="{{ section_header_class }}">
+            <h2 class="text-sm font-semibold text-slate-900">Answers</h2>
+            <p class="mt-0.5 text-xs text-slate-500">Where the answers go.</p>
+          </div>
+          {{ ui.toggle('form_store_submissions', form_settings.store_submissions, 'Keep the answers in the admin', 'Under Submissions, where they can be browsed and exported as CSV.') }}
+        </section>
+
+        <section class="{{ section_class }}">
+          <div class="{{ section_header_class }}">
+            <h2 class="text-sm font-semibold text-slate-900">Spam protection</h2>
+            <p class="mt-0.5 text-xs text-slate-500">A hidden field that only robots fill in, and a pause between sends.</p>
+          </div>
+          <div class="grid gap-3 sm:grid-cols-2">
+            <label class="block">
+              <span class="{{ label_class }}">Hidden trap field</span>
+              <input type="text" name="form_honeypot" value="{{ form_settings.honeypot }}" placeholder="website" class="{{ input_class }}">
+            </label>
+            <label class="block">
+              <span class="{{ label_class }}">Seconds between sends</span>
+              <input type="number" name="form_rate_limit_seconds" value="{{ form_settings.rate_limit_seconds }}" min="0" class="{{ input_class }}">
+            </label>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    {# ---- Email #}
+    <div class="tab-panel hidden space-y-4" role="tabpanel" data-panel="email">
+      <div class="grid gap-4 lg:grid-cols-2">
+        <section class="{{ section_class }}" data-fb-merge>
+          <div class="{{ section_header_class }}">
+            <h2 class="text-sm font-semibold text-slate-900">Email me when someone sends it</h2>
+            <p class="mt-0.5 text-xs text-slate-500">A message with all the answers.</p>
+          </div>
+          <div class="grid gap-3">
+            {{ ui.toggle('form_notifications[enabled]', form_notifications.enabled, 'Send me an email', '', ' data-fb-notify') }}
+            <p class="hidden rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800" data-fb-notify-warning role="status">No address to send to yet, so no email will be sent.</p>
+            <label class="block">
+              <span class="{{ label_class }}">Send to</span>
+              <input type="text" name="form_notifications[to]" value="{{ form_notifications.to }}" placeholder="you@example.com, other@example.com" class="{{ input_class }}" data-fb-notify-to>
+            </label>
+            <label class="block">
+              <span class="{{ label_class }}">Subject</span>
+              <input type="text" name="form_notifications[subject]" value="{{ form_notifications.subject }}" placeholder="New message from {name}" class="{{ input_class }}" data-fb-merge-target>
+            </label>
+            <label class="block">
+              <span class="{{ label_class }}">Reply goes to</span>
+              <select name="form_notifications[reply_to_field]" class="{{ input_class }}" data-fb-reply-to data-value="{{ form_notifications.reply_to_field }}">
+                <option value="">The first email field</option>
+                {% if form_notifications.reply_to_field %}<option value="{{ form_notifications.reply_to_field }}" selected>{{ form_notifications.reply_to_field }}</option>{% endif %}
+              </select>
+              <span class="mt-1 block text-xs text-slate-500">So that pressing Reply in your mail writes to the visitor.</span>
+            </label>
+            <details class="rounded-md border border-slate-200 bg-slate-50/60 px-3 py-2">
+              <summary class="cursor-pointer text-xs font-medium text-slate-600">Copies (Cc and Bcc)</summary>
+              <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                <label class="block"><span class="{{ label_class }}">Cc</span><input type="text" name="form_notifications[cc]" value="{{ form_notifications.cc }}" class="{{ input_class }}"></label>
+                <label class="block"><span class="{{ label_class }}">Bcc</span><input type="text" name="form_notifications[bcc]" value="{{ form_notifications.bcc }}" class="{{ input_class }}"></label>
+              </div>
+            </details>
+            <div>
+              <p class="text-xs font-medium text-slate-600">Put an answer in the subject</p>
+              <div class="mt-1.5 flex flex-wrap gap-1.5" data-fb-chips></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="{{ section_class }}" data-fb-merge>
+          <div class="{{ section_header_class }}">
+            <h2 class="text-sm font-semibold text-slate-900">Reply to the visitor</h2>
+            <p class="mt-0.5 text-xs text-slate-500">An automatic message to the address they gave. Needs an email field.</p>
+          </div>
+          <div class="grid gap-3">
+            {{ ui.toggle('form_notifications[auto_reply]', form_notifications.auto_reply, 'Send an automatic reply', '') }}
+            <label class="block">
+              <span class="{{ label_class }}">Subject</span>
+              <input type="text" name="form_notifications[auto_reply_subject]" value="{{ form_notifications.auto_reply_subject }}" placeholder="We received your message" class="{{ input_class }}" data-fb-merge-target>
+            </label>
+            <label class="block">
+              <span class="{{ label_class }}">Message</span>
+              <textarea name="form_notifications[auto_reply_message]" rows="6" class="{{ textarea_class }}" data-fb-merge-target>{{ form_notifications.auto_reply_message }}</textarea>
+            </label>
+            <div>
+              <p class="text-xs font-medium text-slate-600">Put an answer in the message</p>
+              <div class="mt-1.5 flex flex-wrap gap-1.5" data-fb-chips></div>
+              <p class="mt-1.5 text-xs text-slate-500">Click one to put it where the cursor is, for example <code class="rounded bg-slate-100 px-1">Hello {name}</code>.</p>
+            </div>
+            {{ ui.toggle('form_notifications[auto_reply_include]', form_notifications.auto_reply_include, 'Add a copy of their answers', '') }}
+          </div>
+        </section>
+      </div>
+    </div>
+
+    {# ---- Submissions #}
+    <div class="tab-panel hidden space-y-4" role="tabpanel" data-panel="submissions">
+      <div class="{{ section_class }}">
+        <div class="{{ section_header_class }} flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 class="text-sm font-semibold text-slate-900">Submissions</h2>
+            <p class="mt-0.5 text-xs text-slate-500">{{ form_submissions_total > form_submissions|length ? 'Latest ' ~ form_submissions|length ~ ' of ' ~ form_submissions_total ~ ' stored submissions.' : 'Stored submissions for this form.' }}</p>
+          </div>
+          {% if slug %}
+            <div class="flex flex-wrap gap-2">
+              <a class="{{ secondary_button_class }}" href="{{ url('admin/form-submissions?slug=' ~ slug) }}">Browse all{% if form_submissions_total > form_submissions|length %} ({{ form_submissions_total }}){% endif %}</a>
+              <a class="{{ secondary_button_class }}" href="{{ url('admin/forms-export?slug=' ~ slug ~ '&lang=' ~ lang) }}">Export CSV</a>
+            </div>
+          {% endif %}
+        </div>
+        {% if form_submissions is empty %}
+          <p class="text-sm text-slate-500">No submissions yet.</p>
+        {% else %}
+          <div class="grid gap-3">
+            {% for submission in form_submissions %}
+              <details class="rounded-md border border-slate-200 bg-slate-50 p-3">
+                <summary class="flex cursor-pointer items-center justify-between gap-3 text-sm font-medium text-slate-800">
+                  <span>{{ submission.title }}</span>
+                  <span class="text-xs font-normal text-slate-500">{{ submission.submitted_at }}</span>
+                </summary>
+                <div class="mt-3 grid gap-2">
+                  {% for row in submission.fields %}
+                    <div class="flex flex-wrap items-start justify-between gap-3 border-t border-slate-200 pt-2 text-sm">
+                      <strong class="text-slate-700">{{ row.label }}</strong>
+                      <span class="text-slate-600">{{ row.value }}</span>
+                    </div>
+                  {% endfor %}
+                </div>
+              </details>
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    {# ---- Page: a form also has a page of its own #}
+    <div class="tab-panel hidden space-y-4" role="tabpanel" data-panel="page">
+      <p class="text-sm text-slate-500">
+        A form can stand on a page of its own{% if front_url %} (<a class="font-medium text-blue-600 hover:text-blue-700" href="{{ front_url }}" target="_blank" rel="noopener">open it<span class="sr-only"> (opens in a new tab)</span></a>){% endif %}, or be put inside any page with the shortcode or a Form block. These are for its own page.
+      </p>
+      <div class="grid gap-4 lg:grid-cols-2">
+        <section class="{{ section_class }}">
+          <div class="{{ section_header_class }}">
+            <h2 class="text-sm font-semibold text-slate-900">Introduction</h2>
+            <p class="mt-0.5 text-xs text-slate-500">Shown above the form on its own page.</p>
+          </div>
+          <div class="grid gap-3">
+            <label class="block">
+              <span class="{{ label_class }}">Line under the title</span>
+              <input type="text" name="excerpt" value="{{ meta_form.excerpt }}" class="{{ input_class }}">
+            </label>
+            <label class="block">
+              <span class="{{ label_class }}">Text above the form <span class="font-normal text-slate-500">(Markdown)</span></span>
+              <textarea name="body" rows="8" class="{{ textarea_class }}">{{ body }}</textarea>
+            </label>
+          </div>
+        </section>
+
+        <div class="space-y-4">
+          {% if opening.layouts|default([]) is not empty or opening.transparent|default([]) is not empty %}
+            <section class="{{ section_class }}" data-opening>
+              <div class="{{ section_header_class }}">
+                <h2 class="text-sm font-semibold text-slate-900">Title layout</h2>
+                <p class="mt-0.5 text-xs text-slate-500">For this form only. Leave both on “Follow settings” to use what Theme settings say.</p>
+              </div>
+              <div class="grid gap-3">
+                {% if opening.layouts is not empty %}
+                  <label class="block">
+                    <span class="{{ label_class }}">Title layout</span>
+                    <select name="hero_layout" class="{{ input_class }}">
+                      <option value="">Follow settings ({{ opening.layouts[opening.type_layout]|default(opening.type_layout) }})</option>
+                      {% for key, label in opening.layouts %}
+                        <option value="{{ key }}" {% if meta_form.hero_layout|default('') == key %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                {% endif %}
+                {% if opening.transparent is not empty %}
+                  <label class="block">
+                    <span class="{{ label_class }}">Transparent over an opening hero</span>
+                    <select name="header_transparent" class="{{ input_class }}">
+                      <option value="">Follow settings ({{ opening.transparent[opening.type_transparent]|default(opening.type_transparent) }})</option>
+                      {% for key, label in opening.transparent %}
+                        <option value="{{ key }}" {% if meta_form.header_transparent|default('') == key %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                {% endif %}
+              </div>
+            </section>
+          {% endif %}
+
+          <section class="{{ section_class }}">
+            <div class="{{ section_header_class }}">
+              <h2 class="text-sm font-semibold text-slate-900">Search engines</h2>
+              <p class="mt-0.5 text-xs text-slate-500">For its own page.</p>
+            </div>
+            <div class="grid gap-3">
+              <label class="block"><span class="{{ label_class }}">Title</span><input type="text" name="seo_title" value="{{ meta_form.seo_title }}" class="{{ input_class }}"></label>
+              <label class="block"><span class="{{ label_class }}">Description</span><textarea name="seo_description" rows="3" class="{{ textarea_class }}">{{ meta_form.seo_description }}</textarea></label>
+              {{ ui.toggle('seo_noindex', meta_form.seo_noindex, 'Keep it out of search results', 'Adds noindex to its page.') }}
+              {{ ui.toggle('visible', meta_form.visible, 'Show in lists', 'Listings and the sitemap.') }}
+              <details class="rounded-md border border-slate-200 bg-slate-50/60 px-3 py-2">
+                <summary class="cursor-pointer text-xs font-medium text-slate-600">Sharing and canonical address</summary>
+                <div class="mt-3 grid gap-3">
+                  <label class="block"><span class="{{ label_class }}">Canonical address</span><input type="text" name="seo_canonical" value="{{ meta_form.seo_canonical }}" placeholder="https://example.com/path" class="{{ input_class }}"></label>
+                  <label class="block"><span class="{{ label_class }}">Share title</span><input type="text" name="seo_og_title" value="{{ meta_form.seo_og_title }}" class="{{ input_class }}"></label>
+                  <label class="block"><span class="{{ label_class }}">Share description</span><textarea name="seo_og_description" rows="3" class="{{ textarea_class }}">{{ meta_form.seo_og_description }}</textarea></label>
+                  <label class="block"><span class="{{ label_class }}">Share image</span><input type="text" name="seo_og_image" value="{{ meta_form.seo_og_image }}" placeholder="/uploads/your-image.jpg" class="{{ input_class }}"></label>
+                </div>
+              </details>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    {# ---- Translations #}
+    <div class="tab-panel hidden space-y-4" role="tabpanel" data-panel="translations">
+      <div class="{{ section_class }}">
+        <div class="{{ section_header_class }}">
+          <h2 class="text-sm font-semibold text-slate-900">Translations</h2>
+          <p class="mt-0.5 text-xs text-slate-500">The same form in other languages. A new translation starts as a copy of the form in the default language.</p>
+        </div>
+        <div class="grid gap-3">
+          {% for t in translations %}
+            <div class="grid gap-3 rounded-md border border-slate-200 bg-slate-50 p-3 md:grid-cols-[auto_1fr_auto] md:items-center">
+              <div class="font-semibold uppercase text-slate-900">{{ t.lang }}</div>
+              <div class="min-w-0">
+                {% if t.exists %}
+                  <div class="truncate font-medium text-slate-900">{{ t.title }}</div>
+                {% else %}
+                  <div class="text-sm text-slate-500">Not created yet.</div>
+                {% endif %}
+                <div class="truncate text-sm text-slate-500">/{{ t.slug }}</div>
+              </div>
+              <div class="flex justify-end">
+                {% if t.exists %}
+                  <a class="{{ secondary_button_class }}" href="{{ url(t.edit_url) }}">Edit</a>
+                {% else %}
+                  <a class="{{ primary_button_class }}" href="{{ url(t.create_url) }}">Create</a>
+                {% endif %}
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    {# ---- History #}
+    {% if address.exists %}
+      <div class="tab-panel hidden space-y-4" role="tabpanel" data-panel="history">
+        <div class="{{ section_class }}">
+          <div class="{{ section_header_class }}">
+            <h2 class="text-sm font-semibold text-slate-900">History</h2>
+            <p class="mt-0.5 text-xs text-slate-500">Earlier versions of this form. Open one to see what changed and to restore it.</p>
+          </div>
+          {% if history %}
+            <ul class="divide-y divide-slate-100">
+              {% for h in history %}
+                <li class="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
+                  <div class="min-w-0">
+                    <span class="font-medium text-slate-900">{{ h.action_label }}</span>
+                    <span class="text-slate-500">{{ h.when }}{% if h.actor %} · {{ h.actor }}{% endif %}</span>
+                  </div>
+                  <a class="font-medium text-blue-600 hover:text-blue-700" href="{{ url('admin/revisions?id=' ~ h.id) }}">View changes</a>
+                </li>
+              {% endfor %}
+            </ul>
+            {% if history_total > history|length %}
+              <p class="mt-2 text-xs text-slate-500">Showing the latest {{ history|length }} of {{ history_total }}.</p>
+            {% endif %}
+            <a class="mt-3 inline-block text-sm font-medium text-blue-600 hover:text-blue-700" href="{{ url('admin/revisions?type=forms&slug=' ~ slug ~ '&lang=' ~ lang) }}">All versions</a>
+          {% else %}
+            <p class="text-sm text-slate-500">No versions are kept yet. The first one is recorded when you save.</p>
+          {% endif %}
+        </div>
+      </div>
+    {% endif %}
+
+    {# ---- Advanced #}
+    <div class="tab-panel hidden space-y-4" role="tabpanel" data-panel="advanced">
+      <div class="{{ section_class }}">
+        <div class="{{ section_header_class }}">
+          <h2 class="text-sm font-semibold text-slate-900">Front matter</h2>
+          <p class="mt-0.5 text-xs text-slate-500">The form as a file (YAML), merged with what is set on the other tabs. The fields are edited in Build.</p>
+        </div>
+        <textarea name="frontmatter" rows="16" aria-label="Front matter (YAML)" class="{{ textarea_class }} font-mono text-[13px] leading-6">{{ frontmatter }}</textarea>
+      </div>
+    </div>
+
+    {% embed '@admin/partials/action-bar.twig' %}
+      {% block leading %}
+        {% if slug %}
+          <button type="submit" class="{{ danger_button_class }}" formaction="{{ url('admin/delete') }}" formmethod="post" data-confirm="Delete this form? Its stored submissions are kept." data-confirm-button="Delete" data-fb-delete>Delete</button>
+        {% endif %}
+        <span data-dirty-note class="hidden items-center gap-2 text-sm text-white/90"><span class="h-2 w-2 rounded-full bg-amber-400" aria-hidden="true"></span> Unsaved changes</span>
+      {% endblock %}
+      {% block actions %}
+        <button type="submit" class="{{ primary_button_class }}" data-fb-save>
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+          Save form
+        </button>
+      {% endblock %}
+    {% endembed %}
+  </form>
+  </div>
+
+  <script>
+    (function () {
+      var buttons = document.querySelectorAll('[data-form-builder] .tab-button');
+      var panels = document.querySelectorAll('[data-form-builder] .tab-panel');
+      function show(name) {
+        buttons.forEach(function (b) { var on = b.getAttribute('data-tab') === name; b.classList.toggle('active', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); });
+        panels.forEach(function (p) { var on = p.getAttribute('data-panel') === name; p.classList.toggle('active', on); p.classList.toggle('hidden', !on); p.classList.toggle('block', on); });
+      }
+      buttons.forEach(function (b) { b.addEventListener('click', function () { show(b.getAttribute('data-tab')); }); });
+      var start = (location.hash || '').replace('#', '');
+      show(start && document.querySelector('[data-panel="' + start + '"]') ? start : 'build');
+      window.fbShowTab = show;
+    })();
+  </script>
+  <script src="{{ asset('js/admin-form-builder.js') }}" defer></script>
+{% endblock %}

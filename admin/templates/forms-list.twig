@@ -15,7 +15,7 @@
     </div>
     <div class="flex flex-wrap items-center gap-2">
       {{ ui.filter_button('formFilter', filters_active) }}
-      <a class="{{ btn_primary }}" href="{{ url('admin/new?type=forms&lang=' ~ default_lang) }}">
+      <a class="{{ btn_primary }}" href="{{ url('admin/forms-new?lang=' ~ default_lang) }}">
         <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
         New form
       </a>

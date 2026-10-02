@@ -2216,6 +2216,39 @@ body.has-transparent-header:not(.header-solid) .site-header.is-on-dark[data-stic
   gap: var(--space-s);
 }
 
+/* A field can take a half, a third or two thirds of the row (Admin > Forms); on a narrow screen every field has a row to itself. */
+@media (min-width: 40rem) {
+  .form-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .form-grid > * {
+    grid-column: 1 / -1;
+  }
+
+  .form-grid > .form-w-half {
+    grid-column: span 3;
+  }
+
+  .form-grid > .form-w-third {
+    grid-column: span 2;
+  }
+
+  .form-grid > .form-w-two-thirds {
+    grid-column: span 4;
+  }
+}
+
+.form-grid .form-heading {
+  margin: var(--space-s) 0 0;
+  font-size: var(--step-1, 1.25rem);
+}
+
+.form-grid .form-text {
+  margin: 0;
+  color: var(--color-muted);
+}
+
 .form-grid label,
 .form-grid fieldset,
 .form-field {

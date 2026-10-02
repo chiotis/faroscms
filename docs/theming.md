@@ -308,7 +308,7 @@ Text is escaped so nothing typed in the admin can end the script tag. Templates 
 - One `<h1>` per page and no skipped heading levels (blocks and cards pick their level from the page).
 - Mobile menu: a dialog with `aria-expanded`, focus moved in, kept in, and returned on close; Escape closes it.
 - Cards and feature items have one link each (the title), stretched over the item.
-- Forms: labels for every control, `aria-describedby` for help and errors, `aria-invalid`, announced status messages, and `autocomplete` hints.
+- Forms: a field can take a half, a third or two thirds of the row (`field.width`: `form-w-half`, `form-w-third`, `form-w-two-thirds` on a screen from 40rem), and a form can hold a heading (`.form-heading`) and a text (`.form-text`) between its fields; `components/form.twig` draws them. Labels for every control, `aria-describedby` for help and errors, `aria-invalid`, announced status messages, and `autocomplete` hints.
 - Social links render only when set in Theme settings (no `#` placeholders).
 - Submenus open on hover and focus and close with Escape (focus returns to the parent link); overlays (viewers, the mobile menu) return focus to what opened them.
 - Markdown tables are supported and sit in a keyboard-focusable box that scrolls sideways on narrow screens, so no page needs horizontal scrolling at 320 px.

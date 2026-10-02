@@ -67,6 +67,16 @@ final class ContentEditor
         $customKeys = $post['custom_keys'] ?? [];
         $customValues = $post['custom_values'] ?? [];
         $formFieldsInput = $post['form_fields'] ?? [];
+        // The form builder sends its fields as one JSON list (a client that sends rows of fields instead sends no list). One that cannot be read leaves the stored fields as they are.
+        $formFieldsKeep = false;
+        if (trim((string)($post['form_fields_json'] ?? '')) !== '') {
+            $decoded = strlen((string)$post['form_fields_json']) <= 600000 ? json_decode((string)$post['form_fields_json'], true) : null;
+            if (is_array($decoded) && array_is_list($decoded)) {
+                $formFieldsInput = $decoded;
+            } else {
+                $formFieldsKeep = true;
+            }
+        }
         $formNotificationsInput = $post['form_notifications'] ?? [];
         $formStoreSubmissions = isset($post['form_store_submissions']) && (string)($post['form_store_submissions']) === '1';
         $formSubmitLabel = trim((string)($post['form_submit_label'] ?? ''));
@@ -350,11 +360,13 @@ final class ContentEditor
         }
 
         if ($type === 'forms') {
-            $fields = FormFields::parseInput($formFieldsInput);
-            if (!empty($fields)) {
-                $data['fields'] = $fields;
-            } else {
-                unset($data['fields']);
+            if (!$formFieldsKeep) {
+                $fields = FormFields::parseInput($formFieldsInput);
+                if (!empty($fields)) {
+                    $data['fields'] = $fields;
+                } else {
+                    unset($data['fields']);
+                }
             }
 
             $notifications = [];

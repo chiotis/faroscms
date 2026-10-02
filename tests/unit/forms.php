@@ -47,6 +47,26 @@ $required = FormFields::normalize([['name' => 'pick', 'label' => 'Pick', 'type' 
 check('a required choice list needs at least one valid choice', [array_keys($p->collect($required, ['pick' => ['x']])['errors']), $p->collect($required, ['pick' => ['a']])['errors']], [['pick'], []]);
 check('a field with no options list accepts any choice', $p->collect(FormFields::normalize([['name' => 'any', 'label' => 'Any', 'type' => 'select']]), ['any' => 'whatever'])['errors'], []);
 
+// ---- parts of a form that only show something
+$withParts = FormFields::normalize([
+    ['type' => 'heading', 'label' => 'About you'],
+    ['name' => 'name', 'label' => 'Name', 'type' => 'text', 'required' => true],
+    ['type' => 'paragraph', 'label' => 'Explained'],
+    ['name' => 'note', 'label' => 'Note', 'type' => 'text', 'default' => 'x'],
+]);
+check('a heading or a paragraph has no value, is not checked and is not in the answers', [array_keys($p->defaults($withParts)), array_keys($p->collect($withParts, ['name' => 'A'])['values']), $p->collect($withParts, ['name' => 'A', 'heading-1' => 'x'])['errors']], [['name', 'note'], ['name', 'note'], []]);
+$partsForm = new ContentItem('forms', 'contact', 'el', ['title' => 'Contact'], '', '', '', 0);
+check('nor in the text of the email', $p->body($partsForm, ['name' => 'Ada', 'note' => ''], $withParts, 'https://s.test/c'), "Form: Contact\nURL: https://s.test/c\n\nName: Ada\nNote: ");
+
+// ---- an answer put in a text
+$mf = FormFields::normalize([['name' => 'full-name', 'label' => 'Name', 'type' => 'text'], ['name' => 'email', 'label' => 'Email', 'type' => 'email'], ['name' => 'topics', 'label' => 'Topics', 'type' => 'checkboxes', 'options' => 'a,b'], ['type' => 'heading', 'label' => 'H']]);
+$vals = ['full-name' => "Ada\r\nLovelace", 'email' => 'ada@x.test', 'topics' => ['a', 'b']];
+check('{name} becomes the answer of that field, a list is joined, a line break is a space, and a word that is not a field is left', FormProcessor::fill('Hi {full-name} ({topics}) {nope} {heading-1} {}', $vals, $mf), 'Hi Ada  Lovelace (a, b) {nope} {heading-1} {}');
+check('a text with no braces is untouched', FormProcessor::fill('Plain', $vals, $mf), 'Plain');
+$autoForm = new ContentItem('forms', 'contact', 'el', ['title' => 'Contact', 'notifications' => ['enabled' => true, 'to' => 'me@x.test', 'subject' => 'From {full-name}', 'auto_reply' => true, 'auto_reply_subject' => 'Thanks {full-name}', 'auto_reply_message' => 'Hello {full-name}, we have {email}.']], '', '', '', 0);
+$mails = $p->emails($autoForm, $vals, $mf, [], 'https://s.test/c');
+check('the subject and the automatic reply have the answers in them (on one line in a subject)', [$mails[0]['subject'], $mails[1]['subject'], $mails[1]['body']], ['From Ada  Lovelace', 'Thanks Ada  Lovelace', 'Hello Ada  Lovelace, we have ada@x.test.']);
+
 // ---- the record
 $form = new ContentItem('forms', 'contact', 'el', ['title' => 'Contact', 'translation_id' => 'tid1'], '', '', '', 0);
 $rec = $p->record($form, ['name' => 'Ada'], '10.0.0.1', 'Agent/1.0');
