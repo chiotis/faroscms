@@ -51,6 +51,13 @@ final class WordPressImporter
 
     private bool $planned = false;
 
+    /** @var string where the logo will be in the library, and the old address that stands for it */
+    private string $logo = '';
+    private string $logoMedia = '';
+
+    /** @var array<string, array<string, mixed>> type:old slug => the page of a custom type that was read */
+    private array $scrapedBySlug = [];
+
     /** @var array<int, array{image: string, title: string, text: string, buttons: array<int, array{label: string, url: string}>}> */
     private array $slides = [];
 
@@ -132,6 +139,11 @@ final class WordPressImporter
 
         // What the API does not give, read from the pages themselves.
         $this->slides = $this->scraper?->slides() ?? [];
+        $logo = $this->scraper?->logo() ?? '';
+        if ($logo !== '') {
+            $this->logoMedia = $this->registerMedia($logo, '', '', false, true);
+            $this->logo = $this->mediaPath($this->mediaFiles[$this->logoMedia]);
+        }
         $menus = [];
         foreach (array_keys((array)($this->profile['menus'] ?? [])) as $menuKey) {
             $menus[(string)$menuKey] = $this->scraper?->menu((string)$menuKey) ?? [];
@@ -143,6 +155,7 @@ final class WordPressImporter
             $entry['new_slug'] = $slug;
             $entry['new_path'] = ContentPaths::build($type, $slug, $this->lang(), $this->homeSlug(), $this->defaultLang());
             $this->linkMap[self::pathOf($entry['link'])] ??= $entry['new_path'];
+            $this->scrapedBySlug[$type . ':' . $entry['id']] = $entry;
             $entries[] = $entry;
         }
         foreach ((array)($this->profile['archives'] ?? []) as $oldPath => $newType) {
@@ -198,6 +211,7 @@ final class WordPressImporter
             'terms' => $terms,
             'menus' => $menus,
             'slides' => count($this->slides),
+            'has_logo' => $this->logo !== '',
             'media' => $media,
             'redirects' => $redirects,
             'notes' => array_keys($notes),
@@ -217,7 +231,7 @@ final class WordPressImporter
      * Does what plan() described: terms, then files, then the pages and posts.
      *
      * @param array<string, mixed> $plan the result of plan()
-     * @return array{written: int, updated: int, skipped: int, media_new: int, media_failed: string[], terms_added: int, redirects: array<int, array{0: string, 1: string}>, notes: string[], menus: string[], content_types: string[]}
+     * @return array{written: int, updated: int, skipped: int, media_new: int, media_failed: string[], terms_added: int, redirects: array<int, array{0: string, 1: string}>, notes: string[], menus: string[], content_types: string[], logo: string}
      */
     public function apply(array $plan): array
     {
@@ -225,7 +239,7 @@ final class WordPressImporter
             throw new \LogicException('apply() needs the same importer that made the plan.');
         }
         $this->final = true;
-        $result = ['written' => 0, 'updated' => 0, 'skipped' => 0, 'media_new' => 0, 'media_failed' => [], 'terms_added' => 0, 'redirects' => [], 'notes' => [], 'menus' => [], 'content_types' => []];
+        $result = ['written' => 0, 'updated' => 0, 'skipped' => 0, 'media_new' => 0, 'media_failed' => [], 'terms_added' => 0, 'redirects' => [], 'notes' => [], 'menus' => [], 'content_types' => [], 'logo' => ''];
 
         foreach ($plan['terms'] as $name => $list) {
             $result['terms_added'] += $this->saveTerms((string)$name, $list);
@@ -262,6 +276,7 @@ final class WordPressImporter
             }
         }
 
+        $result['logo'] = $this->logoMedia !== '' && !empty($this->mediaReady[$this->logoMedia]) ? $this->logo : '';
         $result['menus'] = [];
         foreach ($plan['menus'] as $key => $items) {
             if ($items === []) {
@@ -345,6 +360,9 @@ final class WordPressImporter
         $this->mediaGone = [];
         $this->external = [];
         $this->slides = [];
+        $this->scrapedBySlug = [];
+        $this->logo = '';
+        $this->logoMedia = '';
         $this->planned = false;
         $this->final = false;
     }
@@ -452,6 +470,7 @@ final class WordPressImporter
             [$image, $text] = self::splitLeadingImage($body);
             $front['template'] = 'landing';
             $front['blocks'] = $this->fill($home, ['@slides' => $this->slideItems(), '@body' => $text, '@image' => $image]);
+            $front['blocks'] = $this->fillBooks($front['blocks']);
             $body = '';
         }
         return ['front' => $front, 'body' => $body, 'notes' => $converter->notes()];
@@ -538,6 +557,44 @@ final class WordPressImporter
             $out[$key] = $this->fill($value, $values);
         }
         return $out;
+    }
+
+    /**
+     * Words of the form @page:<type>:<slug>:<field> in the blocks, filled from a page of a custom type that was read
+     * from the site: title, text (the description as Markdown), image, address, or excerpt (the first words of the
+     * description). A page that is not there leaves the words as they are.
+     *
+     * @param mixed $blocks
+     * @return mixed
+     */
+    private function fillBooks(mixed $blocks): mixed
+    {
+        if (is_string($blocks) && preg_match('/^@page:([a-z0-9_-]+):([^:]+):(title|text|image|address|excerpt)$/i', $blocks, $m)) {
+            $entry = $this->scrapedBySlug[$m[1] . ':' . $m[2]] ?? null;
+            if ($entry === null) {
+                return $blocks;
+            }
+            $converter = new HtmlToMarkdown(fn(string $address, string $kind): string => $this->resolve($address, $kind));
+            return match ($m[3]) {
+                'title' => $entry['title'],
+                'text' => trim($converter->convert((string)$entry['summary'])),
+                'image' => $entry['image'] !== '' ? $this->resolve((string)$entry['image'], 'image') : '',
+                'address' => '/' . $entry['new_path'],
+                default => $this->shorten(WordPressReader::text((string)$entry['summary']), 360),
+            };
+        }
+        if (!is_array($blocks)) {
+            return $blocks;
+        }
+        foreach ($blocks as $key => $value) {
+            $blocks[$key] = $this->fillBooks($value);
+        }
+        return $blocks;
+    }
+
+    private function shorten(string $text, int $length): string
+    {
+        return mb_strlen($text) > $length ? rtrim(mb_substr($text, 0, $length, 'UTF-8'), " ,.;:") . '…' : $text;
     }
 
     /**

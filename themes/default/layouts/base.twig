@@ -15,6 +15,7 @@
 {% set mode = appearance.mode|default('system') %}
 {% set font = appearance.font|default('sans') %}
 {% set shape = appearance.shape|default('soft') %}
+{% set glow = appearance.glow|default('soft') == 'solid' ? 'solid' : 'soft' %}
 {# The header sits over an opening hero (a Hero block, or the title area of the page) when the entry, its content type, or Theme settings > Header ask for it. #}
 {% import 'components/hero-layout.twig' as opening %}
 {% set header_settings = theme_settings.header|default({}) %}
@@ -30,7 +31,7 @@
   {% set transparent_on_dark = transparent_header and (lead_block.variant in ['cover', 'steps'] or lead_block.tone in ['contrast', 'accent']) %}
 {% endif %}
 {% set og_locales = {'el': 'el_GR', 'en': 'en_US', 'de': 'de_DE', 'fr': 'fr_FR', 'it': 'it_IT', 'es': 'es_ES'} %}
-<html lang="{{ current_language }}" data-theme="{{ palette }}" data-mode="{{ mode }}" data-font="{{ font }}" data-shape="{{ shape }}">
+<html lang="{{ current_language }}" data-theme="{{ palette }}" data-mode="{{ mode }}" data-font="{{ font }}" data-shape="{{ shape }}" data-glow="{{ glow }}">
 
 <head>
   <meta charset="utf-8">

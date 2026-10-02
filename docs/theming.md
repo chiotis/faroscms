@@ -16,7 +16,7 @@ Two rules follow from that:
 | Theme contract | `themes/default/theme.yaml` | Done |
 | Design system: tokens, palettes, dark mode, fonts, corner shapes | `assets/css/site.css` | Done |
 | Content blocks per page or post | `themes/default/blocks/<block>/` + `blocks:` in front matter | 23 blocks in three families; admin block editor |
-| Site-level component variants (header, footer) | `components/`, Theme settings | Header: 4 layouts, transparent (per content type and per entry), sticky modes, top bar, CTA, phone bottom bar with its own list of icon links, 5 phone menu styles. Footer: 3 layouts |
+| Site-level component variants (header, footer) | `components/`, Theme settings | Header: 4 layouts, transparent (per content type and per entry), sticky modes, top bar, CTA, phone bottom bar with its own list of icon links, 5 phone menu styles. Footer: 4 layouts (columns, one row, bar, centered). Header background (a solid tint) and a search box |
 | Page templates (standard, landing, with sidebar) | `templates/`, `page_templates` in the manifest | Done |
 | Ready-made sections and page layouts | `presets/`, `custom/presets/` | Done |
 | Field definitions and archive settings per content type | `themes/default/content-types/`, `custom/content-types/`, Admin > Content types | Done |
@@ -134,6 +134,7 @@ First block family:
 | `stats` | row, cards | Numbers in a `<dl>`. |
 | `testimonials` | grid, featured | `<figure>`/`<blockquote>`; initials when there is no photo. |
 | `logos` | row, grid | Image logos or text wordmarks. |
+| `columns` | image-side, image-top | Two or three columns side by side, each with a label, a heading (a link when it has an address), a picture, text and a link; stacks on a phone. |
 | `faq` | stacked, split | Native `<details>`; adds `FAQPage` structured data. |
 | `cta` | band, card, split | Default tone: accent. |
 | `cards` | grid, list | Latest items of a content type, or hand-written cards. |
@@ -244,7 +245,7 @@ Editors can tick blocks and **Save as section**: the blocks are checked and writ
 
 Theme settings > Header:
 
-- **Layout**: classic (logo left, menu right), centered (logo in the middle, menu below), minimal (logo and a menu button on all screens), stacked (menu in a full-width bar underneath, with a background of its own).
+- **Layout**: classic (logo left, menu right), centered (logo in the middle, menu below), minimal (logo and a menu button on all screens), stacked (menu in a full-width bar underneath, with a background of its own). **Header background** (page background, muted, or a soft tint of the palette colour) colours the row with the logo; **Search** can be an icon or a search box in the header; in the stacked bar the page you are on is highlighted (a palette can set `--bar-highlight`, Garnet uses gold). **Footer layout Bar**: the copyright on the left and the links on the right, one thin line between them. All of these are solid colours.
 - **Transparent over an opening hero**: on pages that start with a Hero block the header overlays it (light text over a cover image or dark hero) and turns solid when the page scrolls.
 - **Sticky**: slides in after scrolling, always at the top, or scrolls away.
 - **Button**: a CTA in the header and the mobile menu.
@@ -259,6 +260,7 @@ A site-specific block goes in `custom/blocks/<type>/` with the same files.
 
 `site.css` defines semantic tokens (`--color-bg`, `--color-surface`, `--color-text`, `--color-muted`, `--color-border`, `--accent`, `--accent-soft`, `--accent-contrast`, spacing `--space-*`, type scale `--step-*`, radii `--radius-*`). Theme settings switch them through attributes on `<html>`:
 
+- `data-glow`: `solid` removes the decorative glows (Appearance > Decoration);
 - `data-theme`: palette (slate, indigo, emerald, teal, rose, amber, garnet), with light and dark variants of each accent;
 - `data-mode` and the `.dark` class: colour mode, following the system until the visitor chooses;
 - `data-font`: sans (Inter), display (serif headings with Inter text), serif, or system (no font download);

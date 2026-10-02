@@ -66,6 +66,17 @@ final class WordPressScraper
         return $entries;
     }
 
+    /** The address of the site's logo picture, found on the home page ('' when the profile has no rule or nothing is found). */
+    public function logo(): string
+    {
+        $rule = (string)($this->profile['logo'] ?? '');
+        if ($rule === '') {
+            return '';
+        }
+        $html = $this->reader->page($this->reader->site() . '/');
+        return $html === null ? '' : $this->attribute($this->xpath($html), $rule);
+    }
+
     /**
      * The slides of the home page, in order.
      *

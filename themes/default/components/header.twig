@@ -37,7 +37,9 @@
   {% if contact.email|default('') %}<a href="mailto:{{ contact.email }}">{{ icon('mail') }}<span>{{ contact.email }}</span></a>{% endif %}
 {% endset %}
 
-<header class="site-header header--{{ layout }}{% if transparent_header|default(false) %} is-transparent{% endif %}{% if transparent_on_dark|default(false) %} is-on-dark{% endif %}" data-sticky="{{ hs.sticky|default('on_scroll') }}">
+{% set row_tone = hs.row_tone|default('default') in ['muted', 'soft'] ? hs.row_tone : 'default' %}
+{% set search_field = hs.search|default('icon') == 'field' %}
+<header class="site-header header--{{ layout }}{% if row_tone != 'default' %} row-{{ row_tone }}{% endif %}{% if search_field %} has-search-field{% endif %}{% if transparent_header|default(false) %} is-transparent{% endif %}{% if transparent_on_dark|default(false) %} is-on-dark{% endif %}" data-sticky="{{ hs.sticky|default('on_scroll') }}">
   {% if hs.topbar_text|default('') or show_topbar_contacts %}
     <div class="topbar">
       <div class="site-wrap topbar-row">
@@ -69,6 +71,13 @@
     {% endif %}
 
     <div class="header-tools">
+      {% if search_field %}
+        <form class="header-search" role="search" action="{{ url(prefix ~ 'search') }}" method="get">
+          <label class="visually-hidden" for="header-search-q">{{ t('search.title', 'Search') }}</label>
+          <input type="search" id="header-search-q" name="q" placeholder="{{ t('search.placeholder') }}">
+          <button class="btn btn-primary" type="submit">{{ t('search.title', 'Search') }}</button>
+        </form>
+      {% endif %}
       <a class="search-link" href="{{ url(prefix ~ 'search') }}" aria-label="{{ t('search.title', 'Search') }}">
         <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
           <path d="M10.5 3a7.5 7.5 0 105.01 13.08l4.2 4.2 1.41-1.41-4.2-4.2A7.5 7.5 0 0010.5 3zm0 2a5.5 5.5 0 110 11 5.5 5.5 0 010-11z"></path>

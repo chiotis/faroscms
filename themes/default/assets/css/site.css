@@ -159,11 +159,20 @@
   --accent-d: #f4a8a0; --accent-d-hover: #f9c9c3; --accent-d-soft: #2d1818;
   --n-bg: #fffdf8; --n-surface: #f8f1e4; --n-surface-2: #f0e5d0;
   --n-text: #261b14; --n-muted: #5b4a3d; --n-border: #eadfca; --n-border-strong: #cdbb9b;
-  /* Dark surfaces (dark mode, the footer, panels over pictures) are warm too, not blue. */
-  --ink: #1d1311; --ink-rgb: 29 19 17; --ink-2: #2b1b17;
-  --d-bg: #1d1311; --d-surface: #281a17; --d-surface-2: #342320;
-  --d-text: #f6ece6; --d-muted: #cdb8ad; --d-border: #3f2c27; --d-border-strong: #5c423a;
-  --accent-contrast-d: #1d1311;
+  /* Dark surfaces (dark mode, the footer, panels over pictures) are a warm charcoal, not blue. */
+  --ink: #323130; --ink-rgb: 50 49 48; --ink-2: #403e3c;
+  --d-bg: #232120; --d-surface: #2c2a28; --d-surface-2: #373432;
+  --d-text: #f4efea; --d-muted: #c6bdb5; --d-border: #433f3b; --d-border-strong: #5f5853;
+  --accent-contrast-d: #232120;
+  --bar-highlight: #ffd23f;
+}
+
+/* Solid colours only: no decorative gradients behind headings or in cards. */
+:root[data-glow="solid"] .single-hero-split::before,
+:root[data-glow="solid"] .single-hero-minimal::before,
+:root[data-glow="solid"] .block-hero::before,
+:root[data-glow="solid"] .block-cta.block--card .cta-inner::before {
+  display: none;
 }
 
 :root[data-font="serif"] {
@@ -414,8 +423,8 @@ hr {
 
 /* Two neighbouring sections on the same background share one gap. A full-width cover image is its own background,
    so the section after it keeps its own top space. */
-.block.tone-default:not(.block--cover, .block-hero.block--steps) + .block.tone-default:not(.block-hero),
-.block.tone-muted + .block.tone-muted {
+.block.tone-default:not(.block--cover, .block-hero.block--steps, .space-none) + .block.tone-default:not(.block-hero),
+.block.tone-muted:not(.space-none) + .block.tone-muted {
   padding-top: 0;
 }
 
@@ -807,10 +816,20 @@ ul.checklist li::before {
 /* 5. Header and navigation ---------------------------------------------------- */
 
 .site-header {
+  --header-bg: var(--color-bg);
   position: relative;
   z-index: 50;
   border-bottom: 1px solid var(--color-border);
-  background: var(--color-bg);
+  background: var(--header-bg);
+}
+
+/* The row with the logo can be a solid tint; the menu bar below keeps its own colour. */
+.site-header.row-muted {
+  --header-bg: var(--color-surface);
+}
+
+.site-header.row-soft {
+  --header-bg: var(--accent-soft);
 }
 
 .header-spacer {
@@ -823,7 +842,7 @@ body.header-sticky .site-header {
   left: 0;
   right: 0;
   z-index: 60;
-  background: color-mix(in srgb, var(--color-bg) 88%, transparent);
+  background: color-mix(in srgb, var(--header-bg) 88%, transparent);
   -webkit-backdrop-filter: saturate(1.6) blur(14px);
   backdrop-filter: saturate(1.6) blur(14px);
   box-shadow: 0 12px 32px -24px rgb(15 23 42 / 0.4);
@@ -1449,6 +1468,47 @@ body.header-solid .site-header[data-sticky="always"] {
 
 .header-bar.tone-accent .nav-link:not(.nav-cta) {
   color: var(--accent-contrast-l);
+}
+
+/* The page the visitor is on stands out in the bar (a palette can set --bar-highlight). */
+.header-bar.tone-accent .nav-item.is-active > .nav-link:not(.nav-cta) {
+  background: transparent;
+  color: var(--bar-highlight, var(--accent-contrast-l));
+  font-weight: 700;
+}
+
+/* A search box in the header: the icon stays only where there is no room for the box. */
+.header-search {
+  display: none;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+}
+
+.header-search input[type="search"] {
+  width: 11rem;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-s);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--step--1);
+}
+
+.header-search .btn {
+  padding: 0.45rem 0.9rem;
+  font-size: var(--step--1);
+}
+
+@media (min-width: 900px) {
+  .has-search-field .header-search {
+    display: flex;
+  }
+
+  .has-search-field .header-tools .search-link {
+    display: none;
+  }
 }
 
 /* Stacked: brand left, contacts and tools right, menu in the bar below. */
@@ -2463,6 +2523,35 @@ p.form-error {
   flex-wrap: wrap;
   gap: 0.5rem 1.4rem;
   margin: 0;
+}
+
+.footer--bar .site-footer-inner {
+  padding-top: 0;
+}
+
+.footer-barrow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-xs) var(--space-l);
+  padding-block: var(--space-m);
+}
+
+.footer-barrow .footer-copy {
+  margin: 0;
+}
+
+.footer-barrow .footer-inline-nav .footer-list-1,
+.footer-barrow .footer-inline-nav > .footer-list {
+  gap: 0;
+}
+
+/* Links in a row, a thin line between them. */
+.footer-barrow .footer-inline-nav .footer-item + .footer-item {
+  margin-left: 0.8rem;
+  padding-left: 0.8rem;
+  border-left: 1px solid var(--color-border-strong);
 }
 
 .footer--centered .footer-compact {

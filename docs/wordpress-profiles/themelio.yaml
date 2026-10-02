@@ -56,7 +56,11 @@ menus:
   footer:
     list: "//ul[contains(@class,'footer-menu')]"
 
-# The home page as blocks. @slides, @image (the picture the page text starts with) and @body (the text after it) are filled in.
+# The logo picture on the home page: brought into the library; set it in Theme settings > Brand > Logo.
+logo: "//h1[@id='logo']//img/@src"
+
+# The home page as blocks. @slides, @image (the picture the page text starts with) and @body (the text after it) are filled
+# in, and @page:<content type>:<old address>:<title|text|image|address|excerpt> takes a field of a page read above.
 home:
   blocks:
     - type: slider
@@ -66,17 +70,19 @@ home:
       spacing: none
       autoplay: '8'
       items: '@slides'
-    - type: text-image
-      variant: image-left
-      image: '@image'
-      image_ratio: portrait
-      body: '@body'
-    - type: latest
-      variant: cards
-      eyebrow: Books
-      heading: The books
-      source: books
-      limit: 4
-      columns: '4'
-      show_excerpt: false
-      show_meta: false
+    - type: columns
+      variant: image-side
+      items:
+        - image: '@image'
+          text: '@body'
+        - eyebrow: "Apostolos' books"
+          title: '@page:books:uncle-petros-and-goldbachs-conjecture:title'
+          url: '@page:books:uncle-petros-and-goldbachs-conjecture:address'
+          image: '@page:books:uncle-petros-and-goldbachs-conjecture:image'
+          text: '@page:books:uncle-petros-and-goldbachs-conjecture:excerpt'
+          link_label: Continue reading
+
+# The look that goes with it, set in Admin > Theme settings (the importer does not change settings):
+#   Appearance: Palette Garnet, Mode Light
+#   Header: Layout Stacked, Header background Muted, Menu bar background Palette colour, Search A search box in the header
+#   Footer: Layout Bar

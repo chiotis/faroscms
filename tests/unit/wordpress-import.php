@@ -44,7 +44,7 @@ $raw = [
     '/wp-sitemap-posts-book-1.xml' => '<?xml version="1.0"?><urlset><url><loc>' . $SITE . '/book/the-novel/</loc></url><url><loc>' . $SITE . '/book/no-tabs/</loc></url></urlset>',
     '/book/the-novel/' => '<html><body><h1 class="term-title">The Novel</h1><p class="book-cover"><img src="' . $SITE . '/wp-content/uploads/2013/cover-207x300.png"></p><div class="panel"><p><strong>The Novel</strong> is about <a href="/about/">the author</a>.</p></div><dl class="tabs"><dd><a href="#f">Features</a></dd><dd><a href="#l">Links</a></dd><dd><a href="#e">Editions</a></dd></dl><ul class="tabs-content"><li id="f"><p>Praise for it.</p></li><li id="l"><p><a href="https://shop.example/x">Buy</a></p></li><li id="e"> </li></ul></body></html>',
     '/book/no-tabs/' => '<html><body><h1 class="term-title">No Tabs</h1><div class="panel"><p>Short.</p></div></body></html>',
-    '/' => '<html><body><ul class="sf-menu"><li><a href="' . $SITE . '/">Home</a></li><li><a href="' . $SITE . '/book">Books</a><ul class="sub-menu"><li><a href="' . $SITE . '/category/news/">News</a></li></ul></li><li><a href="https://elsewhere.test/">Out</a></li></ul>'
+    '/' => '<html><body><h1 id="logo"><a href="/"><img src="' . $SITE . '/wp-content/themes/old/logo.png?v=1" alt="Old"></a></h1><ul class="sf-menu"><li><a href="' . $SITE . '/">Home</a></li><li><a href="' . $SITE . '/book">Books</a><ul class="sub-menu"><li><a href="' . $SITE . '/category/news/">News</a></li></ul></li><li><a href="https://elsewhere.test/">Out</a></li></ul>'
         . '<div id="homeslider"><div class="content" style="background:url(' . $SITE . '/wp-content/uploads/2013/cover-980x250.png) no-repeat center top"><h1>First</h1><div class="slide-text"><p>Text one.</p><p>More</p></div></div>'
         . '<div class="content" style="background:url(' . $SITE . '/wp-content/uploads/2013/cover.png)"><h1>Second</h1><div class="slide-text"><p>Buy at</p><span class="button"><a href="https://shop.example/a">Shop A</a></span><span class="button"><a href="/about/">About</a></span></div></div></div></body></html>',
 ];
@@ -61,7 +61,7 @@ $get = function (string $url) use (&$web, &$raw, $SITE, &$requests): ?array {
 $downloads = [];
 $download = function (string $url, string $to) use (&$downloads, $png): int {
     $downloads[] = $url;
-    if (str_ends_with($url, 'cover.png')) { file_put_contents($to, $png); return 200; }
+    if (str_ends_with($url, 'cover.png') || str_ends_with($url, 'logo.png')) { file_put_contents($to, $png); return 200; }
     if (str_ends_with($url, 'paper.pdf')) { file_put_contents($to, "%PDF-1.4\n%%EOF\n"); return 200; }
     return str_contains($url, 'flaky') ? 503 : 404;
 };
@@ -201,7 +201,8 @@ $profile = [
     'archives' => ['book' => 'books'],
     'slides' => ['items' => "//div[@id='homeslider']/div[contains(@class,'content')]", 'background' => 'style', 'title' => './/h1', 'text' => ".//div[contains(@class,'slide-text')]/p[1]", 'buttons' => ".//span[contains(@class,'button')]//a"],
     'menus' => ['main' => ['list' => "//ul[contains(@class,'sf-menu')]"]],
-    'home' => ['blocks' => [['type' => 'slider', 'variant' => 'banner', 'items' => '@slides'], ['type' => 'text-image', 'image' => '@image', 'body' => '@body']]],
+    'logo' => "//h1[@id='logo']//img/@src",
+    'home' => ['blocks' => [['type' => 'slider', 'variant' => 'banner', 'items' => '@slides'], ['type' => 'text-image', 'image' => '@image', 'body' => '@body'], ['type' => 'columns', 'items' => [['title' => '@page:books:the-novel:title', 'url' => '@page:books:the-novel:address', 'image' => '@page:books:the-novel:image', 'text' => '@page:books:the-novel:excerpt'], ['title' => '@page:books:nothing:title']]]]],
 ];
 $scraper = new WordPressScraper(new WordPressReader($SITE, $get), $profile);
 check('the scraper finds the pages of a custom type from the sitemap', array_map(fn($e) => $e['slug'], $scraper->entries()), ['the-novel', 'no-tabs']);
@@ -228,10 +229,15 @@ check('a tab\'s text is Markdown', $book['blocks'][1]['items'][1]['text'], '[Buy
 $noTabs = $front("$root/content/books/no-tabs.md");
 check('a page without tabs has only the description', array_column($noTabs['blocks'], 'type'), ['text-image']);
 $home = $front("$root/content/pages/index.md");
-check('the home page is blocks over a landing page', [$home['template'], array_column($home['blocks'], 'type'), $home['blocks'][0]['variant']], ['landing', ['slider', 'text-image'], 'banner']);
+check('the home page is blocks over a landing page', [$home['template'], array_column($home['blocks'], 'type'), $home['blocks'][0]['variant']], ['landing', ['slider', 'text-image', 'columns'], 'banner']);
 check('a slide has its picture, text and buttons', [$home['blocks'][0]['items'][0]['title'], str_starts_with($home['blocks'][0]['items'][0]['image'], '/uploads/media/'), array_intersect_key($home['blocks'][0]['items'][1], array_flip(['link_label', 'url', 'link_label_2', 'url_2']))], ['First', true, ['link_label' => 'Shop A', 'url' => 'https://shop.example/a', 'link_label_2' => 'About', 'url_2' => '/about']]);
 check('and the home text goes to the block with the picture split off', [$home['blocks'][1]['body'], $home['blocks'][1]['image']], ['Welcome. [About](/about), [old home](/).', '']);
 check('with the menus option the menu is written, addresses on the new site', [array_keys($menusWritten), array_map(fn($r) => $r['url'], $menusWritten['main']['items']), $menusWritten['main']['items'][1]['children'][0]['url']], [['main'], ['/', '/books', 'https://elsewhere.test/'], '/category/news']);
+$cols = $home['blocks'][2]['items'];
+check('a field of a page read from the site fills the words @page:type:slug:field', [$cols[0]['title'], $cols[0]['url'], $cols[0]['image'], $cols[0]['text']], ['The Novel', '/books/the-novel', "/uploads/media/$coverS.png", 'The Novel is about the author.']);
+check('and a page that is not there leaves them as they are', $cols[1]['title'], '@page:books:nothing:title');
+$logoId = substr(sha1("$SITE/wp-content/themes/old/logo.png"), 0, 16);
+check('the logo is brought into the library and its place is reported', [$resultS['logo'], is_file("$root/uploads/media/$logoId.png"), $planS['has_logo']], ["/uploads/media/$logoId.png", true, true]);
 check('the content type is defined when the site has no definition', [is_file("$root/custom/content-types/books.yaml"), $resultS['content_types']], [true, ['books']]);
 file_put_contents("$root/custom/content-types/books.yaml", "label: { en: Mine }\n");
 $again = $make(['menus' => true], $profile);

@@ -496,3 +496,27 @@
 .nav-inside .slider-dot:focus-visible {
   outline-color: #ffffff;
 }
+
+/* Full width: tall flat arrows against the edges of the screen, as on older sites */
+.slider-wide.nav-inside .slider-btn.is-prev,
+.slider-wide.nav-inside .slider-btn.is-next {
+  width: clamp(2.5rem, 4vw, 4.5rem);
+  height: clamp(4rem, 7vw, 6rem);
+  border: 0;
+  border-radius: 0;
+  background: rgb(var(--ink-rgb) / 0.72);
+  font-size: clamp(1.8rem, 3vw, 2.8rem);
+}
+
+.slider-wide.nav-inside .slider-btn.is-prev {
+  left: 0;
+}
+
+.slider-wide.nav-inside .slider-btn.is-next {
+  right: 0;
+}
+
+.slider-wide.nav-inside .slider-btn.is-prev:hover,
+.slider-wide.nav-inside .slider-btn.is-next:hover {
+  background: rgb(var(--ink-rgb));
+}

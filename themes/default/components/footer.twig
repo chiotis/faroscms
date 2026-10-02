@@ -1,5 +1,5 @@
 {#
-  Site footer. Theme settings > Footer: layout (columns, simple, centered), texts, contact details,
+  Site footer. Theme settings > Footer: layout (columns, simple, bar, centered), texts, contact details,
   and background. Social icons come from Theme settings > Social profiles.
 #}
 {% import 'components/menu-macros.twig' as menu_macros %}
@@ -48,6 +48,12 @@
 
       <div class="footer-bottom">
         {{ copyright }}
+        {% include 'components/social-links.twig' with {list_class: 'footer-icons'} %}
+      </div>
+    {% elseif layout == 'bar' %}
+      <div class="footer-barrow">
+        {{ copyright }}
+        <nav class="footer-inline-nav" aria-label="{{ t('footer.company', 'Company') }}">{{ menu_markup }}</nav>
         {% include 'components/social-links.twig' with {list_class: 'footer-icons'} %}
       </div>
     {% else %}

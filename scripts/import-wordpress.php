@@ -96,6 +96,9 @@ echo '  by kind: ' . implode(', ', array_map(static fn($k, $n) => "$k $n", array
 if ($plan['slides'] > 0) {
     echo "  home page slides: {$plan['slides']}\n";
 }
+if ($plan['has_logo']) {
+    echo "  logo: found\n";
+}
 foreach ($plan['menus'] as $key => $items) {
     echo "  menu '$key': " . count($items) . ' items' . ($opt['menus'] ? " (will be written)\n" : " (add --menus to write it)\n");
 }
@@ -145,6 +148,9 @@ printf("  %d written, %d updated, %d left alone\n  %d terms added\n  %d files br
 echo count($result['media_failed']) > 0 ? ', ' . count($result['media_failed']) . " could not be fetched\n" : "\n";
 foreach (array_slice($result['media_failed'], 0, 20) as $failed) {
     echo "    - $failed\n";
+}
+if ($result['logo'] !== '') {
+    echo "  logo brought into the library: {$result['logo']}\n    Set it in Admin > Theme settings > Brand > Logo.\n";
 }
 foreach ($result['menus'] as $key) {
     echo "  menu '$key' written\n";
