@@ -53,6 +53,10 @@ final class App
     private array $translations = [];
     private array $formStates = [];
     private ?Menus $menuStore = null;
+    private ?MenuAdmin $menuAdminService = null;
+    private ?LogAdmin $logAdminService = null;
+    private ?AdminNotices $adminNoticesService = null;
+    private ?UpdateAdmin $updateAdminService = null;
     private ?RevisionAdmin $revisionAdminService = null;
     private ?ContentAdmin $contentAdminService = null;
     private ?EntryForm $entryFormService = null;
@@ -227,6 +231,46 @@ final class App
             $this->contentCsv(),
             $this->content,
             fn(): array => $this->rebuildContentIndex(),
+            fn(string $action, string $level, ?string $type, ?string $id, string $message, array $context) => $this->logActivity($action, $level, $type, $id, $message, $context)
+        );
+    }
+
+    private function menuAdmin(): MenuAdmin
+    {
+        return $this->menuAdminService ??= new MenuAdmin(
+            $this->menus(),
+            fn(): array => $this->settings,
+            fn(string $action, string $level, ?string $type, ?string $id, string $message, array $context) => $this->logActivity($action, $level, $type, $id, $message, $context)
+        );
+    }
+
+    private function logAdmin(): LogAdmin
+    {
+        return $this->logAdminService ??= new LogAdmin(
+            $this->activityLogs,
+            $this->emailLogs,
+            fn(string $action, string $level, ?string $type, ?string $id, string $message, array $context) => $this->logActivity($action, $level, $type, $id, $message, $context)
+        );
+    }
+
+    private function adminNotices(): AdminNotices
+    {
+        return $this->adminNoticesService ??= new AdminNotices(
+            $this->notifications,
+            fn(): UpdateService => $this->updates(),
+            fn(): array => $this->systemStatus()->checks($this->siteLimits()->summary())
+        );
+    }
+
+    private function updateAdmin(): UpdateAdmin
+    {
+        return $this->updateAdminService ??= new UpdateAdmin(
+            fn(): UpdateService => $this->updates(),
+            $this->adminNotices(),
+            fn(): BackupAdmin => $this->backupAdmin(),
+            $this->backups,
+            $this->contentDir,
+            $this->basePath,
             fn(string $action, string $level, ?string $type, ?string $id, string $message, array $context) => $this->logActivity($action, $level, $type, $id, $message, $context)
         );
     }
@@ -1288,91 +1332,16 @@ final class App
 
     private function handleActivityLogs(): void
     {
-        $page = max(1, (int)($_GET['page'] ?? 1));
-        $perPage = (int)($_GET['per_page'] ?? 50);
-        if (!in_array($perPage, [25, 50, 100], true)) {
-            $perPage = 50;
-        }
-        $filters = [
-            'level' => trim((string)($_GET['level'] ?? '')),
-            'action' => trim((string)($_GET['action'] ?? '')),
-            'actor' => trim((string)($_GET['actor'] ?? '')),
-            'subject_type' => trim((string)($_GET['subject_type'] ?? '')),
-            'date_from' => trim((string)($_GET['date_from'] ?? '')),
-            'date_to' => trim((string)($_GET['date_to'] ?? '')),
-            'q' => trim((string)($_GET['q'] ?? '')),
-        ];
-        $total = $this->activityLogs->count($filters);
-        $totalPages = max(1, (int)ceil($total / $perPage));
-        $page = min($page, $totalPages);
-        $offset = ($page - 1) * $perPage;
-
-        $this->render('@admin/activity-logs.twig', [
-            'title' => 'Activity logs',
-            'logs' => $this->activityLogs->all($filters, $perPage, $offset),
-            'filters' => $filters,
-            'actions' => $this->activityLogs->actions(),
-            'subject_types' => $this->activityLogs->subjectTypes(),
-            'total_logs' => $total,
-            'page' => $page,
-            'total_pages' => $totalPages,
-            'per_page' => $perPage,
-            'per_page_options' => [25, 50, 100],
-            'types' => $this->content->getTypes(),
-            'user' => $this->auth->user(),
-            'admin_section' => 'activity',
-            'current_type' => 'pages',
-        ]);
+        $this->render('@admin/activity-logs.twig', $this->logAdmin()->activity($_GET) + ['types' => $this->content->getTypes(), 'user' => $this->auth->user()]);
     }
 
     private function handleEmailLogs(): void
     {
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $action = trim((string)($_POST['email_log_action'] ?? ''));
-            if ($action === 'clear') {
-                $cleared = $this->emailLogs->clear();
-                $this->logActivity('email_logs.clear', 'warning', 'email_logs', 'all', 'Email logs cleared.', [
-                    'cleared' => $cleared,
-                ]);
-                $this->redirect('/admin/email-logs?cleared=' . $cleared);
-                return;
-            }
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && trim((string)($_POST['email_log_action'] ?? '')) === 'clear') {
+            $this->redirect('/admin/email-logs?cleared=' . $this->logAdmin()->clearEmail());
+            return;
         }
-
-        $page = max(1, (int)($_GET['page'] ?? 1));
-        $perPage = (int)($_GET['per_page'] ?? 50);
-        if (!in_array($perPage, [25, 50, 100], true)) {
-            $perPage = 50;
-        }
-        $filters = [
-            'status' => trim((string)($_GET['status'] ?? '')),
-            'provider' => trim((string)($_GET['provider'] ?? '')),
-            'recipient' => trim((string)($_GET['recipient'] ?? '')),
-            'date_from' => trim((string)($_GET['date_from'] ?? '')),
-            'date_to' => trim((string)($_GET['date_to'] ?? '')),
-            'q' => trim((string)($_GET['q'] ?? '')),
-        ];
-        $total = $this->emailLogs->count($filters);
-        $totalPages = max(1, (int)ceil($total / $perPage));
-        $page = min($page, $totalPages);
-        $offset = ($page - 1) * $perPage;
-
-        $this->render('@admin/email-logs.twig', [
-            'title' => 'Email logs',
-            'logs' => $this->emailLogs->all($filters, $perPage, $offset),
-            'filters' => $filters,
-            'providers' => $this->emailLogs->providers(),
-            'total_logs' => $total,
-            'page' => $page,
-            'total_pages' => $totalPages,
-            'per_page' => $perPage,
-            'per_page_options' => [25, 50, 100],
-            'cleared' => isset($_GET['cleared']) ? (int)$_GET['cleared'] : null,
-            'types' => $this->content->getTypes(),
-            'user' => $this->auth->user(),
-            'admin_section' => 'email_logs',
-            'current_type' => 'pages',
-        ]);
+        $this->render('@admin/email-logs.twig', $this->logAdmin()->email($_GET) + ['types' => $this->content->getTypes(), 'user' => $this->auth->user()]);
     }
 
     private function handleNotificationRead(): void
@@ -1505,14 +1474,9 @@ final class App
         $this->renderBackupRestore($outcome['filename'], $outcome['error'], $outcome['selected']);
     }
 
-    private function preUpdateBackupStatus(): ?array
-    {
-        return $this->backupAdmin()->preUpdateStatus();
-    }
-
     private function handleUpdates(): void
     {
-        $updates = $this->updates();
+        $admin = $this->updateAdmin();
         if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $action = trim((string)($_POST['updates_action'] ?? ''));
             if ($action === 'pre_update_backup') {
@@ -1520,96 +1484,15 @@ final class App
                     $this->renderForbidden();
                     return;
                 }
-                $made = $this->backupAdmin()->preUpdateBackup($updates->currentVersion());
-                $this->redirect('/admin/updates?' . http_build_query([
-                    'pre_backup' => $made['ok'] ? 'ok' : 'fail',
-                    'pre_backup_msg' => $made['message'],
-                ]));
+                $this->redirect($admin->backupFirst());
                 return;
             }
             if ($action === 'check') {
-                $status = $updates->status(true);
-                $this->syncUpdateNotification($status);
-                $this->logActivity('updates.check', 'info', 'updates', 'local', 'Read-only update check completed.', [
-                    'current_version' => $status['current_version'],
-                    'remote_version' => $status['remote_version'],
-                    'source_status' => $status['source_status'],
-                    'source' => $status['source'],
-                ]);
-                $this->redirect('/admin/updates?checked=1');
+                $this->redirect($admin->check());
                 return;
             }
         }
-
-        $source = $updates->sourceConfig();
-        $status = $updates->status();
-        $this->syncUpdateNotification($status);
-        $changelog = $updates->readChangelogEntries();
-        $changelogSource = 'local';
-        $remoteChangelog = $updates->fetchRemoteChangelogEntries((string)$source['changelog_url']);
-        if (!empty($remoteChangelog)) {
-            $changelog = $remoteChangelog;
-            $changelogSource = 'remote';
-        }
-        $lastRelease = $changelog[0] ?? null;
-        $latestDisplay = $status['latest_version'] !== '' ? $status['latest_version'] : (string)($lastRelease['version'] ?? $status['current_version']);
-        $backups = $this->listBackupSnapshots();
-
-        $this->render('@admin/updates.twig', [
-            'title' => 'Updates',
-            'types' => $this->content->getTypes(),
-            'user' => $this->auth->user(),
-            'admin_section' => 'updates',
-            'current_type' => 'pages',
-            'current_version' => $status['current_version'],
-            'current_commit' => $updates->currentGitCommit(),
-            'latest_version' => $latestDisplay,
-            'remote_version' => $status['remote_version'],
-            'has_update' => $status['has_update'],
-            'update_checked_at' => $status['checked_at'],
-            'update_source' => (string)$source['version_url'],
-            'update_source_status' => $status['source_status'],
-            'update_repository' => (string)$source['repository'],
-            'update_branch' => (string)$source['branch'],
-            'update_changelog_url' => (string)$source['changelog_url'],
-            'update_package_url' => (string)$source['package_url'],
-            'update_channel' => $updates->channel(),
-            'checked' => isset($_GET['checked']),
-            'changelog_entries' => $changelog,
-            'changelog_source' => $changelogSource,
-            'update_guide' => $updates->readUpdateGuideSummary(),
-            'latest_backup' => $backups[0] ?? null,
-            'backup_total' => count($backups),
-            'preflight_checks' => $this->buildUpdatePreflightChecks(),
-            'pre_update_backup' => $this->preUpdateBackupStatus(),
-            'pre_backup_status' => (string)($_GET['pre_backup'] ?? ''),
-            'pre_backup_message' => trim((string)($_GET['pre_backup_msg'] ?? '')),
-        ]);
-    }
-
-    /** @param array<string, mixed> $status */
-    private function syncUpdateNotification(array $status): void
-    {
-        if (!($status['has_update'] ?? false)) {
-            return;
-        }
-        try {
-            $latest = (string)($status['latest_version'] ?? '');
-            // Title carries the version, so each release notifies once even after being read.
-            $this->notifications->createIfMissing([
-                'type' => 'update.available',
-                'title' => 'FarosCMS ' . $latest . ' is available',
-                'body' => 'You are running ' . (string)($status['current_version'] ?? '') . '. Review the release notes and create a backup before updating.',
-                'severity' => 'info',
-                'target_url' => '/admin/updates',
-                'context' => [
-                    'current_version' => (string)($status['current_version'] ?? ''),
-                    'latest_version' => $latest,
-                ],
-            ], true);
-        } catch (\Throwable) {
-            // Notifications must never block rendering.
-        }
+        $this->render('@admin/updates.twig', $admin->screen($_GET) + ['types' => $this->content->getTypes(), 'user' => $this->auth->user()]);
     }
 
     private function handleUserEdit(): void
@@ -2119,251 +2002,60 @@ final class App
 
     private function handleMenusList(): void
     {
-        $rows = $this->menus()->listForAdmin();
-
-        $this->render('@admin/menus-list.twig', [
-            'types' => $this->content->getTypes(),
-            'user' => $this->auth->user(),
-            'admin_section' => 'menus',
-            'rows' => $rows,
-            'deleted' => isset($_GET['deleted']),
-            'saved' => isset($_GET['saved']),
-            'created' => isset($_GET['created']),
-        ]);
+        $this->render('@admin/menus-list.twig', $this->menuAdmin()->overview($_GET) + ['types' => $this->content->getTypes(), 'user' => $this->auth->user()]);
     }
 
     private function handleMenusNew(): void
     {
-        $menuKeys = $this->menus()->keys();
-        $newKeyPrefill = $this->slugify((string)($_GET['new_key'] ?? ''));
-        $sourceKey = $this->slugify((string)($_GET['source_key'] ?? ''));
-        if ($newKeyPrefill === '' && $sourceKey !== '') {
-            $newKeyPrefill = $sourceKey;
+        $result = $this->menuAdmin()->create($_GET, $_POST, $_SERVER['REQUEST_METHOD'] === 'POST');
+        if ($result['location'] !== '') {
+            $this->redirect($result['location']);
+            return;
         }
-        $newTitlePrefill = trim((string)($_GET['new_title'] ?? ''));
-
-        $error = '';
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $newKey = $this->slugify((string)($_POST['new_key'] ?? $newKeyPrefill));
-            $newKeyPrefill = $newKey;
-            $title = trim((string)($_POST['new_title'] ?? ''));
-            $newTitlePrefill = $title;
-            $sourceKey = $this->slugify((string)($_POST['source_key'] ?? $sourceKey));
-            if ($newKey === '') {
-                $error = 'Menu key is required.';
-            } elseif (in_array($newKey, $menuKeys, true)) {
-                $error = 'Menu key already exists.';
-            } else {
-                $items = [];
-                if ($sourceKey !== '' && in_array($sourceKey, $menuKeys, true)) {
-                    $sourceMenu = $this->menus()->load($sourceKey);
-                    $items = $this->menus()->normalize($sourceMenu['items'] ?? []);
-                    if ($title === '') {
-                        $title = (string)($sourceMenu['title'] ?? '');
-                    }
-                }
-                if ($title === '') {
-                    $title = $this->titleFromSlug($newKey);
-                }
-                $this->menus()->write($newKey, [
-                    'title' => $title,
-                    'items' => $items,
-                ]);
-                $this->menus()->forget();
-                $this->logActivity('menus.create', 'info', 'menu', $newKey, 'Menu created.', [
-                    'title' => $title,
-                    'source_key' => $sourceKey,
-                ]);
-                $this->redirect('/admin/menus-edit?key=' . urlencode($newKey) . '&created=1');
-                return;
-            }
-        }
-
-        $this->render('@admin/menus-new.twig', [
-            'types' => $this->content->getTypes(),
-            'user' => $this->auth->user(),
-            'admin_section' => 'menus',
-            'error' => $error,
-            'new_key' => $newKeyPrefill,
-            'new_title' => $newTitlePrefill,
-            'source_key' => $sourceKey,
-            'menu_keys' => $menuKeys,
-        ]);
+        $this->render('@admin/menus-new.twig', $result['view'] + ['types' => $this->content->getTypes(), 'user' => $this->auth->user()]);
     }
 
     private function handleMenus(): void
     {
-        $languages = $this->settings['languages']['available'] ?? [(string)($this->settings['languages']['default'] ?? 'el')];
-
-        $menuKeys = $this->menus()->keys();
-        $selectedKey = $this->slugify((string)($_GET['key'] ?? $_POST['key'] ?? ''));
-        if ($selectedKey === '') {
-            if (!empty($menuKeys)) {
-                $this->redirect('/admin/menus-edit?key=' . urlencode((string)$menuKeys[0]));
-            } else {
-                $this->redirect('/admin/menus-new');
-            }
+        $result = $this->menuAdmin()->edit($_GET, $_POST, $_SERVER['REQUEST_METHOD'] === 'POST');
+        if ($result['location'] !== '') {
+            $this->redirect($result['location']);
             return;
         }
-        if (!in_array($selectedKey, $menuKeys, true)) {
-            $this->redirect('/admin/menus');
-            return;
-        }
-
-        $saved = isset($_GET['saved']);
-        $created = isset($_GET['created']);
-        $deleted = isset($_GET['deleted']);
-        $error = '';
-
-        $menu = $this->menus()->load($selectedKey);
-
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $action = (string)($_POST['menu_action'] ?? 'save');
-            if ($action === 'delete') {
-                $path = $this->menus()->path($selectedKey);
-                if (is_file($path)) {
-                    unlink($path);
-                    $this->menus()->forget();
-                    $this->logActivity('menus.delete', 'warning', 'menu', $selectedKey, 'Menu deleted.');
-                }
-                $this->redirect('/admin/menus?deleted=1');
-                return;
-            } else {
-                $title = trim((string)($_POST['menu_title'] ?? ''));
-                if ($title === '') {
-                    $title = $this->titleFromSlug($selectedKey);
-                }
-                $labelKeys = $_POST['menu_label_key'] ?? [];
-                $labelLangs = $_POST['menu_label_lang'] ?? [];
-                $urls = $_POST['menu_url'] ?? [];
-                $classes = $_POST['menu_class'] ?? [];
-                $targets = $_POST['menu_target'] ?? [];
-                $depths = $_POST['menu_depth'] ?? [];
-                $items = $this->menus()->fromAdminRows($labelKeys, $labelLangs, $urls, $classes, $targets, $depths, $languages);
-                $this->menus()->write($selectedKey, [
-                    'title' => $title,
-                    'items' => $items,
-                ]);
-                $this->menus()->forget();
-                $this->logActivity('menus.update', 'info', 'menu', $selectedKey, 'Menu updated.', [
-                    'title' => $title,
-                    'items' => count($items),
-                ]);
-                $this->redirect('/admin/menus-edit?key=' . urlencode($selectedKey) . '&saved=1');
-                return;
-            }
-        }
-
-        $menu = $this->menus()->load($selectedKey);
-        $menuItems = $this->menus()->flatten($menu['items'] ?? [], $languages);
-        if (empty($menuItems)) {
-            $defaultLabels = [];
-            foreach ($languages as $language) {
-                $defaultLabels[(string)$language] = '';
-            }
-            $menuItems[] = [
-                'depth' => '1',
-                'label_key' => '',
-                'labels' => $defaultLabels,
-                'url' => '',
-                'class' => '',
-                'target' => '',
-            ];
-        }
-
-        $this->render('@admin/menus.twig', [
-            'types' => $this->content->getTypes(),
-            'user' => $this->auth->user(),
-            'admin_section' => 'menus',
-            'menu_key' => $selectedKey,
-            'languages' => $languages,
-            'menu_title' => (string)($menu['title'] ?? $this->titleFromSlug($selectedKey)),
-            'menu_items' => $menuItems,
-            'saved' => $saved,
-            'created' => $created,
-            'deleted' => $deleted,
-            'error' => $error,
-        ]);
+        $this->render('@admin/menus.twig', $result['view'] + ['types' => $this->content->getTypes(), 'user' => $this->auth->user()]);
     }
 
     private function handleTaxonomies(): void
     {
         $default = $this->defaultLanguage();
         $languages = array_map('strval', $this->settings['languages']['available'] ?? [$default]);
-        $store = $this->taxonomies();
         $editor = $this->taxonomyEditor();
-        $taxonomyNames = $store->names();
-        $taxonomy = $this->slugify((string)($_GET['taxonomy'] ?? $_POST['taxonomy'] ?? ($taxonomyNames[0] ?? 'tags')));
-        if (!in_array($taxonomy, $taxonomyNames, true)) {
-            $taxonomy = $taxonomyNames[0] ?? 'tags';
-        }
+        $taxonomy = $editor->selected((string)($_GET['taxonomy'] ?? $_POST['taxonomy'] ?? ''));
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $result = $editor->apply($taxonomy, $_POST, $languages, $default, $this->currentUsername());
-            $this->logActivity('taxonomies.update', 'info', 'taxonomy', $taxonomy, 'Taxonomy updated.', [
-                'title' => $result['title'],
-                'terms' => $result['terms'],
-                'added' => $result['added'],
-                'renamed' => $result['moved'],
-                'removed' => $result['removed'],
-            ]);
-            $this->redirect('/admin/taxonomies?taxonomy=' . urlencode($taxonomy) . '&saved=1'
-                . ($result['moved'] > 0 ? '&moved=' . $result['moved'] : '')
-                . ($result['removed'] > 0 ? '&removed=' . $result['removed'] . '&orphaned=' . $result['orphaned'] : ''));
+            $this->redirect($editor->save($taxonomy, $_POST, $languages, $default, $this->currentUsername()));
             return;
         }
 
-        $current = $store->load($taxonomy);
-        $listable = $editor->listableTypes();
-        $usage = $editor->usage($taxonomyNames, true);
-        $terms = [];
-        foreach ($current['terms'] as $term) {
-            $byType = $usage[$taxonomy][$term['id']] ?? [];
-            $term['used'] = array_sum($byType);
-            $term['used_by_type'] = $byType;
-            $terms[] = $term;
-        }
-        $tabs = [];
-        foreach ($taxonomyNames as $name) {
-            $tabs[] = [
-                'name' => $name,
-                'title' => $store->load($name)['title'],
-                'terms' => count($store->load($name)['terms']),
-                'filed' => array_sum(array_map('array_sum', $usage[$name] ?? [])),
-            ];
-        }
-        $types = $this->content->getTypes();
-        $this->render('@admin/taxonomies.twig', [
-            'types' => $types,
-            'user' => $this->auth->user(),
-            'admin_section' => 'taxonomies',
-            'taxonomy_names' => $taxonomyNames,
-            'taxonomy_tabs' => $tabs,
-            'taxonomy' => $taxonomy,
-            'taxonomy_title' => $current['title'],
-            'taxonomy_terms' => $terms,
-            'taxonomy_kind' => Taxonomies::kind($taxonomy),
-            'languages' => $languages,
-            'default_language' => $default,
-            'archive' => $store->archive($taxonomy, $default, $default),
-            'layouts' => ContentTypes::LAYOUTS,
-            'orders' => ContentTypes::ORDERS,
-            'other_taxonomies' => array_values(array_diff($taxonomyNames, [$taxonomy])),
-            'listable_types' => $listable,
-            'type_labels' => array_combine($listable, array_map(fn(string $t): string => $this->contentTypes()->definition($t, 'en', $default)['label'], $listable)),
-            'type_names' => array_combine($types, array_map(fn(string $t): string => $this->contentTypes()->definition($t, 'en', $default)['label'], $types)),
-            'saved' => isset($_GET['saved']),
-            'moved' => (int)($_GET['moved'] ?? 0),
-            'removed' => (int)($_GET['removed'] ?? 0),
-            'orphaned' => (int)($_GET['orphaned'] ?? 0),
-            'can_redirects' => $this->permissions->can($this->auth->user(), 'redirects.manage'),
-            'error' => '',
-        ]);
+        $this->render('@admin/taxonomies.twig', $editor->screen(
+            $taxonomy,
+            $_GET,
+            $languages,
+            $default,
+            $this->permissions->can($this->auth->user(), 'redirects.manage'),
+            fn(string $type): string => $this->contentTypes()->definition($type, 'en', $default)['label']
+        ) + ['user' => $this->auth->user()]);
     }
 
     private function taxonomyEditor(): TaxonomyEditor
     {
-        return $this->taxonomyEditorService ??= new TaxonomyEditor($this->taxonomies(), $this->redirects, $this->content, fn(): Menus => $this->menus());
+        return $this->taxonomyEditorService ??= new TaxonomyEditor(
+            $this->taxonomies(),
+            $this->redirects,
+            $this->content,
+            fn(): Menus => $this->menus(),
+            fn(string $action, string $level, ?string $type, ?string $id, string $message, array $context) => $this->logActivity($action, $level, $type, $id, $message, $context)
+        );
     }
 
     /** The settings texts that can point at uploads (logo, social image, and the like), for the usage scan. @return list<array{label: string, url: string, kind: string, text: string}> */
@@ -2977,7 +2669,7 @@ final class App
             }
             $syncNotifications = !isset($data['admin_notifications']) || !isset($data['admin_notification_unread_count']);
             if ($syncNotifications) {
-                $this->syncSystemNotifications();
+                $this->adminNotices()->sync($this->permissions->can($this->auth->user(), 'updates.manage'));
             }
             $updates = $this->updates();
             $cachedUpdate = $updates->cachedStatus();
@@ -3117,40 +2809,6 @@ final class App
             ]);
         } catch (\Throwable) {
             // Notifications must never block the primary workflow.
-        }
-    }
-
-    private function syncSystemNotifications(): void
-    {
-        if ($this->permissions->can($this->auth->user(), 'updates.manage')) {
-            try {
-                // Refreshes at most every 12 hours (hourly while the source is unreachable).
-                $this->syncUpdateNotification($this->updates()->status());
-            } catch (\Throwable) {
-                // Update checks must never block rendering.
-            }
-        }
-        try {
-            $storage = $this->siteLimits()->summary();
-            foreach ($this->systemStatus()->checks($storage) as $check) {
-                $status = (string)($check['status'] ?? 'ok');
-                if (!in_array($status, ['warning', 'error'], true)) {
-                    continue;
-                }
-                $label = (string)($check['label'] ?? 'System check');
-                $this->notifications->createIfMissing([
-                    'type' => 'system.' . strtolower(str_replace(' ', '_', $label)),
-                    'title' => 'System check: ' . $label,
-                    'body' => (string)($check['value'] ?? ''),
-                    'severity' => $status,
-                    'target_url' => '/admin',
-                    'context' => [
-                        'check' => $check,
-                    ],
-                ], true);
-            }
-        } catch (\Throwable) {
-            // System notification sync should never block rendering.
         }
     }
 
@@ -3712,48 +3370,6 @@ final class App
         return $this->theme->translations($lang, (string)($this->settings['languages']['default'] ?? 'en'));
     }
 
-    /** @return array<int, array{label: string, value: string, status: string}> */
-    private function buildUpdatePreflightChecks(): array
-    {
-        $backupDir = $this->backupDirectory();
-        $source = $this->updates()->sourceConfig();
-        $preBackup = $this->preUpdateBackupStatus();
-        $preBackupAge = $preBackup !== null ? time() - (int)strtotime($preBackup['created_at']) : PHP_INT_MAX;
-        $preBackupReady = $preBackup !== null && $preBackup['verified'] && $preBackupAge < 86400 && $preBackup['version'] === $this->updates()->currentVersion();
-        return [
-            [
-                'label' => 'Verified pre-update backup',
-                'value' => $preBackupReady ? 'ready' : ($preBackup === null ? 'missing' : ($preBackup['verified'] ? 'older than 24h' : 'not verified')),
-                'status' => $preBackupReady ? 'ok' : 'warning',
-            ],
-            [
-                'label' => 'PHP compatibility',
-                'value' => PHP_VERSION,
-                'status' => version_compare(PHP_VERSION, '8.1.0', '>=') ? 'ok' : 'error',
-            ],
-            [
-                'label' => 'Content writable',
-                'value' => is_writable($this->contentDir) ? 'yes' : 'no',
-                'status' => is_writable($this->contentDir) ? 'ok' : 'error',
-            ],
-            [
-                'label' => 'Storage writable',
-                'value' => is_writable($this->basePath . '/storage') ? 'yes' : 'no',
-                'status' => is_writable($this->basePath . '/storage') ? 'ok' : 'error',
-            ],
-            [
-                'label' => 'Backup directory',
-                'value' => is_dir($backupDir) && is_writable($backupDir) ? 'ready' : 'not ready',
-                'status' => is_dir($backupDir) && is_writable($backupDir) ? 'ok' : 'warning',
-            ],
-            [
-                'label' => 'Update source',
-                'value' => (string)$source['version_url'] !== '' ? 'configured' : 'not configured',
-                'status' => (string)$source['version_url'] !== '' ? 'ok' : 'warning',
-            ],
-        ];
-    }
-
     private function resolveArchiveTemplate(string $type): string
     {
         $singular = $this->singularizeType($type);
@@ -3811,11 +3427,6 @@ final class App
             return 'basics';
         }
         return $tab;
-    }
-
-    private function backupDirectory(): string
-    {
-        return $this->backups->directory();
     }
 
     /** @return array<int, array<string, mixed>> */

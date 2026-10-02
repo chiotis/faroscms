@@ -14,13 +14,108 @@ final class TaxonomyEditor
     /** Types whose entries are never filed under a term. */
     private const UNFILED_TYPES = ['pages', 'forms'];
 
-    /** @param callable(): Menus $menus */
+    /**
+     * @param callable(): Menus $menus
+     * @param callable(string, string, ?string, ?string, string, array<string, mixed>): void|null $log records an activity: action, level, subject type, subject id, message, context
+     */
     public function __construct(
         private Taxonomies $store,
         private RedirectRepository $redirects,
         private ContentRepository $content,
-        private $menus
+        private $menus,
+        private $log = null
     ) {
+    }
+
+    /** The taxonomy asked for, or the first one when it is not a taxonomy of the site. */
+    public function selected(string $requested): string
+    {
+        $names = $this->store->names();
+        $name = Slug::plain($requested);
+        return in_array($name, $names, true) ? $name : ($names[0] ?? 'tags');
+    }
+
+    /**
+     * Saves the submitted form and says where to go next.
+     *
+     * @param array<string, mixed> $post
+     * @param string[] $languages
+     */
+    public function save(string $taxonomy, array $post, array $languages, string $defaultLang, string $by): string
+    {
+        $result = $this->apply($taxonomy, $post, $languages, $defaultLang, $by);
+        if ($this->log !== null) {
+            ($this->log)('taxonomies.update', 'info', 'taxonomy', $taxonomy, 'Taxonomy updated.', [
+                'title' => $result['title'],
+                'terms' => $result['terms'],
+                'added' => $result['added'],
+                'renamed' => $result['moved'],
+                'removed' => $result['removed'],
+            ]);
+        }
+        return '/admin/taxonomies?taxonomy=' . urlencode($taxonomy) . '&saved=1'
+            . ($result['moved'] > 0 ? '&moved=' . $result['moved'] : '')
+            . ($result['removed'] > 0 ? '&removed=' . $result['removed'] . '&orphaned=' . $result['orphaned'] : '');
+    }
+
+    /**
+     * What the screen shows for one taxonomy: its terms with how many entries are filed under each, the tabs to
+     * switch taxonomy, the page layout of its archive and the content types that can be filed.
+     *
+     * @param array<string, mixed> $get the address's query (what just happened)
+     * @param string[] $languages
+     * @param \Closure(string): string $typeLabel the name of a content type
+     * @return array<string, mixed>
+     */
+    public function screen(string $taxonomy, array $get, array $languages, string $defaultLang, bool $canRedirects, \Closure $typeLabel): array
+    {
+        $names = $this->store->names();
+        $current = $this->store->load($taxonomy);
+        $listable = $this->listableTypes();
+        $usage = $this->usage($names, true);
+        $terms = [];
+        foreach ($current['terms'] as $term) {
+            $byType = $usage[$taxonomy][$term['id']] ?? [];
+            $term['used'] = array_sum($byType);
+            $term['used_by_type'] = $byType;
+            $terms[] = $term;
+        }
+        $tabs = [];
+        foreach ($names as $name) {
+            $loaded = $this->store->load($name);
+            $tabs[] = [
+                'name' => $name,
+                'title' => $loaded['title'],
+                'terms' => count($loaded['terms']),
+                'filed' => array_sum(array_map('array_sum', $usage[$name] ?? [])),
+            ];
+        }
+        $types = $this->content->getTypes();
+        return [
+            'types' => $types,
+            'admin_section' => 'taxonomies',
+            'taxonomy_names' => $names,
+            'taxonomy_tabs' => $tabs,
+            'taxonomy' => $taxonomy,
+            'taxonomy_title' => $current['title'],
+            'taxonomy_terms' => $terms,
+            'taxonomy_kind' => Taxonomies::kind($taxonomy),
+            'languages' => $languages,
+            'default_language' => $defaultLang,
+            'archive' => $this->store->archive($taxonomy, $defaultLang, $defaultLang),
+            'layouts' => ContentTypes::LAYOUTS,
+            'orders' => ContentTypes::ORDERS,
+            'other_taxonomies' => array_values(array_diff($names, [$taxonomy])),
+            'listable_types' => $listable,
+            'type_labels' => array_combine($listable, array_map($typeLabel, $listable)),
+            'type_names' => array_combine($types, array_map($typeLabel, $types)),
+            'saved' => isset($get['saved']),
+            'moved' => (int)($get['moved'] ?? 0),
+            'removed' => (int)($get['removed'] ?? 0),
+            'orphaned' => (int)($get['orphaned'] ?? 0),
+            'can_redirects' => $canRedirects,
+            'error' => '',
+        ];
     }
 
     /**
