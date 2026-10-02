@@ -53,6 +53,9 @@ final class App
     private array $translations = [];
     private array $formStates = [];
     private ?Menus $menuStore = null;
+    private ?Sitemap $sitemapService = null;
+    private ?TaxonomyPage $taxonomyPageService = null;
+    private ?PublicForms $publicFormsService = null;
     private ?MenuAdmin $menuAdminService = null;
     private ?LogAdmin $logAdminService = null;
     private ?AdminNotices $adminNoticesService = null;
@@ -272,6 +275,44 @@ final class App
             $this->contentDir,
             $this->basePath,
             fn(string $action, string $level, ?string $type, ?string $id, string $message, array $context) => $this->logActivity($action, $level, $type, $id, $message, $context)
+        );
+    }
+
+    private function sitemap(): Sitemap
+    {
+        return $this->sitemapService ??= new Sitemap(
+            $this->content,
+            fn(): array => $this->settings,
+            fn(string $path): string => $this->buildAbsoluteUrl($path)
+        );
+    }
+
+    private function taxonomyPage(): TaxonomyPage
+    {
+        return $this->taxonomyPageService ??= new TaxonomyPage(
+            $this->content,
+            $this->theme,
+            fn(): Taxonomies => $this->taxonomies(),
+            fn(): ArchiveBuilder => $this->archiveBuilder(),
+            fn(): LanguageAlternates => $this->languageAlternates(),
+            fn(): array => $this->settings,
+            fn(string $key, ?string $fallback = null): string => $this->translate($key, $fallback)
+        );
+    }
+
+    private function publicForms(): PublicForms
+    {
+        return $this->publicFormsService ??= new PublicForms(
+            $this->formProcessor(),
+            $this->formSubmissions,
+            fn(): array => $this->settings,
+            fn(string $key, ?string $fallback = null): string => $this->translate($key, $fallback),
+            fn(string $path): string => $this->buildAbsoluteUrl($path),
+            fn(string $to, string $subject, string $body, array $headers) => $this->sendEmailMessage($to, $subject, $body, $headers),
+            fn(string $slug, int $seconds): bool => (time() - (int)($_SESSION['form_rate'][$slug] ?? 0)) < $seconds,
+            function (string $slug): void {
+                $_SESSION['form_rate'][$slug] = time();
+            }
         );
     }
 
@@ -649,6 +690,49 @@ final class App
         ]);
     }
 
+    /** Admin addresses served by one handler each, by the first part of the address after /admin. */
+    private const ADMIN_ROUTES = [
+        'theme' => 'handleTheme',
+        'settings' => 'handleSettings',
+        'index' => 'handleDashboard',
+        'dashboard' => 'handleDashboard',
+        'content' => 'handleAdminList',
+        'content-bulk' => 'handleContentBulk',
+        'search' => 'handleAdminSearch',
+        'system' => 'handleSystem',
+        'activity-logs' => 'handleActivityLogs',
+        'email-logs' => 'handleEmailLogs',
+        'backups' => 'handleBackups',
+        'updates' => 'handleUpdates',
+        'notification-read' => 'handleNotificationRead',
+        'notifications-read-all' => 'handleNotificationsReadAll',
+        'menus' => 'handleMenusList',
+        'menus-new' => 'handleMenusNew',
+        'menus-edit' => 'handleMenus',
+        'media' => 'handleMedia',
+        'forms' => 'handleFormsList',
+        'form-submissions' => 'handleFormSubmissions',
+        'forms-export' => 'handleFormsExport',
+        'import' => 'handleContentImport',
+        'export' => 'handleContentExport',
+        'translations' => 'handleTranslations',
+        'content-types' => 'handleContentTypes',
+        'taxonomies' => 'handleTaxonomies',
+        'roles' => 'handleRoles',
+        'redirects' => 'handleRedirects',
+        'revisions' => 'handleRevisions',
+        'links' => 'handleLinks',
+        'users' => 'handleUsersList',
+        'users-edit' => 'handleUserEdit',
+        'users-delete' => 'handleUserDelete',
+        'edit' => 'handleEdit',
+        'save' => 'handleSave',
+        'block-presets' => 'handleBlockPresets',
+        'media-picker' => 'handleMediaPicker',
+        'delete' => 'handleDelete',
+        'new' => 'handleNew',
+    ];
+
     private function handleAdmin(string $path): void
     {
         $segments = explode('/', $path);
@@ -715,198 +799,13 @@ final class App
             $this->backupManager()->runIfDue();
         }
 
-        if ($action === 'theme') {
-            $this->handleTheme();
-            return;
-        }
-
-        if ($action === 'settings') {
-            $this->handleSettings();
-            return;
-        }
-
-        if ($action === 'index' || $action === 'dashboard') {
-            $this->handleDashboard();
-            return;
-        }
-
-        if ($action === 'content') {
-            $this->handleAdminList();
-            return;
-        }
-
-        if ($action === 'content-bulk') {
-            $this->handleContentBulk();
-            return;
-        }
-
-        if ($action === 'search') {
-            $this->handleAdminSearch();
-            return;
-        }
-
-        if ($action === 'system') {
-            $this->handleSystem();
-            return;
-        }
-
-        if ($action === 'activity-logs') {
-            $this->handleActivityLogs();
-            return;
-        }
-
-        if ($action === 'email-logs') {
-            $this->handleEmailLogs();
-            return;
-        }
-
-        if ($action === 'backups') {
-            $this->handleBackups();
-            return;
-        }
-
-        if ($action === 'updates') {
-            $this->handleUpdates();
-            return;
-        }
-
-        if ($action === 'notification-read') {
-            $this->handleNotificationRead();
-            return;
-        }
-
-        if ($action === 'notifications-read-all') {
-            $this->handleNotificationsReadAll();
-            return;
-        }
-
-        if ($action === 'menus') {
-            $this->handleMenusList();
-            return;
-        }
-
-        if ($action === 'menus-new') {
-            $this->handleMenusNew();
-            return;
-        }
-
-        if ($action === 'menus-edit') {
-            $this->handleMenus();
-            return;
-        }
-
-        if ($action === 'media') {
-            $this->handleMedia();
+        if (isset(self::ADMIN_ROUTES[$action])) {
+            $this->{self::ADMIN_ROUTES[$action]}();
             return;
         }
 
         if ($action === 'files') {
             $this->redirect('/admin/media?type=document&view=list');
-            return;
-        }
-
-        if ($action === 'forms') {
-            $this->handleFormsList();
-            return;
-        }
-
-        if ($action === 'form-submissions') {
-            $this->handleFormSubmissions();
-            return;
-        }
-
-        if ($action === 'forms-export') {
-            $this->handleFormsExport();
-            return;
-        }
-
-        if ($action === 'import') {
-            $this->handleContentImport();
-            return;
-        }
-
-        if ($action === 'export') {
-            $this->handleContentExport();
-            return;
-        }
-
-        if ($action === 'translations') {
-            $this->handleTranslations();
-            return;
-        }
-
-        if ($action === 'content-types') {
-            $this->handleContentTypes();
-            return;
-        }
-
-        if ($action === 'taxonomies') {
-            $this->handleTaxonomies();
-            return;
-        }
-
-        if ($action === 'roles') {
-            $this->handleRoles();
-            return;
-        }
-
-        if ($action === 'redirects') {
-            $this->handleRedirects();
-            return;
-        }
-
-        if ($action === 'revisions') {
-            $this->handleRevisions();
-            return;
-        }
-
-        if ($action === 'links') {
-            $this->handleLinks();
-            return;
-        }
-
-        if ($action === 'users') {
-            $this->handleUsersList();
-            return;
-        }
-
-        if ($action === 'users-edit') {
-            $this->handleUserEdit();
-            return;
-        }
-
-        if ($action === 'users-delete') {
-            $this->handleUserDelete();
-            return;
-        }
-
-        if ($action === 'edit') {
-            $this->handleEdit();
-            return;
-        }
-
-        if ($action === 'save') {
-            $this->handleSave();
-            return;
-        }
-
-        if ($action === 'block-presets') {
-            $this->handleBlockPresets();
-            return;
-        }
-
-        if ($action === 'media-picker') {
-            $this->handleMediaPicker();
-            return;
-        }
-
-        if ($action === 'delete') {
-            $this->handleDelete();
-            return;
-        }
-
-        if ($action === 'new') {
-            $this->handleNew();
             return;
         }
 
@@ -2526,38 +2425,14 @@ final class App
             'autoescape' => 'html',
         ]);
 
-        $baseUrl = rtrim((string)($this->settings['base_url'] ?? ''), '/');
-        $twig->addFunction(new TwigFunction('asset', function (string $path) use ($baseUrl): string {
-            return $baseUrl . '/assets/' . ltrim($path, '/');
-        }));
-
-        $twig->addFunction(new TwigFunction('theme_asset', function (string $path) use ($baseUrl): string {
-            return $this->theme->assetUrl($baseUrl, $path);
-        }));
-
-        $twig->addFunction(new TwigFunction('custom_asset', function (string $path) use ($baseUrl): string {
-            return $this->theme->customAssetUrl($baseUrl, $path);
-        }));
-
-        $twig->addFunction(new TwigFunction('image', function (string $src, array $options = []): string {
-            return $this->images->render($src, $options);
-        }, ['is_safe' => ['html']]));
-
-        $twig->addFunction(new TwigFunction('icon', function (string $name, string $class = ''): string {
-            return $this->theme->icon($name, $class);
-        }, ['is_safe' => ['html']]));
-
-        // The icon set as JSON ({name: svg}) for the admin's icon picker, one library for every place an icon is chosen.
-        $twig->addFunction(new TwigFunction('icon_library_json', function (): string {
-            $library = [];
-            foreach ($this->theme->iconNames() as $name) {
-                $svg = $this->theme->icon($name);
-                if ($svg !== '') {
-                    $library[$name] = $svg;
-                }
-            }
-            return (string)json_encode($library, JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_FORCE_OBJECT);
-        }, ['is_safe' => ['html']]));
+        TwigFunctions::register(
+            $twig,
+            (string)($this->settings['base_url'] ?? ''),
+            $this->theme,
+            $this->images,
+            fn(string $path): string => $this->buildAbsoluteUrl($path),
+            fn(): StructuredData => $this->structuredData()
+        );
 
         // Declared fields of a content item, ready to print: content_fields(item) for its page,
         // content_fields(item, 'card') for the fields marked for cards.
@@ -2577,42 +2452,6 @@ final class App
 
         $twig->addFunction(new TwigFunction('content_type', function (string $type): array {
             return $this->contentTypes()->definition($type, $this->currentLang, $this->defaultLanguage());
-        }));
-
-        // Block links: absolute URLs, #anchors, mailto:/tel: as given; "/path" from the site root;
-        // a bare "path" is relative to the current language ("contact" → "/en/contact").
-        $twig->addFunction(new TwigFunction('link_url', function (string $value, string $prefix = '') use ($baseUrl): string {
-            $value = trim($value);
-            if ($value === '' || !FieldSchema::isSafeLink($value)) {
-                return '';
-            }
-            if (preg_match('#^(https?://|mailto:|tel:|\#)#i', $value)) {
-                return $value;
-            }
-            if (str_starts_with($value, '/')) {
-                return $baseUrl . $value;
-            }
-            return $baseUrl . '/' . $prefix . ltrim($value, '/');
-        }));
-
-        $twig->addFunction(new TwigFunction('absolute_url', function (string $path): string {
-            return preg_match('#^https?://#i', $path) ? $path : $this->buildAbsoluteUrl($path);
-        }));
-
-        $twig->addFunction(new TwigFunction('toc', function (string $html): array {
-            return Toc::build($html);
-        }));
-
-        $twig->addFunction(new TwigFunction('json_ld', function (array $graph): string {
-            return $this->structuredData()->script($graph);
-        }, ['is_safe' => ['html']]));
-
-        $twig->addFunction(new TwigFunction('admin_asset', function (string $path) use ($baseUrl): string {
-            return $baseUrl . '/admin-assets/' . ltrim($path, '/');
-        }));
-
-        $twig->addFunction(new TwigFunction('url', function (string $path = '') use ($baseUrl): string {
-            return $baseUrl . '/' . ltrim($path, '/');
         }));
 
         $twig->addFunction(new TwigFunction('t', function (string $key, ?string $fallback = null): string {
@@ -3140,41 +2979,8 @@ final class App
 
     private function renderSitemap(): void
     {
-        $defaultLang = $this->settings['languages']['default'] ?? 'en';
-        $available = $this->settings['languages']['available'] ?? [$defaultLang];
-        $homeSlug = $this->settings['home_page'] ?? 'index';
-        if ($homeSlug === '') {
-            $homeSlug = 'index';
-        }
-
-        $entries = [];
-        foreach ($this->content->getTypes() as $type) {
-            foreach ($available as $lang) {
-                $items = $this->content->getItems($type, $lang, false);
-                foreach ($items as $item) {
-                    $key = $lang . '|' . $type . '|' . $item->slug;
-                    if (isset($entries[$key])) {
-                        continue;
-                    }
-                    $path = $this->buildContentPath($type, $item->slug, $lang, $homeSlug, $defaultLang);
-                    $entries[$key] = [
-                        'loc' => $this->buildAbsoluteUrl($path),
-                        'lastmod' => date('c', $item->mtime),
-                    ];
-                }
-            }
-        }
-
         header('Content-Type: application/xml; charset=utf-8');
-        echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
-        echo "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n";
-        foreach ($entries as $entry) {
-            echo "  <url>\n";
-            echo "    <loc>" . htmlspecialchars($entry['loc'], ENT_QUOTES) . "</loc>\n";
-            echo "    <lastmod>" . htmlspecialchars($entry['lastmod'], ENT_QUOTES) . "</lastmod>\n";
-            echo "  </url>\n";
-        }
-        echo "</urlset>\n";
+        echo $this->sitemap()->xml();
     }
 
     private function renderRobots(): void
@@ -3185,65 +2991,12 @@ final class App
 
     private function handleTaxonomy(array $segments, string $lang, array $viewDefaults): void
     {
-        $kind = $segments[0] ?? '';
-        $slug = $segments[1] ?? '';
-        if ($slug === '') {
+        $page = $this->taxonomyPage()->build($segments, $lang, $viewDefaults, $_GET);
+        if ($page === null) {
             $this->render404();
             return;
         }
-
-        $kind = in_array($kind, ['category', 'categories'], true) ? 'category' : 'tag';
-        $key = $kind === 'category' ? 'categories' : 'tags';
-        $term = $this->taxonomies()->findBySlug($key, $slug);
-        if ($term === null) {
-            $this->render404();
-            return;
-        }
-        $termId = $term['id'];
-        $termSlug = $term['slug'];
-        $label = $this->taxonomyTermLabel($key, $termId, $lang);
-
-        // How this taxonomy lists its entries is its own choice (Admin > Taxonomies), the same options a content type has.
-        $settings = $this->taxonomies()->archive($key, $lang, $this->defaultLanguage());
-        $settings['taxonomies'] = array_values(array_diff($settings['taxonomies'], [$key]));
-        $includeTypes = $settings['types'];
-
-        $items = [];
-        foreach ($this->content->getTypes() as $type) {
-            if (in_array($type, ['pages', 'forms'], true) || ($includeTypes !== [] && !in_array($type, $includeTypes, true))) {
-                continue;
-            }
-            foreach ($this->content->getItems($type, $lang, false, false) as $item) {
-                if (in_array($termId, $this->normalizeMetaList($item->meta[$key] ?? null), true)) {
-                    $items[] = $item;
-                }
-            }
-        }
-        // Entries of several types come newest first, as within a single type.
-        $when = static fn(ContentItem $i): int => strtotime((string)($i->meta['date'] ?? '')) ?: $i->mtime;
-        usort($items, static fn(ContentItem $a, ContentItem $b): int => $when($b) <=> $when($a));
-        $archive = $this->archiveBuilder()->build($settings, [], null, $lang, $items, $_GET);
-        if ($archive['page'] > 1 && !$archive['filtered']) {
-            $viewDefaults['canonical_url'] = ($viewDefaults['canonical_url'] ?? '') . '?page=' . $archive['page'];
-        }
-
-        $fill = static fn(string $text): string => str_replace('{term}', $label, $text);
-        $titlePrefix = $kind === 'category'
-            ? $this->translate('taxonomy.category', 'Category')
-            : $this->translate('taxonomy.tag', 'Tag');
-        $alternates = $this->languageAlternates()->forTaxonomy($kind, $termSlug);
-        $this->render($this->resolveTaxonomyTemplate($kind, $slug), [
-            'items' => $archive['items'],
-            'archive' => $archive,
-            'type' => $key,
-            'archive_title' => $settings['title'] !== '' ? $fill($settings['title']) : $titlePrefix . ': ' . $label,
-            'archive_subtitle' => $settings['subtitle'] !== '' ? $fill($settings['subtitle']) : $this->taxonomies()->description($key, $termId, $lang, $this->defaultLanguage()),
-            'term_description' => $this->taxonomies()->description($key, $termId, $lang, $this->defaultLanguage()),
-            'block_styles' => [$this->theme->blockStylesheetUrl(rtrim((string)($this->settings['base_url'] ?? ''), '/'), ['latest'])],
-            'alternate_urls' => $alternates['urls'],
-            'alternate_default' => $alternates['default'],
-            'noindex_page' => $archive['filtered'],
-        ] + $viewDefaults);
+        $this->render($this->resolveTaxonomyTemplate($page['kind'], $page['slug']), $page['data']);
     }
 
     private function buildContentPath(string $type, string $slug, string $lang, string $homeSlug, string $defaultLang): string
@@ -3472,141 +3225,19 @@ final class App
         $this->settings = $this->siteSettings()->load();
     }
 
-    /** @return array{fields: array, values: array, errors: array, success: bool, message: string, action: string, honeypot: string, redirect: string} */
     private function handleFormRequest(ContentItem $form, string $lang, string $currentPath): array
     {
-        $fields = FormFields::normalize($form->meta['fields'] ?? []);
-        $values = $this->formProcessor()->defaults($fields);
-        $errors = [];
-        $success = false;
-        $message = (string)($form->meta['success_message'] ?? '');
-        if ($message === '') {
-            $message = $this->translate('form.success', 'Thanks! Your submission was received.');
+        $result = $this->publicForms()->handle($form, $lang, $currentPath, [
+            'method' => (string)($_SERVER['REQUEST_METHOD'] ?? 'GET'),
+            'get' => $_GET,
+            'post' => $_POST,
+            'ip' => (string)($_SERVER['REMOTE_ADDR'] ?? ''),
+            'agent' => (string)($_SERVER['HTTP_USER_AGENT'] ?? ''),
+        ]);
+        if ($result['location'] !== '') {
+            $this->redirect($result['location']);
         }
-        $action = $this->buildContentPath('forms', $form->slug, $lang, $this->settings['home_page'] ?? 'index', $this->settings['languages']['default'] ?? 'en');
-        $honeypot = (string)($form->meta['antispam']['honeypot'] ?? $this->settings['forms']['antispam']['honeypot'] ?? 'website');
-        $rateLimit = (int)($form->meta['antispam']['rate_limit_seconds'] ?? $this->settings['forms']['antispam']['rate_limit_seconds'] ?? 0);
-        $redirectDefault = (string)($form->meta['redirect_url'] ?? '');
-        if ($redirectDefault === '') {
-            $redirectDefault = '/' . ltrim($currentPath, '/');
-        }
-
-        if (isset($_GET['sent']) && (string)($_GET['form'] ?? '') === $form->slug) {
-            $success = true;
-        }
-
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            return [
-                'fields' => $fields,
-                'values' => $values,
-                'errors' => $errors,
-                'success' => $success,
-                'message' => $message,
-                'action' => $action,
-                'honeypot' => $honeypot,
-                'redirect' => $redirectDefault,
-            ];
-        }
-
-        if ((string)($_POST['form_slug'] ?? '') !== $form->slug) {
-            return [
-                'fields' => $fields,
-                'values' => $values,
-                'errors' => $errors,
-                'success' => $success,
-                'message' => $message,
-                'action' => $action,
-                'honeypot' => $honeypot,
-                'redirect' => $redirectDefault,
-            ];
-        }
-
-        if ($honeypot !== '' && trim((string)($_POST[$honeypot] ?? '')) !== '') {
-            $success = true;
-            return [
-                'fields' => $fields,
-                'values' => $values,
-                'errors' => $errors,
-                'success' => $success,
-                'message' => $message,
-                'action' => $action,
-                'honeypot' => $honeypot,
-                'redirect' => $redirectDefault,
-            ];
-        }
-
-        if ($rateLimit > 0 && $this->isFormRateLimited($form->slug, $rateLimit)) {
-            $errors['_form'] = $this->translate('form.error.rate_limit', 'Please wait before submitting again.');
-            return [
-                'fields' => $fields,
-                'values' => $values,
-                'errors' => $errors,
-                'success' => $success,
-                'message' => $message,
-                'action' => $action,
-                'honeypot' => $honeypot,
-                'redirect' => $redirectDefault,
-            ];
-        }
-
-        $collected = $this->formProcessor()->collect($fields, $_POST);
-        $values = $collected['values'];
-        $errors = $collected['errors'];
-        if (!empty($errors)) {
-            return [
-                'fields' => $fields,
-                'values' => $values,
-                'errors' => $errors,
-                'success' => $success,
-                'message' => $message,
-                'action' => $action,
-                'honeypot' => $honeypot,
-                'redirect' => $redirectDefault,
-            ];
-        }
-
-        if ($this->isTruthy($form->meta['store_submissions'] ?? $this->settings['forms']['store_submissions'] ?? true)) {
-            $this->formSubmissions->store($form->slug, $this->formProcessor()->record($form, $values, (string)($_SERVER['REMOTE_ADDR'] ?? ''), (string)($_SERVER['HTTP_USER_AGENT'] ?? '')));
-        }
-
-        $formUrl = $this->buildAbsoluteUrl($this->buildContentPath('forms', $form->slug, $form->lang, $this->settings['home_page'] ?? 'index', $this->settings['languages']['default'] ?? 'en'));
-        $siteMail = is_array($this->settings['forms']['notifications'] ?? null) ? $this->settings['forms']['notifications'] : [];
-        foreach ($this->formProcessor()->emails($form, $values, $fields, $siteMail, $formUrl) as $message) {
-            $this->sendEmailMessage($message['to'], $message['subject'], $message['body'], $message['headers']);
-        }
-        $this->markFormRateLimit($form->slug);
-        $success = true;
-
-        $redirect = $this->sanitizeRedirectUrl((string)($_POST['redirect_url'] ?? ''));
-        if ($redirect !== '') {
-            $separator = str_contains($redirect, '?') ? '&' : '?';
-            $this->redirect($redirect . $separator . 'form=' . urlencode($form->slug) . '&sent=1');
-        }
-
-        return [
-            'fields' => $fields,
-            'values' => $values,
-            'errors' => $errors,
-            'success' => $success,
-            'message' => $message,
-            'action' => $action,
-            'honeypot' => $honeypot,
-            'redirect' => $redirectDefault,
-        ];
-    }
-
-    private function isFormRateLimited(string $slug, int $limitSeconds): bool
-    {
-        if ($limitSeconds <= 0) {
-            return false;
-        }
-        $last = $_SESSION['form_rate'][$slug] ?? 0;
-        return (time() - (int)$last) < $limitSeconds;
-    }
-
-    private function markFormRateLimit(string $slug): void
-    {
-        $_SESSION['form_rate'][$slug] = time();
+        return $result['state'];
     }
 
     private function mailer(): Mailer
@@ -3630,25 +3261,7 @@ final class App
 
     private function applyShortcodes(string $html, string $lang, string $currentPath): string
     {
-        if (str_contains($html, '[form') === false) {
-            return $html;
-        }
-
-        $pattern = '/<p>\\s*\\[form\\s+([^\\]]+)\\]\\s*<\\/p>|\\[form\\s+([^\\]]+)\\]/i';
-        $callback = function (array $matches) use ($lang, $currentPath): string {
-            $raw = $matches[1] !== '' ? $matches[1] : ($matches[2] ?? '');
-            // Markdown HTML output may entity-encode quotes (&quot;), so decode before parsing attributes.
-            $raw = html_entity_decode($raw, ENT_QUOTES | ENT_HTML5, 'UTF-8');
-            $attrs = $this->parseShortcodeAttributes($raw);
-            $slug = $this->slugify((string)($attrs['slug'] ?? ''));
-            if ($slug === '') {
-                return $matches[0];
-            }
-            return $this->renderFormEmbedBySlug($slug, $lang, $currentPath);
-        };
-
-        $result = preg_replace_callback($pattern, $callback, $html);
-        return $result ?? $html;
+        return PublicForms::replaceShortcodes($html, fn(string $slug): string => $this->renderFormEmbedBySlug($slug, $lang, $currentPath));
     }
 
     private function renderFormEmbedBySlug(string $slug, string $lang, string $currentPath): string
@@ -3657,79 +3270,7 @@ final class App
         if (!$form) {
             return '';
         }
-        $fields = FormFields::normalize($form->meta['fields'] ?? []);
-        $values = $this->formProcessor()->defaults($fields);
-        $errors = [];
-        $success = isset($_GET['sent']) && (string)($_GET['form'] ?? '') === $form->slug;
-        $message = (string)($form->meta['success_message'] ?? '');
-        if ($message === '') {
-            $message = $this->translate('form.success', 'Thanks! Your submission was received.');
-        }
-        if (isset($this->formStates[$form->slug])) {
-            $state = $this->formStates[$form->slug];
-            $values = $state['values'] ?? $values;
-            $errors = $state['errors'] ?? $errors;
-            $success = $state['success'] ?? $success;
-            $message = $state['message'] ?? $message;
-        }
-        $action = '/' . ltrim($currentPath, '/');
-        if ($action === '/') {
-            $action = '';
-        }
-        $honeypot = (string)($form->meta['antispam']['honeypot'] ?? $this->settings['forms']['antispam']['honeypot'] ?? 'website');
-        $redirect = (string)($form->meta['redirect_url'] ?? '');
-        if ($redirect === '') {
-            $redirect = '/' . ltrim($currentPath, '/');
-        }
-        return $this->twig->render('components/form.twig', [
-            'form' => $form,
-            'form_fields' => $fields,
-            'form_values' => $values,
-            'form_errors' => $errors,
-            'form_success' => $success,
-            'form_message' => $message,
-            'form_action' => $action,
-            'form_honeypot' => $honeypot,
-            'form_redirect' => $redirect,
-        ]);
-    }
-
-    /** @return array<string, string> */
-    private function parseShortcodeAttributes(string $raw): array
-    {
-        $attrs = [];
-        if (preg_match_all('/(\\w+)\\s*=\\s*("([^"]*)"|\\\'([^\\\']*)\\\'|([^\\s]+))/', $raw, $matches, PREG_SET_ORDER)) {
-            foreach ($matches as $match) {
-                $key = $match[1];
-                $value = $match[3] !== '' ? $match[3] : ($match[4] !== '' ? $match[4] : $match[5]);
-                $attrs[$key] = $value;
-            }
-        }
-        return $attrs;
-    }
-
-    private function sanitizeRedirectUrl(string $url): string
-    {
-        $url = trim($url);
-        if ($url === '') {
-            return '';
-        }
-        if (str_starts_with($url, '//')) {
-            return '';
-        }
-        if (str_starts_with($url, 'http')) {
-            $parts = parse_url($url);
-            $base = trim((string)($this->settings['base_url'] ?? ''));
-            $baseHost = $base !== '' ? parse_url($base, PHP_URL_HOST) : '';
-            if ($baseHost && isset($parts['host']) && $parts['host'] !== $baseHost) {
-                return '';
-            }
-            return $url;
-        }
-        if (!str_starts_with($url, '/')) {
-            $url = '/' . $url;
-        }
-        return $url;
+        return $this->twig->render('components/form.twig', $this->publicForms()->embed($form, $currentPath, $this->formStates[$form->slug] ?? null, $_GET));
     }
 
     private function buildFilename(string $slug, string $lang): string
