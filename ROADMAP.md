@@ -99,3 +99,4 @@ Direction: one all-purpose theme (`themes/default`) that grows with blocks and v
 - Theme switcher in settings + preview mode
 - Theme settings for OpenAI/API credentials (for future excerpt/content generation)
 - Import UX improvements (dry-run preview, row-level undo, resumable imports)
+- Nested repeaters in blocks and content type fields: a repeater inside a repeater item (for example several buttons for each slide of a slider). Today `FieldSchema` keeps repeater items flat and drops a repeater field inside one, so the slider's three buttons are flat fields (`link_label`, `link_label_2`, `link_label_3`). Needs: the schema and its checks, the editor (add, remove and reorder inner rows), storage, the CSV and revision handling, and the block templates. Found while moving a WordPress site over (see `docs/wordpress-import.md`)

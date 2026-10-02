@@ -161,6 +161,9 @@ TwigFunctions::register($twig, 'https://s.test/', $theme, new Images("$dir/publi
 check('addresses are made from the base address, whether or not it ends with a slash', $twig->render('a'), 'https://s.test/assets/app.css|https://s.test/admin-assets/x.js|https://s.test/about|https://s.test/|https://s.test/en/contact|https://s.test/about|https://x.test/a|mailto:a@b.test|#top|[]|[]|https://s.test/contact|https://o.test/x');
 $out = explode('|', $twig->render('b'));
 check('the table of contents, the script of structured data (not escaped), no icon for a name that is not there, the theme asset address', [$out[0] >= 1, str_contains($out[1], '<script type="application/ld+json">'), $out[2], $out[3], $out[4]], [true, true, '', 'https://s.test/_themes/default/missing.css', '[]']);
+$twig3 = new Twig(new ArrayLoader(['p' => "{{ plain_text('<p>One &amp; <em>two</em></p><p>Three&nbsp;four<br>five</p><ul><li>six</li><li>seven</li></ul>') }}|{{ plain_text('') }}|{{ plain_text('<h2>Head</h2><p>Text</p>') }}"]), ['autoescape' => 'html']);
+TwigFunctions::register($twig3, 'https://s.test', $theme, new Images("$dir/public"), $absolute, fn() => $structured);
+check('the words of some HTML: no tags, entities as characters (escaped again on output), a space between paragraphs and items', $twig3->render('p'), 'One &amp; two Three four five six seven||Head Text');
 $twig2 = new Twig(new ArrayLoader(['i' => "{{ icon_library_json()|length > 2 ? 'full' : 'empty' }}|{{ image('/nothing.png') }}"]), ['autoescape' => 'html']);
 TwigFunctions::register($twig2, 'https://s.test', $theme, new Images("$dir/public"), $absolute, fn() => $structured);
 check('the icon library is a JSON object of the icons', explode('|', $twig2->render('i'))[0], 'full');

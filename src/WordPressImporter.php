@@ -496,12 +496,11 @@ final class WordPressImporter
         $items = [];
         foreach ($this->slides as $slide) {
             $item = ['image' => $slide['image'] !== '' ? $this->resolve($slide['image'], 'image') : '', 'title' => $slide['title'], 'text' => $slide['text']];
-            $actions = [];
-            foreach ($slide['buttons'] as $button) {
-                $actions[] = ['label' => $button['label'], 'url' => $this->resolve($button['url'], 'link'), 'style' => 'primary'];
-            }
-            if ($actions !== []) {
-                $item['actions'] = $actions;
+            // A slide has room for three buttons: the first is the slide's link, the others are its second and third.
+            foreach (array_slice($slide['buttons'], 0, 3) as $number => $button) {
+                $suffix = $number === 0 ? '' : '_' . ($number + 1);
+                $item['link_label' . $suffix] = $button['label'];
+                $item['url' . $suffix] = $this->resolve($button['url'], 'link');
             }
             $items[] = $item;
         }

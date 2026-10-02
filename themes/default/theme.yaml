@@ -57,6 +57,7 @@ settings:
           teal: Teal
           rose: Rose
           amber: Amber
+          garnet: 'Garnet (deep red on warm paper)'
       font:
         type: select
         label: Font

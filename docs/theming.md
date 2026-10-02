@@ -259,7 +259,7 @@ A site-specific block goes in `custom/blocks/<type>/` with the same files.
 
 `site.css` defines semantic tokens (`--color-bg`, `--color-surface`, `--color-text`, `--color-muted`, `--color-border`, `--accent`, `--accent-soft`, `--accent-contrast`, spacing `--space-*`, type scale `--step-*`, radii `--radius-*`). Theme settings switch them through attributes on `<html>`:
 
-- `data-theme`: palette (slate, indigo, emerald, teal, rose, amber), with light and dark variants of each accent;
+- `data-theme`: palette (slate, indigo, emerald, teal, rose, amber, garnet), with light and dark variants of each accent;
 - `data-mode` and the `.dark` class: colour mode, following the system until the visitor chooses;
 - `data-font`: sans (Inter), display (serif headings with Inter text), serif, or system (no font download);
 - `data-shape`: soft, rounded, or sharp corners.

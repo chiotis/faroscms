@@ -4,7 +4,7 @@
 #}
 {% set is_home = item.type == 'pages' and item.slug == site.home_page|default('index') %}
 {% set path = item.type == 'pages' ? (is_home ? prefix : prefix ~ item.slug) : prefix ~ item.type ~ '/' ~ item.slug %}
-{% set summary = (item.meta.excerpt ?? item.markdown)|striptags|trim %}
+{% set summary = item.meta.excerpt is defined and item.meta.excerpt is not null ? item.meta.excerpt|striptags|trim : plain_text(item.html) %}
 {% set limit = lead ? 240 : 150 %}
 {% set image_url = show_image ? (item.meta.main_image|default('')) : '' %}
 {% set term = item.meta.categories is iterable and item.meta.categories|length ? (item.meta.categories|first) : '' %}

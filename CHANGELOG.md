@@ -7,8 +7,10 @@
 - `MediaLibrary::import()` brings in a file that is already on disk under an id the caller chooses
 - Tests: `html-to-markdown.php` (61 checks) and `wordpress-import.php` (answering from a made-up site)
 - **Profiles** (`--profile=FILE`, see `docs/wordpress-profiles/themelio.yaml`) tell the importer where to find, with XPath, what the API does not give: the pages of **custom post types** (found in the site's sitemap; a cover and description become a Text and image block and the tabs a Tabs block), the **slides** of the home page, and a **menu** (written only with `--menus`). A profile can also define the content types, map an old list address to its new one, and describe the **home page as blocks**
-- **Slider: a new `banner` variant** (a wide picture with a text panel over it, like the slider of many older sites) and **buttons per slide** (up to three, in any variant). The default theme is now 1.14.0
-- Not yet: the look of the site (colours and fonts)
+- **Slider: a new `banner` variant** (a wide picture with a text panel over it, like the slider of many older sites) and **up to three buttons per slide** in that variant (the slide's link and a second and third link). The default theme is now 1.14.0
+- **A new palette, Garnet** (Appearance → Palette): deep red on warm paper in light mode, with its own dark variant
+- **Fixed: a card without an excerpt showed Markdown marks** (`[text](/address)`), because the summary was cut from the Markdown source. Cards (archives, categories, the Latest content block) now take their summary from the words of the page (new template function `plain_text`)
+- A new `docs/wordpress-profiles/themelio.yaml` describes apostolosdoxiadis.com: books and plays (a cover beside the description and tabs), the home page (a banner slider, the introduction, the books) and the menu
 
 ## 0.1.23 — 2026-10-02 — A media id made only of digits
 - **Fixed a rare error in the Media screen.** A media id is 16 random hexadecimal characters, and about one in two thousand is only digits. PHP turns such a text into a number when it is used as an array key, and the next function wanted text, so selecting that file for a bulk action (tags, delete) failed with a type error. Ids are now kept as text. It showed up as an occasional failure of the test suite on PHP 8.5

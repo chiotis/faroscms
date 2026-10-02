@@ -148,6 +148,14 @@
   --accent-d: #fcd34d; --accent-d-hover: #fde68a; --accent-d-soft: #2a2010;
 }
 
+:root[data-theme="garnet"] {
+  /* Deep red on warm paper: a classic, bookish look. The neutrals are warm too, in light mode only. */
+  --accent-l: #8f1d1d; --accent-l-hover: #701414; --accent-l-soft: #fbeeec;
+  --accent-d: #f4a8a0; --accent-d-hover: #f9c9c3; --accent-d-soft: #2d1818;
+  --n-bg: #fffdf8; --n-surface: #f8f1e4; --n-surface-2: #f0e5d0;
+  --n-text: #261b14; --n-muted: #5b4a3d; --n-border: #eadfca; --n-border-strong: #cdbb9b;
+}
+
 :root[data-font="serif"] {
   --font-body: var(--font-serif);
   --font-heading: var(--font-serif);

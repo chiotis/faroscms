@@ -29,10 +29,16 @@
                 </{{ item_heading_tag }}>
               {% endif %}
               {% if slide.text %}<p class="slide-text">{{ slide.text|nl2br }}</p>{% endif %}
-              {% if href and slide.link_label %}
+              {% if block.variant == 'banner' %}
+                {# Up to three buttons side by side. #}
+                {{ ui.actions([
+                  {label: slide.link_label, url: slide.url},
+                  {label: slide.link_label_2, url: slide.url_2},
+                  {label: slide.link_label_3, url: slide.url_3}
+                ], prefix) }}
+              {% elseif href and slide.link_label %}
                 <a class="slide-link" href="{{ href }}">{{ slide.link_label }}{{ icon('arrow-right', 'btn-icon') }}</a>
               {% endif %}
-              {{ ui.actions(slide.actions, prefix) }}
             </div>
           </article>
         </div>

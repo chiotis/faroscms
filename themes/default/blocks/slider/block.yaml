@@ -41,12 +41,7 @@ fields:
       text: { type: textarea, label: Text }
       link_label: { type: text, label: Link text }
       url: { type: link, label: Link }
-      actions:
-        type: repeater
-        label: Buttons
-        item_label: Button
-        max: 3
-        fields:
-          label: { type: text, label: Label }
-          url: { type: link, label: Link }
-          style: { type: select, label: Style, default: primary, options: { primary: Primary, secondary: Secondary } }
+      link_label_2: { type: text, label: Second link text, help: 'Shown as buttons beside the first in the Wide banner layout.' }
+      url_2: { type: link, label: Second link }
+      link_label_3: { type: text, label: Third link text }
+      url_3: { type: link, label: Third link }
