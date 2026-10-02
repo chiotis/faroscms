@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.29 — 2026-10-02 — The version stamp of an asset is read afresh
+- The stamp at the end of an asset address (0.1.27) is read from the file's date and size with PHP's file status cache cleared first, so a file written earlier in the same request (or in a long-running process) is not described as it was. It made one check fail on PHP 8.1 only (the 0.1.28 run); a request on a site was never affected
+
 ## 0.1.28 — 2026-10-03 — A new form builder
 - **The form editor is rebuilt as a builder.** A palette of fields on the left (click one, or drag it into the form), the form drawn as the visitor will see it in the middle, and an inspector on the right for the field that is selected: label, help, placeholder, required, starting value, the choices of a dropdown or single or multiple choice (reordered by dragging, pasted as a list, with the value of each when you want it), and the field's name under Advanced. Fields are moved by dragging the handle (or with the arrow keys on it: up and down move it, left and right make it narrower or wider), duplicated and deleted, with **Undo and Redo**. **Edit and Preview, Desktop and Phone** show the form as it will look
 - **Width and layout.** A field can take the whole row, a half, a third or two thirds (a new field dropped beside a narrower one takes its width; on a phone every field has a row to itself), and a form can have **headings** and **text** between its fields. The site's form template and the theme (1.15.0) draw them; a heading or a text takes no answer, is not checked and is not in the emails. Names are made from the labels (Greek letters become Latin) until the field has been saved, and two fields can no longer end up with the same name
