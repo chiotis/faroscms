@@ -41,7 +41,8 @@ final class SiteLimits
         $stored = $this->measurement();
         $parts = $stored['parts'];
         $used = array_sum($parts);
-        $diskFree = (int)(disk_free_space($this->basePath) ?: 0);
+        // A host can switch the function off; the share of the disk is then simply not known.
+        $diskFree = function_exists('disk_free_space') ? (int)(@disk_free_space($this->basePath) ?: 0) : 0;
         $limit = $this->limitBytes();
         $base = $limit > 0 ? $limit : $used + $diskFree;
         $ratio = $base > 0 ? $used / $base : 0.0;

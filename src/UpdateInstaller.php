@@ -91,7 +91,8 @@ final class UpdateInstaller
         $add('Code folders writable', $unwritable === [], $unwritable === [] ? 'The code can be replaced.' : 'Not writable: ' . implode(', ', $unwritable));
         $updates = $this->basePath . '/storage/updates';
         $add('Working folder', (is_dir($updates) ? is_writable($updates) : (is_dir($this->basePath . '/storage') && is_writable($this->basePath . '/storage'))), 'storage/updates must be writable.');
-        $free = @disk_free_space($this->basePath);
+        // A host can switch off any function; a disabled one is not there to call, so each optional one is asked about first.
+        $free = function_exists('disk_free_space') ? @disk_free_space($this->basePath) : false;
         $add('Disk space', $free === false || $free >= 3 * $manifest['size'], 'At least three times the size of the package must be free.');
         $add('No update running', !$this->isLocked(), 'Another update is already in progress.');
         return $checks;
@@ -105,8 +106,12 @@ final class UpdateInstaller
      */
     public function install(array $manifest, string $currentVersion, bool $backupReady): array
     {
-        @set_time_limit(300);
-        ignore_user_abort(true);
+        if (function_exists('set_time_limit')) {
+            @set_time_limit(300);
+        }
+        if (function_exists('ignore_user_abort')) {
+            ignore_user_abort(true);
+        }
         // What this request remembers about files may be older than the folders as they are now.
         clearstatcache(true);
         $to = $manifest['version'];
@@ -163,7 +168,7 @@ final class UpdateInstaller
                 return $this->fail($run, $result('failed', 'swap', $error . ' Everything was put back.'));
             }
             file_put_contents($run . '/report.json', json_encode(['from' => $currentVersion, 'to' => $to, 'at' => gmdate('c'), 'units' => $swapped, 'migrations_before' => $migrationsBefore, 'database' => 'database/app.sqlite'], JSON_PRETTY_PRINT));
-            $this->clearCaches();
+            $stale = $this->clearCaches();
 
             $health = ($this->health)($token, $to);
             if ($health['reached'] && !$health['ok']) {
@@ -180,6 +185,9 @@ final class UpdateInstaller
             self::removeTree($staged);
             @unlink($run . '/package.zip');
             $this->prune($to);
+            if ($stale !== '') {
+                return $result('unverified', 'health', 'Version ' . $to . ' is installed. ' . $stale);
+            }
             if (!$health['reached']) {
                 return $result('unverified', 'health', 'Version ' . $to . ' is installed, but the site could not be asked whether it works (' . $health['message'] . '). Open the site and the admin now; if something is wrong, roll back from this page.');
             }
@@ -438,12 +446,27 @@ final class UpdateInstaller
         ($this->log)('warning', 'The database was put back to what it was before the update.', []);
     }
 
-    private function clearCaches(): void
+    /**
+     * Makes the running site look at the code as it is now. OPcache keeps compiled files and looks at them again only every
+     * few seconds, so after the swap it is reset; when the host does not allow that, the install waits for it to look again.
+     * Returns a note when the new code may still not be running (OPcache never looks at the files again), else an empty text.
+     */
+    private function clearCaches(): string
     {
         clearstatcache(true);
-        if (function_exists('opcache_reset')) {
-            @opcache_reset();
+        $active = function_exists('ini_get') && filter_var(ini_get('opcache.enable'), FILTER_VALIDATE_BOOLEAN) && extension_loaded('Zend OPcache');
+        if (!$active) {
+            return '';
         }
+        if (function_exists('opcache_reset') && @opcache_reset()) {
+            return '';
+        }
+        if (!filter_var(ini_get('opcache.validate_timestamps'), FILTER_VALIDATE_BOOLEAN)) {
+            return 'PHP is set to keep compiled code and never look at the files again, so the new version starts only when PHP is restarted (or its cache cleared).';
+        }
+        // It looks at the files again after this many seconds; the check of the new version must come after that.
+        sleep(max(0, (int)ini_get('opcache.revalidate_freq')) + 1);
+        return '';
     }
 
     /** Keeps what the last few updates left to roll back from, and removes the rest. */

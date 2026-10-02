@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.22 — 2026-10-02 — Installing and the admin work on hosts that switch functions off
+- **Fixed: Install did nothing on a host that disables `set_time_limit` or `ignore_user_abort`** (the request ended with an empty 500 page and left no trace in the activity log). A function a host disables is not there to call: calling it is a fatal error that `@` does not catch. Every optional function the install uses (`set_time_limit`, `ignore_user_abort`, `disk_free_space`, `opcache_reset`, `curl_exec`) is now asked about first, and the same was done for the storage figures that every admin screen reads (`SiteLimits`), the restore check (`BackupService`) and the cURL calls of mail and Google sign-in. Without cURL the download and the check of the site use PHP's own streams
+- **OPcache**: when a host does not allow `opcache_reset`, the install waits for OPcache to look at the files again before it asks the new version whether it starts (otherwise it would be asking the old code), and says so when PHP is set never to look again (then the new version starts when PHP is restarted)
+- The test server now runs with those functions disabled, and `update-installer-restricted.php` runs the installer's whole test the same way, so a call that is not guarded fails the suite
+- **A site on 0.1.20 or 0.1.21 cannot use the Install button until it has this version**: update it once by hand (unzip the new package over the site folder, see `update.md`), after which the button works
+
 ## 0.1.21 — 2026-10-02 — Safer installs, and a fix for PHP 8.5
 - **A vendored library call made safer.** `vendor/nette/schema` (used by the Markdown library) called one of its own private methods as `self::isInRange()` from an instance method. PHP has always accepted that, but on PHP 8.5 the call failed intermittently with "Non-static method … cannot be called statically" on some servers and in CI. It is now `$this->isInRange()` (a two-line change in `vendor/nette/schema/src/Schema/Elements/Base.php`; reapply it if the library is ever updated)
 - **The copy of the database kept before an install** no longer depends on `VACUUM INTO` (SQLite 3.27 or newer): when that is not possible the file is copied after its log is folded in, and the message says what was missing if neither works. The installer also forgets what the request remembers about files before it starts

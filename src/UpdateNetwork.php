@@ -13,6 +13,17 @@ final class UpdateNetwork
     /** The paths asked: the sign-in page must answer 200; the home page only must not fail (a site with no pages yet answers 404 there). */
     private const CHECKS = ['/admin/login', '/'];
 
+    /** Whether cURL can be used: hosts often switch off `curl_exec` while leaving the extension in place. */
+    public static function hasCurl(): bool
+    {
+        foreach (['curl_init', 'curl_setopt_array', 'curl_exec', 'curl_error', 'curl_getinfo'] as $function) {
+            if (!function_exists($function)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     /** Whether an address may be fetched: https, or http on this machine (for tests). */
     public static function isAllowedUrl(string $url): bool
     {
@@ -34,7 +45,7 @@ final class UpdateNetwork
         }
         $written = 0;
         $error = null;
-        if (function_exists('curl_init')) {
+        if (self::hasCurl()) {
             $ch = curl_init($url);
             curl_setopt_array($ch, [
                 CURLOPT_FOLLOWLOCATION => true,
@@ -58,7 +69,7 @@ final class UpdateNetwork
         } else {
             $in = @fopen($url, 'rb', false, stream_context_create(['http' => ['timeout' => 60, 'follow_location' => 1, 'max_redirects' => 5, 'user_agent' => 'FarosCMS updater']]));
             if ($in === false) {
-                $error = 'The address could not be reached.';
+                $error = 'The address could not be reached (cURL is not available here and PHP may not be allowed to open web addresses: allow_url_fopen).';
             } else {
                 while (!feof($in)) {
                     $chunk = fread($in, 65536);
@@ -115,7 +126,7 @@ final class UpdateNetwork
     private static function get(string $url, string $token): array
     {
         $header = MaintenanceMode::HEADER . ': ' . $token;
-        if (function_exists('curl_init')) {
+        if (self::hasCurl()) {
             $ch = curl_init($url);
             curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 20, CURLOPT_CONNECTTIMEOUT => 10, CURLOPT_FOLLOWLOCATION => false, CURLOPT_HTTPHEADER => [$header, 'Accept: text/html'], CURLOPT_USERAGENT => 'FarosCMS updater']);
             $body = curl_exec($ch);
