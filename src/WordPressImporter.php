@@ -38,6 +38,9 @@ final class WordPressImporter
     /** @var array<string, int> */
     private array $unresolved = [];
 
+    /** @var array<string, int> host => pictures of other sites that the text points to */
+    private array $external = [];
+
     /** @var array<string, array{slug: string, label: string, description: string, parent: int, link: string}> */
     private array $termInfo = [];
 
@@ -168,6 +171,7 @@ final class WordPressImporter
             'redirects' => $redirects,
             'notes' => array_keys($notes),
             'unresolved' => $this->unresolved,
+            'external_images' => $this->external,
             'counts' => [
                 'new' => count(array_filter($items, static fn(array $i): bool => $i['state'] === 'new')),
                 'update' => count(array_filter($items, static fn(array $i): bool => $i['state'] === 'update')),
@@ -289,6 +293,7 @@ final class WordPressImporter
         $this->unresolved = [];
         $this->termInfo = [];
         $this->mediaGone = [];
+        $this->external = [];
         $this->planned = false;
         $this->final = false;
     }
@@ -511,6 +516,10 @@ final class WordPressImporter
             return $address; // mailto:, tel: and the like
         }
         if (!$this->sameSite($absolute)) {
+            if ($kind === 'image' && !$this->final) {
+                $host = strtolower((string)parse_url($absolute, PHP_URL_HOST));
+                $this->external[$host] = ($this->external[$host] ?? 0) + 1;
+            }
             return $address;
         }
         $parts = parse_url($absolute) ?: [];

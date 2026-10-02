@@ -84,6 +84,13 @@ if ($plan['notes'] !== []) {
         echo "  - $note\n";
     }
 }
+if ($plan['external_images'] !== []) {
+    arsort($plan['external_images']);
+    echo "\nPictures that live on other sites (left where they are; they may already be gone):\n";
+    foreach (array_slice($plan['external_images'], 0, 10, true) as $host => $count) {
+        echo "  - $host ($count)\n";
+    }
+}
 if ($plan['unresolved'] !== []) {
     arsort($plan['unresolved']);
     echo "\nLinks to addresses that are not imported (kept as they were; the redirects list may cover them) - " . count($plan['unresolved']) . ":\n";
