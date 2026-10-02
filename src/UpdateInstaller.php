@@ -107,6 +107,8 @@ final class UpdateInstaller
     {
         @set_time_limit(300);
         ignore_user_abort(true);
+        // What this request remembers about files may be older than the folders as they are now.
+        clearstatcache(true);
         $to = $manifest['version'];
         $result = static fn(string $status, string $step, string $message): array => ['status' => $status, 'step' => $step, 'message' => $message, 'from' => $currentVersion, 'to' => $to];
 
@@ -380,18 +382,35 @@ final class UpdateInstaller
         }
     }
 
+    /** A copy of the database to go back to: SQLite's own `VACUUM INTO` where it can, else the file after its log is folded in. */
     private function copyDatabase(string $target): ?string
     {
+        clearstatcache(true);
         if (!is_dir(dirname($target)) && !@mkdir(dirname($target), 0775, true)) {
             return 'Could not make a copy of the database.';
         }
+        $why = '';
         try {
             $pdo = $this->database->connection();
             $pdo->exec('VACUUM INTO ' . $pdo->quote($target));
+            if (is_file($target) && filesize($target) > 0) {
+                return null;
+            }
         } catch (\Throwable $e) {
-            return 'Could not make a copy of the database (' . $e->getMessage() . ').';
+            // Older SQLite versions do not have VACUUM INTO; the copy below does not need it.
+            $why = $e->getMessage();
+            @unlink($target);
         }
-        return is_file($target) ? null : 'Could not make a copy of the database.';
+        try {
+            $this->database->connection()->exec('PRAGMA wal_checkpoint(TRUNCATE)');
+        } catch (\Throwable) {
+        }
+        if (!@copy($this->database->path(), $target) || filesize($target) < 1) {
+            $problem = error_get_last()['message'] ?? '';
+            @unlink($target);
+            return 'Could not make a copy of the database (' . trim($why . ' ' . $problem) . '; the database is ' . (is_file($this->database->path()) ? 'there' : 'not there') . ' at ' . $this->database->path() . ' (folder: ' . implode(',', array_map('basename', glob(dirname($this->database->path()) . '/*') ?: [])) . '; opened: ' . ($this->database->isAvailable() ? 'yes' : 'no: ' . (string)$this->database->lastError()) . '), the folder for the copy is ' . (is_dir(dirname($target)) ? 'there' : 'not there') . ').';
+        }
+        return null;
     }
 
     private function migrationCount(): int

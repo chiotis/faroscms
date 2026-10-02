@@ -54,8 +54,17 @@ check('and the checksum is compared in lower case', UpdateService::validateManif
 $base = sys_get_temp_dir() . '/upd' . getmypid();
 $site = $base . '/site';
 $put = function (string $root, string $path, string $text) { @mkdir(dirname("$root/$path"), 0775, true); file_put_contents("$root/$path", $text); };
-$makeSite = function (string $version) use ($site, $put): void {
-    exec('rm -rf ' . escapeshellarg($site));
+// A connection left open to a file that is then deleted and made again can be mistaken for the new file (the same inode
+// is often reused), so the ones this test opened are closed before a site is made again.
+$opened = [];
+$makeSite = function (string $version) use ($site, $put, &$opened): void {
+    foreach ($opened as $open) { $open->close(); }
+    $opened = [];
+    gc_collect_cycles();
+    // The old site is moved out of the way, not deleted: a database file deleted and made again at the same path can reuse
+    // the inode, and SQLite may then refuse to open it while the process still remembers the old one.
+    static $made = 0;
+    if (is_dir($site)) { rename($site, $site . '-old' . (++$made)); }
     foreach (['src/App.php' => '<?php // old code', 'src/Old.php' => 'only in the old version', 'admin/templates/a.twig' => 'old admin', 'vendor/autoload.php' => '<?php // old vendor', 'themes/default/theme.yaml' => 'name: default # old', 'themes/mine/theme.yaml' => 'name: mine', 'starter/content/pages/a.md' => 'old starter',
         'public/index.php' => '<?php // old index', 'public/.htaccess' => '# old htaccess', 'public/assets/css/app.css' => '/* old */', 'public/uploads/.htaccess' => '# old uploads rules', 'custom/README.md' => 'old readme',
         'VERSION' => $version . "\n", 'CHANGELOG.md' => '# old', 'README.md' => 'old', 'LICENSE' => 'old', 'update.md' => 'old', 'composer.json' => '{}',
@@ -103,9 +112,10 @@ $onHealth = null;
 $packagePath = '';
 $downloadError = null;
 $beforeDownload = null;
-$build = function () use ($site, &$log, &$healthCalls, &$health, &$onHealth, &$packagePath, &$downloadError, &$beforeDownload): UpdateInstaller {
+$build = function () use ($site, &$log, &$healthCalls, &$health, &$onHealth, &$packagePath, &$downloadError, &$beforeDownload, &$opened): UpdateInstaller {
     $db = new SystemDatabase("$site/storage");
     $db->initialize();
+    $opened[] = $db;
     return new UpdateInstaller($site, $db, new MaintenanceMode($site),
         function (string $url, string $dest, int $max) use (&$packagePath, &$downloadError, &$beforeDownload): ?string { if ($beforeDownload) { $beforeDownload(); } if ($downloadError !== null) { return $downloadError; } copy($packagePath, $dest); return null; },
         function (string $token, string $version) use (&$healthCalls, &$health, &$onHealth, $site): array { $healthCalls[] = ['flag' => (new MaintenanceMode($site))->blocks(''), 'gets_in' => !(new MaintenanceMode($site))->blocks($token), 'code' => (string)@file_get_contents("$site/src/App.php"), 'version' => $version]; if ($onHealth) { $onHealth(); } return $health; },
@@ -236,7 +246,7 @@ $onHealth = null;
 $makeSite('0.1.0');
 $health = ['reached' => false, 'ok' => false, 'message' => 'no answer from https://site.test'];
 $r = $build()->install($pkg['manifest'], '0.1.0', true);
-check('when the site cannot be asked, the new version stays, the site is opened, and it says to look', [$ok($r), str_contains($r['message'], 'no answer from https://site.test'), $code('VERSION'), (new MaintenanceMode($site))->state(), $build()->rollbackTarget('0.2.0')], [['unverified', 'health'], true, "0.2.0\n", null, '0.1.0']);
+check('when the site cannot be asked, the new version stays, the site is opened, and it says to look (' . $r['message'] . ')', [$ok($r), str_contains($r['message'], 'no answer from https://site.test'), $code('VERSION'), (new MaintenanceMode($site))->state(), $build()->rollbackTarget('0.2.0')], [['unverified', 'health'], true, "0.2.0\n", null, '0.1.0']);
 $health = ['reached' => true, 'ok' => true, 'message' => 'the site answered'];
 
 // ---- a swap that fails half way is undone

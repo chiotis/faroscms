@@ -95,6 +95,8 @@ def post_raw(action):
     csrf = next(x[1] for x in form['fields'] if x[0] == '_csrf')
     st, h, html = root.request('/admin/updates', data=[('_csrf', csrf), ('updates_action', action)])
     return st, (h.get('Location') or '')
+def has_rollback_form():
+    return any(install_form(root, 'rollback')(f) for f in root.forms(html=updates_page()))
 def untouched(label):
     check(label + ': the site\'s pages, uploads and custom files are as they were', [md5(p) for p in mine] == mine_before, [md5(p) for p in mine])
 
@@ -129,7 +131,7 @@ check('the signed-in session still works on the new code, and shows the new vers
 st, _, html = root.get('/admin/settings')
 check('the settings are still there', 'name="title"' in html and base + '/release.json' in root.get('/admin/settings?tab=updates')[2])
 check('the old code was kept to go back to', read('storage/updates/%s/previous/VERSION' % NEW).strip() == old_version and exists('storage/updates/%s/database/app.sqlite' % NEW))
-check('the screen says what happened last, and offers to put the old version back', 'Put version %s back' % old_version in updates_page())
+check('the screen says what happened last, and offers to put the old version back', has_rollback_form())
 check('the activity log has it', any(w in root.get('/admin/activity-logs')[2] for w in ['updates.install_installed']))
 
 # ---- rolling back
@@ -137,7 +139,9 @@ st, loc = post_action('rollback')
 check('putting the old version back says so', 'install=rolled_back' in loc, loc)
 check('the old code is back and the new is gone', read('VERSION').strip() == old_version and not exists('themes/default/marker.txt') and not exists('src/UpdateTestMarker.php'))
 untouched('after the roll back')
-check('the site works, and nothing is left to roll back to', Client().get('/survives')[0] == 200 and ('Put version' not in updates_page()))
+# The release notes on this page may mention the button, so what is asked is whether the form is there.
+has_rollback = lambda: any(install_form(root, 'rollback')(f) for f in root.forms(html=updates_page()))
+check('the site works, and nothing is left to roll back to', Client().get('/survives')[0] == 200 and not has_rollback())
 
 # ---- a new version that does not start is taken out again
 publish(os.path.join(work, 'out-broken'), BROKEN)

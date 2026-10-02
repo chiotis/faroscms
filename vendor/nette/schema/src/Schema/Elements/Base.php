@@ -140,7 +140,7 @@ trait Base
 					? [Nette\Utils\Strings::length($value), 'characters']
 					: [strlen($value), 'bytes']);
 
-			if (!self::isInRange($length, $range)) {
+			if (!$this->isInRange($length, $range)) {
 				$context->addError(
 					"The length of %label% %path% expects to be in range %expected%, %length% $label given.",
 					Nette\Schema\Message::LengthOutOfRange,
@@ -148,7 +148,7 @@ trait Base
 				);
 				return false;
 			}
-		} elseif ((is_int($value) || is_float($value)) && !self::isInRange($value, $range)) {
+		} elseif ((is_int($value) || is_float($value)) && !$this->isInRange($value, $range)) {
 			$context->addError(
 				'The %label% %path% expects to be in range %expected%, %value% given.',
 				Nette\Schema\Message::ValueOutOfRange,
