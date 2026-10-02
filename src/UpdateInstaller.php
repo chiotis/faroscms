@@ -107,6 +107,8 @@ final class UpdateInstaller
     {
         @set_time_limit(300);
         ignore_user_abort(true);
+        // What this request remembers about files may be older than the folders as they are now.
+        clearstatcache(true);
         $to = $manifest['version'];
         $result = static fn(string $status, string $step, string $message): array => ['status' => $status, 'step' => $step, 'message' => $message, 'from' => $currentVersion, 'to' => $to];
 
@@ -383,6 +385,7 @@ final class UpdateInstaller
     /** A copy of the database to go back to: SQLite's own `VACUUM INTO` where it can, else the file after its log is folded in. */
     private function copyDatabase(string $target): ?string
     {
+        clearstatcache(true);
         if (!is_dir(dirname($target)) && !@mkdir(dirname($target), 0775, true)) {
             return 'Could not make a copy of the database.';
         }
