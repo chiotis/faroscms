@@ -104,6 +104,11 @@
   --n-border: #e2e6ec;
   --n-border-strong: #c3cad5;
 
+  /* The near-black behind pictures, panels and the footer: a palette can tint it. */
+  --ink: #0b1220;
+  --ink-rgb: 11 18 32;
+  --ink-2: #172033;
+
   /* Neutrals, dark (also used by the contrast tone) */
   --d-bg: #0b1220;
   --d-surface: #111a2c;
@@ -154,6 +159,11 @@
   --accent-d: #f4a8a0; --accent-d-hover: #f9c9c3; --accent-d-soft: #2d1818;
   --n-bg: #fffdf8; --n-surface: #f8f1e4; --n-surface-2: #f0e5d0;
   --n-text: #261b14; --n-muted: #5b4a3d; --n-border: #eadfca; --n-border-strong: #cdbb9b;
+  /* Dark surfaces (dark mode, the footer, panels over pictures) are warm too, not blue. */
+  --ink: #1d1311; --ink-rgb: 29 19 17; --ink-2: #2b1b17;
+  --d-bg: #1d1311; --d-surface: #281a17; --d-surface-2: #342320;
+  --d-text: #f6ece6; --d-muted: #cdb8ad; --d-border: #3f2c27; --d-border-strong: #5c423a;
+  --accent-contrast-d: #1d1311;
 }
 
 :root[data-font="serif"] {
@@ -1096,7 +1106,7 @@ body.header-sticky .site-header {
   position: fixed;
   inset: 0;
   z-index: 120;
-  background: rgb(11 18 32 / 0.55);
+  background: rgb(var(--ink-rgb) / 0.55);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.25s var(--ease);
@@ -1195,7 +1205,7 @@ body.mobile-menu-open .mobile-drawer--fullscreen {
   inset: 0 0 auto;
   border-bottom: 1px solid var(--color-border);
   border-radius: 0 0 var(--radius-l) var(--radius-l);
-  box-shadow: 0 24px 48px -24px rgb(11 18 32 / 0.5);
+  box-shadow: 0 24px 48px -24px rgb(var(--ink-rgb) / 0.5);
   transform: translateY(-100%);
 }
 
@@ -1204,7 +1214,7 @@ body.mobile-menu-open .mobile-drawer--fullscreen {
   padding-bottom: env(safe-area-inset-bottom);
   border-top: 1px solid var(--color-border);
   border-radius: var(--radius-l) var(--radius-l) 0 0;
-  box-shadow: 0 -24px 48px -24px rgb(11 18 32 / 0.5);
+  box-shadow: 0 -24px 48px -24px rgb(var(--ink-rgb) / 0.5);
   transform: translateY(100%);
 }
 
@@ -1526,7 +1536,7 @@ body.has-transparent-header:not(.header-solid) .site-header.is-on-dark[data-stic
   --color-bg: transparent;
   --accent: #ffffff;
   --accent-hover: #e8edf4;
-  --accent-contrast: #0b1220;
+  --accent-contrast: var(--ink);
   --color-focus: #ffffff;
   color: #ffffff;
 }
@@ -1541,7 +1551,7 @@ body.has-transparent-header:not(.header-solid) .site-header.is-on-dark[data-stic
 
 /* A photo behind the title area: a darker top edge under the transparent header keeps its light text readable. */
 .has-transparent-header .main-shell > .single-hero.has-image:first-child::before {
-  background-image: linear-gradient(180deg, rgb(11 18 32 / 0.6), rgb(11 18 32 / 0.8)), var(--hero-image);
+  background-image: linear-gradient(180deg, rgb(var(--ink-rgb) / 0.6), rgb(var(--ink-rgb) / 0.8)), var(--hero-image);
 }
 
 /* The same when the page opens with its title area: room for the header on top of each layout's own space. */
@@ -1641,7 +1651,7 @@ body.has-transparent-header:not(.header-solid) .site-header.is-on-dark[data-stic
 
 .single-hero.has-image {
   /* Dark underneath the photo: the light text stays readable while the picture loads, or if it never does. */
-  background: var(--hero-bg, #0b1220);
+  background: var(--hero-bg, var(--ink));
   color: #f8fafc;
 }
 
@@ -1650,7 +1660,7 @@ body.has-transparent-header:not(.header-solid) .site-header.is-on-dark[data-stic
   position: absolute;
   inset: 0;
   z-index: 0;
-  background-image: linear-gradient(180deg, rgb(11 18 32 / 0.25), rgb(11 18 32 / 0.8)), var(--hero-image);
+  background-image: linear-gradient(180deg, rgb(var(--ink-rgb) / 0.25), rgb(var(--ink-rgb) / 0.8)), var(--hero-image);
   background-position: center;
   background-size: cover;
 }
@@ -1821,7 +1831,7 @@ body.has-transparent-header:not(.header-solid) .site-header.is-on-dark[data-stic
   align-items: end;
   min-height: min(70vh, 40rem);
   border-bottom: 0;
-  background: #0b1220;
+  background: var(--ink);
   color: #ffffff;
   color-scheme: dark;
   --color-text: #ffffff;
@@ -1859,8 +1869,8 @@ body.has-transparent-header:not(.header-solid) .site-header.is-on-dark[data-stic
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(90deg, rgb(11 18 32 / 0.55) 0%, rgb(11 18 32 / 0.15) 65%, transparent 100%),
-    linear-gradient(180deg, rgb(11 18 32 / 0.25) 0%, rgb(11 18 32 / 0.35) 40%, rgb(11 18 32 / 0.88) 100%);
+    linear-gradient(90deg, rgb(var(--ink-rgb) / 0.55) 0%, rgb(var(--ink-rgb) / 0.15) 65%, transparent 100%),
+    linear-gradient(180deg, rgb(var(--ink-rgb) / 0.25) 0%, rgb(var(--ink-rgb) / 0.35) 40%, rgb(var(--ink-rgb) / 0.88) 100%);
 }
 
 @media (max-width: 900px) {
@@ -2302,7 +2312,7 @@ p.form-error {
   --accent: var(--accent-d);
   --accent-hover: var(--accent-d-hover);
   --color-focus: var(--accent-d);
-  background: var(--footer-bg, #0b1220);
+  background: var(--footer-bg, var(--ink));
   color: var(--color-text);
 }
 
@@ -2311,7 +2321,7 @@ p.form-error {
   position: absolute;
   inset: 0;
   z-index: 0;
-  background-image: linear-gradient(180deg, rgb(11 18 32 / 0.55), rgb(11 18 32 / 0.9)), var(--footer-image);
+  background-image: linear-gradient(180deg, rgb(var(--ink-rgb) / 0.55), rgb(var(--ink-rgb) / 0.9)), var(--footer-image);
   background-position: center;
   background-size: cover;
 }
@@ -2410,7 +2420,7 @@ p.form-error {
 .footer-icons a:hover,
 .drawer-icons a:hover {
   background: var(--color-text);
-  color: var(--color-bg, #0b1220);
+  color: var(--color-bg, var(--ink));
 }
 
 .footer-icons svg,

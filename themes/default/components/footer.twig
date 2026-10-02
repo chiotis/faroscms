@@ -34,14 +34,16 @@
           {{ menu_markup }}
         </nav>
 
-        <div>
-          <h2 class="footer-title">{{ t('footer.contact', 'Contact') }}</h2>
-          <address class="footer-list">
-            {% if footer.email %}<a class="footer-link" href="mailto:{{ footer.email }}">{{ footer.email }}</a>{% endif %}
-            {% if footer.phone %}<a class="footer-link" href="tel:{{ footer.phone|replace({' ': ''}) }}">{{ footer.phone }}</a>{% endif %}
-            {% if footer.address %}<span>{{ footer.address }}</span>{% endif %}
-          </address>
-        </div>
+        {% if footer.email or footer.phone or footer.address %}
+          <div>
+            <h2 class="footer-title">{{ t('footer.contact', 'Contact') }}</h2>
+            <address class="footer-list">
+              {% if footer.email %}<a class="footer-link" href="mailto:{{ footer.email }}">{{ footer.email }}</a>{% endif %}
+              {% if footer.phone %}<a class="footer-link" href="tel:{{ footer.phone|replace({' ': ''}) }}">{{ footer.phone }}</a>{% endif %}
+              {% if footer.address %}<span>{{ footer.address }}</span>{% endif %}
+            </address>
+          </div>
+        {% endif %}
       </div>
 
       <div class="footer-bottom">

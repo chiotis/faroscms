@@ -53,12 +53,17 @@ slides:
 menus:
   main:
     list: "//ul[contains(@class,'sf-menu')]"
+  footer:
+    list: "//ul[contains(@class,'footer-menu')]"
 
 # The home page as blocks. @slides, @image (the picture the page text starts with) and @body (the text after it) are filled in.
 home:
   blocks:
     - type: slider
       variant: banner
+      width: full
+      navigation: inside
+      spacing: none
       autoplay: '8'
       items: '@slides'
     - type: text-image

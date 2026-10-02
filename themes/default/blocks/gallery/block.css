@@ -47,12 +47,12 @@
   content: "";
   position: absolute;
   inset: 0;
-  background: rgb(11 18 32 / 0);
+  background: rgb(var(--ink-rgb) / 0);
   transition: background-color 0.25s var(--ease);
 }
 
 .gallery-link:hover::after {
-  background: rgb(11 18 32 / 0.12);
+  background: rgb(var(--ink-rgb) / 0.12);
 }
 
 .ratio-landscape .gallery-link,
@@ -124,7 +124,7 @@
 }
 
 .gallery-dialog::backdrop {
-  background: rgb(8 12 22 / 0.92);
+  background: rgb(var(--ink-rgb) / 0.92);
 }
 
 .gallery-dialog-figure {
@@ -156,7 +156,7 @@
   height: 3rem;
   border: 1px solid rgb(255 255 255 / 0.35);
   border-radius: 999px;
-  background: rgb(11 18 32 / 0.6);
+  background: rgb(var(--ink-rgb) / 0.6);
   color: #ffffff;
   font-size: 1.5rem;
   line-height: 1;

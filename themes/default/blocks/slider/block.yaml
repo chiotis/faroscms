@@ -15,6 +15,21 @@ fields:
   intro:
     type: textarea
     label: Introduction
+  width:
+    type: select
+    label: Width
+    default: contained
+    options:
+      contained: 'Within the page width'
+      full: 'Full width of the screen'
+    help: 'Full width runs the slides edge to edge; the text inside stays in line with the page. Set the block spacing to None to sit against the header.'
+  navigation:
+    type: select
+    label: Arrows and dots
+    default: below
+    options:
+      below: 'Below the slides'
+      inside: 'Over the slides'
   per_view:
     type: select
     label: Slides visible at once (several)

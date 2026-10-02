@@ -3,12 +3,14 @@
 {% set slides = block.items %}
 {% set total = slides|length %}
 {% set autoplay = block.autoplay in ['5', '8'] ? block.autoplay : '' %}
-{% set sizes = block.variant in ['full', 'banner'] ? '(min-width: 1100px) 1100px, 94vw' : (block.per_view == '2' ? '(min-width: 900px) 46vw, 88vw' : '(min-width: 1100px) 30vw, (min-width: 700px) 45vw, 88vw') %}
+{% set sizes = block.width == 'full' and block.variant != 'multi' ? '100vw' : block.variant in ['full', 'banner'] ? '(min-width: 1100px) 1100px, 94vw' : (block.per_view == '2' ? '(min-width: 900px) 46vw, 88vw' : '(min-width: 1100px) 30vw, (min-width: 700px) 45vw, 88vw') %}
 {% set label = block.heading ?: t('slider.label', 'Slides') %}
-<div class="container">
-  {{ ui.section_header(block, heading_tag, block_uid, 'left') }}
+{% set wide = block.width == 'full' %}
+{% set intro %}{{ ui.section_header(block, heading_tag, block_uid, 'left') }}{% endset %}
+{% if intro|trim %}<div class="container">{{ intro }}</div>{% endif %}
+{% if not wide %}<div class="container">{% endif %}
   {# The block's own section is already the landmark; the slider is a group inside it. #}
-  <div class="slider slider-{{ block.variant }} per-{{ block.per_view }}" data-slider{% if autoplay %} data-autoplay="{{ autoplay }}"{% endif %}
+  <div class="slider slider-{{ block.variant }} per-{{ block.per_view }}{% if wide %} slider-wide{% endif %}{% if block.navigation == 'inside' %} nav-inside{% endif %}" data-slider{% if autoplay %} data-autoplay="{{ autoplay }}"{% endif %}
        role="group" aria-roledescription="{{ t('slider.carousel', 'carousel') }}" aria-label="{{ label }}"
        data-label-prev="{{ t('slider.previous', 'Previous slide') }}" data-label-next="{{ t('slider.next', 'Next slide') }}"
        data-label-pause="{{ t('slider.pause', 'Pause automatic movement') }}" data-label-play="{{ t('slider.play', 'Start automatic movement') }}"
@@ -19,7 +21,7 @@
         <div class="slider-slide{% if not slide.image %} no-image{% endif %}" role="group" aria-roledescription="{{ t('slider.slide', 'slide') }}" aria-label="{{ loop.index }} / {{ total }}">
           <article class="slide">
             {% if slide.image %}
-              <div class="slide-media">{{ image(slide.image, {alt: '', sizes: sizes, max_width: block.variant in ['full', 'banner'] ? 2000 : 1100, loading: loop.first and block_first ? 'eager' : null}) }}</div>
+              <div class="slide-media">{{ image(slide.image, {alt: '', sizes: sizes, max_width: block.variant in ['full', 'banner'] ? (block.width == 'full' ? 2400 : 2000) : 1100, loading: loop.first and block_first ? 'eager' : null}) }}</div>
             {% endif %}
             <div class="slide-body">
               {% if slide.eyebrow %}<p class="slide-label">{{ slide.eyebrow }}</p>{% endif %}
@@ -45,4 +47,4 @@
       {% endfor %}
     </div>
   </div>
-</div>
+{% if not wide %}</div>{% endif %}

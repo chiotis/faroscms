@@ -97,7 +97,7 @@
   border-radius: var(--radius-l);
   background:
     radial-gradient(60% 90% at 85% 10%, color-mix(in srgb, var(--accent) 50%, transparent), transparent 70%),
-    linear-gradient(135deg, #0b1220, #172033);
+    linear-gradient(135deg, var(--ink), var(--ink-2));
   color: #ffffff;
   isolation: isolate;
 }
@@ -113,7 +113,7 @@
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: linear-gradient(180deg, rgb(8 12 22 / 0) 25%, rgb(8 12 22 / 0.86) 100%);
+  background: linear-gradient(180deg, rgb(var(--ink-rgb) / 0) 25%, rgb(var(--ink-rgb) / 0.86) 100%);
 }
 
 .slider-full .slide-body {
@@ -158,7 +158,7 @@
   padding: 0.65rem 1.25rem;
   border-radius: var(--radius-button);
   background: #ffffff;
-  color: #0b1220;
+  color: var(--ink);
 }
 
 .slider-full .slide-link:focus-visible,
@@ -175,7 +175,7 @@
   min-height: clamp(16rem, 9rem + 24vw, 26rem);
   overflow: hidden;
   border-radius: var(--radius-l);
-  background: linear-gradient(135deg, #0b1220, #172033);
+  background: linear-gradient(135deg, var(--ink), var(--ink-2));
   color: #ffffff;
   isolation: isolate;
 }
@@ -194,7 +194,7 @@
   margin: clamp(1rem, 0.5rem + 2vw, 2.5rem);
   padding: clamp(1.1rem, 0.8rem + 1.2vw, 1.75rem);
   border-radius: var(--radius-m, var(--radius-l));
-  background: rgb(8 12 22 / 0.68);
+  background: rgb(var(--ink-rgb) / 0.68);
 }
 
 .slider-banner .slide-title {
@@ -215,7 +215,7 @@
   padding: 0.55rem 1.1rem;
   border-radius: var(--radius-button);
   background: #ffffff;
-  color: #0b1220;
+  color: var(--ink);
 }
 
 .slider-banner .actions {
@@ -227,13 +227,52 @@
   color: #ffffff;
 }
 
+/* On a phone the picture is no place for a panel of text: the picture first, the text under it. */
 @media (max-width: 620px) {
-  .slider-banner .slide {
-    align-items: flex-end;
+  .slider-banner {
+    container-type: inline-size;
   }
 
-  .slider-banner .slide-body {
-    margin: 0.75rem;
+  .slider-banner .slide,
+  .slider-wide.slider-banner .slide {
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    min-height: 0;
+    padding-inline: 0;
+  }
+
+  .slider-banner .slide-media {
+    position: relative;
+    inset: auto;
+    z-index: 0;
+    aspect-ratio: 16 / 9;
+  }
+
+  .slider-banner .slide-body,
+  .slider-wide.slider-banner .slide-body {
+    width: 100%;
+    flex: 1;
+    align-content: start;
+    margin: 0;
+    padding: var(--space-m) var(--gutter);
+    border-radius: 0;
+    background: rgb(var(--ink-rgb));
+  }
+
+  /* Arrows and dots stay on the picture, which is the top 16:9 of the slide. */
+  .slider-banner.nav-inside .slider-btn {
+    top: calc(28.125cqw);
+  }
+
+  .slider-banner.nav-inside .slider-btn.is-toggle {
+    top: calc(56.25cqw - 2.9rem);
+    bottom: auto;
+  }
+
+  .slider-banner.nav-inside .slider-dots {
+    top: calc(56.25cqw - 2.4rem);
+    bottom: auto;
   }
 }
 
@@ -278,6 +317,24 @@
   margin-top: auto;
   padding-top: var(--space-2xs);
   color: var(--color-text);
+}
+
+/* Full width: the slides run edge to edge, and the text keeps to the width of the page. */
+.slider-wide .slider-track {
+  border-radius: 0;
+}
+
+.slider-wide .slide {
+  border-radius: 0;
+  padding-inline: max(var(--gutter), calc((100% - var(--container)) / 2 + var(--gutter)));
+}
+
+.slider-wide .slide-body {
+  margin-inline: 0;
+}
+
+.slider-wide.slider-full .slide-body {
+  padding-inline: 0;
 }
 
 /* Controls are added by block.js */
@@ -373,4 +430,69 @@
   .slider-multi.per-4 .slider-slide {
     flex-basis: 84%;
   }
+}
+
+/* Arrows and dots over the slides, so the picture is the whole slider */
+.nav-inside .slider-controls {
+  position: absolute;
+  inset: 0;
+  display: block;
+  margin: 0;
+  pointer-events: none;
+}
+
+.nav-inside .slider-controls > * {
+  pointer-events: auto;
+}
+
+.nav-inside .slider-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  border-color: rgb(255 255 255 / 0.55);
+  background: rgb(var(--ink-rgb) / 0.55);
+  color: #ffffff;
+}
+
+.nav-inside .slider-btn:hover {
+  border-color: #ffffff;
+  background: rgb(var(--ink-rgb) / 0.8);
+}
+
+.nav-inside .slider-btn.is-prev {
+  left: clamp(0.5rem, 2vw, 1.5rem);
+}
+
+.nav-inside .slider-btn.is-next {
+  right: clamp(0.5rem, 2vw, 1.5rem);
+}
+
+.nav-inside .slider-btn.is-toggle {
+  top: auto;
+  right: clamp(0.5rem, 2vw, 1.5rem);
+  bottom: 0.75rem;
+  transform: none;
+}
+
+.nav-inside .slider-dots {
+  position: absolute;
+  bottom: 0.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  background: rgb(var(--ink-rgb) / 0.45);
+}
+
+.nav-inside .slider-dot::before {
+  background: rgb(255 255 255 / 0.55);
+}
+
+.nav-inside .slider-dot[aria-current="true"]::before {
+  background: #ffffff;
+}
+
+.nav-inside .slider-btn:focus-visible,
+.nav-inside .slider-dot:focus-visible {
+  outline-color: #ffffff;
 }

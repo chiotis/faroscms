@@ -152,6 +152,10 @@ check('terms are not added twice', $result2['terms_added'], 0);
 
 // ---- a file of the site's own
 file_put_contents("$root/content/pages/about.md", "---\ntitle: My own about\nstatus: published\n---\n\nMine.\n");
+file_put_contents("$root/content/posts/hello.md", "---\ntitle: Hello edited\ncustom_fields:\n  imported_from: '$SITE/hello/'\n---\n\nEdited in the admin.\n");
+$importEdited = $make();
+$planEdited = $importEdited->plan();
+check('a file the admin saved again is told apart from one of the site\'s own', array_values(array_map(fn($i) => $i['state'] . ': ' . $i['reason'], array_filter($planEdited['items'], fn($i) => $i['slug'] === 'hello'))), ['skip: edited in the admin since it was imported; --overwrite replaces it']);
 $import3 = $make();
 $plan3 = $import3->plan();
 check('a file that no import brought is left alone', array_map(fn($i) => $i['state'], array_filter($plan3['items'], fn($i) => $i['slug'] === 'about' && $i['type'] === 'pages')), [1 => 'skip']);

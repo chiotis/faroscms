@@ -396,6 +396,10 @@ final class WordPressImporter
         if ($this->options['overwrite'] ?? false) {
             return ['update', 'replaced on request'];
         }
+        // The editor of the admin keeps front matter it does not know under custom_fields when it saves a file.
+        if (is_array($front['custom_fields'] ?? null) && ($front['custom_fields']['imported_from'] ?? '') === $from) {
+            return ['skip', 'edited in the admin since it was imported; --overwrite replaces it'];
+        }
         return ['skip', 'a file of the site with this address exists'];
     }
 

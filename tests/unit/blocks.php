@@ -18,6 +18,8 @@ check('latest variants', array_keys($registry->get('latest')['variants']), ['car
 check('latest source options', array_keys($registry->get('latest')['fields']['source']['options']), ['posts', 'projects']);
 check('latest source default', $registry->get('latest')['fields']['source']['default'], 'posts');
 check('video default play', $registry->get('video')['fields']['play']['default'], 'lightbox');
+check('slider is contained with its arrows below by default', [$registry->get('slider')['fields']['width']['default'], $registry->get('slider')['fields']['navigation']['default']], ['contained', 'below']);
+check('slider width and arrows only take their own values', [FieldSchema::resolve($registry->get('slider')['fields'], ['width' => 'huge', 'navigation' => 'left'])['width'], FieldSchema::resolve($registry->get('slider')['fields'], ['width' => 'full', 'navigation' => 'inside'])['navigation']], ['contained', 'inside']);
 check('slider autoplay default off', $registry->get('slider')['fields']['autoplay']['default'], 'off');
 check('banner default tone', $registry->get('banner')['common']['tone']['default'], 'accent');
 check('banner icon default', $registry->get('banner')['fields']['icon']['default'], 'megaphone');
