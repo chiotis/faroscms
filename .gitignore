@@ -8,8 +8,10 @@ node_modules/
 # Site-specific customizations are not part of the FarosCMS codebase.
 custom/*
 !custom/README.md
-# Responsive image variants are generated on demand.
-public/uploads/_v/
+# The site's own data is never part of the code: its pages, posts and media, and its uploads. A demo site to start from is in starter/.
+/content/
+/public/uploads/*
+!/public/uploads/.htaccess
 # Working notes, kept on the maintainer's machine only.
 docs/todo.md
 docs/migration-plan.md
