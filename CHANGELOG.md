@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.23 — 2026-10-02 — A media id made only of digits
+- **Fixed a rare error in the Media screen.** A media id is 16 random hexadecimal characters, and about one in two thousand is only digits. PHP turns such a text into a number when it is used as an array key, and the next function wanted text, so selecting that file for a bulk action (tags, delete) failed with a type error. Ids are now kept as text. It showed up as an occasional failure of the test suite on PHP 8.5
+
 ## 0.1.22 — 2026-10-02 — Installing and the admin work on hosts that switch functions off
 - **Fixed: Install did nothing on a host that disables `set_time_limit` or `ignore_user_abort`** (the request ended with an empty 500 page and left no trace in the activity log). A function a host disables is not there to call: calling it is a fatal error that `@` does not catch. Every optional function the install uses (`set_time_limit`, `ignore_user_abort`, `disk_free_space`, `opcache_reset`, `curl_exec`) is now asked about first, and the same was done for the storage figures that every admin screen reads (`SiteLimits`), the restore check (`BackupService`) and the cURL calls of mail and Google sign-in. Without cURL the download and the check of the site use PHP's own streams
 - **OPcache**: when a host does not allow `opcache_reset`, the install waits for OPcache to look at the files again before it asks the new version whether it starts (otherwise it would be asking the old code), and says so when PHP is set never to look again (then the new version starts when PHP is restarted)

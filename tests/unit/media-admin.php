@@ -53,6 +53,9 @@ check('a form that carries nothing returns to the list of the address', $admin->
 check('the way back names the list and what happened, empty values left out', $admin->returnQuery(['type' => 'image', 'view' => 'list', 'per_page' => 20, 'page' => 2, 'tag' => '', 'q' => 'logo', 'usage' => ''], ['success' => 'Saved.', 'error' => '', 'page' => 1]), ['type' => 'image', 'view' => 'list', 'per_page' => 20, 'page' => 1, 'q' => 'logo', 'success' => 'Saved.']);
 check('places are named, three at most', [MediaAdmin::placesSentence([['label' => 'A'], ['label' => 'A'], ['label' => 'B']]), MediaAdmin::placesSentence([['label' => 'A'], ['label' => 'B'], ['label' => 'C'], ['label' => 'D'], ['label' => 'E']])], ['A, B', 'A, B, C and 2 more']);
 
+// ---- ids that are only digits (a random 16-character id is one about once in two thousand)
+check('ids are kept as text even when they are only digits', array_map('gettype', $media->collectIds(['1234567890123456', 'abc0123456789def', '1234567890123456', '12'])), ['string', 'string']);
+
 // ---- uploads
 check('nothing to upload', $admin->apply(['media_action' => 'upload'], [], 'tester'), ['error' => 'No file uploaded.']);
 $r = $admin->apply(['upload_tags' => 'Hero, Logo'], ['upload_file' => $many([$file('one.png')])], 'tester');
