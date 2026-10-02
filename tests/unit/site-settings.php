@@ -38,7 +38,7 @@ check('form shows the title', $form['title'], 'Old site');
 check('languages are shown as a list', $form['languages_available'], 'en, el');
 check('no secret is sent to the browser', $form['smtp_pass'], '');
 check('and the form learns none is stored', $form['smtp_pass_set'], false);
-check('header and footer menus default', [$form['menu_location_header'], $form['menu_location_footer']], ['main', 'footer']);
+check('the form no longer carries the places of menus (the menu editor sets them)', array_values(preg_grep('/^menu_location/', array_keys($form))), []);
 check('the storage limit shows', $form['storage_limit_mb'], 1024);
 
 // ---- saving
@@ -47,10 +47,11 @@ $base = [
     'languages_default' => 'EL', 'languages_available' => 'en, De, en', 'mail_driver' => 'bogus', 'mail_from' => 'a@x.test', 'mail_from_name' => '',
     'smtp_host' => 'smtp.x.test', 'smtp_port' => '587', 'smtp_user' => 'u', 'smtp_pass' => 'secret1', 'smtp_encryption' => 'tls',
     'ses_key' => '', 'ses_secret' => '', 'ses_region' => '',
-    'menu_location_header' => 'Top Menu', 'menu_location_footer' => '', 'menu_location_keys' => ['side', 'header', ''], 'menu_location_values' => ['s menu', 'x', 'y'],
     'backup_schedule' => 'hourly', 'backup_keep_local' => '0', 'backup_remote_provider' => 'nowhere', 'backup_remote_keep' => '-3', 'backup_remote_prefix' => '/site/',
     'google_allowed_domain' => ' EXAMPLE.com ', 'update_repository' => '', 'update_branch' => '',
 ];
+$s->setMenuLocation('footer', 'extra-menu');
+$before = $s->load();
 $raw = $s->raw('site_settings', $s->defaults());
 check('saving works', $s->save($raw, $base), true);
 $d = $s->load();
@@ -60,7 +61,7 @@ check('blank theme keeps the old one', $d['theme'], 'default');
 check('languages: default in the list, names made into slugs (lower case), no repeats', $d['languages'], ['default' => 'el', 'available' => ['el', 'en', 'de']]);
 check('an unknown mail driver falls back to smtp', $d['forms']['notifications']['driver'], 'smtp');
 check('the port becomes a number', $d['forms']['notifications']['smtp']['port'], 587);
-check('menu locations: header and footer always exist, extras are kept, reserved names are dropped', $d['menu_locations'], ['header' => 'top-menu', 'footer' => 'footer', 'side' => 's-menu']);
+check('saving the form leaves the places of menus as they were', $d['menu_locations'] ?? [], $before['menu_locations'] ?? []);
 check('an unknown schedule falls back to daily', $d['backup']['auto']['schedule'], 'daily');
 check('keep is at least one', [$d['backup']['local']['keep'], $d['backup']['remote']['keep']], [1, 1]);
 check('an unknown provider falls back to custom', $d['backup']['remote']['provider'], 'custom');
@@ -105,16 +106,21 @@ check('without a database, save says no', $dead->save('', $base), false);
 check('without a database, load gives the defaults', $dead->load()['title'], 'FarosCMS');
 
 // ---- the form as it arrives
-$f = SiteSettings::formFromPost(['title' => 'T', 'backup_auto_enabled' => 'on', 'google_enabled' => '', 'menu_location_keys' => ['a'], 'clear_secret' => ['smtp_pass', 7], 'robots_disallow' => "/a\nDisallow: /b\nhttps://x.test/c"]);
+$f = SiteSettings::formFromPost(['title' => 'T', 'backup_auto_enabled' => 'on', 'google_enabled' => '', 'clear_secret' => ['smtp_pass', 7], 'robots_disallow' => "/a\nDisallow: /b\nhttps://x.test/c"]);
 check('a ticked box is 1, one that was not sent is 0', [$f['backup_auto_enabled'], $f['backup_remote_enabled'], $f['backup_remote_path_style'], $f['google_enabled']], ['1', '0', '0', '1']);
 check('text that was not sent is empty', [$f['title'], $f['tagline'], $f['smtp_host']], ['T', '', '']);
 check('the robots rules are cleaned on the way in', $f['robots_disallow'], "/a\n/b");
 check('a form without the robots box says so (null), so it does not clear them', SiteSettings::formFromPost([])['robots_disallow'], null);
 check('the boxes to clear secrets are a list of text', $f['clear_secrets'], ['smtp_pass', '7']);
-check('lists of menu places come as they are, or none', [$f['menu_location_keys'], $f['menu_location_values']], [['a'], []]);
 check('what needs permission is left to the caller', array_intersect(['storage_limit_mb', 'upload_limit_mb', 'upload_types'], array_keys($f)), []);
 $saved = $s->save($s->raw('site_settings', []), SiteSettings::formFromPost(['title' => 'From post', 'languages_available' => 'el, en', 'languages_default' => 'el', 'backup_auto_enabled' => '1', 'backup_schedule' => 'weekly']));
 check('and it saves as it is', [$saved, $s->load()['title'], $s->load()['backup']['auto']['enabled'], $s->load()['backup']['auto']['schedule'], $s->load()['backup']['remote']['enabled']], [true, 'From post', true, 'weekly', false]);
+
+// ---- a menu put in a place of the theme, from the menu editor
+check('a menu is put in a place', [$s->setMenuLocation('footer', 'extra'), $s->load()['menu_locations']['footer']], [true, 'extra']);
+check('and the places already set stay', $s->load()['menu_locations']['header'], 'main');
+check('a place made only of the settings is kept too', [$s->setMenuLocation('Side Bar', 'Other Menu'), $s->load()['menu_locations']['side-bar']], [true, 'other-menu']);
+check('a place or a menu with no name is refused', [$s->setMenuLocation('', 'x'), $s->setMenuLocation('x', ' ')], [false, false]);
 
 exec('rm -rf ' . escapeshellarg($dir));
 echo $fail === 0 ? "\nALL PASSED\n" : "\n$fail FAILED\n";

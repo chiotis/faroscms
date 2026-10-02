@@ -1,59 +1,27 @@
-{% macro menu_item(item, languages, input_class, quiet_danger_btn) %}
-  <div class="menu-item-row grid gap-3 rounded-md border border-slate-200 bg-slate-50 p-3">
-    <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-      <label class="grid gap-1 text-sm font-medium text-slate-700">
-        Level
-        <select name="menu_depth[]" class="{{ input_class }}">
-          <option value="1" {% if item.depth|default('1') == '1' %}selected{% endif %}>1 (Top)</option>
-          <option value="2" {% if item.depth|default('1') == '2' %}selected{% endif %}>2 (Child)</option>
-          <option value="3" {% if item.depth|default('1') == '3' %}selected{% endif %}>3 (Grandchild)</option>
-        </select>
-      </label>
-      <label class="grid gap-1 text-sm font-medium text-slate-700">
-        Label key
-        <input type="text" name="menu_label_key[]" value="{{ item.label_key|default('') }}" placeholder="nav.main.home" class="{{ input_class }}">
-      </label>
-      {% for l in languages %}
-        <label class="grid gap-1 text-sm font-medium text-slate-700">
-          Label {{ l|upper }}
-          <input type="text" name="menu_label_lang[{{ l }}][]" value="{{ item.labels[l]|default('') }}" placeholder="{{ l|upper }} label" class="{{ input_class }}">
-        </label>
-      {% endfor %}
-      <label class="grid gap-1 text-sm font-medium text-slate-700">
-        URL
-        <input type="text" name="menu_url[]" value="{{ item.url|default('') }}" placeholder="about or https://example.com" class="{{ input_class }}">
-      </label>
-    </div>
-    <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-      <label class="grid gap-1 text-sm font-medium text-slate-700">
-        Class
-        <input type="text" name="menu_class[]" value="{{ item.class|default('') }}" placeholder="nav-cta" class="{{ input_class }}">
-      </label>
-      <label class="grid gap-1 text-sm font-medium text-slate-700">
-        Target
-        <input type="text" name="menu_target[]" value="{{ item.target|default('') }}" placeholder="_blank" class="{{ input_class }}">
-      </label>
-      <div class="flex items-end">
-        <button type="button" class="{{ quiet_danger_btn }} js-remove-menu-item">Remove</button>
-      </div>
-    </div>
-  </div>
-{% endmacro %}
-
+{#
+  The menu editor. Two panels: what the site has that a menu can link to (pages, entries, lists, categories, a typed
+  link), and the menu itself as cards that are dragged into place, nested, and opened to edit their labels in every
+  language, address, and look. Everything is drawn by public/assets/js/admin-menus.js from the JSON below and sent back
+  in one field (menu_json) when the form is saved.
+#}
 {% extends '@admin/base.twig' %}
 {% set page_heading = 'Edit menu' %}
 
 {% block content %}
-  {% import _self as menu_forms %}
   {% set primary_btn = 'inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm no-underline hover:bg-blue-700' %}
   {% set secondary_btn = 'inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm no-underline hover:bg-slate-50' %}
   {% set quiet_danger_btn = 'inline-flex items-center gap-1.5 rounded-md border border-rose-200 bg-white px-3 py-1.5 text-sm font-medium text-rose-600 shadow-sm hover:bg-rose-50' %}
-  {% set input_class = 'w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20' %}
+  {% set input_class = 'w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-300' %}
+  {% set tool_btn = 'inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40' %}
+
+  <div data-menu-editor>
+  <script type="application/json" id="menu-editor-data">{{ editor_json|raw }}</script>
 
   <header class="mb-4 flex flex-wrap items-start justify-between gap-3">
     <div class="min-w-0">
-      <p class="mt-1 text-sm text-slate-500">
-        <code class="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-600">{{ menu_key }}</code>
+      <p class="text-sm text-slate-500">
+        Pick what to show, drag it into place, and open an item to set its labels, address and look.
+        <code class="ml-1 rounded bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-600">{{ menu_key }}</code>
       </p>
     </div>
     <div class="flex flex-wrap items-center gap-2">
@@ -82,61 +50,148 @@
     <template data-flash data-type="success">Menu deleted.</template>
   {% endif %}
   {% if error %}
-    <div class="mb-4 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{{ error }}</div>
+    <div class="mb-4 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700" role="alert">{{ error }}</div>
   {% endif %}
 
-  <form method="post" class="grid gap-4">
+  <noscript>
+    <div class="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">The menu editor needs JavaScript.</div>
+  </noscript>
+
+  <form method="post" class="grid gap-4" data-menu-form autocomplete="off">
     {{ csrf_field() }}
     <input type="hidden" name="key" value="{{ menu_key }}">
+    <input type="hidden" name="menu_json" value="" data-menu-json>
 
-    <section class="rounded-lg border border-slate-200 bg-white">
-      <div class="border-b border-slate-200 px-4 py-3">
-        <h2 class="text-sm font-semibold text-slate-900">Menu details</h2>
-      </div>
-      <div class="grid gap-4 p-4 md:grid-cols-2">
-        <label class="grid gap-1 text-sm font-medium text-slate-700">
-          Menu key
-          <input type="text" value="{{ menu_key }}" readonly class="{{ input_class }} bg-slate-100">
-        </label>
-        <label class="grid gap-1 text-sm font-medium text-slate-700">
-          Menu title
-          <input type="text" name="menu_title" value="{{ menu_title }}" class="{{ input_class }}">
-        </label>
-      </div>
+    <section class="rounded-lg border border-slate-200 bg-white p-4">
+      <label class="grid max-w-xl gap-1 text-sm font-medium text-slate-700">
+        Menu name
+        <input type="text" name="menu_title" value="{{ menu_title }}" class="{{ input_class }} text-base font-semibold" data-menu-title>
+      </label>
     </section>
 
-    <section class="rounded-lg border border-slate-200 bg-white">
-      <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
-        <div>
-          <h2 class="text-sm font-semibold text-slate-900">Items</h2>
-          <p class="mt-0.5 text-xs text-slate-400">Level controls nesting up to three levels. Keep child items below their parent.</p>
+    <div class="grid items-start gap-4 lg:grid-cols-[21rem_minmax(0,1fr)]">
+
+      {# ---- what can be added #}
+      <aside id="menu-add" class="order-2 scroll-mt-4 rounded-lg border border-slate-200 bg-white lg:order-1 lg:sticky lg:top-4" aria-labelledby="menu-add-title" data-menu-add>
+        <div class="border-b border-slate-200 px-4 py-3">
+          <h2 id="menu-add-title" class="text-sm font-semibold text-slate-900">Add to the menu</h2>
+          <p class="mt-0.5 text-xs text-slate-400">Click <span aria-hidden="true">+</span> to add, tick several, or drag one into place.</p>
+          <label class="relative mt-3 block">
+            <span class="sr-only">Search pages, categories and lists</span>
+            <svg class="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path stroke-linecap="round" d="M20 20l-3.5-3.5"/></svg>
+            <input type="search" placeholder="Search pages, categories, lists" class="{{ input_class }} pl-8" data-source-search>
+          </label>
         </div>
-        <button type="button" class="{{ secondary_btn }} js-add-menu-item">
-          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
-            <path stroke-linecap="round" d="M12 5v14M5 12h14"/>
-          </svg>
-          Add item
-        </button>
-      </div>
 
-      <div data-menu-items class="grid gap-3 p-4">
-        {% for item in menu_items %}
-          {{ menu_forms.menu_item(item, languages, input_class, quiet_danger_btn) }}
-        {% endfor %}
+        <div class="max-h-[60vh] overflow-y-auto lg:max-h-[calc(100vh-24rem)]" data-source-groups></div>
+
+        <div class="hidden items-center justify-between gap-2 border-t border-slate-200 bg-slate-50 px-4 py-2.5" data-source-selected>
+          <span class="text-xs font-medium text-slate-600"><span data-source-selected-count>0</span> selected</span>
+          <span class="flex items-center gap-2">
+            <button type="button" class="text-xs font-medium text-slate-500 underline hover:text-slate-800" data-source-clear>Clear</button>
+            <button type="button" class="{{ primary_btn }} !py-1 text-xs" data-source-add-selected>Add to menu</button>
+          </span>
+        </div>
+
+        <div class="border-t border-slate-200 px-4 py-3">
+          <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-500">Custom link</h3>
+          <div class="mt-2 grid gap-2" data-custom-link>
+            <label class="grid gap-1 text-xs font-medium text-slate-600">
+              Address
+              <input type="text" class="{{ input_class }}" placeholder="https://example.com, mailto:… or a page address" data-custom-url>
+            </label>
+            <label class="grid gap-1 text-xs font-medium text-slate-600">
+              Label
+              <input type="text" class="{{ input_class }}" placeholder="Shown in the menu" data-custom-label>
+            </label>
+            <button type="button" class="{{ secondary_btn }} justify-center" data-custom-add>
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
+              Add link
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      {# ---- the menu #}
+      <div class="order-1 grid min-w-0 gap-4 lg:order-2">
+        <section class="min-w-0 rounded-lg border border-slate-200 bg-white" aria-labelledby="menu-structure-title">
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+            <div class="min-w-0">
+              <h2 id="menu-structure-title" class="text-sm font-semibold text-slate-900">Menu structure <span class="ml-1 text-xs font-normal text-slate-400" data-menu-count></span></h2>
+              <p class="mt-0.5 text-xs text-slate-400">Drag the handle to move an item. Drag right to nest it under the item above, up to three levels.</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <a href="#menu-add" class="{{ tool_btn }} no-underline lg:hidden">
+                <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
+                Add items
+              </a>
+              <button type="button" class="{{ tool_btn }}" data-undo disabled>
+                <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 14L4 9l5-5M4 9h10a6 6 0 010 12h-3"/></svg>
+                Undo
+              </button>
+              <button type="button" class="{{ tool_btn }}" data-redo disabled>
+                <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 14l5-5-5-5M20 9H10a6 6 0 000 12h3"/></svg>
+                Redo
+              </button>
+              <button type="button" class="{{ tool_btn }}" data-toggle-all aria-pressed="false">Expand all</button>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-slate-100 bg-slate-50/60 px-4 py-2.5" data-lang-bar>
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-medium text-slate-500" id="menu-lang-label">Labels shown in</span>
+              <div class="inline-flex rounded-md border border-slate-300 bg-white p-0.5" role="group" aria-labelledby="menu-lang-label" data-lang-switch></div>
+            </div>
+            <div class="flex min-w-0 flex-1 flex-wrap items-center gap-2 text-xs" data-lang-banner role="status"></div>
+          </div>
+
+          <div class="relative p-4" data-menu-list-wrap>
+            <p class="sr-only" id="menu-drag-help">Press the arrow keys on a handle to move the item: up or down to reorder, right to nest it under the item above, left to move it out a level.</p>
+            <ul class="grid gap-2" data-menu-list aria-label="Menu items"></ul>
+            <div class="pointer-events-none absolute z-10 hidden h-1 rounded-full bg-blue-500" data-drop-line aria-hidden="true"></div>
+            <div class="hidden flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-200 px-6 py-12 text-center" data-menu-empty>
+              <div class="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
+                <svg class="h-6 w-6 text-slate-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+              </div>
+              <h3 class="mt-3 text-sm font-semibold text-slate-900">This menu is empty</h3>
+              <p class="mt-1 max-w-sm text-sm text-slate-500">Add pages, lists or categories from the panel, or drop them here.</p>
+            </div>
+            <p class="mt-2 hidden text-xs text-slate-500" data-menu-note role="status"></p>
+          </div>
+        </section>
+
+        <section class="min-w-0 rounded-lg border border-slate-200 bg-white" aria-labelledby="menu-preview-title">
+          <div class="border-b border-slate-200 px-4 py-3">
+            <h2 id="menu-preview-title" class="text-sm font-semibold text-slate-900">Preview</h2>
+            <p class="mt-0.5 text-xs text-slate-400">A rough sketch of the menu in the language chosen above. Hidden items are left out.</p>
+          </div>
+          <div class="p-4" data-menu-preview></div>
+        </section>
+
+        <section class="min-w-0 rounded-lg border border-slate-200 bg-white" aria-labelledby="menu-places-title">
+          <div class="border-b border-slate-200 px-4 py-3">
+            <h2 id="menu-places-title" class="text-sm font-semibold text-slate-900">Where this menu appears</h2>
+            <p class="mt-0.5 text-xs text-slate-400">The places the theme has for a menu.</p>
+          </div>
+          <div class="p-4" data-menu-locations></div>
+        </section>
       </div>
-    </section>
+    </div>
+
+    <p class="sr-only" role="status" aria-live="polite" data-menu-live></p>
 
     {% embed '@admin/partials/action-bar.twig' %}
       {% block leading %}
-      <button type="submit" name="menu_action" value="delete" class="{{ quiet_danger_btn }}" data-confirm="Delete this menu?" data-confirm-button="Delete">
+      <button type="submit" name="menu_action" value="delete" class="{{ quiet_danger_btn }}" data-confirm="Delete this menu?" data-confirm-button="Delete" data-menu-delete>
         <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true">
           <path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2m2 0v14a1 1 0 01-1 1H7a1 1 0 01-1-1V6"/>
         </svg>
-        Delete
+        Delete menu
       </button>
+      <span data-dirty-note class="hidden items-center gap-2 text-sm text-white/90"><span class="h-2 w-2 rounded-full bg-amber-400" aria-hidden="true"></span> Unsaved changes</span>
       {% endblock %}
       {% block actions %}
-      <button type="submit" name="menu_action" value="save" class="{{ primary_btn }}">
+      <button type="submit" name="menu_action" value="save" class="{{ primary_btn }}" data-menu-save>
         <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
           <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
         </svg>
@@ -145,33 +200,7 @@
       {% endblock %}
     {% endembed %}
   </form>
+  </div>
 
-  <template data-menu-item-template>
-    {% set item = { depth: '1', label_key: '', labels: {}, url: '', class: '', target: '' } %}
-    {{ menu_forms.menu_item(item, languages, input_class, quiet_danger_btn) }}
-  </template>
-
-  <script>
-    (function () {
-      const container = document.querySelector('[data-menu-items]');
-      const template = document.querySelector('[data-menu-item-template]');
-      const addButton = document.querySelector('.js-add-menu-item');
-      if (!container || !template || !addButton) return;
-
-      const bindRemove = (button) => {
-        button.addEventListener('click', () => {
-          const row = button.closest('.menu-item-row');
-          if (row) row.remove();
-        });
-      };
-
-      container.querySelectorAll('.js-remove-menu-item').forEach(bindRemove);
-      addButton.addEventListener('click', () => {
-        const fragment = template.content.cloneNode(true);
-        const removeButton = fragment.querySelector('.js-remove-menu-item');
-        if (removeButton) bindRemove(removeButton);
-        container.appendChild(fragment);
-      });
-    })();
-  </script>
+  <script src="{{ url('assets/js/admin-menus.js') }}" defer></script>
 {% endblock %}

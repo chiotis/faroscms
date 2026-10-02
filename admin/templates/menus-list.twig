@@ -55,6 +55,8 @@
             <tr class="border-b border-slate-100 bg-slate-50/50 text-left text-xs font-medium text-slate-400">
               <th class="px-4 py-2 font-medium" data-sort="text">Title</th>
               <th class="px-4 py-2 font-medium" data-sort="text">Key</th>
+              <th class="px-4 py-2 font-medium" data-sort="number">Items</th>
+              <th class="px-4 py-2 font-medium" data-sort="text">Shown in</th>
               <th class="px-4 py-2 font-medium" data-sort="text">Updated</th>
               <th class="px-4 py-2 text-right font-medium">Actions</th>
             </tr>
@@ -67,6 +69,14 @@
                 </td>
                 <td class="px-4 py-2.5">
                   <code class="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-600">{{ row.key }}</code>
+                </td>
+                <td class="px-4 py-2.5 text-slate-600">{{ row.items }}</td>
+                <td class="px-4 py-2.5">
+                  {% for place in row.places %}
+                    <span class="mr-1 inline-flex rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700 ring-1 ring-blue-200">{{ place }}</span>
+                  {% else %}
+                    <span class="text-slate-400">Not shown</span>
+                  {% endfor %}
                 </td>
                 <td class="px-4 py-2.5 text-slate-500">{{ row.updated ?: 'Never' }}</td>
                 <td class="px-4 py-2.5">

@@ -171,34 +171,6 @@ final class SiteSettings
     {
         $defaults = $this->load();
         $merged = array_replace_recursive($defaults, $parsed);
-        $locationsRaw = $merged['menu_locations'] ?? [];
-        if (!is_array($locationsRaw)) {
-            $locationsRaw = [];
-        }
-        $menuLocations = [];
-        foreach ($locationsRaw as $key => $value) {
-            $key = Slug::plain((string)$key);
-            $value = Slug::plain((string)$value);
-            if ($key === '' || $value === '') {
-                continue;
-            }
-            $menuLocations[$key] = $value;
-        }
-        if (!isset($menuLocations['header'])) {
-            $menuLocations['header'] = 'main';
-        }
-        if (!isset($menuLocations['footer'])) {
-            $menuLocations['footer'] = 'footer';
-        }
-        $extraLocationKeys = [];
-        $extraLocationValues = [];
-        foreach ($menuLocations as $key => $value) {
-            if (in_array($key, ['header', 'footer'], true)) {
-                continue;
-            }
-            $extraLocationKeys[] = $key;
-            $extraLocationValues[] = $value;
-        }
         $backupSchedule = (string)($merged['backup']['auto']['schedule'] ?? 'daily');
         if (!in_array($backupSchedule, ['daily', 'weekly', 'monthly'], true)) {
             $backupSchedule = 'daily';
@@ -238,10 +210,6 @@ final class SiteSettings
             'smtp_encryption' => (string)($merged['forms']['notifications']['smtp']['encryption'] ?? ''),
             'ses_key' => (string)($merged['forms']['notifications']['ses']['key'] ?? ''),
             'ses_region' => (string)($merged['forms']['notifications']['ses']['region'] ?? ''),
-            'menu_location_header' => (string)($menuLocations['header'] ?? 'main'),
-            'menu_location_footer' => (string)($menuLocations['footer'] ?? 'footer'),
-            'menu_location_keys' => $extraLocationKeys,
-            'menu_location_values' => $extraLocationValues,
             'backup_auto_enabled' => Format::isTruthy($merged['backup']['auto']['enabled'] ?? false),
             'backup_schedule' => $backupSchedule,
             'backup_last_run' => (string)($merged['backup']['auto']['last_run'] ?? ''),
@@ -300,10 +268,6 @@ final class SiteSettings
             'ses_key' => (string)($post['ses_key'] ?? ''),
             'ses_secret' => (string)($post['ses_secret'] ?? ''),
             'ses_region' => (string)($post['ses_region'] ?? ''),
-            'menu_location_header' => (string)($post['menu_location_header'] ?? ''),
-            'menu_location_footer' => (string)($post['menu_location_footer'] ?? ''),
-            'menu_location_keys' => $post['menu_location_keys'] ?? [],
-            'menu_location_values' => $post['menu_location_values'] ?? [],
             'backup_auto_enabled' => isset($post['backup_auto_enabled']) ? '1' : '0',
             'backup_schedule' => (string)($post['backup_schedule'] ?? ''),
             'backup_keep_local' => (string)($post['backup_keep_local'] ?? ''),
@@ -386,6 +350,22 @@ final class SiteSettings
         } else {
             $data['content_types_off'] = $off;
         }
+        $this->meta->set('site_settings', Yaml::dump($data, 4, 2));
+        return true;
+    }
+
+    /** Shows a menu in a place of the theme ("header", "footer"). Returns false when the settings cannot be written. */
+    public function setMenuLocation(string $location, string $menu): bool
+    {
+        $location = Slug::plain($location);
+        $menu = Slug::plain($menu);
+        if (!$this->meta->isAvailable() || $location === '' || $menu === '') {
+            return false;
+        }
+        $data = $this->parse($this->raw('site_settings', $this->defaults()));
+        $places = is_array($data['menu_locations'] ?? null) ? $data['menu_locations'] : [];
+        $places[$location] = $menu;
+        $data['menu_locations'] = $places;
         $this->meta->set('site_settings', Yaml::dump($data, 4, 2));
         return true;
     }
@@ -486,24 +466,7 @@ final class SiteSettings
             'region' => $form['ses_region'],
         ];
 
-        $locations = [];
-        $headerMenu = Slug::plain((string)($form['menu_location_header'] ?? ''));
-        $footerMenu = Slug::plain((string)($form['menu_location_footer'] ?? ''));
-        $locations['header'] = $headerMenu !== '' ? $headerMenu : 'main';
-        $locations['footer'] = $footerMenu !== '' ? $footerMenu : 'footer';
-        $extraKeys = $form['menu_location_keys'] ?? [];
-        $extraValues = $form['menu_location_values'] ?? [];
-        if (is_array($extraKeys) && is_array($extraValues)) {
-            foreach ($extraKeys as $index => $key) {
-                $k = Slug::plain((string)$key);
-                $v = Slug::plain((string)($extraValues[$index] ?? ''));
-                if ($k === '' || $v === '' || in_array($k, ['header', 'footer'], true)) {
-                    continue;
-                }
-                $locations[$k] = $v;
-            }
-        }
-        $data['menu_locations'] = $locations;
+        // Where menus appear is set in the menu editor (setMenuLocation), so the settings form leaves it as it is.
         unset($data['menu']);
 
         $backupSchedule = strtolower((string)($form['backup_schedule'] ?? 'daily'));
