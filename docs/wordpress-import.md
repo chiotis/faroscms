@@ -7,7 +7,7 @@ php scripts/import-wordpress.php https://example.com            # what would hap
 php scripts/import-wordpress.php https://example.com --apply    # do it
 ```
 
-Options: `--lang=en` (language of the content), `--default-lang=en` (the site's default language; when it differs, the content lives under `/en/`), `--home=index` (file name of the home page), `--kinds=pages,posts`, `--only-used-media`, `--overwrite`, `--content=PATH`, `--uploads=PATH`, `--out=PATH`. Run it against a copy first and look through the result in the admin.
+Options: `--profile=FILE`, `--menus`, `--custom=PATH`, `--lang=en` (language of the content), `--default-lang=en` (the site's default language; when it differs, the content lives under `/en/`), `--home=index` (file name of the home page), `--kinds=pages,posts`, `--only-used-media`, `--overwrite`, `--content=PATH`, `--uploads=PATH`, `--out=PATH`. Run it against a copy first and look through the result in the admin.
 
 ## What comes over
 
@@ -28,11 +28,24 @@ The run writes `redirects.txt` (default `storage/import/`): one line per old add
 
 Every id is made from the address it came from, and every file it writes has `imported_from` in its front matter. Running it again updates those files and fetches only the pictures that are not in the library yet. A file of the site that an import did not write (you made it, or edited and removed the line) is left alone unless `--overwrite` is given.
 
+## What the API does not give: profiles
+
+A theme's custom post types ("books", "events", "slides" are often kept out of the REST API), the home page slider and the menus are only in the pages themselves. A **profile** (`--profile=FILE`) tells the importer where to look, with XPath, because every theme draws them differently. `docs/wordpress-profiles/themelio.yaml` is the one for apostolosdoxiadis.com and shows every key:
+
+| Key | What it does |
+|---|---|
+| `types` | A custom post type: its pages are found in the site's sitemap (`/wp-sitemap-posts-<type>-1.xml`); XPath for the `title`, the cover `image`, the `summary` and the `tabs` (`labels`, `panels`); `content_type` is where they go here, `front` is front matter added to each. A page becomes a Text and image block (cover beside the description) and a Tabs block; a tab with nothing in it is dropped. |
+| `content_types` | Definitions written to `custom/content-types/` when the site has none for that type. |
+| `archives` | The old address of a list and the content type that lists it now (`book: books`): links and redirects follow. |
+| `slides` | The slides of the home page: where each is, how its picture (a CSS background) and title, text and buttons are found. |
+| `menus` | A menu read from the home page (`list` is the XPath of its `<ul>`); written to `content/menus/<key>.yaml` only with `--menus`, because it replaces a menu of that name. |
+| `home` | The home page as blocks, with `@slides`, `@image` (the picture its text begins with) and `@body` filled in. Without it the home page is its text. |
+
 ## What it does not do (yet)
 
-- **Custom post types** that the site does not show in its REST API (a theme's "books", "events", "slides" are often hidden from it). Their pages are not read.
-- Menus, widgets, forms, comments and theme settings: the API does not give them without a sign-in.
+- Widgets, forms, comments and theme settings: the API does not give them without a sign-in.
 - Page-builder content (Elementor, WPBakery, Divi): shortcodes and builder markup come over as text or are dropped; look at the report.
 - Embedded frames from sites other than the few known video and audio hosts are left out and listed.
 - Pictures hosted on other sites stay where they are.
 - Hierarchical pages (a page under a page): every page is a page of its own at the top.
+- Dates, authors and categories of custom types are not read; a theme that shows them needs `types` rules for them (not built yet).

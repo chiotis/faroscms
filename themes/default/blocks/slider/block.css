@@ -167,6 +167,76 @@
   outline-offset: 2px;
 }
 
+/* A wide banner: a text panel over the picture, on the right, with up to three buttons */
+.slider-banner .slide {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: clamp(16rem, 9rem + 24vw, 26rem);
+  overflow: hidden;
+  border-radius: var(--radius-l);
+  background: linear-gradient(135deg, #0b1220, #172033);
+  color: #ffffff;
+  isolation: isolate;
+}
+
+.slider-banner .slide-media {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+}
+
+.slider-banner .slide-body {
+  display: grid;
+  gap: var(--space-xs);
+  justify-items: start;
+  width: min(100%, 34rem);
+  margin: clamp(1rem, 0.5rem + 2vw, 2.5rem);
+  padding: clamp(1.1rem, 0.8rem + 1.2vw, 1.75rem);
+  border-radius: var(--radius-m, var(--radius-l));
+  background: rgb(8 12 22 / 0.68);
+}
+
+.slider-banner .slide-title {
+  font-size: var(--step-3);
+  letter-spacing: -0.02em;
+}
+
+.slider-banner .slide-text {
+  color: rgb(255 255 255 / 0.92);
+  font-size: var(--step-0);
+}
+
+.slider-banner .slide-label {
+  color: rgb(255 255 255 / 0.85);
+}
+
+.slider-banner .slide-link {
+  padding: 0.55rem 1.1rem;
+  border-radius: var(--radius-button);
+  background: #ffffff;
+  color: #0b1220;
+}
+
+.slider-banner .actions {
+  margin-top: var(--space-2xs);
+}
+
+.slider-banner .btn-secondary {
+  border-color: rgb(255 255 255 / 0.7);
+  color: #ffffff;
+}
+
+@media (max-width: 620px) {
+  .slider-banner .slide {
+    align-items: flex-end;
+  }
+
+  .slider-banner .slide-body {
+    margin: 0.75rem;
+  }
+}
+
 /* Several at once: cards */
 .slider-multi .slide {
   display: flex;

@@ -3,7 +3,7 @@
 {% set slides = block.items %}
 {% set total = slides|length %}
 {% set autoplay = block.autoplay in ['5', '8'] ? block.autoplay : '' %}
-{% set sizes = block.variant == 'full' ? '(min-width: 1100px) 1100px, 94vw' : (block.per_view == '2' ? '(min-width: 900px) 46vw, 88vw' : '(min-width: 1100px) 30vw, (min-width: 700px) 45vw, 88vw') %}
+{% set sizes = block.variant in ['full', 'banner'] ? '(min-width: 1100px) 1100px, 94vw' : (block.per_view == '2' ? '(min-width: 900px) 46vw, 88vw' : '(min-width: 1100px) 30vw, (min-width: 700px) 45vw, 88vw') %}
 {% set label = block.heading ?: t('slider.label', 'Slides') %}
 <div class="container">
   {{ ui.section_header(block, heading_tag, block_uid, 'left') }}
@@ -19,7 +19,7 @@
         <div class="slider-slide{% if not slide.image %} no-image{% endif %}" role="group" aria-roledescription="{{ t('slider.slide', 'slide') }}" aria-label="{{ loop.index }} / {{ total }}">
           <article class="slide">
             {% if slide.image %}
-              <div class="slide-media">{{ image(slide.image, {alt: '', sizes: sizes, max_width: block.variant == 'full' ? 2000 : 1100, loading: loop.first and block_first ? 'eager' : null}) }}</div>
+              <div class="slide-media">{{ image(slide.image, {alt: '', sizes: sizes, max_width: block.variant in ['full', 'banner'] ? 2000 : 1100, loading: loop.first and block_first ? 'eager' : null}) }}</div>
             {% endif %}
             <div class="slide-body">
               {% if slide.eyebrow %}<p class="slide-label">{{ slide.eyebrow }}</p>{% endif %}
@@ -32,6 +32,7 @@
               {% if href and slide.link_label %}
                 <a class="slide-link" href="{{ href }}">{{ slide.link_label }}{{ icon('arrow-right', 'btn-icon') }}</a>
               {% endif %}
+              {{ ui.actions(slide.actions, prefix) }}
             </div>
           </article>
         </div>

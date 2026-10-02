@@ -13,17 +13,22 @@
  *   --kinds=pages,posts  what to bring (default both)
  *   --only-used-media    leave out library files that no page or post uses
  *   --overwrite          also replace a file of the site that an import did not bring
+ *   --profile=FILE       what to read from the site's pages (custom types, slides, menus) and the home page layout; see
+ *                        docs/wordpress-profiles/
+ *   --menus              also write the menus the profile reads (replaces menus of the same name)
+ *   --custom=PATH        the custom folder, for content type definitions (default ./custom)
  *   --content=PATH       the content folder (default ./content)
  *   --uploads=PATH       the uploads folder (default ./public/uploads)
  *   --out=PATH           where the report and the redirects list are written (default ./storage/import)
  */
 require __DIR__ . '/../vendor/autoload.php';
 
-use FarosCMS\{MediaLibrary, Taxonomies, WordPressHttp, WordPressImporter, WordPressReader};
+use FarosCMS\{MediaLibrary, Menus, Taxonomies, WordPressHttp, WordPressImporter, WordPressReader, WordPressScraper};
+use Symfony\Component\Yaml\Yaml;
 
 $root = dirname(__DIR__);
 $site = '';
-$opt = ['apply' => false, 'lang' => 'en', 'default-lang' => '', 'home' => 'index', 'kinds' => 'pages,posts', 'only-used-media' => false, 'overwrite' => false, 'content' => $root . '/content', 'uploads' => $root . '/public/uploads', 'out' => $root . '/storage/import'];
+$opt = ['apply' => false, 'lang' => 'en', 'default-lang' => '', 'home' => 'index', 'kinds' => 'pages,posts', 'only-used-media' => false, 'overwrite' => false, 'profile' => '', 'menus' => false, 'custom' => $root . '/custom', 'content' => $root . '/content', 'uploads' => $root . '/public/uploads', 'out' => $root . '/storage/import'];
 foreach (array_slice($argv, 1) as $arg) {
     if (str_starts_with($arg, '--')) {
         [$key, $value] = array_pad(explode('=', substr($arg, 2), 2), 2, null);
@@ -45,13 +50,27 @@ $lang = (string)$opt['lang'];
 $defaultLang = $opt['default-lang'] !== '' ? (string)$opt['default-lang'] : $lang;
 
 $media = new MediaLibrary($opt['content'], $opt['uploads']);
+$profile = [];
+if ($opt['profile'] !== '') {
+    if (!is_file((string)$opt['profile'])) {
+        fwrite(STDERR, "No such profile: {$opt['profile']}\n");
+        exit(2);
+    }
+    $profile = Yaml::parseFile((string)$opt['profile']);
+    $profile = is_array($profile) ? $profile : [];
+}
+$reader = new WordPressReader($site, static fn(string $url): ?array => WordPressHttp::get($url));
+$menus = new Menus($opt['content'], static fn(): array => ['languages' => ['default' => $lang, 'available' => array_values(array_unique([$defaultLang, $lang]))]], static fn(string $key, ?string $l = null): string => '', static fn(): array => []);
 $importer = new WordPressImporter(
-    new WordPressReader($site, static fn(string $url): ?array => WordPressHttp::get($url)),
+    $reader,
     $opt['content'],
     $media,
     new Taxonomies($opt['content'], array_values(array_unique([$defaultLang, $lang]))),
     static fn(string $url, string $to): int => WordPressHttp::download($url, $to),
-    ['lang' => $lang, 'default_lang' => $defaultLang, 'home_slug' => $opt['home'], 'overwrite' => $opt['overwrite'], 'only_used_media' => $opt['only-used-media'], 'kinds' => array_values(array_filter(explode(',', (string)$opt['kinds'])))]
+    ['lang' => $lang, 'default_lang' => $defaultLang, 'home_slug' => $opt['home'], 'overwrite' => $opt['overwrite'], 'only_used_media' => $opt['only-used-media'], 'kinds' => array_values(array_filter(explode(',', (string)$opt['kinds']))), 'custom_dir' => $opt['custom'], 'menus' => $opt['menus']],
+    $profile !== [] ? new WordPressScraper($reader, $profile) : null,
+    $profile,
+    static fn(string $key, array $menu) => $menus->write($key, $menu)
 );
 
 try {
@@ -69,6 +88,17 @@ foreach (['categories', 'tags'] as $name) {
     printf("  %s: %d\n", $name, count($plan['terms'][$name]));
 }
 printf("  files for the media library: %d\n  redirects from old addresses: %d\n", $c['media'], $c['redirects']);
+$kinds = [];
+foreach ($plan['items'] as $item) {
+    $kinds[$item['type']] = ($kinds[$item['type']] ?? 0) + 1;
+}
+echo '  by kind: ' . implode(', ', array_map(static fn($k, $n) => "$k $n", array_keys($kinds), $kinds)) . "\n";
+if ($plan['slides'] > 0) {
+    echo "  home page slides: {$plan['slides']}\n";
+}
+foreach ($plan['menus'] as $key => $items) {
+    echo "  menu '$key': " . count($items) . ' items' . ($opt['menus'] ? " (will be written)\n" : " (add --menus to write it)\n");
+}
 if ($lang !== $defaultLang) {
     echo "\n  Note: the content is in '$lang' but this site's default language is '$defaultLang', so its addresses start with /$lang/.\n";
 }
@@ -115,6 +145,12 @@ printf("  %d written, %d updated, %d left alone\n  %d terms added\n  %d files br
 echo count($result['media_failed']) > 0 ? ', ' . count($result['media_failed']) . " could not be fetched\n" : "\n";
 foreach (array_slice($result['media_failed'], 0, 20) as $failed) {
     echo "    - $failed\n";
+}
+foreach ($result['menus'] as $key) {
+    echo "  menu '$key' written\n";
+}
+foreach ($result['content_types'] as $name) {
+    echo "  content type '$name' defined in {$opt['custom']}/content-types\n";
 }
 printf("  redirects: %d, written to %s\n    Paste them in Admin > Redirects > Import on the site that will serve them.\n", count($result['redirects']), $redirectsFile);
 echo "\nDone. Open the admin to look through what came in; every imported file has 'imported_from' in its front matter, so running this again updates them.\n";

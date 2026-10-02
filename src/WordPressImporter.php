@@ -51,9 +51,13 @@ final class WordPressImporter
 
     private bool $planned = false;
 
+    /** @var array<int, array{image: string, title: string, text: string, buttons: array<int, array{label: string, url: string}>}> */
+    private array $slides = [];
+
     /**
      * @param \Closure(string, string): int $download fetches an address into a file and returns the answer's status, 0 when the site could not be reached
-     * @param array{lang?: string, default_lang?: string, home_slug?: string, overwrite?: bool, only_used_media?: bool, kinds?: string[]} $options
+     * @param array{lang?: string, default_lang?: string, home_slug?: string, overwrite?: bool, only_used_media?: bool, kinds?: string[], custom_dir?: string, menus?: bool} $options
+     * @param array<string, mixed> $profile what to read from the pages of the site, and how to lay out the home page (see docs/wordpress-import.md)
      */
     public function __construct(
         private WordPressReader $reader,
@@ -61,7 +65,10 @@ final class WordPressImporter
         private MediaLibrary $media,
         private Taxonomies $taxonomies,
         private \Closure $download,
-        private array $options = []
+        private array $options = [],
+        private ?WordPressScraper $scraper = null,
+        private array $profile = [],
+        private ?\Closure $writeMenu = null
     ) {
         $this->contentDir = rtrim($contentDir, '/');
     }
@@ -123,6 +130,25 @@ final class WordPressImporter
             }
         }
 
+        // What the API does not give, read from the pages themselves.
+        $this->slides = $this->scraper?->slides() ?? [];
+        $menus = [];
+        foreach (array_keys((array)($this->profile['menus'] ?? [])) as $menuKey) {
+            $menus[(string)$menuKey] = $this->scraper?->menu((string)$menuKey) ?? [];
+        }
+        foreach ($this->scraper?->entries() ?? [] as $entry) {
+            $type = $entry['type'];
+            $slug = $this->slugFor($entry + ['title' => $entry['title']], false, $slugs[$type] ?? []);
+            $slugs[$type][$slug] = true;
+            $entry['new_slug'] = $slug;
+            $entry['new_path'] = ContentPaths::build($type, $slug, $this->lang(), $this->homeSlug(), $this->defaultLang());
+            $this->linkMap[self::pathOf($entry['link'])] ??= $entry['new_path'];
+            $entries[] = $entry;
+        }
+        foreach ((array)($this->profile['archives'] ?? []) as $oldPath => $newType) {
+            $this->linkMap[trim((string)$oldPath, '/')] = ContentPaths::archive((string)$newType, $this->lang(), $this->defaultLang());
+        }
+
         $items = [];
         $notes = [];
         $redirects = [];
@@ -152,6 +178,9 @@ final class WordPressImporter
                 $this->addRedirect($redirects, $term['link'], '/' . $this->termPath($name, $term['slug']));
             }
         }
+        foreach ((array)($this->profile['archives'] ?? []) as $oldPath => $newType) {
+            $this->addRedirect($redirects, '/' . trim((string)$oldPath, '/'), '/' . ContentPaths::archive((string)$newType, $this->lang(), $this->defaultLang()));
+        }
 
         $onlyUsed = (bool)($this->options['only_used_media'] ?? false);
         // An old address that is a page of this site's own must not be sent anywhere else.
@@ -167,6 +196,8 @@ final class WordPressImporter
             'items' => $items,
             'entries' => $entries,
             'terms' => $terms,
+            'menus' => $menus,
+            'slides' => count($this->slides),
             'media' => $media,
             'redirects' => $redirects,
             'notes' => array_keys($notes),
@@ -186,7 +217,7 @@ final class WordPressImporter
      * Does what plan() described: terms, then files, then the pages and posts.
      *
      * @param array<string, mixed> $plan the result of plan()
-     * @return array{written: int, updated: int, skipped: int, media_new: int, media_failed: string[], terms_added: int, redirects: string[], notes: string[]}
+     * @return array{written: int, updated: int, skipped: int, media_new: int, media_failed: string[], terms_added: int, redirects: array<int, array{0: string, 1: string}>, notes: string[], menus: string[], content_types: string[]}
      */
     public function apply(array $plan): array
     {
@@ -194,7 +225,7 @@ final class WordPressImporter
             throw new \LogicException('apply() needs the same importer that made the plan.');
         }
         $this->final = true;
-        $result = ['written' => 0, 'updated' => 0, 'skipped' => 0, 'media_new' => 0, 'media_failed' => [], 'terms_added' => 0, 'redirects' => [], 'notes' => []];
+        $result = ['written' => 0, 'updated' => 0, 'skipped' => 0, 'media_new' => 0, 'media_failed' => [], 'terms_added' => 0, 'redirects' => [], 'notes' => [], 'menus' => [], 'content_types' => []];
 
         foreach ($plan['terms'] as $name => $list) {
             $result['terms_added'] += $this->saveTerms((string)$name, $list);
@@ -228,6 +259,25 @@ final class WordPressImporter
                 if (is_file($tmp)) {
                     @unlink($tmp);
                 }
+            }
+        }
+
+        $result['menus'] = [];
+        foreach ($plan['menus'] as $key => $items) {
+            if ($items === []) {
+                continue;
+            }
+            if (($this->options['menus'] ?? false) && $this->writeMenu !== null) {
+                ($this->writeMenu)((string)$key, ['title' => Slug::title((string)$key) . ' menu', 'items' => $this->menuRows($items)]);
+                $result['menus'][] = (string)$key;
+            }
+        }
+        foreach ((array)($this->profile['content_types'] ?? []) as $name => $definition) {
+            $path = rtrim((string)($this->options['custom_dir'] ?? ''), '/') . '/content-types/' . Slug::plain((string)$name) . '.yaml';
+            if (($this->options['custom_dir'] ?? '') !== '' && !is_file($path) && is_array($definition)) {
+                @mkdir(dirname($path), 0775, true);
+                file_put_contents($path, Yaml::dump($definition, 6, 2));
+                $result['content_types'][] = (string)$name;
             }
         }
 
@@ -294,6 +344,7 @@ final class WordPressImporter
         $this->termInfo = [];
         $this->mediaGone = [];
         $this->external = [];
+        $this->slides = [];
         $this->planned = false;
         $this->final = false;
     }
@@ -355,6 +406,9 @@ final class WordPressImporter
      */
     private function render(array $entry, array $terms): array
     {
+        if (isset($entry['post_type'])) {
+            return $this->renderScraped($entry);
+        }
         $converter = new HtmlToMarkdown(fn(string $address, string $kind): string => $this->resolve($address, $kind));
         $body = $converter->convert((string)$entry['html']);
 
@@ -389,7 +443,117 @@ final class WordPressImporter
             }
         }
         $front['imported_from'] = $entry['link'];
+        $home = $this->profile['home']['blocks'] ?? null;
+        if ($entry['type'] === 'pages' && $entry['new_slug'] === $this->homeSlug() && is_array($home) && $home !== []) {
+            [$image, $text] = self::splitLeadingImage($body);
+            $front['template'] = 'landing';
+            $front['blocks'] = $this->fill($home, ['@slides' => $this->slideItems(), '@body' => $text, '@image' => $image]);
+            $body = '';
+        }
         return ['front' => $front, 'body' => $body, 'notes' => $converter->notes()];
+    }
+
+    /**
+     * A page of a custom type (a book, a play): the cover and the description side by side, and the tabs as a Tabs block.
+     *
+     * @param array<string, mixed> $entry
+     * @return array{front: array<string, mixed>, body: string, notes: string[]}
+     */
+    private function renderScraped(array $entry): array
+    {
+        $converter = new HtmlToMarkdown(fn(string $address, string $kind): string => $this->resolve($address, $kind));
+        $summary = trim($converter->convert((string)$entry['summary']));
+        $image = $entry['image'] !== '' ? $this->resolve((string)$entry['image'], 'image') : '';
+        $front = ['title' => $entry['title'], 'status' => 'published', 'visible' => true];
+        if ($image !== '') {
+            $front['main_image'] = $image;
+        }
+        // Front matter the profile wants on every page of the type (the opening layout, say).
+        foreach ((array)($this->profile['types'][$entry['post_type']]['front'] ?? []) as $key => $value) {
+            $front[(string)$key] = $value;
+        }
+        $blocks = [];
+        if ($summary !== '' || $image !== '') {
+            $blocks[] = ['type' => 'text-image', 'variant' => 'image-left', 'body' => $summary, 'image' => $image, 'image_alt' => $image !== '' ? $entry['title'] : '', 'image_ratio' => 'portrait'];
+        }
+        $tabs = [];
+        foreach ($entry['tabs'] as $tab) {
+            $tabs[] = ['label' => $tab['label'], 'text' => trim($converter->convert($tab['html']))];
+        }
+        if ($tabs !== []) {
+            $blocks[] = ['type' => 'tabs', 'variant' => 'horizontal', 'items' => $tabs];
+        }
+        if ($blocks !== []) {
+            $front['blocks'] = $blocks;
+        }
+        $front['imported_from'] = $entry['link'];
+        return ['front' => $front, 'body' => '', 'notes' => $converter->notes()];
+    }
+
+    /** @return array<int, array<string, mixed>> the slides of the home page as items of a slider block */
+    private function slideItems(): array
+    {
+        $items = [];
+        foreach ($this->slides as $slide) {
+            $item = ['image' => $slide['image'] !== '' ? $this->resolve($slide['image'], 'image') : '', 'title' => $slide['title'], 'text' => $slide['text']];
+            $actions = [];
+            foreach ($slide['buttons'] as $button) {
+                $actions[] = ['label' => $button['label'], 'url' => $this->resolve($button['url'], 'link'), 'style' => 'primary'];
+            }
+            if ($actions !== []) {
+                $item['actions'] = $actions;
+            }
+            $items[] = $item;
+        }
+        return $items;
+    }
+
+    /** The picture a text starts with, and the text after it. @return array{0: string, 1: string} */
+    private static function splitLeadingImage(string $markdown): array
+    {
+        if (preg_match('/\A!\[[^\]]*\]\(([^)\s]+)\)\s*(.*)\z/s', ltrim($markdown), $m)) {
+            return [$m[1], trim($m[2])];
+        }
+        return ['', trim($markdown)];
+    }
+
+    /**
+     * A template with the words @slides, @body and @image in it, filled in.
+     *
+     * @param array<string, mixed> $values
+     */
+    private function fill(mixed $template, array $values): mixed
+    {
+        if (is_string($template)) {
+            return array_key_exists($template, $values) ? $values[$template] : $template;
+        }
+        if (!is_array($template)) {
+            return $template;
+        }
+        $out = [];
+        foreach ($template as $key => $value) {
+            $out[$key] = $this->fill($value, $values);
+        }
+        return $out;
+    }
+
+    /**
+     * A menu read from the pages, as items the Menus class writes, with their addresses on the new site.
+     *
+     * @param array<int, array{label: string, url: string, children?: array<int, mixed>}> $items
+     * @return array<int, array<string, mixed>>
+     */
+    private function menuRows(array $items): array
+    {
+        $rows = [];
+        foreach ($items as $item) {
+            $row = ['label' => $item['label'], 'url' => $this->resolve($item['url'], 'link')];
+            if (!empty($item['children'])) {
+                $row['children'] = $this->menuRows($item['children']);
+            }
+            $rows[] = $row;
+        }
+        return $rows;
     }
 
     /** The excerpt an author wrote; one WordPress cut from the text on its own is left out. */

@@ -43,6 +43,7 @@ Before the application boots, `public/index.php` hands `/_themes/…` and `/_cus
 | `Menus` | The menu files in `content/menus`: reading and writing, checking items (three levels, labels per language), nesting rows from the admin form, which menu sits in which theme location, translated labels, the active item and trail for the page shown, and following an address change. |
 | `HtmlToMarkdown` | The HTML of another site as Markdown: structure kept, styles and Word leftovers dropped, layout tables taken apart, known video embeds kept, and a list of what could not be carried over. |
 | `WordPressReader`, `WordPressHttp` | The public REST API of a WordPress site (pages, posts, media, categories, tags, sitemap addresses) and the web calls it makes (http/https only, size limits). |
+| `WordPressScraper` | What the API does not give, from the pages themselves with the XPath of a profile: the pages of a custom post type (found in the sitemap), the home page slides, and a menu. |
 | `WordPressImporter` | Plan, then apply: pages and posts as Markdown, flat terms, media into the library under ids made from their address, links rewritten, and the list of old addresses to redirect (`docs/wordpress-import.md`). |
 | `ContentCsv` | The CSV export of a content type and the two-step import (preview, then apply with backups and rollback). |
 | `SiteSettings` | The site settings document: defaults, load (with the old YAML read once), the values the settings form shows, saving a submitted form, and the secrets rule. |

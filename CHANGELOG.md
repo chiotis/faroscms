@@ -5,8 +5,10 @@
 - The HTML becomes Markdown (`HtmlToMarkdown`): structure is kept; inline styles, Word's classes, float classes, empty paragraphs and broken markup are cleaned; a table used only to place a picture beside text is taken apart; YouTube, Vimeo and similar embeds stay; the rest is listed in the report
 - Categories are flattened (the same name under two parents gets its parent in the name and address), pictures and files go into the media library under an id made from their address (sizes WordPress made are the picture itself; a file the old site no longer has is dropped from the text and listed), links between pages are rewritten, and the run writes a `redirects.txt` of old addresses to paste into Admin → Redirects → Import
 - `MediaLibrary::import()` brings in a file that is already on disk under an id the caller chooses
-- Tests: `html-to-markdown.php` (61 checks) and `wordpress-import.php` (57 checks, answering from a made-up site)
-- Not yet: the site's custom post types (they are not in the REST API), menus, and the look of the site. Those come next
+- Tests: `html-to-markdown.php` (61 checks) and `wordpress-import.php` (answering from a made-up site)
+- **Profiles** (`--profile=FILE`, see `docs/wordpress-profiles/themelio.yaml`) tell the importer where to find, with XPath, what the API does not give: the pages of **custom post types** (found in the site's sitemap; a cover and description become a Text and image block and the tabs a Tabs block), the **slides** of the home page, and a **menu** (written only with `--menus`). A profile can also define the content types, map an old list address to its new one, and describe the **home page as blocks**
+- **Slider: a new `banner` variant** (a wide picture with a text panel over it, like the slider of many older sites) and **buttons per slide** (up to three, in any variant). The default theme is now 1.14.0
+- Not yet: the look of the site (colours and fonts)
 
 ## 0.1.23 — 2026-10-02 — A media id made only of digits
 - **Fixed a rare error in the Media screen.** A media id is 16 random hexadecimal characters, and about one in two thousand is only digits. PHP turns such a text into a number when it is used as an array key, and the next function wanted text, so selecting that file for a bulk action (tags, delete) failed with a type error. Ids are now kept as text. It showed up as an occasional failure of the test suite on PHP 8.5

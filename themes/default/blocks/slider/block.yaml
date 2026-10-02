@@ -2,6 +2,7 @@ label: Slider
 description: Slides you scroll through, with previous and next buttons. Works by swiping, with the keyboard, and without JavaScript. Never moves by itself unless you turn that on.
 variants:
   full: One large slide at a time
+  banner: Wide banner, a text panel over the picture
   multi: Several slides at once
 tone: default
 fields:
@@ -40,3 +41,12 @@ fields:
       text: { type: textarea, label: Text }
       link_label: { type: text, label: Link text }
       url: { type: link, label: Link }
+      actions:
+        type: repeater
+        label: Buttons
+        item_label: Button
+        max: 3
+        fields:
+          label: { type: text, label: Label }
+          url: { type: link, label: Link }
+          style: { type: select, label: Style, default: primary, options: { primary: Primary, secondary: Secondary } }

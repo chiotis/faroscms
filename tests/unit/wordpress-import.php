@@ -5,7 +5,7 @@
  *   php tests/unit/wordpress-import.php
  */
 require dirname(__DIR__, 2) . '/vendor/autoload.php';
-use FarosCMS\{FrontMatter, MediaLibrary, Taxonomies, WordPressImporter, WordPressReader};
+use FarosCMS\{FrontMatter, MediaLibrary, Menus, Taxonomies, WordPressImporter, WordPressReader, WordPressScraper};
 use Symfony\Component\Yaml\Yaml;
 
 $fail = 0;
@@ -39,10 +39,20 @@ $web = [
     ],
 ];
 $png = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==');
+// Pages the API does not give: a custom type's sitemap and pages, and the home page with its slides and menu.
+$raw = [
+    '/wp-sitemap-posts-book-1.xml' => '<?xml version="1.0"?><urlset><url><loc>' . $SITE . '/book/the-novel/</loc></url><url><loc>' . $SITE . '/book/no-tabs/</loc></url></urlset>',
+    '/book/the-novel/' => '<html><body><h1 class="term-title">The Novel</h1><p class="book-cover"><img src="' . $SITE . '/wp-content/uploads/2013/cover-207x300.png"></p><div class="panel"><p><strong>The Novel</strong> is about <a href="/about/">the author</a>.</p></div><dl class="tabs"><dd><a href="#f">Features</a></dd><dd><a href="#l">Links</a></dd><dd><a href="#e">Editions</a></dd></dl><ul class="tabs-content"><li id="f"><p>Praise for it.</p></li><li id="l"><p><a href="https://shop.example/x">Buy</a></p></li><li id="e"> </li></ul></body></html>',
+    '/book/no-tabs/' => '<html><body><h1 class="term-title">No Tabs</h1><div class="panel"><p>Short.</p></div></body></html>',
+    '/' => '<html><body><ul class="sf-menu"><li><a href="' . $SITE . '/">Home</a></li><li><a href="' . $SITE . '/book">Books</a><ul class="sub-menu"><li><a href="' . $SITE . '/category/news/">News</a></li></ul></li><li><a href="https://elsewhere.test/">Out</a></li></ul>'
+        . '<div id="homeslider"><div class="content" style="background:url(' . $SITE . '/wp-content/uploads/2013/cover-980x250.png) no-repeat center top"><h1>First</h1><div class="slide-text"><p>Text one.</p><p>More</p></div></div>'
+        . '<div class="content" style="background:url(' . $SITE . '/wp-content/uploads/2013/cover.png)"><h1>Second</h1><div class="slide-text"><p>Buy at</p><span class="button"><a href="https://shop.example/a">Shop A</a></span><span class="button"><a href="/about/">About</a></span></div></div></div></body></html>',
+];
 $requests = [];
-$get = function (string $url) use (&$web, $SITE, &$requests): ?array {
+$get = function (string $url) use (&$web, &$raw, $SITE, &$requests): ?array {
     $requests[] = $url;
     $path = parse_url($url, PHP_URL_PATH);
+    if (str_starts_with($url, $SITE) && isset($raw[$path])) { return ['status' => 200, 'body' => $raw[$path]]; }
     if (!str_starts_with($url, $SITE) || !isset($web[$path])) { return ['status' => 404, 'body' => '{}']; }
     parse_str((string)parse_url($url, PHP_URL_QUERY), $query);
     if (($query['page'] ?? '1') !== '1') { return ['status' => 400, 'body' => '{"code":"rest_post_invalid_page_number"}']; }
@@ -57,12 +67,14 @@ $download = function (string $url, string $to) use (&$downloads, $png): int {
 };
 
 $root = sys_get_temp_dir() . '/wpimp' . getmypid();
-$make = function (array $options = []) use (&$root, $get, $download, $SITE): WordPressImporter {
+$menusWritten = [];
+$make = function (array $options = [], ?array $profile = null) use (&$root, $get, $download, $SITE, &$menusWritten): WordPressImporter {
     @mkdir("$root/content", 0775, true);
     @mkdir("$root/uploads", 0775, true);
     $media = new MediaLibrary("$root/content", "$root/uploads");
     $media->ensureDirectories();
-    return new WordPressImporter(new WordPressReader($SITE, $get), "$root/content", $media, new Taxonomies("$root/content", ['en']), $download, $options + ['lang' => 'en', 'default_lang' => 'en']);
+    $reader = new WordPressReader($SITE, $get);
+    return new WordPressImporter($reader, "$root/content", $media, new Taxonomies("$root/content", ['en']), $download, $options + ['lang' => 'en', 'default_lang' => 'en', 'custom_dir' => "$root/custom"], $profile !== null ? new WordPressScraper($reader, $profile) : null, $profile ?? [], function (string $key, array $menu) use (&$menusWritten): void { $menusWritten[$key] = $menu; });
 };
 $files = static fn(string $dir): array => array_map('basename', glob("$root/content/$dir/*.md") ?: []);
 $front = static function (string $path): array { [$yaml] = FrontMatter::split((string)file_get_contents($path)); return Yaml::parse($yaml); };
@@ -172,6 +184,60 @@ $root = sys_get_temp_dir() . '/wpimp4' . getmypid();
 $used = $make(['only_used_media' => true])->plan();
 check('the library files nobody uses can be left out', array_map(fn($f) => $f['name'], array_values($used['media'])), ['cover.png', 'paper.pdf', 'flaky.png', 'gone.gif']);
 
-foreach (['', '2', '3', '4'] as $suffix) { exec('rm -rf ' . escapeshellarg(sys_get_temp_dir() . '/wpimp' . $suffix . getmypid())); }
+// ---- what the API does not give: custom types, slides, the menu, and the home page as blocks
+$root = sys_get_temp_dir() . '/wpimp5' . getmypid();
+$cover = fn(string $x) => $x;
+$profile = [
+    'content_types' => ['books' => ['label' => ['en' => 'Books'], 'singular' => ['en' => 'Book']]],
+    'types' => ['book' => [
+        'content_type' => 'books', 'front' => ['hero_layout' => 'minimal'],
+        'title' => "//h1[contains(@class,'term-title')]", 'image' => "//p[contains(@class,'book-cover')]//img/@src", 'summary' => "//div[contains(@class,'panel')]",
+        'tabs' => ['labels' => "//dl[contains(@class,'tabs')]//a", 'panels' => "//ul[contains(@class,'tabs-content')]/li"],
+    ]],
+    'archives' => ['book' => 'books'],
+    'slides' => ['items' => "//div[@id='homeslider']/div[contains(@class,'content')]", 'background' => 'style', 'title' => './/h1', 'text' => ".//div[contains(@class,'slide-text')]/p[1]", 'buttons' => ".//span[contains(@class,'button')]//a"],
+    'menus' => ['main' => ['list' => "//ul[contains(@class,'sf-menu')]"]],
+    'home' => ['blocks' => [['type' => 'slider', 'variant' => 'banner', 'items' => '@slides'], ['type' => 'text-image', 'image' => '@image', 'body' => '@body']]],
+];
+$scraper = new WordPressScraper(new WordPressReader($SITE, $get), $profile);
+check('the scraper finds the pages of a custom type from the sitemap', array_map(fn($e) => $e['slug'], $scraper->entries()), ['the-novel', 'no-tabs']);
+$novel = $scraper->entries()[0];
+check('a page gives its title, cover and tabs without the empty one', [$novel['title'], $novel['image'], array_map(fn($t) => $t['label'], $novel['tabs'])], ['The Novel', "$SITE/wp-content/uploads/2013/cover-207x300.png", ['Features', 'Links']]);
+check('the slides are read with their picture, text and buttons', array_map(fn($s) => [$s['title'], $s['text'], count($s['buttons'])], $scraper->slides()), [['First', 'Text one.', 0], ['Second', 'Buy at', 2]]);
+check('the menu is read as nested items', array_map(fn($m) => $m['label'] . (isset($m['children']) ? '>' . $m['children'][0]['label'] : ''), $scraper->menu('main')), ['Home', 'Books>News', 'Out']);
+check('a profile without slides or menus gives none', [(new WordPressScraper(new WordPressReader($SITE, $get), []))->slides(), (new WordPressScraper(new WordPressReader($SITE, $get), []))->menu('main'), (new WordPressScraper(new WordPressReader($SITE, $get), []))->entries()], [[], [], []]);
+
+$full = $make(['menus' => true], $profile);
+$planS = $full->plan();
+check('the plan counts the pages of the custom type and the slides', [array_values(array_filter(array_map(fn($i) => $i['type'], $planS['items']), fn($t) => $t === 'books')), $planS['slides']], [['books', 'books'], 2]);
+check('the menu is in the plan, not yet written', [array_map(fn($m) => count($m), $planS['menus']), $menusWritten], [['main' => 3], []]);
+$listS = array_map(fn($r) => $r[0] . ' ' . $r[1], $planS['redirects']);
+check('an old custom address and the old list lead to the new ones', [in_array('/book/the-novel /books/the-novel', $listS, true), in_array('/book /books', $listS, true)], [true, true]);
+$resultS = $full->apply($planS);
+$book = $front("$root/content/books/the-novel.md");
+check('a book is written under its content type, with the profile\'s front matter', [$book['title'], $book['hero_layout'], array_key_exists('excerpt', $book)], ['The Novel', 'minimal', false]);
+$coverS = substr(sha1("$SITE/wp-content/uploads/2013/cover.png"), 0, 16);
+check('its cover is the main image and sits beside the description', [$book['main_image'], $book['blocks'][0]['type'], $book['blocks'][0]['variant'], $book['blocks'][0]['image'], $book['blocks'][0]['image_ratio']], ["/uploads/media/$coverS.png", 'text-image', 'image-left', "/uploads/media/$coverS.png", 'portrait']);
+check('the description is Markdown with its links rewritten', $book['blocks'][0]['body'], '**The Novel** is about [the author](/about)' . '.');
+check('the tabs are a Tabs block, without the empty panel', array_map(fn($t) => $t['label'], $book['blocks'][1]['items']), ['Features', 'Links']);
+check('a tab\'s text is Markdown', $book['blocks'][1]['items'][1]['text'], '[Buy](https://shop.example/x)');
+$noTabs = $front("$root/content/books/no-tabs.md");
+check('a page without tabs has only the description', array_column($noTabs['blocks'], 'type'), ['text-image']);
+$home = $front("$root/content/pages/index.md");
+check('the home page is blocks over a landing page', [$home['template'], array_column($home['blocks'], 'type'), $home['blocks'][0]['variant']], ['landing', ['slider', 'text-image'], 'banner']);
+check('a slide has its picture, text and buttons', [$home['blocks'][0]['items'][0]['title'], str_starts_with($home['blocks'][0]['items'][0]['image'], '/uploads/media/'), $home['blocks'][0]['items'][1]['actions']], ['First', true, [['label' => 'Shop A', 'url' => 'https://shop.example/a', 'style' => 'primary'], ['label' => 'About', 'url' => '/about', 'style' => 'primary']]]);
+check('and the home text goes to the block with the picture split off', [$home['blocks'][1]['body'], $home['blocks'][1]['image']], ['Welcome. [About](/about), [old home](/).', '']);
+check('with the menus option the menu is written, addresses on the new site', [array_keys($menusWritten), array_map(fn($r) => $r['url'], $menusWritten['main']['items']), $menusWritten['main']['items'][1]['children'][0]['url']], [['main'], ['/', '/books', 'https://elsewhere.test/'], '/category/news']);
+check('the content type is defined when the site has no definition', [is_file("$root/custom/content-types/books.yaml"), $resultS['content_types']], [true, ['books']]);
+file_put_contents("$root/custom/content-types/books.yaml", "label: { en: Mine }\n");
+$again = $make(['menus' => true], $profile);
+$again->apply($again->plan());
+check('a definition the site already has is left alone', trim((string)file_get_contents("$root/custom/content-types/books.yaml")), 'label: { en: Mine }');
+$menusWritten = [];
+$noMenus = $make([], $profile);
+$noMenus->apply($noMenus->plan());
+check('without the menus option no menu is written', $menusWritten, []);
+
+foreach (['', '2', '3', '4', '5'] as $suffix) { exec('rm -rf ' . escapeshellarg(sys_get_temp_dir() . '/wpimp' . $suffix . getmypid())); }
 echo $fail === 0 ? "ALL PASSED\n" : "$fail FAILED\n";
 exit($fail === 0 ? 0 : 1);
