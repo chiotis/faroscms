@@ -2554,6 +2554,20 @@ p.form-error {
   border-left: 1px solid var(--color-border-strong);
 }
 
+/* On a narrow screen the links wrap, so no lines between them. */
+@media (max-width: 620px) {
+  .footer-barrow .footer-inline-nav .footer-list-1,
+  .footer-barrow .footer-inline-nav > .footer-list {
+    gap: 0.4rem 1.2rem;
+  }
+
+  .footer-barrow .footer-inline-nav .footer-item + .footer-item {
+    margin-left: 0;
+    padding-left: 0;
+    border-left: 0;
+  }
+}
+
 .footer--centered .footer-compact {
   flex-direction: column;
   text-align: center;

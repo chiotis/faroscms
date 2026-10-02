@@ -3,6 +3,16 @@
 (function () {
   var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+  var svg = function (path, filled) {
+    return '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"' + (filled ? ' fill="currentColor"' : ' fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"') + '>' + path + '</svg>';
+  };
+  var ICONS = {
+    prev: svg('<path d="M15 5l-7 7 7 7"/>', false),
+    next: svg('<path d="M9 5l7 7-7 7"/>', false),
+    pause: svg('<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>', true),
+    play: svg('<path d="M8 5.5v13l11-6.5z"/>', true)
+  };
+
   document.querySelectorAll('[data-slider]').forEach(function (root) {
     var track = root.querySelector('.slider-track');
     var slides = Array.prototype.slice.call(root.querySelectorAll('.slider-slide'));
@@ -18,8 +28,8 @@
 
     var controls = document.createElement('div');
     controls.className = 'slider-controls';
-    var prev = button('slider-btn is-prev', attr('data-label-prev', 'Previous slide'), '‹');
-    var next = button('slider-btn is-next', attr('data-label-next', 'Next slide'), '›');
+    var prev = button('slider-btn is-prev', attr('data-label-prev', 'Previous slide'), ICONS.prev);
+    var next = button('slider-btn is-next', attr('data-label-next', 'Next slide'), ICONS.next);
     var dots = document.createElement('div');
     dots.className = 'slider-dots';
     var dotButtons = slides.map(function (slide, i) {
@@ -32,7 +42,7 @@
     controls.appendChild(dots);
     var toggle = null;
     if (autoplay) {
-      toggle = button('slider-btn is-toggle', attr('data-label-pause', 'Pause automatic movement'), '❚❚');
+      toggle = button('slider-btn is-toggle', attr('data-label-pause', 'Pause automatic movement'), ICONS.pause);
       toggle.addEventListener('click', function () { paused = !paused; syncToggle(); schedule(); });
       controls.appendChild(toggle);
     }
@@ -52,7 +62,7 @@
     function syncToggle() {
       if (!toggle) return;
       toggle.setAttribute('aria-label', paused ? attr('data-label-play', 'Start automatic movement') : attr('data-label-pause', 'Pause automatic movement'));
-      toggle.firstChild.textContent = paused ? '▶' : '❚❚';
+      toggle.firstChild.innerHTML = paused ? ICONS.play : ICONS.pause;
       track.setAttribute('aria-live', paused || !autoplay ? 'polite' : 'off');
     }
 
