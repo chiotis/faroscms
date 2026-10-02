@@ -34,6 +34,13 @@ check('and nothing of a site: no content, uploads, custom/, storage, tests, or s
 check('uploads keep the file that stops code running in them', in_array('public/uploads/.htaccess', $names, true), true);
 require_once $root . '/vendor/autoload.php';
 check('every file of the package is one an update is allowed to write (the two lists have not drifted apart)', array_values(array_filter($names, fn($n) => !FarosCMS\UpdateInstaller::isAllowedPath($n))), []);
+// An update is installed by the installer of the site being updated, which is older than the package. It refuses any file
+// it does not know, so a new single file (outside the folders below) would stop every older site from updating. This is the
+// list of 0.1.23; add to it only when the oldest site that must still update is past the release that taught the installer
+// the file (the importer, scripts/import-wordpress.php, is not shipped for this reason: it runs from a copy of the repository).
+$known = ['public/index.php', 'public/.htaccess', 'public/uploads/.htaccess', 'custom/README.md', 'scripts/use-starter.php', 'CHANGELOG.md', 'README.md', 'LICENSE', 'update.md', 'composer.json', 'composer.lock', 'VERSION'];
+$folders = '#^(src|admin|vendor|themes|starter|public/assets)/#';
+check('and no single file an installer of 0.1.23 does not know, which would stop older sites from updating', array_values(array_filter($names, fn($n) => !str_ends_with($n, '/') && !preg_match($folders, $n) && !in_array($n, $known, true))), []);
 $bad = array_values(array_filter($names, fn($n) => str_starts_with($n, '/') || str_contains($n, '..') || str_contains($n, '\\') || basename($n) === '.DS_Store'));
 check('every name is a safe relative path', $bad, []);
 $zip->close();
