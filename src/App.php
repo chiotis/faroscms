@@ -56,6 +56,8 @@ final class App
     private ?Sitemap $sitemapService = null;
     private ?TaxonomyPage $taxonomyPageService = null;
     private ?PublicForms $publicFormsService = null;
+    private ?SettingsAdmin $settingsAdminService = null;
+    private ?AdminChrome $adminChromeService = null;
     private ?MenuAdmin $menuAdminService = null;
     private ?LogAdmin $logAdminService = null;
     private ?AdminNotices $adminNoticesService = null;
@@ -316,6 +318,40 @@ final class App
         );
     }
 
+    private function settingsAdmin(): SettingsAdmin
+    {
+        return $this->settingsAdminService ??= new SettingsAdmin(
+            $this->siteSettings(),
+            $this->media,
+            fn(): SiteLimits => $this->siteLimits(),
+            fn(): BackupManager => $this->backupManager(),
+            fn(): array => $this->settings,
+            function (array $settings): void {
+                $this->settings = $settings;
+            },
+            function (?array $input): array {
+                $result = $input !== null ? $this->saveThemeSettings($input) : ['ok' => true];
+                $this->themeSettings = $this->loadThemeSettings();
+                return $result;
+            },
+            fn(string $to, string $subject, string $body, array $headers): bool => $this->sendEmailMessage($to, $subject, $body, $headers),
+            fn(string $isoDate) => $this->updateBackupLastRun($isoDate),
+            fn(string $action, string $level, ?string $type, ?string $id, string $message, array $context) => $this->logActivity($action, $level, $type, $id, $message, $context)
+        );
+    }
+
+    private function adminChrome(): AdminChrome
+    {
+        return $this->adminChromeService ??= new AdminChrome(
+            $this->notifications,
+            $this->users,
+            fn(): UpdateService => $this->updates(),
+            fn(): SiteLimits => $this->siteLimits(),
+            fn(): AdminNotices => $this->adminNotices(),
+            fn(): array => $this->settings
+        );
+    }
+
     private function htmlGuard(): HtmlGuard
     {
         return $this->htmlGuard ??= new HtmlGuard(fn(): Environment => $this->markdownEnvironment(), fn(): BlockRegistry => $this->blockRegistry());
@@ -436,26 +472,21 @@ final class App
 
     private function handleFront(string $path): void
     {
-        if ($path === 'sitemap.xml') {
+        $route = FrontRoute::resolve($path, $this->settings, $this->content->getTypes());
+        if ($route['kind'] === 'sitemap') {
             $this->renderSitemap();
             return;
         }
-
-        if ($path === 'robots.txt') {
+        if ($route['kind'] === 'robots') {
             $this->renderRobots();
             return;
         }
 
-        [$lang, $segments] = $this->extractLang($path);
+        $lang = $route['lang'];
+        $segments = $route['segments'];
+        $homeSlug = $route['home_slug'];
         $this->setLanguage($lang);
-        $typeList = $this->content->getTypes();
-        $langPrefix = $this->langPrefix($lang);
         $includeHidden = $this->auth->check();
-        $homeSlug = $this->settings['home_page'] ?? 'index';
-        $pathNoLang = implode('/', $segments);
-        if ($pathNoLang === $homeSlug) {
-            $pathNoLang = '';
-        }
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['form_slug']) && ($segments[0] ?? '') !== 'forms') {
             $formSlug = $this->slugify((string)($_POST['form_slug'] ?? ''));
             if ($formSlug !== '') {
@@ -468,29 +499,24 @@ final class App
         $currentUrl = $this->buildAbsoluteUrl($path);
         $viewDefaults = [
             'lang' => $lang,
-            'lang_prefix' => $langPrefix,
+            'lang_prefix' => $route['lang_prefix'],
             'current_lang' => $lang,
-            'path_no_lang' => $pathNoLang,
+            'path_no_lang' => $route['path_no_lang'],
             'canonical_url' => $currentUrl,
-            'theme_menus' => $this->menus()->forTheme($lang, $pathNoLang),
+            'theme_menus' => $this->menus()->forTheme($lang, $route['path_no_lang']),
         ];
 
-        if (($segments[0] ?? '') === 'pages') {
-            $slug = $segments[1] ?? '';
-            $target = '/' . $langPrefix;
-            if ($slug !== '' && $slug !== $homeSlug) {
-                $target .= $slug;
-            }
-            header('Location: ' . $target, true, 301);
+        if ($route['kind'] === 'legacy_page') {
+            header('Location: ' . $route['location'], true, 301);
             exit;
         }
 
-        if (in_array($segments[0] ?? '', ['tag', 'tags', 'category', 'categories'], true)) {
+        if ($route['kind'] === 'taxonomy') {
             $this->handleTaxonomy($segments, $lang, $viewDefaults);
             return;
         }
 
-        if (($segments[0] ?? '') === 'search') {
+        if ($route['kind'] === 'search') {
             $query = (string)($_GET['q'] ?? '');
             $results = $this->content->search($query, $lang, $includeHidden);
             $this->render('templates/search.twig', [
@@ -500,10 +526,10 @@ final class App
             return;
         }
 
-        if (isset($segments[0]) && in_array($segments[0], $typeList, true)) {
-            $type = $segments[0];
-            $slug = $segments[1] ?? null;
-            if ($slug === null || $slug === '') {
+        if ($route['kind'] === 'archive' || $route['kind'] === 'entry') {
+            $type = $route['type'];
+            $slug = $route['slug'];
+            if ($route['kind'] === 'archive') {
                 $items = $this->content->getItems($type, $lang, $includeHidden, false);
                 $alternates = $this->languageAlternates()->forArchive($type);
                 $archive = $this->archiveContext($type, $lang, $items);
@@ -564,10 +590,7 @@ final class App
             return;
         }
 
-        $slug = $segments[0] ?? $homeSlug;
-        if ($slug === '') {
-            $slug = $homeSlug;
-        }
+        $slug = $route['slug'];
         $page = $this->content->find('pages', $slug, $lang, $includeHidden, false);
         if (!$page) {
             $this->render404();
@@ -978,16 +1001,6 @@ final class App
     }
 
     /** The active super admin people can write to when the storage is nearly full. @return array{name: string, email: string}|null */
-    private function storageContact(): ?array
-    {
-        foreach ($this->users->all(['role' => 'superadmin', 'status' => 'active']) as $account) {
-            if ((string)($account['email'] ?? '') !== '') {
-                return ['name' => (string)($account['display_name'] ?: $account['username']), 'email' => (string)$account['email']];
-            }
-        }
-        return null;
-    }
-
     private function handleRoles(): void
     {
         if (!$this->permissions->can($this->auth->user(), 'roles.manage')) {
@@ -1701,155 +1714,35 @@ final class App
 
     private function handleSettings(): void
     {
-        $saved = isset($_GET['saved']);
-        $testStatus = (string)($_GET['test'] ?? '');
-        $backupStatus = (string)($_GET['backup'] ?? '');
-        $backupMessage = trim((string)($_GET['backup_msg'] ?? ''));
-        $settingsError = trim((string)($_GET['settings_error'] ?? ''));
-        if (strtolower((string)($_GET['tab'] ?? '')) === 'theme' && $_SERVER['REQUEST_METHOD'] !== 'POST') {
+        $admin = $this->settingsAdmin();
+        $post = $_SERVER['REQUEST_METHOD'] === 'POST';
+        if (strtolower((string)($_GET['tab'] ?? '')) === 'theme' && !$post) {
             // The theme has its own page now.
             $this->redirect('/admin/theme');
             return;
         }
-        $activeTab = $this->sanitizeSettingsTab((string)($_GET['tab'] ?? 'basics'));
-
         $downloadBackup = trim((string)($_GET['download_backup'] ?? ''));
         if ($downloadBackup !== '') {
             $this->downloadBackupSnapshot($downloadBackup);
             return;
         }
-
-        if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['storage_action'] ?? '') === 'recalculate') {
-            if ($this->permissions->can($this->auth->user(), 'limits.manage')) {
-                $this->siteLimits()->measure();
-                $this->logActivity('limits.storage_recalculate', 'info', 'settings', 'storage', 'Storage use measured again.');
-                $this->redirect('/admin/settings?tab=limits&storage=measured');
-                return;
-            }
-            $this->redirect('/admin/settings?tab=limits');
+        $canLimits = $this->permissions->can($this->auth->user(), 'limits.manage');
+        if ($post && (string)($_POST['storage_action'] ?? '') === 'recalculate') {
+            $this->redirect($admin->recalculateStorage($canLimits));
             return;
         }
-
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $activeTab = $this->sanitizeSettingsTab((string)($_POST['active_tab'] ?? $activeTab));
-            $raw = $this->siteSettings()->raw('site_settings', $this->siteSettings()->defaults());
+        if ($post) {
             $upload = $this->submittedUploadSettings();
-            $form = SiteSettings::formFromPost($_POST) + [
+            $this->redirect($admin->save($_POST, [
                 'storage_limit_mb' => $this->submittedStorageLimit(),
                 'upload_limit_mb' => $upload['mb'],
                 'upload_types' => $upload['types'],
-            ];
-            $limitBefore = (int)($this->settings['limits']['storage_mb'] ?? 1024);
-            $uploadBefore = [$this->siteLimits()->uploadLimitMb(), $this->media->allowedGroups()];
-            if (!$this->siteSettings()->save($raw, $form)) {
-                $this->redirect('/admin/settings?' . http_build_query([
-                    'tab' => $activeTab,
-                    'settings_error' => 'Settings could not be saved because the SQLite system database is unavailable.',
-                ]));
-                return;
-            }
-            $this->settings = $this->siteSettings()->load();
-            $limitAfter = (int)($this->settings['limits']['storage_mb'] ?? 1024);
-            $this->media->restrictTo(is_array($this->settings['limits']['upload_types'] ?? null) ? $this->settings['limits']['upload_types'] : []);
-            $uploadAfter = [$this->siteLimits()->uploadLimitMb(), $this->media->allowedGroups()];
-            if ($uploadAfter !== $uploadBefore) {
-                $this->logActivity('limits.upload', 'warning', 'settings', 'upload', 'Upload limits changed.', ['from_mb' => $uploadBefore[0], 'to_mb' => $uploadAfter[0], 'kinds' => $uploadAfter[1]]);
-            }
-            if ($limitAfter !== $limitBefore) {
-                $this->logActivity('limits.storage', 'warning', 'settings', 'storage_mb', 'Storage limit changed.', ['from_mb' => $limitBefore, 'to_mb' => $limitAfter]);
-            }
-            $themeSave = is_array($_POST['theme_settings'] ?? null) ? $this->saveThemeSettings($_POST['theme_settings']) : ['ok' => true];
-            $this->themeSettings = $this->loadThemeSettings();
-            if (($themeSave['ok'] ?? false) !== true) {
-                $msg = urlencode((string)($themeSave['message'] ?? 'Theme settings could not be saved.'));
-                $this->redirect('/admin/theme?theme=fail&theme_msg=' . $msg);
-                return;
-            }
-            $this->logActivity('settings.update', 'info', 'settings', $activeTab, 'Settings updated.', [
-                'tab' => $activeTab,
-            ]);
-            if (isset($_POST['send_test'])) {
-                $testTo = trim((string)($_POST['test_email_to'] ?? ''));
-                if ($testTo === '') {
-                    $this->redirect('/admin/settings?saved=1&tab=smtp&test=missing');
-                    return;
-                }
-                $siteTitle = trim((string)($this->settings['title'] ?? 'FarosCMS'));
-                if ($siteTitle === '') {
-                    $siteTitle = 'FarosCMS';
-                }
-                $testSubject = $siteTitle . ' - email test';
-                $from = trim((string)($this->settings['forms']['notifications']['from'] ?? ''));
-                $fromName = trim((string)($this->settings['forms']['notifications']['from_name'] ?? ''));
-                if ($from === '') {
-                    $from = 'noreply@localhost';
-                }
-                $fromHeader = $fromName !== '' ? $fromName . ' <' . $from . '>' : $from;
-                $ok = $this->sendEmailMessage($testTo, $testSubject, "This is a test email from FarosCMS.", [
-                    'From' => $fromHeader,
-                ]);
-                $this->logActivity($ok ? 'email.test_success' : 'email.test_failure', $ok ? 'info' : 'error', 'email', $testTo, $ok ? 'Test email sent.' : 'Test email failed.', [
-                    'recipient' => $testTo,
-                ]);
-                $this->redirect('/admin/settings?saved=1&tab=smtp&test=' . ($ok ? 'ok' : 'fail'));
-                return;
-            }
-            if (isset($_POST['test_remote_backup'])) {
-                $result = $this->backupManager()->testRemote();
-                $this->logActivity(($result['ok'] ?? false) ? 'backup.remote_test_success' : 'backup.remote_test_failure', ($result['ok'] ?? false) ? 'info' : 'error', 'backup', 'remote_storage', (string)($result['message'] ?? 'Remote backup test completed.'), [
-                    'provider' => (string)($this->settings['backup']['remote']['provider'] ?? 'custom'),
-                    'bucket' => (string)($this->settings['backup']['remote']['bucket'] ?? ''),
-                ]);
-                $query = [
-                    'saved' => '1',
-                    'tab' => 'backup',
-                    'backup' => (($result['ok'] ?? false) ? 'ok' : 'fail'),
-                    'backup_msg' => (string)($result['message'] ?? ''),
-                ];
-                $this->redirect('/admin/settings?' . http_build_query($query));
-                return;
-            }
-            if (isset($_POST['create_backup'])) {
-                $result = $this->backupManager()->createSnapshot();
-                if (($result['ok'] ?? false) === true) {
-                    $this->updateBackupLastRun(date('c'));
-                }
-                $this->backupManager()->recordRun($result);
-                $this->logActivity(($result['ok'] ?? false) ? 'backup.create_success' : 'backup.create_failure', BackupManager::logLevel($result), 'backup', (string)($result['filename'] ?? ''), (string)($result['message'] ?? 'Backup action completed.'), [
-                    'result' => $result,
-                ]);
-                $this->backupManager()->notify($result, false);
-                $query = [
-                    'saved' => '1',
-                    'tab' => 'backup',
-                    'backup' => BackupManager::queryStatus($result),
-                    'backup_msg' => (string)($result['message'] ?? ''),
-                ];
-                $this->redirect('/admin/settings?' . http_build_query($query));
-                return;
-            }
-            $this->redirect('/admin/settings?saved=1&tab=' . urlencode($activeTab));
+            ], SettingsAdmin::tab((string)($_GET['tab'] ?? 'basics'))));
             return;
         }
-
-        $raw = $this->siteSettings()->raw('site_settings', $this->siteSettings()->defaults());
-        $parsed = $this->siteSettings()->parse($raw);
-        $this->render('@admin/settings.twig', [
+        $this->render('@admin/settings.twig', $admin->screen($_GET, $canLimits, $this->listBackupSnapshots()) + [
             'user' => $this->auth->user(),
-            'saved' => $saved,
-            'storage_measured' => (string)($_GET['storage'] ?? '') === 'measured',
-            'test_status' => $testStatus,
             'types' => $this->content->getTypes(),
-            'admin_section' => 'settings',
-            'settings_form' => $this->siteSettings()->formValues($parsed),
-            'storage' => $this->permissions->can($this->auth->user(), 'limits.manage') ? $this->siteLimits()->summary() : [],
-            'upload_groups' => MediaLibrary::UPLOAD_GROUPS,
-            'server_upload_mb' => SiteLimits::serverUploadCap() > 0 ? (int)floor(SiteLimits::serverUploadCap() / 1048576) : 0,
-            'backup_snapshots' => $this->listBackupSnapshots(),
-            'backup_status' => $backupStatus,
-            'backup_message' => $backupMessage,
-            'settings_error' => $settingsError,
-            'active_tab' => $activeTab,
         ]);
     }
 
@@ -2501,37 +2394,13 @@ final class App
             'is_admin' => $this->auth->check(),
         ];
         if (str_starts_with($template, '@admin/') && $this->auth->check()) {
-            // System notices (updates, failed backups, security) are for those who manage the site.
-            $seesNotifications = $this->permissions->can($this->auth->user(), 'notifications.manage');
-            if (!$seesNotifications) {
-                $data += ['admin_notifications' => [], 'admin_notification_unread_count' => 0];
-            }
-            $syncNotifications = !isset($data['admin_notifications']) || !isset($data['admin_notification_unread_count']);
-            if ($syncNotifications) {
-                $this->adminNotices()->sync($this->permissions->can($this->auth->user(), 'updates.manage'));
-            }
-            $updates = $this->updates();
-            $cachedUpdate = $updates->cachedStatus();
-            $defaults['admin_version'] = $updates->currentVersion();
-            $defaults['admin_update_available'] = $cachedUpdate !== null && $cachedUpdate['has_update'];
-            $defaults['admin_update_latest'] = $cachedUpdate['latest_version'] ?? '';
-            $defaults['admin_default_password'] = ($_SESSION['security_default_password'] ?? false) === true;
-            if (!isset($data['admin_storage_summary'])) {
-                $defaults['admin_storage_summary'] = $this->siteLimits()->summary();
-            }
-            if (($defaults['admin_storage_summary']['level'] ?? $data['admin_storage_summary']['level'] ?? 'ok') === 'danger') {
-                $contact = $this->storageContact();
-                $summary = $defaults['admin_storage_summary'] ?? $data['admin_storage_summary'];
-                $siteName = (string)($this->settings['title'] ?? 'FarosCMS');
-                $defaults['admin_storage_contact'] = $contact === null ? null : $contact + ['href' => 'mailto:' . $contact['email']
-                    . '?subject=' . rawurlencode('Storage almost full: ' . $siteName)
-                    . '&body=' . rawurlencode("Hello,\n\nThe storage of " . $siteName . ' is ' . ($summary['percent_of_limit'] ?? $summary['percent']) . '% full (' . $summary['label'] . "). Could you raise the limit, or help me free some space?\n\nThank you")];
-            }
-            if ($syncNotifications) {
-                $defaults['admin_notifications'] = $this->notifications->recent(6);
-                $defaults['admin_notification_unread_count'] = $this->notifications->unreadCount();
-                $defaults['admin_current_url'] = $this->currentRequestPath();
-            }
+            $defaults += $this->adminChrome()->defaults(
+                $data,
+                $this->permissions->can($this->auth->user(), 'notifications.manage'),
+                $this->permissions->can($this->auth->user(), 'updates.manage'),
+                ($_SESSION['security_default_password'] ?? false) === true,
+                $this->currentRequestPath()
+            );
         }
 
         if (!str_starts_with($template, '@admin/') && !array_key_exists('structured_data', $data)) {
@@ -2927,18 +2796,6 @@ final class App
         return $this->taxonomyStore ??= new Taxonomies($this->contentDir, array_map('strval', $this->settings['languages']['available'] ?? [(string)($this->settings['languages']['default'] ?? 'el')]));
     }
 
-    /** @return array{0: string, 1: string[]} */
-    private function extractLang(string $path): array
-    {
-        $segments = $path === '' ? [] : explode('/', $path);
-        $available = $this->settings['languages']['available'] ?? [];
-        $lang = $this->settings['languages']['default'] ?? 'en';
-        if (isset($segments[0]) && in_array($segments[0], $available, true)) {
-            $lang = array_shift($segments);
-        }
-        return [$lang, $segments];
-    }
-
     private function resolveItemTemplate(ContentItem $item): string
     {
         $custom = $this->normalizeTemplateName((string)($item->meta['template'] ?? ''));
@@ -3144,11 +3001,7 @@ final class App
 
     private function langPrefix(string $lang): string
     {
-        $default = $this->settings['languages']['default'] ?? 'en';
-        if ($lang === $default) {
-            return '';
-        }
-        return $lang . '/';
+        return FrontRoute::langPrefix($lang, $this->defaultLanguage());
     }
 
     private function slugify(string $value): string
@@ -3170,16 +3023,6 @@ final class App
     private function titleFromSlug(string $slug): string
     {
         return Slug::title($slug);
-    }
-
-    private function sanitizeSettingsTab(string $tab): string
-    {
-        $tab = strtolower(trim($tab));
-        $allowed = ['basics', 'menus', 'apis', 'smtp', 'auth', 'backup', 'updates', 'limits'];
-        if (!in_array($tab, $allowed, true)) {
-            return 'basics';
-        }
-        return $tab;
     }
 
     /** @return array<int, array<string, mixed>> */
