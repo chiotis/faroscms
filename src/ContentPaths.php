@@ -50,4 +50,10 @@ final class ContentPaths
 
         return $prefix . $type . '/' . $slug;
     }
+
+    /** The public path (no leading slash) of the list of a content type: "posts", "en/posts". */
+    public static function archive(string $type, string $lang, string $defaultLang): string
+    {
+        return ($lang === $defaultLang ? '' : $lang . '/') . $type;
+    }
 }

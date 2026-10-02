@@ -140,6 +140,43 @@ final class MediaAdmin
         };
     }
 
+    /**
+     * The main image uploaded with an entry's form, which replaces the address typed in its field. A file that is
+     * not a picture is removed again; an upload that fails leaves the field as it was.
+     *
+     * @return array{url: ?string, blocked: bool} the address of the new picture, and whether the storage limit kept the file out
+     */
+    public function uploadMainImage(mixed $rawUpload, string $by): array
+    {
+        $uploads = $this->media->normalizeUploads($rawUpload);
+        if ($uploads === []) {
+            return ['url' => null, 'blocked' => false];
+        }
+        $upload = $uploads[0];
+        $error = (int)($upload['error'] ?? UPLOAD_ERR_NO_FILE);
+        if ($error !== UPLOAD_ERR_OK) {
+            return ['url' => null, 'blocked' => false];
+        }
+        $size = (int)($upload['size'] ?? 0);
+        if (!($this->storageAllows)($size)) {
+            return ['url' => null, 'blocked' => true];
+        }
+        try {
+            $this->media->ensureDirectories();
+            $uploaded = $this->media->upload($upload, '', $by, ($this->maxUploadBytes)());
+            ($this->uploadsChanged)($size);
+            if ((string)($uploaded['kind'] ?? '') === 'image') {
+                return ['url' => isset($uploaded['direct_url']) ? (string)$uploaded['direct_url'] : null, 'blocked' => false];
+            }
+            $id = (string)($uploaded['id'] ?? '');
+            if ($id !== '') {
+                $this->deleteItem($id);
+            }
+        } catch (\Throwable) {
+        }
+        return ['url' => null, 'blocked' => false];
+    }
+
     /** Deletes a media item and takes its size off the kept measurement of the uploads. */
     public function deleteItem(string $id): bool
     {

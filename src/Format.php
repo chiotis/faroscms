@@ -65,4 +65,20 @@ final class Format
         }
         return false;
     }
+
+    /** A date, timestamp or date text in the site's date format; text that is not a date is returned as it is. */
+    public static function dateValue(mixed $value, string $format): string
+    {
+        if ($value === null || $value === '') {
+            return '';
+        }
+        if (is_int($value) || is_numeric($value)) {
+            return date($format, (int)$value);
+        }
+        if ($value instanceof \DateTimeInterface) {
+            return $value->format($format);
+        }
+        $timestamp = strtotime((string)$value);
+        return $timestamp === false ? (string)$value : date($format, $timestamp);
+    }
 }

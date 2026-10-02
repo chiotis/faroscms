@@ -53,6 +53,10 @@ final class App
     private array $translations = [];
     private array $formStates = [];
     private ?Menus $menuStore = null;
+    private ?RevisionAdmin $revisionAdminService = null;
+    private ?ContentAdmin $contentAdminService = null;
+    private ?EntryForm $entryFormService = null;
+    private ?ContentTransfer $contentTransferService = null;
     private ?StructuredData $structuredDataService = null;
     private ?ContentCsv $contentCsvService = null;
     private ?SiteSettings $siteSettingsService = null;
@@ -160,6 +164,70 @@ final class App
             fn(): BlockRegistry => $this->blockRegistry(),
             fn(): array => $this->taxonomies()->names(),
             $this->revisions
+        );
+    }
+
+    private function revisionAdmin(): RevisionAdmin
+    {
+        return $this->revisionAdminService ??= new RevisionAdmin(
+            $this->revisions,
+            $this->contentEditor(),
+            $this->content,
+            $this->contentDir,
+            fn(): array => $this->settings,
+            fn(string $action, string $level, ?string $type, ?string $id, string $message, array $context) => $this->logActivity($action, $level, $type, $id, $message, $context)
+        );
+    }
+
+    private function contentAdmin(): ContentAdmin
+    {
+        return $this->contentAdminService ??= new ContentAdmin(
+            $this->contentDir,
+            $this->content,
+            $this->contentIndex,
+            $this->contentTypes(),
+            $this->contentEditor(),
+            $this->entryTranslations(),
+            $this->revisions,
+            $this->redirects,
+            fn(): array => $this->settings,
+            fn(): Taxonomies => $this->taxonomies(),
+            fn(): PublicPaths => $this->publicPaths(),
+            fn(): LinkScanner => $this->linkScanner(),
+            fn(string $action, string $level, ?string $type, ?string $id, string $message, array $context) => $this->logActivity($action, $level, $type, $id, $message, $context)
+        );
+    }
+
+    private function entryForm(): EntryForm
+    {
+        return $this->entryFormService ??= new EntryForm(
+            $this->contentDir,
+            $this->content,
+            $this->contentTypes(),
+            $this->contentEditor(),
+            $this->entryTranslations(),
+            $this->formsAdmin(),
+            $this->redirects,
+            $this->revisions,
+            $this->revisionAdmin(),
+            $this->theme,
+            fn(): array => $this->settings,
+            fn(): array => $this->themeSettings,
+            fn(): Taxonomies => $this->taxonomies(),
+            fn(): LinkScanner => $this->linkScanner(),
+            fn(): BlockRegistry => $this->blockRegistry(),
+            fn(): PresetLibrary => $this->presetLibrary(),
+            fn(string $path): string => $this->buildAbsoluteUrl($path)
+        );
+    }
+
+    private function contentTransfer(): ContentTransfer
+    {
+        return $this->contentTransferService ??= new ContentTransfer(
+            $this->contentCsv(),
+            $this->content,
+            fn(): array => $this->rebuildContentIndex(),
+            fn(string $action, string $level, ?string $type, ?string $id, string $message, array $context) => $this->logActivity($action, $level, $type, $id, $message, $context)
         );
     }
 
@@ -1167,170 +1235,30 @@ final class App
         ]);
     }
 
-    /** Shown for each kind of change in the history screens. */
-    private const REVISION_ACTIONS = [
-        'create' => 'Created',
-        'save' => 'Saved',
-        'import' => 'Imported',
-        'restore' => 'Restored',
-        'links' => 'Links updated',
-        'delete' => 'Deleted',
-        'external' => 'Changed outside the editor',
-        'baseline' => 'Earlier version',
-    ];
-
-    /**
-     * @param array<int, array<string, mixed>> $rows revisions
-     * @return array<int, array<string, mixed>> the same rows with what the screens need to link and label them
-     */
-    private function decorateRevisions(array $rows): array
-    {
-        foreach ($rows as $i => $row) {
-            $path = $this->contentDir . '/' . $row['type'] . '/' . $this->buildFilename((string)$row['slug'], (string)$row['lang']);
-            $rows[$i]['exists'] = is_file($path);
-            $rows[$i]['action_label'] = self::REVISION_ACTIONS[$row['action']] ?? ucfirst((string)$row['action']);
-            $rows[$i]['when'] = str_replace('T', ' ', substr((string)$row['created_at'], 0, 16)) . ' UTC';
-        }
-        return $rows;
-    }
-
     private function handleRevisions(): void
     {
-        $repo = $this->revisions;
-        $actor = $this->currentUsername();
         $seesForms = $this->permissions->can($this->auth->user(), 'forms.manage');
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $do = (string)($_POST['do'] ?? '');
-            $revision = $repo->find((int)($_POST['id'] ?? 0));
-            if ($revision === null || !in_array($do, ['restore', 'undelete'], true)) {
-                $this->redirect('/admin/revisions');
+            $result = $this->revisionAdmin()->restore($_POST, $this->permissions->can($this->auth->user(), 'content.raw_html'), $seesForms, $this->currentUsername());
+            if ($result['denied'] !== '') {
+                $this->denyContentType($result['denied']);
                 return;
             }
-            $type = (string)$revision['type'];
-            if (!$this->canAccessContentType($type)) {
-                $this->denyContentType($type);
-                return;
-            }
-            $slug = (string)$revision['slug'];
-            $lang = (string)$revision['lang'];
-            $result = $this->contentEditor()->restore($type, $slug, $lang, (string)$revision['raw'], $this->permissions->can($this->auth->user(), 'content.raw_html'), $actor, $do === 'undelete');
-            if (!$result['ok']) {
-                $this->redirect('/admin/revisions?id=' . (int)$revision['id'] . '&error=' . urlencode($result['error']));
-                return;
-            }
-            $this->logActivity($do === 'undelete' ? 'content.undelete' : 'content.restore', 'warning', $type, $slug . ':' . $lang, $do === 'undelete' ? 'Deleted content brought back.' : 'Earlier version restored.', [
-                'type' => $type,
-                'slug' => $slug,
-                'lang' => $lang,
-                'revision' => (int)$revision['id'],
-                'from' => (string)$revision['created_at'],
-            ]);
-            $this->redirect('/admin/edit?type=' . urlencode($type) . '&slug=' . urlencode($slug) . '&lang=' . urlencode($lang) . '&saved=1&restored=1' . ($result['html_neutralized'] ? '&notice=html' : ''));
+            $this->redirect($result['location']);
             return;
         }
 
-        $common = [
-            'types' => $this->content->getTypes(),
-            'user' => $this->auth->user(),
-            'admin_section' => 'history',
-            'current_type' => 'pages',
-            'error' => (string)($_GET['error'] ?? ''),
-        ];
-
-        // One version: what it changed, or what restoring it would do.
-        if (isset($_GET['id'])) {
-            $revision = $repo->find((int)$_GET['id']);
-            if ($revision === null || !$this->canAccessContentType((string)$revision['type'])) {
-                $this->redirect('/admin/revisions');
-                return;
-            }
-            $type = (string)$revision['type'];
-            $slug = (string)$revision['slug'];
-            $lang = (string)$revision['lang'];
-            $path = $this->contentDir . '/' . $type . '/' . $this->buildFilename($slug, $lang);
-            $current = is_file($path) ? (string)file_get_contents($path) : null;
-            $mode = (string)($_GET['mode'] ?? '') === 'restore' && $current !== null ? 'restore' : 'changes';
-            $previous = $repo->previous($revision);
-            if ($mode === 'restore') {
-                $diff = LineDiff::compare((string)$current, (string)$revision['raw']);
-            } else {
-                $diff = LineDiff::compare($previous !== null ? (string)$previous['raw'] : '', (string)$revision['raw']);
-            }
-            $summary = LineDiff::summary($diff);
-            $latest = $repo->latest($type, $slug, $lang);
-            $this->render('@admin/revision-view.twig', [
-                'revision' => $this->decorateRevisions([$revision])[0],
-                'previous' => $previous !== null ? $this->decorateRevisions([$previous])[0] : null,
-                'mode' => $mode,
-                'diff' => LineDiff::withContext($diff, 4),
-                'summary' => $summary,
-                'identical' => $summary['added'] === 0 && $summary['removed'] === 0,
-                'item_exists' => $current !== null,
-                'is_latest' => $latest !== null && (int)$latest['id'] === (int)$revision['id'],
-                'edit_url' => '/admin/edit?type=' . urlencode($type) . '&slug=' . urlencode($slug) . '&lang=' . urlencode($lang),
-                'history_url' => '/admin/revisions?type=' . urlencode($type) . '&slug=' . urlencode($slug) . '&lang=' . urlencode($lang),
-            ] + $common);
+        $screen = $this->revisionAdmin()->screen($_GET, $seesForms);
+        if ($screen['denied'] !== '') {
+            $this->denyContentType($screen['denied']);
             return;
         }
-
-        $perPage = 50;
-        $page = max(1, (int)($_GET['page'] ?? 1));
-        $filters = [
-            'q' => trim((string)($_GET['q'] ?? '')),
-            'type' => trim((string)($_GET['type'] ?? '')),
-            'actor' => trim((string)($_GET['actor'] ?? '')),
-            'action' => trim((string)($_GET['action'] ?? '')),
-        ];
-        if (!$seesForms) {
-            $filters['exclude_type'] = 'forms';
+        if ($screen['location'] !== '') {
+            $this->redirect($screen['location']);
+            return;
         }
-        $view = 'recent';
-        $item = null;
-        $rows = [];
-        $total = 0;
-
-        if ((string)($_GET['view'] ?? '') === 'deleted') {
-            $view = 'deleted';
-            $rows = $this->decorateRevisions($repo->deleted(100, $seesForms ? '' : 'forms'));
-            $total = count($rows);
-        } elseif (isset($_GET['slug']) && (string)($_GET['slug']) !== '') {
-            $type = $this->sanitizeType((string)($_GET['type'] ?? 'pages'));
-            if (!$this->canAccessContentType($type)) {
-                $this->denyContentType($type);
-                return;
-            }
-            $slug = $this->slugify((string)$_GET['slug']);
-            $lang = $this->slugify((string)($_GET['lang'] ?? $this->defaultLanguage()));
-            $view = 'item';
-            $rows = $this->decorateRevisions($repo->forItem($type, $slug, $lang, 100));
-            $total = count($rows);
-            $item = [
-                'type' => $type,
-                'slug' => $slug,
-                'lang' => $lang,
-                'exists' => is_file($this->contentDir . '/' . $type . '/' . $this->buildFilename($slug, $lang)),
-                'title' => (string)($rows[0]['title'] ?? $slug),
-            ];
-        } else {
-            $total = $repo->count($filters);
-            $rows = $this->decorateRevisions($repo->recent($filters, $perPage, ($page - 1) * $perPage));
-        }
-
-        $this->render('@admin/revisions.twig', [
-            'view' => $view,
-            'item' => $item,
-            'rows' => $rows,
-            'total' => $total,
-            'filters' => $filters,
-            'page' => $page,
-            'pages' => max(1, (int)ceil($total / $perPage)),
-            'actors' => $repo->actors(),
-            'content_types' => array_values(array_filter($this->content->getTypes(), fn(string $t): bool => $seesForms || $t !== 'forms')),
-            'actions' => self::REVISION_ACTIONS,
-            'kept' => RevisionRepository::KEEP_PER_ITEM,
-            'kept_days' => RevisionRepository::KEEP_DELETED_DAYS,
-        ] + $common);
+        $this->render($screen['template'], $screen['data'] + ['user' => $this->auth->user()]);
     }
 
     private function handleUsersList(): void
@@ -1770,160 +1698,22 @@ final class App
 
     private function handleAdminList(): void
     {
-        $type = $this->sanitizeType((string)($_GET['type'] ?? 'pages'));
-        if ($type === 'forms') {
-            $this->redirect('/admin/forms' . (isset($_GET['deleted']) ? '?deleted=1' : ''));
+        $result = $this->contentAdmin()->listing($_GET, $this->permissions->can($this->auth->user(), 'redirects.manage'));
+        if ($result['location'] !== '') {
+            $this->redirect($result['location']);
             return;
         }
-        $lang = $this->slugify((string)($_GET['lang'] ?? ($this->settings['languages']['default'] ?? 'en')));
-        $deleted = isset($_GET['deleted']);
-        $types = $this->content->getTypes();
-        if (!in_array($type, $types, true)) {
-            $type = $types[0] ?? 'pages';
-        }
-        $items = $this->content->getItems($type, $lang, true, false);
-        $translationLangs = $this->entryTranslations()->matrix($type, $items);
-        $statusOptions = array_values(array_unique(array_merge(['published', 'draft'], array_map(
-            static fn(ContentItem $item): string => (string)($item->meta['status'] ?? 'published'),
-            $items
-        ))));
-        $filters = [
-            'q' => trim((string)($_GET['q'] ?? '')),
-            'status' => in_array((string)($_GET['status'] ?? ''), $statusOptions, true) ? (string)$_GET['status'] : '',
-        ];
-        if ($filters['q'] !== '') {
-            $needle = mb_strtolower($filters['q']);
-            $items = array_values(array_filter($items, static fn(ContentItem $item): bool => str_contains(mb_strtolower((string)($item->meta['title'] ?? '') . ' ' . $item->slug), $needle)));
-        }
-        if ($filters['status'] !== '') {
-            $items = array_values(array_filter($items, static fn(ContentItem $item): bool => (string)($item->meta['status'] ?? 'published') === $filters['status']));
-        }
-        // Filed under a term: the link from Taxonomies. Anything that is not a term of a taxonomy is ignored.
-        $filters['taxonomy'] = '';
-        $filters['term'] = '';
-        $termFilter = null;
-        $filterTaxonomy = $this->slugify((string)($_GET['taxonomy'] ?? ''));
-        $filterTerm = $this->slugify((string)($_GET['term'] ?? ''));
-        if ($filterTaxonomy !== '' && $filterTerm !== '' && in_array($filterTaxonomy, $this->taxonomies()->names(), true)
-            && in_array($filterTerm, array_column($this->taxonomies()->load($filterTaxonomy)['terms'], 'id'), true)) {
-            $filters['taxonomy'] = $filterTaxonomy;
-            $filters['term'] = $filterTerm;
-            $termFilter = [
-                'taxonomy' => $filterTaxonomy,
-                'term' => $filterTerm,
-                'taxonomy_title' => $this->taxonomies()->load($filterTaxonomy)['title'],
-                'label' => $this->taxonomies()->label($filterTaxonomy, $filterTerm, $lang),
-            ];
-            $items = array_values(array_filter($items, fn(ContentItem $item): bool => in_array($filterTerm, $this->normalizeMetaList($item->meta[$filterTaxonomy] ?? null), true)));
-        }
-
-        $this->render('@admin/list.twig', [
-            'items' => $items,
-            'types' => $types,
-            'current_type' => $type,
-            'lang' => $lang,
-            'languages' => $this->settings['languages']['available'] ?? [],
-            'user' => $this->auth->user(),
-            'admin_section' => 'content',
-            'deleted' => $deleted,
-            'translation_langs' => $translationLangs,
-            'filters' => $filters,
-            'filters_active' => $filters['q'] !== '' || $filters['status'] !== '' || $termFilter !== null,
-            'term_filter' => $termFilter,
-            'status_options' => $statusOptions,
-            'bulk_status' => (string)($_GET['bulk'] ?? ''),
-            'bulk_message' => trim((string)($_GET['bulk_msg'] ?? '')),
-            'deleted_from' => trim((string)($_GET['from'] ?? '')),
-            'deleted_to' => trim((string)($_GET['to'] ?? '')),
-            'deleted_gone' => trim((string)($_GET['gone'] ?? '')),
-            'can_redirects' => $this->permissions->can($this->auth->user(), 'redirects.manage'),
-        ]);
+        $this->render('@admin/list.twig', $result['data'] + ['user' => $this->auth->user()]);
     }
 
     private function handleContentBulk(): void
     {
-        $type = $this->sanitizeType((string)($_POST['type'] ?? 'pages'));
-        $lang = $this->slugify((string)($_POST['lang'] ?? ($this->settings['languages']['default'] ?? 'en')));
-        $action = (string)($_POST['bulk_action'] ?? '');
-        $slugs = array_values(array_unique(array_filter(array_map(
-            fn($slug): string => $this->slugify((string)$slug),
-            is_array($_POST['selected'] ?? null) ? $_POST['selected'] : []
-        ))));
-        $back = '/admin/content?type=' . urlencode($type) . '&lang=' . urlencode($lang);
-        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST' || !in_array($type, $this->content->getTypes(), true) || $type === 'forms') {
-            $this->redirect($back);
-            return;
-        }
-        if (!in_array($action, ['publish', 'draft', 'delete'], true) || $slugs === []) {
-            $this->redirect($back . '&' . http_build_query(['bulk' => 'fail', 'bulk_msg' => 'Choose a bulk action and select at least one item.']));
-            return;
-        }
-
-        $homeSlug = trim((string)($this->settings['home_page'] ?? 'index')) ?: 'index';
-        $defaultLang = (string)($this->settings['languages']['default'] ?? 'en');
-        $changed = 0;
-        $skipped = 0;
-        $publicDeleted = 0;
-        foreach ($slugs as $slug) {
-            $path = $this->contentDir . '/' . $type . '/' . $this->buildFilename($slug, $lang);
-            if (!is_file($path)) {
-                $skipped++;
-                continue;
-            }
-            if ($action === 'delete') {
-                // The default-language home page is never deletable, same as the single delete.
-                if ($type === 'pages' && $slug === $homeSlug && $lang === $defaultLang) {
-                    $skipped++;
-                    continue;
-                }
-                $wasPublic = $type !== 'forms' && $this->content->find($type, $slug, $lang, false, false) !== null;
-                // Same as deleting one: the text stays in the history so it can be brought back.
-                $this->revisions->baseline($type, $slug, $lang, $path, $this->currentUsername());
-                $this->revisions->capture($type, $slug, $lang, (string)file_get_contents($path), 'delete', $this->currentUsername());
-                if (@unlink($path)) {
-                    $this->unindexContent($type, $slug, $lang);
-                    $changed++;
-                    $publicDeleted += $wasPublic ? 1 : 0;
-                }
-                continue;
-            }
-            [$frontmatter, $body] = $this->splitFrontMatter((string)file_get_contents($path));
-            try {
-                $meta = $frontmatter !== '' ? (Yaml::parse($frontmatter) ?: []) : [];
-            } catch (\Throwable) {
-                $skipped++;
-                continue;
-            }
-            if (!is_array($meta)) {
-                $skipped++;
-                continue;
-            }
-            $meta['status'] = $action === 'publish' ? 'published' : 'draft';
-            // Same layout handleSave writes: front matter, one blank line, body.
-            $body = preg_replace('/\A\R/', '', $body) ?? $body;
-            file_put_contents($path, "---\n" . trim(Yaml::dump($meta, 10, 2, Yaml::DUMP_MULTI_LINE_LITERAL_BLOCK)) . "\n---\n\n" . rtrim($body) . "\n");
-            $this->indexContentFile($type, $path);
-            $changed++;
-        }
-
-        $verb = match ($action) {
-            'publish' => 'published',
-            'draft' => 'moved to draft',
-            default => 'deleted',
-        };
-        $this->logActivity('content.bulk_' . $action, $action === 'delete' ? 'warning' : 'info', $type, $lang, 'Bulk ' . $verb . '.', [
-            'type' => $type,
-            'lang' => $lang,
-            'slugs' => $slugs,
-            'changed' => $changed,
-            'skipped' => $skipped,
-        ]);
-        $message = $changed . ' item' . ($changed === 1 ? '' : 's') . ' ' . $verb . '.' . ($skipped > 0 ? ' ' . $skipped . ' skipped.' : '');
-        if ($publicDeleted > 0) {
-            $message .= ' ' . $publicDeleted . ' of them ' . ($publicDeleted === 1 ? 'was' : 'were') . ' public: visitors of ' . ($publicDeleted === 1 ? 'its address' : 'their addresses') . ' will see "not found".'
-                . ($this->permissions->can($this->auth->user(), 'redirects.manage') ? ' Add redirects in Admin > Redirects, or delete them one at a time to choose where visitors go.' : '');
-        }
-        $this->redirect($back . '&' . http_build_query(['bulk' => $changed > 0 ? 'ok' : 'fail', 'bulk_msg' => $message]));
+        $this->redirect($this->contentAdmin()->bulk(
+            $_POST,
+            ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST',
+            $this->permissions->can($this->auth->user(), 'redirects.manage'),
+            $this->currentUsername()
+        ));
     }
 
     private function handleEdit(): void
@@ -1933,268 +1723,9 @@ final class App
             $this->denyContentType($type);
             return;
         }
-        $slug = $this->slugify((string)($_GET['slug'] ?? ''));
-        $lang = $this->slugify((string)($_GET['lang'] ?? ($this->settings['languages']['default'] ?? 'en')));
-        $saved = isset($_GET['saved']);
-        $deleted = isset($_GET['deleted']);
-
-        $path = $this->contentDir . '/' . $type . '/' . $this->buildFilename($slug, $lang);
-        $frontmatter = '';
-        $body = '';
-        $mainImage = '';
-        $metaForm = [
-            'title' => '',
-            'status' => 'published',
-            'visible' => true,
-            'date' => '',
-            'author' => '',
-            'seo_title' => '',
-            'seo_description' => '',
-            'seo_canonical' => '',
-            'seo_og_title' => '',
-            'seo_og_description' => '',
-            'seo_og_image' => '',
-            'seo_noindex' => false,
-            'main_image' => '',
-            'excerpt' => '',
-            'translation_id' => '',
-            'custom_fields' => [],
-            'taxonomy_terms' => [],
-        ];
-        $formFields = [];
-        $formNotifications = [
-            'enabled' => false,
-            'to' => '',
-            'subject' => '',
-            'reply_to_field' => '',
-            'cc' => '',
-            'bcc' => '',
-            'auto_reply' => false,
-            'auto_reply_include' => false,
-            'auto_reply_subject' => '',
-            'auto_reply_message' => '',
-        ];
-        $formSettings = [
-            'store_submissions' => $this->settings['forms']['store_submissions'] ?? true,
-            'submit_label' => '',
-            'success_message' => '',
-            'redirect_url' => '',
-            'honeypot' => (string)($this->settings['forms']['antispam']['honeypot'] ?? 'website'),
-            'rate_limit_seconds' => (string)($this->settings['forms']['antispam']['rate_limit_seconds'] ?? 20),
-        ];
-        $formSubmissions = [];
-
-        $isNew = true;
-        if ($slug !== '' && file_exists($path)) {
-            [$frontmatter, $body] = $this->splitFrontMatter((string)file_get_contents($path));
-            $isNew = false;
-        }
-        if ($frontmatter === '' && $slug !== '') {
-            $frontmatter = $this->defaultFrontmatter($type, $slug);
-        }
-        $meta = [];
-        $frontMatterError = trim((string)($_GET['frontmatter_error'] ?? ''));
-        if ($frontmatter !== '') {
-            try {
-                $meta = Yaml::parse($frontmatter) ?: [];
-            } catch (\Throwable $e) {
-                // The editor still opens, with the raw front matter to fix by hand.
-                $meta = [];
-                $frontMatterError = $e->getMessage();
-            }
-        }
-        $pageBlocks = is_array($meta) && is_array($meta['blocks'] ?? null) ? array_values($meta['blocks']) : [];
-        if ($pageBlocks !== [] && $type !== 'forms') {
-            // Blocks are edited in the Blocks tab; the raw YAML keeps everything else.
-            $withoutBlocks = $meta;
-            unset($withoutBlocks['blocks']);
-            $frontmatter = $withoutBlocks === [] ? '' : trim(Yaml::dump($withoutBlocks, 10, 2, Yaml::DUMP_MULTI_LINE_LITERAL_BLOCK));
-        }
-        if (is_array($meta)) {
-            $mainImage = (string)($meta['main_image'] ?? '');
-            $metaForm['title'] = $isNew ? (string)($meta['title'] ?? '') : (string)($meta['title'] ?? $this->titleFromSlug($slug));
-            $metaForm['status'] = (string)($meta['status'] ?? 'published');
-            $metaForm['visible'] = (bool)($meta['visible'] ?? true);
-            $rawDate = $meta['date'] ?? '';
-            $metaForm['date'] = $this->normalizeAdminDate($rawDate);
-            $metaForm['author'] = (string)($meta['author'] ?? '');
-            $metaForm['template'] = (string)($meta['template'] ?? '');
-            $metaForm['hero_layout'] = (string)($meta['hero_layout'] ?? '');
-            $headerTransparent = $meta['header_transparent'] ?? '';
-            $metaForm['header_transparent'] = is_bool($headerTransparent) ? ($headerTransparent ? 'on' : 'off') : (string)$headerTransparent;
-            foreach ($this->taxonomies()->names() as $taxonomyName) {
-                $metaForm['taxonomy_terms'][$taxonomyName] = $this->normalizeMetaList($meta[$taxonomyName] ?? null);
-            }
-            $seo = $meta['seo'] ?? [];
-            if (is_array($seo)) {
-                $metaForm['seo_title'] = (string)($seo['title'] ?? '');
-                $metaForm['seo_description'] = (string)($seo['description'] ?? '');
-                $metaForm['seo_canonical'] = (string)($seo['canonical'] ?? '');
-                $metaForm['seo_og_title'] = (string)($seo['og_title'] ?? '');
-                $metaForm['seo_og_description'] = (string)($seo['og_description'] ?? '');
-                $metaForm['seo_og_image'] = (string)($seo['og_image'] ?? '');
-                $metaForm['seo_noindex'] = $this->isTruthy($seo['noindex'] ?? false);
-            }
-            $metaForm['main_image'] = $mainImage;
-            $metaForm['excerpt'] = (string)($meta['excerpt'] ?? '');
-            $metaForm['custom_fields'] = $this->extractCustomFields($meta, $this->contentTypes()->declaredKeys($type));
-            if ($type === 'forms') {
-                $formFields = FormFields::forAdmin($meta['fields'] ?? []);
-                $notifications = $meta['notifications'] ?? [];
-                if (is_array($notifications)) {
-                    $formNotifications['enabled'] = $this->isTruthy($notifications['enabled'] ?? false);
-                    $formNotifications['to'] = (string)($notifications['to'] ?? '');
-                    $formNotifications['subject'] = (string)($notifications['subject'] ?? '');
-                    $formNotifications['reply_to_field'] = (string)($notifications['reply_to_field'] ?? '');
-                    $formNotifications['cc'] = (string)($notifications['cc'] ?? '');
-                    $formNotifications['bcc'] = (string)($notifications['bcc'] ?? '');
-                    $formNotifications['auto_reply'] = $this->isTruthy($notifications['auto_reply'] ?? false);
-                    $formNotifications['auto_reply_include'] = $this->isTruthy($notifications['auto_reply_include'] ?? false);
-                    $formNotifications['auto_reply_subject'] = (string)($notifications['auto_reply_subject'] ?? '');
-                    $formNotifications['auto_reply_message'] = (string)($notifications['auto_reply_message'] ?? '');
-                }
-                $formSettings['store_submissions'] = $this->isTruthy($meta['store_submissions'] ?? $formSettings['store_submissions']);
-                $formSettings['submit_label'] = (string)($meta['submit_label'] ?? '');
-                $formSettings['success_message'] = (string)($meta['success_message'] ?? '');
-                $formSettings['redirect_url'] = (string)($meta['redirect_url'] ?? '');
-                $antispam = $meta['antispam'] ?? [];
-                if (is_array($antispam)) {
-                    $formSettings['honeypot'] = (string)($antispam['honeypot'] ?? $formSettings['honeypot']);
-                    $formSettings['rate_limit_seconds'] = (string)($antispam['rate_limit_seconds'] ?? $formSettings['rate_limit_seconds']);
-                }
-            }
-        }
-
-        $translationId = '';
-        if (is_array($meta)) {
-            $translationId = (string)($meta['translation_id'] ?? '');
-        }
-        if ($translationId === '') {
-            $translationId = (string)($_GET['translation_id'] ?? '');
-        }
-        if ($translationId === '') {
-            $translationId = $this->contentEditor()->translationIdForSlug($type, $slug);
-        }
-        if ($translationId === '') {
-            $translationId = ContentEditor::newTranslationId();
-        }
-        $metaForm['translation_id'] = $translationId;
-        $translations = $this->entryTranslations()->links($type, $slug, $translationId);
-        if ($isNew && $metaForm['date'] === '') {
-            $metaForm['date'] = date('Y-m-d');
-        }
-        $formSubmissionsTotal = 0;
-        if ($type === 'forms' && $slug !== '') {
-            $formSubmissions = $this->formsAdmin()->recent($slug);
-            $formSubmissionsTotal = count($formSubmissions);
-            $formSubmissions = array_slice($formSubmissions, 0, 10);
-        }
-        $frontUrl = '';
-        $linkFix = null;
-        $itemExists = $slug !== '' && is_file($path);
-        $homeSlug = $this->settings['home_page'] ?? 'index';
-        $defaultLang = $this->settings['languages']['default'] ?? 'en';
-        $address = [
-            'exists' => $itemExists,
-            'prefix' => '/' . str_replace('__slug__', '', $this->buildContentPath($type, '__slug__', $lang, $homeSlug, $defaultLang)),
-            // The home page and forms keep their address: the site and its stored submissions refer to it by name.
-            'locked' => $type === 'forms' || ($type === 'pages' && $slug === $homeSlug && $lang === $defaultLang),
-            'siblings' => $itemExists ? array_column($this->contentEditor()->translationSiblings($type, $slug, $lang), 'lang') : [],
-            'old_addresses' => [],
-        ];
-        if ($slug !== '') {
-            $publicPath = $this->buildContentPath($type, $slug, $lang, $homeSlug, $defaultLang);
-            $frontUrl = $this->buildAbsoluteUrl($publicPath);
-            if ($itemExists && $this->permissions->can($this->auth->user(), 'redirects.manage')) {
-                $address['old_addresses'] = $this->redirects->pointingTo($publicPath);
-            }
-            // Just after an address changed: are there links in other content that still use the old one?
-            if ($itemExists && (string)($_GET['address'] ?? '') === 'changed') {
-                $permanent = array_values(array_filter($this->redirects->pointingTo($publicPath), static fn(array $r): bool => (bool)$r['enabled'] && (int)$r['status_code'] === 301));
-                $counts = $permanent !== [] ? $this->linkScanner()->countBySource(array_column($permanent, 'source')) : null;
-                if ($counts !== null && array_sum($counts) > 0) {
-                    $linkFix = ['count' => array_sum($counts), 'ids' => implode(',', array_column($permanent, 'id'))];
-                }
-            }
-        }
-
-        $this->render('@admin/edit.twig', [
-            'type' => $type,
-            'slug' => $slug,
-            'lang' => $lang,
-            'title_from_slug' => $this->titleFromSlug($slug),
-            'frontmatter' => $frontmatter,
-            'front_matter_error' => $frontMatterError,
-            'body' => $body,
-            'main_image' => $mainImage,
-            'meta_form' => $metaForm,
-            'type_definition' => $this->contentTypes()->definition($type, 'en', $this->defaultLanguage()),
-            'type_fields' => $type === 'forms' ? [] : $this->contentTypes()->editableFields($type, 'en', $this->defaultLanguage()),
-            'type_values' => is_array($meta) ? $this->contentTypes()->values($type, $meta, 'en', $this->defaultLanguage()) : [],
-            'taxonomies' => $this->listTaxonomiesForAdmin(),
-            'translations' => $translations,
-            'front_url' => $frontUrl,
-            'types' => $this->content->getTypes(),
-            'languages' => $this->settings['languages']['available'] ?? [],
-            'user' => $this->auth->user(),
-            'saved' => $saved,
-            'notice' => (string)($_GET['notice'] ?? ''),
-            'address' => $address,
-            'address_changed' => (string)($_GET['address'] ?? '') === 'changed',
-            'link_fix' => $linkFix,
-            'restored' => isset($_GET['restored']),
-            'history' => $itemExists ? $this->decorateRevisions($this->revisions->forItem($type, $slug, $lang, 8)) : [],
-            'history_total' => $itemExists ? $this->revisions->countForItem($type, $slug, $lang) : 0,
-            'address_taken' => $this->slugify((string)($_GET['address_taken'] ?? '')),
-            'deleted' => $deleted,
-            'admin_section' => $type === 'forms' ? 'forms' : 'content',
-            'current_type' => $type,
-            'form_fields' => $formFields,
-            'form_notifications' => $formNotifications,
-            'form_settings' => $formSettings,
-            'form_submissions' => $formSubmissions,
-            'form_submissions_total' => $formSubmissionsTotal,
-            'form_field_types' => FormFields::types(),
-            'block_editor_json' => $type === 'forms' ? '' : $this->blockEditorJson($pageBlocks, $lang),
-            'page_templates' => $type === 'forms' ? [] : $this->theme->pageTemplates(),
-            'opening' => $this->openingChoices($type),
-        ]);
-    }
-
-    /**
-     * What the editor may choose about how an entry opens (title layout, transparent header), with what its
-     * content type does today so "follow the settings" can say what that is. Empty when the theme offers neither.
-     *
-     * @return array{layouts: array<string, string>, transparent: array<string, string>, type_layout: string, type_transparent: string}
-     */
-    private function openingChoices(string $type): array
-    {
-        $layouts = $this->theme->settingOptions('hero_layouts', 'default');
-        $transparent = array_diff_key($this->theme->settingOptions('transparent_header', 'default'), ['site' => true]);
-        $layoutSettings = is_array($this->themeSettings['hero_layouts'] ?? null) ? $this->themeSettings['hero_layouts'] : [];
-        $transparentSettings = is_array($this->themeSettings['transparent_header'] ?? null) ? $this->themeSettings['transparent_header'] : [];
-        $typeTransparent = (string)($transparentSettings[$type] ?? $transparentSettings['default'] ?? 'site');
-        if (!isset($transparent[$typeTransparent])) {
-            $typeTransparent = $this->isTruthy($this->themeSettings['header']['transparent'] ?? false) ? 'on' : 'off';
-        }
-        return [
-            'layouts' => $layouts,
-            'transparent' => $transparent,
-            'type_layout' => (string)($layoutSettings[$type] ?? $layoutSettings['default'] ?? 'default'),
-            'type_transparent' => $typeTransparent,
-        ];
-    }
-
-    /** Data for the admin block editor, safe to embed in a <script type="application/json">. */
-    private function blockEditorJson(array $blocks, string $lang): string
-    {
-        return (string)json_encode([
-            'definitions' => $this->blockRegistry()->editorDefinitions(),
-            'blocks' => $blocks,
-            'presets' => $this->presetLibrary()->forEditor($lang, (string)($this->settings['languages']['default'] ?? 'en')),
-            'presets_url' => rtrim((string)($this->settings['base_url'] ?? ''), '/') . '/admin/block-presets',
-            'lang' => $lang,
-        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_INVALID_UTF8_SUBSTITUTE);
+        $slug = Slug::plain((string)($_GET['slug'] ?? ''));
+        $lang = Slug::plain((string)($_GET['lang'] ?? $this->defaultLanguage()));
+        $this->render('@admin/edit.twig', $this->entryForm()->form($type, $slug, $lang, $_GET, $this->permissions->can($this->auth->user(), 'redirects.manage')) + ['user' => $this->auth->user()]);
     }
 
     private function contentTypes(): ContentTypes
@@ -2304,32 +1835,9 @@ final class App
         }
 
         // A main image uploaded with the form replaces the address typed in the field.
-        $uploadedImage = null;
-        $storageBlocked = false;
-        $mainImageUploads = $this->media->normalizeUploads($_FILES['main_image_upload'] ?? null);
-        if ($mainImageUploads !== []) {
-            $upload = $mainImageUploads[0];
-            $uploadError = (int)($upload['error'] ?? UPLOAD_ERR_NO_FILE);
-            if ($uploadError === UPLOAD_ERR_OK && !$this->siteLimits()->allows((int)($upload['size'] ?? 0))) {
-                $storageBlocked = true;
-            } elseif ($uploadError === UPLOAD_ERR_OK) {
-                try {
-                    $this->media->ensureDirectories();
-                    $uploaded = $this->media->upload($upload, '', $this->currentUsername(), $this->siteLimits()->maxUploadBytes());
-                    $this->siteLimits()->uploadsChanged((int)($upload['size'] ?? 0));
-                    if ((string)($uploaded['kind'] ?? '') === 'image') {
-                        $uploadedImage = isset($uploaded['direct_url']) ? (string)$uploaded['direct_url'] : null;
-                    } else {
-                        $uploadedId = (string)($uploaded['id'] ?? '');
-                        if ($uploadedId !== '') {
-                            $this->mediaAdmin()->deleteItem($uploadedId);
-                        }
-                    }
-                } catch (\Throwable) {
-                    // Keep existing main image unchanged on upload failure.
-                }
-            }
-        }
+        $main = $this->mediaAdmin()->uploadMainImage($_FILES['main_image_upload'] ?? null, $this->currentUsername());
+        $uploadedImage = $main['url'];
+        $storageBlocked = $main['blocked'];
 
         $postedFrontMatter = trim((string)($_POST['frontmatter'] ?? ''));
         if ($postedFrontMatter !== '') {
@@ -2372,11 +1880,6 @@ final class App
             . ($result['slug_taken'] !== '' ? '&address_taken=' . urlencode($result['slug_taken']) : ''));
     }
 
-    /**
-     * Deleting one entry. A public one goes through a page of its own first, which asks whether visitors of its address
-     * should be sent somewhere (a redirect) instead of finding nothing. A draft, which nobody could have visited, is
-     * deleted straight away after the confirmation in the list.
-     */
     private function handleDelete(): void
     {
         $post = $_SERVER['REQUEST_METHOD'] === 'POST';
@@ -2386,110 +1889,19 @@ final class App
             $this->denyContentType($type);
             return;
         }
-        $slug = $this->slugify((string)($source['slug'] ?? ''));
-        $lang = $this->slugify((string)($source['lang'] ?? ($this->settings['languages']['default'] ?? 'en')));
-        $defaultLang = $this->defaultLanguage();
-        $homeSlug = trim((string)($this->settings['home_page'] ?? 'index'));
-        if ($homeSlug === '') {
-            $homeSlug = 'index';
-        }
-        $back = '/admin/content?type=' . urlencode($type) . '&lang=' . urlencode($lang);
-
-        if ($slug === '' || ($type === 'pages' && $slug === $homeSlug && $lang === $defaultLang)) {
-            $this->redirect($back);
+        $result = $this->contentAdmin()->delete(
+            $type,
+            $source,
+            $post,
+            $this->permissions->can($this->auth->user(), 'redirects.manage'),
+            $this->permissions->can($this->auth->user(), 'content.manage'),
+            $this->currentUsername()
+        );
+        if ($result['location'] !== '') {
+            $this->redirect($result['location']);
             return;
         }
-
-        $path = $this->contentDir . '/' . $type . '/' . $this->buildFilename($slug, $lang);
-        $isPublic = is_file($path) && $type !== 'forms' && $this->content->find($type, $slug, $lang, false, false) !== null;
-        $publicPath = $this->buildContentPath($type, $slug, $lang, $homeSlug, $defaultLang);
-        $mayRedirect = $isPublic && $this->permissions->can($this->auth->user(), 'redirects.manage') && $this->redirects->isAvailable();
-
-        // Where visitors go instead, when the person chose to send them somewhere.
-        $target = '';
-        $error = '';
-        $choice = (string)($_POST['after'] ?? '');
-        if ($post && $mayRedirect && in_array($choice, ['archive', 'home', 'custom'], true)) {
-            $target = match ($choice) {
-                'archive' => $type === 'pages' ? '' : '/' . $this->buildArchivePath($type, $lang, $defaultLang),
-                'home' => '/' . ($lang === $defaultLang ? '' : $lang),
-                default => $this->publicPaths()->localize((string)($_POST['after_target'] ?? '')),
-            };
-            $error = $target === '' ? 'target_empty' : (string)$this->redirects->validate($publicPath, $target, 301);
-            if ($error === '' && !RedirectRepository::isExternal($target) && !$this->publicPaths()->exists(RedirectRepository::normalizePath($target))) {
-                $error = 'target_missing';
-            }
-        }
-
-        if (!$post || $error !== '') {
-            if (!is_file($path)) {
-                $this->redirect($back);
-                return;
-            }
-            $this->renderDeleteConfirm($type, $slug, $lang, $publicPath, $isPublic, $mayRedirect, $error, $choice, (string)($_POST['after_target'] ?? ''));
-            return;
-        }
-
-        $by = $this->currentUsername();
-        if (is_file($path)) {
-            // The text is kept in the history so the item can be brought back from Admin > History.
-            $this->revisions->baseline($type, $slug, $lang, $path, $by);
-            $this->revisions->capture($type, $slug, $lang, (string)file_get_contents($path), 'delete', $by);
-            unlink($path);
-            $this->unindexContent($type, $slug, $lang);
-            if ($target !== '') {
-                $this->redirects->replacedBy($publicPath, $target, $by, $type);
-            }
-            $this->logActivity('content.delete', 'warning', $type, $slug . ':' . $lang, 'Content deleted.', [
-                'type' => $type,
-                'slug' => $slug,
-                'lang' => $lang,
-                'redirect_to' => $target,
-            ]);
-        }
-
-        $query = '&deleted=1';
-        if ($target !== '') {
-            $query .= '&from=' . urlencode('/' . $publicPath) . '&to=' . urlencode($target);
-        } elseif ($isPublic) {
-            $query .= '&gone=' . urlencode('/' . $publicPath);
-        }
-        $this->redirect($back . $query);
-    }
-
-    /** The page that asks what should happen to visitors of a public entry that is about to be deleted. */
-    private function renderDeleteConfirm(string $type, string $slug, string $lang, string $publicPath, bool $isPublic, bool $mayRedirect, string $error, string $choice, string $custom): void
-    {
-        $defaultLang = $this->defaultLanguage();
-        $item = $this->content->find($type, $slug, $lang, true, false);
-        $known = $this->publicPaths()->map();
-        unset($known[$publicPath]);
-        $counts = $this->permissions->can($this->auth->user(), 'content.manage')
-            ? $this->linkScanner()->countBySource([RedirectRepository::normalizePath($publicPath)])
-            : null;
-        $siblings = array_column($this->contentEditor()->translationSiblings($type, $slug, $lang), 'lang');
-        $this->render('@admin/delete.twig', [
-            'type' => $type,
-            'slug' => $slug,
-            'lang' => $lang,
-            'entry_title' => $item !== null ? (string)($item->meta['title'] ?? $slug) : $slug,
-            'public_path' => '/' . $publicPath,
-            'is_public' => $isPublic,
-            'may_redirect' => $mayRedirect,
-            'archive_path' => $type === 'pages' ? '' : '/' . $this->buildArchivePath($type, $lang, $defaultLang),
-            'archive_label' => $this->contentTypes()->definition($type, 'en', $defaultLang)['label'],
-            'home_path' => '/' . ($lang === $defaultLang ? '' : $lang),
-            'known_paths' => array_slice($known, 0, 500, true),
-            'links' => $counts !== null ? array_sum($counts) : null,
-            'siblings' => $siblings,
-            'choice' => $choice !== '' ? $choice : ($type === 'pages' ? 'none' : 'archive'),
-            'custom_target' => $custom,
-            'error' => $error,
-            'types' => $this->content->getTypes(),
-            'user' => $this->auth->user(),
-            'admin_section' => 'content',
-            'current_type' => $type,
-        ]);
+        $this->render('@admin/delete.twig', $result['view'] + ['user' => $this->auth->user()]);
     }
 
     private function handleNew(): void
@@ -3058,27 +2470,6 @@ final class App
         exit;
     }
 
-    /** Index writes must never block content editing. */
-    private function indexContentFile(string $type, string $path): void
-    {
-        try {
-            if (is_file($path)) {
-                $this->contentIndex->upsert($this->content->parseFile($type, $path));
-            }
-        } catch (\Throwable) {
-            // The index is rebuildable; a failed write only makes it stale.
-        }
-    }
-
-    private function unindexContent(string $type, string $slug, string $lang): void
-    {
-        try {
-            $this->contentIndex->remove($type, $slug, $lang);
-        } catch (\Throwable) {
-            // The index is rebuildable; a failed delete only makes it stale.
-        }
-    }
-
     /** @return array{ok: bool, indexed: int, removed: int, took_ms: int} */
     private function rebuildContentIndex(): array
     {
@@ -3270,35 +2661,21 @@ final class App
     private function handleContentExport(): void
     {
         $type = $this->sanitizeType((string)($_GET['type'] ?? 'pages'));
-        $types = $this->content->getTypes();
-        if (!in_array($type, $types, true) || $type === 'forms') {
+        if (!in_array($type, $this->content->getTypes(), true) || $type === 'forms') {
             $this->redirect('/admin/content?type=' . urlencode($type));
             return;
         }
 
-        $items = $this->content->getItems($type, null, true, false);
-        $siteName = (string)($this->settings['title'] ?? 'site');
-        $table = $this->contentCsv()->exportTable($type, $items, $siteName);
-        $siteSlug = $this->slugify($siteName);
-        if ($siteSlug === '') {
-            $siteSlug = 'site';
-        }
-        $filename = $siteSlug . '-' . $type . '-all-languages.csv';
-
-        $this->logActivity('content.export', 'info', $type, 'all', 'Content exported.', [
-            'type' => $type,
-            'items' => count($items),
-            'filename' => $filename,
-        ]);
+        $file = $this->contentTransfer()->export($type, (string)($this->settings['title'] ?? 'site'));
         header('Content-Type: text/csv; charset=utf-8');
-        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Content-Disposition: attachment; filename="' . $file['filename'] . '"');
         $output = fopen('php://output', 'w');
         if ($output === false) {
             return;
         }
 
-        fputcsv($output, $table['headers'], ',', '"', '');
-        foreach ($table['rows'] as $row) {
+        fputcsv($output, $file['headers'], ',', '"', '');
+        foreach ($file['rows'] as $row) {
             fputcsv($output, $row, ',', '"', '');
         }
 
@@ -3313,113 +2690,26 @@ final class App
         if (!in_array($type, $types, true)) {
             $type = $types[0] ?? 'pages';
         }
-
-        $saved = false;
-        $error = '';
-        $previewRows = [];
-        $previewSummary = [
-            'create' => 0,
-            'update' => 0,
-            'skip' => 0,
-            'error' => 0,
-        ];
-        $previewToken = '';
-        $sourceFilename = '';
-
-        $this->cleanupImportPreviewCache();
-
         if ($type === 'forms') {
             $this->redirect('/admin/content?type=forms');
             return;
         }
 
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            if (isset($_POST['apply']) && (string)($_POST['apply']) === '1') {
-                $token = trim((string)($_POST['preview_token'] ?? ''));
-                $cache = $_SESSION['content_import_preview'][$token] ?? null;
-                if (!is_array($cache) || ($cache['type'] ?? '') !== $type) {
-                    $error = 'Import preview expired. Run dry-run again.';
-                } else {
-                    $entries = is_array($cache['entries'] ?? null) ? $cache['entries'] : [];
-                    $applyResult = $this->contentCsv()->apply($type, $entries);
-                    if (($applyResult['ok'] ?? false) === true) {
-                        unset($_SESSION['content_import_preview'][$token]);
-                        $summary = is_array($cache['summary'] ?? null) ? $cache['summary'] : [];
-                        $this->rebuildContentIndex();
-                        $this->logActivity('content.import_apply', 'info', $type, 'csv', 'Content import applied.', [
-                            'type' => $type,
-                            'filename' => (string)($cache['filename'] ?? ''),
-                            'summary' => $summary,
-                        ]);
-                        $this->redirect('/admin/import?type=' . urlencode($type) . '&saved=1');
-                        return;
-                    }
-                    $error = (string)($applyResult['error'] ?? 'Import failed.');
-                    $previewRows = is_array($cache['rows'] ?? null) ? $cache['rows'] : [];
-                    $previewSummary = is_array($cache['summary'] ?? null) ? $cache['summary'] : $previewSummary;
-                    $previewToken = $token;
-                    $sourceFilename = (string)($cache['filename'] ?? '');
-                }
-            } else {
-                $file = $_FILES['csv_file'] ?? null;
-                if (!is_array($file) || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
-                    $error = 'Please upload a valid CSV file.';
-                } else {
-                    $tmpPath = (string)($file['tmp_name'] ?? '');
-                    if ($tmpPath === '' || !is_file($tmpPath)) {
-                        $error = 'Upload failed.';
-                    } else {
-                        $sourceFilename = (string)($file['name'] ?? 'import.csv');
-                        $ext = strtolower((string)pathinfo($sourceFilename, PATHINFO_EXTENSION));
-                        if ($ext !== 'csv') {
-                            $error = 'Please upload a .csv file.';
-                        } else {
-                            $parse = $this->contentCsv()->parseImport($tmpPath);
-                            if (($parse['ok'] ?? false) !== true) {
-                                $error = (string)($parse['error'] ?? 'Could not parse CSV.');
-                            } else {
-                                $preview = $this->contentCsv()->preview($type, (array)($parse['rows'] ?? []), (array)($parse['headers'] ?? []));
-                                $previewRows = $preview['rows'];
-                                $previewSummary = $preview['summary'];
-                                if (!empty($preview['entries'])) {
-                                    $previewToken = bin2hex(random_bytes(12));
-                                    $_SESSION['content_import_preview'][$previewToken] = [
-                                        'type' => $type,
-                                        'entries' => $preview['entries'],
-                                        'rows' => $previewRows,
-                                        'summary' => $previewSummary,
-                                        'filename' => $sourceFilename,
-                                        'created_at' => time(),
-                                    ];
-                                }
-                                $this->logActivity('content.import_preview', 'info', $type, 'csv', 'Content import preview generated.', [
-                                    'type' => $type,
-                                    'filename' => $sourceFilename,
-                                    'summary' => $previewSummary,
-                                ]);
-                            }
-                        }
-                    }
-                }
-            }
+        if (!isset($_SESSION['content_import_preview']) || !is_array($_SESSION['content_import_preview'])) {
+            $_SESSION['content_import_preview'] = [];
         }
-
-        if (isset($_GET['saved'])) {
-            $saved = true;
+        $result = $this->contentTransfer()->import($type, $_SERVER['REQUEST_METHOD'] === 'POST', $_POST, is_array($_FILES['csv_file'] ?? null) ? $_FILES['csv_file'] : null, $_SESSION['content_import_preview']);
+        if ($result['location'] !== '') {
+            $this->redirect($result['location']);
+            return;
         }
-
-        $this->render('@admin/import.twig', [
+        $this->render('@admin/import.twig', $result['view'] + [
             'type' => $type,
             'types' => $types,
             'user' => $this->auth->user(),
             'admin_section' => 'content',
             'current_type' => $type,
-            'saved' => $saved,
-            'error' => $error,
-            'preview_rows' => $previewRows,
-            'preview_summary' => $previewSummary,
-            'preview_token' => $previewToken,
-            'source_filename' => $sourceFilename,
+            'saved' => isset($_GET['saved']),
         ]);
     }
 
@@ -4018,21 +3308,6 @@ final class App
         return ['ok' => true];
     }
 
-    /** @return array<int, array{name: string, title: string, terms: array<int, array{id: string, slug: string, labels: array<string, string>}>}> */
-    private function listTaxonomiesForAdmin(): array
-    {
-        $rows = [];
-        foreach ($this->taxonomies()->names() as $name) {
-            $taxonomy = $this->taxonomies()->load($name);
-            $rows[] = [
-                'name' => $name,
-                'title' => (string)$taxonomy['title'],
-                'terms' => $taxonomy['terms'],
-            ];
-        }
-        return $rows;
-    }
-
     private function taxonomyTermLabel(string $taxonomy, string $termId, ?string $lang = null): string
     {
         return $this->taxonomies()->label($taxonomy, $termId, $lang !== null && $lang !== '' ? $lang : $this->currentLang);
@@ -4350,24 +3625,7 @@ final class App
 
     private function formatDateValue(mixed $value): string
     {
-        if ($value === null || $value === '') {
-            return '';
-        }
-        $format = (string)($this->settings['date_format'] ?? 'd/m/Y');
-        if (is_int($value)) {
-            return date($format, $value);
-        }
-        if (is_numeric($value)) {
-            return date($format, (int)$value);
-        }
-        if ($value instanceof \DateTimeInterface) {
-            return $value->format($format);
-        }
-        $timestamp = strtotime((string)$value);
-        if ($timestamp === false) {
-            return (string)$value;
-        }
-        return date($format, $timestamp);
+        return Format::dateValue($value, (string)($this->settings['date_format'] ?? 'd/m/Y'));
     }
 
     private function normalizeMetaList(mixed $value): array
@@ -4383,85 +3641,6 @@ final class App
     private function isReservedFrontmatterKey(string $key): bool
     {
         return $this->contentEditor()->isReservedKey($key);
-    }
-
-    /**
-     * Free-form custom fields of an item. Fields the content type declares have their own inputs, so
-     * they are left out ($exclude).
-     *
-     * @param string[] $exclude
-     */
-    private function extractCustomFields(array $meta, array $exclude = []): array
-    {
-        $custom = [];
-        $customFields = $meta['custom_fields'] ?? [];
-        if (is_array($customFields)) {
-            foreach ($customFields as $key => $value) {
-                $key = (string)$key;
-                if ($key === '' || $this->isReservedFrontmatterKey($key) || in_array($key, $exclude, true)) {
-                    continue;
-                }
-                $custom[$key] = $this->stringifyCustomValue($value);
-            }
-        }
-
-        foreach ($meta as $key => $value) {
-            $key = (string)$key;
-            if ($this->isReservedFrontmatterKey($key) || array_key_exists($key, $custom) || in_array($key, $exclude, true)) {
-                continue;
-            }
-            $custom[$key] = $this->stringifyCustomValue($value);
-        }
-
-        $rows = [];
-        foreach ($custom as $key => $value) {
-            $rows[] = [
-                'key' => $key,
-                'value' => $value,
-            ];
-        }
-        return $rows;
-    }
-
-    private function stringifyCustomValue(mixed $value): string
-    {
-        if (is_array($value)) {
-            return json_encode($value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?: '';
-        }
-        if (is_bool($value)) {
-            return $value ? 'true' : 'false';
-        }
-        if ($value === null) {
-            return '';
-        }
-        return (string)$value;
-    }
-
-    private function normalizeAdminDate(mixed $value): string
-    {
-        if ($value === null || $value === '') {
-            return '';
-        }
-        if (is_int($value)) {
-            return $this->formatDateValue($value);
-        }
-        if (is_string($value)) {
-            $trimmed = trim($value);
-            if ($trimmed === '') {
-                return '';
-            }
-            if (ctype_digit($trimmed)) {
-                return $this->formatDateValue((int)$trimmed);
-            }
-            if (preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $trimmed)) {
-                return $this->formatDateValue($trimmed);
-            }
-            if (preg_match('/^\\d{4}\\/\\d{2}\\/\\d{2}$/', $trimmed)) {
-                return $this->formatDateValue($trimmed);
-            }
-            return $trimmed;
-        }
-        return (string)$value;
     }
 
     private function normalizeDateForStorage(string $value): string
@@ -4617,24 +3796,6 @@ final class App
     {
         $value = $this->slugify($value);
         return $value === '' ? 'pages' : $value;
-    }
-
-    private function defaultFrontmatter(string $type, string $slug): string
-    {
-        $lines = [
-            'status: published',
-            'visible: true',
-        ];
-
-        if ($type !== 'forms') {
-            $lines[] = 'main_image: ""';
-        }
-
-        if (in_array($type, ['posts', 'projects'], true)) {
-            $lines[] = 'date: ' . date('Y-m-d');
-        }
-
-        return implode("\n", $lines);
     }
 
     private function titleFromSlug(string $slug): string
@@ -4835,20 +3996,6 @@ final class App
     private function markFormRateLimit(string $slug): void
     {
         $_SESSION['form_rate'][$slug] = time();
-    }
-
-    private function cleanupImportPreviewCache(): void
-    {
-        if (!isset($_SESSION['content_import_preview']) || !is_array($_SESSION['content_import_preview'])) {
-            return;
-        }
-        $now = time();
-        foreach ($_SESSION['content_import_preview'] as $token => $row) {
-            $created = is_array($row) ? (int)($row['created_at'] ?? 0) : 0;
-            if ($created === 0 || ($now - $created) > 3600) {
-                unset($_SESSION['content_import_preview'][$token]);
-            }
-        }
     }
 
     private function mailer(): Mailer
