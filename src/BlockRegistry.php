@@ -91,6 +91,7 @@ final class BlockRegistry
                 'label' => $definition['label'],
                 'description' => $definition['description'],
                 'origin' => $definition['origin'],
+                'preview' => $definition['preview'] ?? '',
                 'common' => $prepare($definition['common']),
                 'fields' => $prepare($definition['fields']),
             ];
@@ -178,6 +179,7 @@ final class BlockRegistry
             'origin' => $origin,
             'label' => (string)($raw['label'] ?? ucfirst(str_replace('-', ' ', $type))),
             'description' => (string)($raw['description'] ?? ''),
+            'preview' => self::previewMarkup((string)@file_get_contents(dirname($file) . '/preview.svg')),
             'variants' => $variants,
             'fields' => FieldSchema::withIcons(FieldSchema::normalize($this->expandFields(is_array($raw['fields'] ?? null) ? $raw['fields'] : [])), $this->theme->iconNames()),
             // Every block shares these presentation fields.
@@ -189,6 +191,56 @@ final class BlockRegistry
                 'hidden' => ['type' => 'toggle', 'label' => 'Hide this block'],
             ]),
         ];
+    }
+
+    private const PREVIEW_TAGS = ['g', 'path', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon'];
+    private const PREVIEW_ATTRIBUTES = ['d', 'x', 'y', 'width', 'height', 'rx', 'ry', 'cx', 'cy', 'r', 'x1', 'y1', 'x2', 'y2', 'points', 'fill', 'stroke', 'stroke-width', 'stroke-linecap', 'stroke-linejoin', 'stroke-dasharray', 'fill-opacity', 'stroke-opacity', 'opacity', 'transform'];
+
+    /**
+     * The small wireframe a block shows in the editor's picker (`preview.svg` next to its block.yaml): drawn in one colour
+     * (`currentColor`) on a 64 by 48 grid. Only plain shapes and a few presentation attributes are kept, so a file can never
+     * bring script, links, images or styles into the admin. Returns the markup inside the <svg> element, or '' when the file
+     * is missing, too large, or not usable.
+     */
+    public static function previewMarkup(string $svg): string
+    {
+        if ($svg === '' || strlen($svg) > 6000) {
+            return '';
+        }
+        $document = new \DOMDocument();
+        $previous = libxml_use_internal_errors(true);
+        $loaded = $document->loadXML($svg, LIBXML_NONET);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previous);
+        $root = $loaded ? $document->documentElement : null;
+        if ($root === null || strtolower($root->localName) !== 'svg') {
+            return '';
+        }
+        $clean = static function (\DOMNode $node) use (&$clean): string {
+            $out = '';
+            foreach ($node->childNodes as $child) {
+                if (!$child instanceof \DOMElement || !in_array(strtolower($child->localName), self::PREVIEW_TAGS, true)) {
+                    continue;
+                }
+                $attributes = '';
+                foreach ($child->attributes as $attribute) {
+                    $name = strtolower($attribute->name);
+                    $value = (string)$attribute->value;
+                    if (!in_array($name, self::PREVIEW_ATTRIBUTES, true) || preg_match('/[<>"\']|url\(|javascript:/i', $value)) {
+                        continue;
+                    }
+                    if (in_array($name, ['fill', 'stroke'], true) && !in_array($value, ['none', 'currentColor'], true)) {
+                        continue;
+                    }
+                    $attributes .= ' ' . $name . '="' . $value . '"';
+                }
+                $tag = strtolower($child->localName);
+                $inner = $tag === 'g' ? $clean($child) : '';
+                $out .= '<' . $tag . $attributes . ($inner === '' ? '/>' : '>' . $inner . '</' . $tag . '>');
+            }
+            return $out;
+        };
+        return $clean($root);
     }
 
     /** @param array<string, mixed> $fields */

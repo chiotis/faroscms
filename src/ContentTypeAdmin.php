@@ -18,14 +18,72 @@ final class ContentTypeAdmin
      * @param callable(): string[] $taxonomyNames the taxonomies entries can be filtered by
      * @param callable(string): bool $isReservedKey whether a front matter key is one the CMS uses itself
      * @param callable(string, string, ?string, ?string, string, array<string, mixed>): void $log records an activity: action, level, subject type, subject id, message, context
+     * @param (callable(string, bool): bool)|null $setEnabled switches a type of the catalogue on or off in the site settings
      */
     public function __construct(
         private ContentTypes $types,
         private string $contentDir,
         private $taxonomyNames,
         private $isReservedKey,
-        private $log
+        private $log,
+        private $setEnabled = null
     ) {
+    }
+
+    /**
+     * Every content type in one list: the ones in use first (in the order the admin menu has them), then the ready-made ones the
+     * theme ships that are off. `switchable` types are the theme's; pages and the site's own types are always on.
+     *
+     * @param string[] $manageable the types that are on and can be edited here (not forms)
+     * @return array<int, array{type: string, label: string, description: string, fields: int, items: int, layout: string, origin: string, enabled: bool, switchable: bool}>
+     */
+    public function typeRows(array $manageable, string $default): array
+    {
+        $catalogue = array_values(array_diff($this->types->catalogue(), ['pages', 'forms']));
+        $row = function (string $type, bool $enabled) use ($catalogue, $default): array {
+            $definition = $enabled ? $this->types->definition($type, $default, $default) : $this->types->themeDefinition($type, $default, $default);
+            return [
+                'type' => $type,
+                'label' => $definition['label'],
+                'description' => $definition['description'],
+                'fields' => count(array_filter($definition['fields'], static fn(array $f): bool => !$f['hidden'])),
+                'items' => count(glob($this->contentDir . '/' . $type . '/*.md') ?: []),
+                'layout' => $definition['archive']['layout'],
+                'origin' => $definition['origin'],
+                'enabled' => $enabled,
+                'switchable' => in_array($type, $catalogue, true),
+            ];
+        };
+        $rows = [];
+        foreach ($manageable as $type) {
+            $rows[] = $row($type, true);
+        }
+        foreach ($catalogue as $type) {
+            if (!in_array($type, $manageable, true)) {
+                $rows[] = $row($type, false);
+            }
+        }
+        return $rows;
+    }
+
+    /**
+     * Switches a type of the catalogue on or off. The files of a type that is switched off stay where they are.
+     *
+     * @param array<string, mixed> $post type, enabled (1 to switch on)
+     * @return string where to send the browser
+     */
+    public function toggle(array $post): string
+    {
+        $type = Slug::plain((string)($post['type'] ?? ''));
+        $on = (string)($post['enabled'] ?? '') === '1';
+        if (!in_array($type, $this->types->catalogue(), true) || in_array($type, ['pages', 'forms'], true) || $this->setEnabled === null) {
+            return '/admin/content-types?error=type';
+        }
+        if (!($this->setEnabled)($type, $on)) {
+            return '/admin/content-types?error=settings';
+        }
+        ($this->log)($on ? 'content_types.enable' : 'content_types.disable', 'info', 'content_type', $type, $on ? 'Content type switched on.' : 'Content type switched off.', []);
+        return '/admin/content-types?toggled=' . ($on ? 'on' : 'off') . '&type_name=' . urlencode($type);
     }
 
     /**

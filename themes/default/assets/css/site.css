@@ -2554,6 +2554,20 @@ p.form-error {
   border-left: 1px solid var(--color-border-strong);
 }
 
+/* On a narrow screen the links wrap, so no lines between them. */
+@media (max-width: 620px) {
+  .footer-barrow .footer-inline-nav .footer-list-1,
+  .footer-barrow .footer-inline-nav > .footer-list {
+    gap: 0.4rem 1.2rem;
+  }
+
+  .footer-barrow .footer-inline-nav .footer-item + .footer-item {
+    margin-left: 0;
+    padding-left: 0;
+    border-left: 0;
+  }
+}
+
 .footer--centered .footer-compact {
   flex-direction: column;
   text-align: center;
@@ -2678,6 +2692,67 @@ p.form-error {
   max-width: 100%;
   height: auto;
   border-radius: var(--radius-m);
+}
+
+.book-hero {
+  padding-block: clamp(2rem, 1rem + 4vw, 4.5rem);
+  background: var(--color-surface);
+}
+
+.book-hero-inner {
+  display: grid;
+  gap: var(--space-l) var(--space-xl);
+  align-items: start;
+}
+
+@media (min-width: 800px) {
+  .book-hero-inner:not(.no-cover) {
+    grid-template-columns: minmax(12rem, 22rem) minmax(0, 1fr);
+  }
+}
+
+.book-cover {
+  overflow: hidden;
+  border-radius: var(--radius-m);
+  box-shadow: var(--shadow-m);
+}
+
+.book-cover img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.book-summary {
+  display: grid;
+  gap: var(--space-s);
+  min-width: 0;
+}
+
+.book-title {
+  margin: 0;
+  font-size: var(--step-4);
+  line-height: 1.08;
+}
+
+.book-author {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: var(--step-1);
+}
+
+.book-lead {
+  margin: 0;
+  max-width: 46rem;
+  font-size: var(--step-1);
+}
+
+.book-summary .type-fields {
+  background: var(--color-bg);
+}
+
+.book-buy {
+  margin: 0;
 }
 
 .archive-filters {

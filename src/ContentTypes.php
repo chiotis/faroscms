@@ -74,6 +74,17 @@ final class ContentTypes
         return array_keys($this->rawAll());
     }
 
+    /**
+     * The types the theme ships a definition for: the catalogue a site switches on and off (Admin > Content types).
+     * Types of the site's own are not in it; they are always on.
+     *
+     * @return string[]
+     */
+    public function catalogue(): array
+    {
+        return array_keys($this->loadDir($this->theme->path() . '/content-types', 'theme'));
+    }
+
     public function has(string $type): bool
     {
         return isset($this->rawAll()[$type]);

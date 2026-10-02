@@ -351,18 +351,30 @@
   place-items: center;
   width: 2.75rem;
   height: 2.75rem;
+  padding: 0;
   border: 1px solid var(--color-border-strong);
   border-radius: 999px;
   background: var(--card-bg);
   color: var(--color-text);
-  font-size: 1.4rem;
   line-height: 1;
   cursor: pointer;
-  transition: background-color 0.2s var(--ease), border-color 0.2s var(--ease);
+  transition: background-color 0.2s var(--ease), border-color 0.2s var(--ease), color 0.2s var(--ease), transform 0.2s var(--ease);
 }
 
-.slider-btn.is-toggle {
-  font-size: 0.75rem;
+.slider-btn span {
+  display: grid;
+  place-items: center;
+}
+
+.slider-btn svg {
+  display: block;
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+.slider-btn.is-toggle svg {
+  width: 1rem;
+  height: 1rem;
 }
 
 .slider-btn:hover {
@@ -432,7 +444,13 @@
   }
 }
 
-/* Arrows and dots over the slides, so the picture is the whole slider */
+/* Arrows and dots over the slides, so the picture is the whole slider. The text keeps clear of the arrows. */
+.nav-inside {
+  --nav-size: 3rem;
+  --nav-edge: clamp(0.75rem, 2vw, 2rem);
+  --nav-room: calc(var(--nav-size) + var(--nav-edge) + 1rem);
+}
+
 .nav-inside .slider-controls {
   position: absolute;
   inset: 0;
@@ -445,43 +463,54 @@
   pointer-events: auto;
 }
 
+/* Frosted round buttons: they read on any picture, light or dark. */
 .nav-inside .slider-btn {
   position: absolute;
   top: 50%;
+  width: var(--nav-size);
+  height: var(--nav-size);
   transform: translateY(-50%);
-  border-color: rgb(255 255 255 / 0.55);
-  background: rgb(var(--ink-rgb) / 0.55);
+  border-color: rgb(255 255 255 / 0.4);
+  background: rgb(var(--ink-rgb) / 0.4);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 24px -10px rgb(0 0 0 / 0.55);
   color: #ffffff;
 }
 
 .nav-inside .slider-btn:hover {
   border-color: #ffffff;
-  background: rgb(var(--ink-rgb) / 0.8);
+  background: #ffffff;
+  color: var(--ink);
 }
 
 .nav-inside .slider-btn.is-prev {
-  left: clamp(0.5rem, 2vw, 1.5rem);
+  left: var(--nav-edge);
 }
 
 .nav-inside .slider-btn.is-next {
-  right: clamp(0.5rem, 2vw, 1.5rem);
+  right: var(--nav-edge);
 }
 
 .nav-inside .slider-btn.is-toggle {
   top: auto;
-  right: clamp(0.5rem, 2vw, 1.5rem);
+  right: var(--nav-edge);
   bottom: 0.75rem;
+  width: 2.25rem;
+  height: 2.25rem;
   transform: none;
 }
 
 .nav-inside .slider-dots {
   position: absolute;
-  bottom: 0.5rem;
+  bottom: 0.75rem;
   left: 50%;
   transform: translateX(-50%);
   padding: 0 0.4rem;
   border-radius: 999px;
-  background: rgb(var(--ink-rgb) / 0.45);
+  background: rgb(var(--ink-rgb) / 0.4);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
 }
 
 .nav-inside .slider-dot::before {
@@ -497,26 +526,43 @@
   outline-color: #ffffff;
 }
 
-/* Full width: tall flat arrows against the edges of the screen, as on older sites */
-.slider-wide.nav-inside .slider-btn.is-prev,
-.slider-wide.nav-inside .slider-btn.is-next {
-  width: clamp(2.5rem, 4vw, 4.5rem);
-  height: clamp(4rem, 7vw, 6rem);
-  border: 0;
-  border-radius: 0;
-  background: rgb(var(--ink-rgb) / 0.72);
-  font-size: clamp(1.8rem, 3vw, 2.8rem);
+/* Room for the arrows beside the text */
+.nav-inside.slider-full .slide-body {
+  padding-inline: max(clamp(1.5rem, 1rem + 2.5vw, 3rem), var(--nav-room));
+  /* The dots sit along the bottom edge. */
+  padding-bottom: max(clamp(1.5rem, 1rem + 2.5vw, 3rem), 3.75rem);
 }
 
-.slider-wide.nav-inside .slider-btn.is-prev {
-  left: 0;
+.nav-inside.slider-banner .slide-body {
+  margin-inline: max(clamp(1rem, 0.5rem + 2vw, 2.5rem), var(--nav-room));
 }
 
-.slider-wide.nav-inside .slider-btn.is-next {
-  right: 0;
+/* Full width: the slide keeps the text in line with the page, and never closer to the edge than the arrows need */
+.slider-wide.nav-inside .slide {
+  padding-inline: max(var(--nav-room), calc((100% - var(--container)) / 2 + var(--gutter)));
 }
 
-.slider-wide.nav-inside .slider-btn.is-prev:hover,
-.slider-wide.nav-inside .slider-btn.is-next:hover {
-  background: rgb(var(--ink-rgb));
+.slider-wide.nav-inside.slider-full .slide-body {
+  padding-inline: 0;
+}
+
+.slider-wide.nav-inside.slider-banner .slide-body {
+  margin-inline: 0;
+}
+
+/* On a phone the banner's text sits under the picture, so it needs no room beside it. */
+@media (max-width: 620px) {
+  .slider-banner.nav-inside .slide,
+  .slider-wide.nav-inside.slider-banner .slide {
+    padding-inline: 0;
+  }
+
+  .slider-banner.nav-inside .slide-body,
+  .slider-wide.nav-inside.slider-banner .slide-body {
+    margin-inline: 0;
+  }
+
+  .nav-inside {
+    --nav-size: 2.5rem;
+  }
 }

@@ -165,6 +165,7 @@ The blocks showcase page (`/blocks`, hidden, admins only) shows every block and 
 Create `blocks/<type>/` with three files:
 
 - `block.yaml`: `label`, `description`, `variants`, optional default `tone` and `spacing`, and `fields` (FieldSchema types plus `markdown`, `link`, `repeater` with `fields`/`max`, `icon`, and `options_from: content_types | forms`).
+- `preview.svg` (optional): the one-colour wireframe the editor's block picker shows beside the block's name. Draw it on a 64 by 48 grid with `fill="none" stroke="currentColor"` shapes (`rect`, `path`, `circle`, `line`, `polygon`; `fill="currentColor" fill-opacity=".14"` for tinted areas). Only those shapes and a few presentation attributes are kept; a block without one shows a placeholder.
 - `block.twig`: receives `block` (checked values; Markdown fields also as `<key>_html`), `heading_tag`, `item_heading_tag`, `block_uid` (use `{{ block_uid }}-title` as the heading id), `block_first`, and the page context. Import `components/ui.twig` for `section_header`, `actions`, and `initials`.
 - `block.css`: styles scoped to `.block-<type>`, using the tokens from `site.css`. It is loaded only on pages that use the block, bundled with the other blocks of the page into one request.
 - `block.js` (optional): progressive enhancement only; the block must work without it. Loaded deferred and bundled the same way (`/_themes/default/_blocks.js?b=…`).
@@ -176,6 +177,10 @@ Admin > Edit > **Blocks** lists the page's blocks: add (from a picker with each 
 ## Content types
 
 A content type is a folder in `content/` (`posts`, `projects`, or one you create). A **definition** adds two things: the fields an editor fills in, and how the type's archive page looks. Definitions are optional; a type without one behaves as before.
+
+**The catalogue.** Every definition the theme ships is a ready-made type a site can have (today: posts, projects, books). **Admin → Content types → Ready-made content types** switches each on or off; pages (and forms, which belong to the CMS) are always on. A type that is off is hidden from the admin, the site, the sitemap and search, and its files are kept; switching it on again brings it back. A type counts as on when it is listed in the site settings (`content_types`) or already has files in its folder, unless it was switched off (`content_types_off`); an empty folder does not switch a prebuilt type on. To add a type to the catalogue, add `themes/<theme>/content-types/<type>.yaml` (and `templates/single-<singular>.twig` if its pages need their own layout). Types a site creates itself are not in the catalogue and are always on.
+
+The **Books** type has the fields author, publisher, year, ISBN, language and a buy link, an archive of cards (A to Z, filtered by category), and its own page layout (`templates/single-book.twig`): the cover beside the title, author, summary (the excerpt), facts and buy button, then the text and blocks (Tabs suit reviews and editions).
 
 Definitions live in `themes/default/content-types/<type>.yaml` (shipped with the theme) and `custom/content-types/<type>.yaml` (the site's own, kept across updates). When both exist they are merged: fields are added or changed one by one, and archive settings replace the theme's one by one. **Admin > Content types** edits the site file and writes only what differs from the theme, so theme improvements keep arriving.
 

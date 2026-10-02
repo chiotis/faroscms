@@ -64,7 +64,7 @@ Before the application boots, `public/index.php` hands `/_themes/…` and `/_cus
 | `GoogleSignIn` | Signing in with Google: its settings, the address to send the person to, the two calls for a profile, and whether a profile may sign in. The calls can be replaced in tests. |
 | `UserAdmin` | Adding and changing a user: reading the form within what the person may change, the password checks, saving. |
 | `RoleAdmin` | The Roles screen: the permission table, custom roles (make, rename, delete), and the log of permission changes. |
-| `ContentTypeAdmin` | The Content types screen: making a type, saving a definition (only differences from the theme are written), and the rows it shows. |
+| `ContentTypeAdmin` | The Content types screen: the catalogue of types the theme ships and switching each on or off, making a type, saving a definition (only differences from the theme are written), and the rows it shows. |
 | `ArchiveBuilder` | The archive of any list of entries: the filters it offers (only real values), the order, and the page. |
 | `BackupAdmin` | The Backups screens: verify, create, delete, restore (a safety snapshot first, only the areas chosen), the backup before an update, and the data of the screens. |
 | `ContentAdmin` | The content list (search, status and term filters), the bulk actions (publish, move to draft, delete) and deleting one entry (a public one first asks where visitors should go instead). |

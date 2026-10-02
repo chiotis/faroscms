@@ -20,6 +20,8 @@ It needs PHP and Python 3 (standard library only). Nothing touches your site: th
 | `tests/unit/taxonomies.php` | Term addresses from names, address changes, removals, the layout choices a taxonomy stores |
 | `tests/unit/html-to-markdown.php` | HTML turned into Markdown: text, lists, tables, embeds, what is dropped, what is reported |
 | `tests/unit/wordpress-import.php` | Reading a WordPress site, the plan that changes nothing, writing pages, posts, terms and media, redirects, doing it again, files of the site's own |
+| `tests/unit/content-type-catalogue.php` | The types the theme ships, which are on, switching on and off, files kept, pages and forms always on |
+| `tests/http/catalogue_test.py` | The Content types screen end to end: books off then on, its archive, a book page, the sitemap, an editor kept out |
 | `tests/unit/links.php` | Which links to an address are found and rewritten, and which are left alone |
 | `tests/unit/content-types.php` | Content type definitions, merging with the site's file, values, ordering |
 | `scripts/check-permissions.php` | Every admin action against every role, custom permissions, the capability catalogue |

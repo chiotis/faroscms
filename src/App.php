@@ -131,7 +131,7 @@ final class App
         $this->media->restrictTo(is_array($this->settings['limits']['upload_types'] ?? null) ? $this->settings['limits']['upload_types'] : []);
         $this->mediaUsage = new MediaUsage($this->contentDir, fn(): array => $this->mediaUsageSettingsSources(), (string)($this->settings['languages']['default'] ?? 'en'), $this->systemMeta);
         $this->images = new Images($this->basePath . '/public', $this->contentDir . '/media');
-        $this->content = new ContentRepository($this->contentDir, $markdown, $this->settings);
+        $this->content = new ContentRepository($this->contentDir, $markdown, $this->settings, fn(): array => $this->contentTypes()->catalogue());
         $this->content->onUnreadable(fn(string $type, string $path, string $message) => $this->reportUnreadableContent($type, $path, $message));
         $this->auth = new Auth($this->contentDir . '/users/users.yaml', $this->users);
 
@@ -2024,7 +2024,7 @@ final class App
     {
         try {
             // A fresh repository avoids this request's cached listings.
-            $repository = new ContentRepository($this->contentDir, $this->markdownConverter(), $this->settings);
+            $repository = new ContentRepository($this->contentDir, $this->markdownConverter(), $this->settings, fn(): array => $this->contentTypes()->catalogue());
             return $this->contentIndex->rebuild($repository, $repository->getTypes());
         } catch (\Throwable) {
             return ['ok' => false, 'indexed' => 0, 'removed' => 0, 'took_ms' => 0];
@@ -2276,7 +2276,8 @@ final class App
         $admin = $this->contentTypeAdmin();
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $this->redirect((string)($_POST['action'] ?? 'save') === 'create' ? $admin->create($_POST, $manageable) : $admin->update($_POST, $manageable, $default));
+            $action = (string)($_POST['action'] ?? 'save');
+            $this->redirect($action === 'toggle' ? $admin->toggle($_POST) : ($action === 'create' ? $admin->create($_POST, $manageable) : $admin->update($_POST, $manageable, $default)));
             return;
         }
 
@@ -2286,6 +2287,9 @@ final class App
             'error' => (string)($_GET['error'] ?? ''),
             'custom_file' => 'custom/content-types/',
             'admin_section' => 'content-types',
+            // The admin menu lists the types under Content on every screen.
+            'types' => $this->content->getTypes(),
+            'user' => $this->auth->user(),
         ];
 
         if ($selected !== '' && in_array($selected, $manageable, true)) {
@@ -2305,7 +2309,11 @@ final class App
             return;
         }
 
-        $this->render('@admin/content-types.twig', ['types_list' => $admin->overview($manageable, $default)] + $common);
+        $this->render('@admin/content-types.twig', [
+            'types_list' => $admin->typeRows($manageable, $default),
+            'toggled' => (string)($_GET['toggled'] ?? ''),
+            'toggled_type' => $this->slugify((string)($_GET['type_name'] ?? '')),
+        ] + $common);
     }
 
     private function contentTypeAdmin(): ContentTypeAdmin
@@ -2315,7 +2323,8 @@ final class App
             $this->contentDir,
             fn(): array => $this->taxonomies()->names(),
             fn(string $key): bool => $this->isReservedFrontmatterKey($key),
-            fn(string $action, string $level, ?string $type, ?string $id, string $message, array $context) => $this->logActivity($action, $level, $type, $id, $message, $context)
+            fn(string $action, string $level, ?string $type, ?string $id, string $message, array $context) => $this->logActivity($action, $level, $type, $id, $message, $context),
+            fn(string $type, bool $on): bool => $this->siteSettings()->setContentType($type, $on)
         );
     }
 

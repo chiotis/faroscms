@@ -507,7 +507,14 @@ final class WordPressImporter
             $front['categories'] = $categories;
         }
         $blocks = [];
-        if ($summary !== '' || $image !== '') {
+        $rules = (array)($this->profile['types'][$entry['post_type']] ?? []);
+        if (($rules['summary_in'] ?? '') === 'excerpt') {
+            // The page of the content type shows the summary under the title and the cover beside it (the Books type does).
+            $plain = WordPressReader::text((string)$entry['summary']);
+            if ($plain !== '') {
+                $front['excerpt'] = $plain;
+            }
+        } elseif ($summary !== '' || $image !== '') {
             $blocks[] = ['type' => 'text-image', 'variant' => 'image-left', 'body' => $summary, 'image' => $image, 'image_alt' => $image !== '' ? $entry['title'] : '', 'image_ratio' => 'portrait'];
         }
         $tabs = [];

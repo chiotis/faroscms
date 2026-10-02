@@ -1,0 +1,43 @@
+# Books: a title, a cover, a description, and the facts a reader looks for. Switch it on in Admin > Content types.
+# Sites can add fields or change the archive in custom/content-types/books.yaml (kept across updates).
+# Never rename a field key: content refers to it by name. Retire a field with `hidden: true`.
+label: { el: Βιβλία, en: Books }
+singular: { el: Βιβλίο, en: Book }
+description: { el: 'Βιβλία με εξώφυλλο, περιγραφή και στοιχεία έκδοσης.', en: 'Books with a cover, a description and the details of their editions.' }
+fields:
+  author:
+    type: text
+    label: { el: Συγγραφέας, en: Author }
+    card: true
+    show: false
+  publisher:
+    type: text
+    label: { el: Εκδότης, en: Publisher }
+  year:
+    type: number
+    label: { el: Έτος έκδοσης, en: Year }
+    min: 1400
+    max: 2100
+  isbn:
+    type: text
+    label: ISBN
+  language:
+    type: text
+    label: { el: Γλώσσα, en: Language }
+  buy_url:
+    type: link
+    label: { el: 'Σύνδεσμος αγοράς', en: 'Where to buy' }
+    show: false
+  buy_label:
+    type: text
+    label: { el: 'Κείμενο συνδέσμου αγοράς', en: 'Buy link text' }
+    placeholder: Buy the book
+    show: false
+archive:
+  layout: cards
+  columns: '4'
+  per_page: 12
+  order: title_asc
+  show_excerpt: false
+  show_meta: false
+  taxonomies: [categories]

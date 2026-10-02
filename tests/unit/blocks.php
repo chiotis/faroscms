@@ -18,6 +18,20 @@ check('latest variants', array_keys($registry->get('latest')['variants']), ['car
 check('latest source options', array_keys($registry->get('latest')['fields']['source']['options']), ['posts', 'projects']);
 check('latest source default', $registry->get('latest')['fields']['source']['default'], 'posts');
 check('video default play', $registry->get('video')['fields']['play']['default'], 'lightbox');
+// ---- the wireframe each block shows in the picker (preview.svg)
+$withoutPreview = array_filter($registry->editorDefinitions(), fn($d) => $d['origin'] === 'theme' && ($d['preview'] ?? '') === '');
+check('every block the theme ships has a wireframe', array_column($withoutPreview, 'type'), []);
+$svg = static fn(string $inner): string => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 48">' . $inner . '</svg>';
+check('plain shapes are kept', BlockRegistry::previewMarkup($svg('<rect x="1" y="2" width="3" height="4" rx="1" fill="currentColor" fill-opacity=".1"/><path d="M1 1h4"/>')), '<rect x="1" y="2" width="3" height="4" rx="1" fill="currentColor" fill-opacity=".1"/><path d="M1 1h4"/>');
+check('a group keeps its shapes', BlockRegistry::previewMarkup($svg('<g stroke-width="3"><path d="M0 0h2"/></g>')), '<g stroke-width="3"><path d="M0 0h2"/></g>');
+check('script, links and images never get in', BlockRegistry::previewMarkup($svg('<script>alert(1)</script><a href="x"><path d="M0 0"/></a><image href="x.png"/><foreignObject><div/></foreignObject><path d="M1 1"/>')), '<path d="M1 1"/>');
+check('event handlers and styles are dropped from a shape', BlockRegistry::previewMarkup($svg('<path d="M1 1" onload="x()" style="fill:red" class="a" id="b"/>')), '<path d="M1 1"/>');
+check('a colour other than the current one is dropped', BlockRegistry::previewMarkup($svg('<path d="M1 1" fill="red" stroke="url(#x)"/><path d="M2 2" fill="none" stroke="currentColor"/>')), '<path d="M1 1"/><path d="M2 2" fill="none" stroke="currentColor"/>');
+check('a value with markup or a script address is dropped', BlockRegistry::previewMarkup($svg('<path d="M1 1" transform="javascript:x"/><rect width="&lt;b&gt;"/>')), '<path d="M1 1"/><rect/>');
+check('not an svg, broken, empty or too large gives nothing', [BlockRegistry::previewMarkup('<html/>'), BlockRegistry::previewMarkup('<svg><path'), BlockRegistry::previewMarkup(''), BlockRegistry::previewMarkup($svg(str_repeat('<path d="M0 0"/>', 600)))], ['', '', '', '']);
+check('a file that points at another file is not read', BlockRegistry::previewMarkup('<?xml version="1.0"?><!DOCTYPE svg [<!ENTITY x SYSTEM "file:///etc/hostname">]><svg xmlns="http://www.w3.org/2000/svg"><path d="M1 1" stroke-width="&x;"/></svg>'), '');
+check('the editor gets the wireframe with the definition', str_contains((string)array_column($registry->editorDefinitions(), 'preview', 'type')['hero'], '<rect'), true);
+
 check('slider is contained with its arrows below by default', [$registry->get('slider')['fields']['width']['default'], $registry->get('slider')['fields']['navigation']['default']], ['contained', 'below']);
 check('slider width and arrows only take their own values', [FieldSchema::resolve($registry->get('slider')['fields'], ['width' => 'huge', 'navigation' => 'left'])['width'], FieldSchema::resolve($registry->get('slider')['fields'], ['width' => 'full', 'navigation' => 'inside'])['navigation']], ['contained', 'inside']);
 check('slider autoplay default off', $registry->get('slider')['fields']['autoplay']['default'], 'off');

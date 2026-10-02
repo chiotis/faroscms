@@ -13,32 +13,59 @@
 
   {% if saved %}<template data-flash data-type="success">Saved.</template>{% endif %}
   {% if error == 'name' %}<template data-flash data-type="error">Use a new name made of letters, numbers, and dashes. Some names are reserved.</template>{% endif %}
+  {% if toggled == 'on' %}<template data-flash data-type="success">{{ toggled_type|title }} is enabled: it has its own list in the admin and its pages on the site.</template>{% endif %}
+  {% if toggled == 'off' %}<template data-flash data-type="success">{{ toggled_type|title }} is disabled: it is hidden from the admin and the site. Its files are kept, and enabling it again brings it back.</template>{% endif %}
+  {% if error == 'type' %}<template data-flash data-type="error">That type cannot be switched.</template>{% endif %}
+  {% if error == 'settings' %}<template data-flash data-type="error">Could not save the setting. Check that the system database is writable.</template>{% endif %}
   {% if error == 'write' %}<template data-flash data-type="error">Could not write to the custom/ folder. Check that it is writable.</template>{% endif %}
 
   <div class="mb-4 overflow-x-auto rounded-lg border border-slate-200 bg-white">
     <table class="w-full text-sm">
+      <caption class="sr-only">Content types</caption>
       <thead>
         <tr class="border-b border-slate-100 bg-slate-50/50 text-left text-xs font-medium text-slate-400">
-          <th class="px-4 py-2 font-medium">Type</th>
-          <th class="px-4 py-2 font-medium">Fields</th>
-          <th class="px-4 py-2 font-medium">Archive layout</th>
-          <th class="px-4 py-2 font-medium">Defined by</th>
-          <th class="px-4 py-2"><span class="sr-only">Actions</span></th>
+          <th scope="col" class="px-4 py-2 font-medium">Type</th>
+          <th scope="col" class="px-4 py-2 font-medium">Fields</th>
+          <th scope="col" class="px-4 py-2 font-medium">Files</th>
+          <th scope="col" class="px-4 py-2 font-medium">Archive layout</th>
+          <th scope="col" class="px-4 py-2 font-medium">Defined by</th>
+          <th scope="col" class="px-4 py-2 text-right font-medium">Actions</th>
         </tr>
       </thead>
       <tbody class="divide-y divide-slate-50">
         {% for row in types_list %}
-          <tr class="hover:bg-slate-50">
-            <td class="px-4 py-2.5"><span class="font-medium text-slate-900">{{ row.label }}</span> <code class="ml-1 text-xs text-slate-400">{{ row.type }}</code></td>
+          <tr class="hover:bg-slate-50 {{ row.enabled ? '' : 'bg-slate-50/40' }}">
+            <th scope="row" class="px-4 py-2.5 text-left font-normal">
+              <span class="font-medium {{ row.enabled ? 'text-slate-900' : 'text-slate-500' }}">{{ row.label }}</span> <code class="ml-1 text-xs text-slate-400">{{ row.type }}</code>
+              {% if not row.enabled %}<span class="ml-1 rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-medium text-slate-500">Off</span>{% endif %}
+              {% if row.description %}<span class="mt-0.5 block text-xs font-normal text-slate-400">{{ row.description }}</span>{% endif %}
+            </th>
             <td class="px-4 py-2.5 text-slate-600">{{ row.fields }}</td>
+            <td class="px-4 py-2.5 text-slate-600">{{ row.items }}</td>
             <td class="px-4 py-2.5 text-slate-600">{{ row.layout|replace({'_': ' '})|capitalize }}</td>
             <td class="px-4 py-2.5 text-xs text-slate-500">{{ row.origin ? row.origin|replace({'+': ' + '}) : 'Not defined yet' }}</td>
-            <td class="px-4 py-2.5 text-right"><a class="font-medium text-blue-600 hover:text-blue-700" href="{{ url('admin/content-types?type=' ~ row.type) }}">Edit</a></td>
+            <td class="px-4 py-2.5">
+              <div class="flex items-center justify-end gap-3">
+                {% if row.enabled %}<a class="font-medium text-blue-600 hover:text-blue-700" href="{{ url('admin/content-types?type=' ~ row.type) }}">Edit<span class="sr-only"> {{ row.label }}</span></a>{% endif %}
+                {% if row.switchable %}
+                  <form method="post" class="inline">
+                    {{ csrf_field() }}
+                    <input type="hidden" name="action" value="toggle">
+                    <input type="hidden" name="type" value="{{ row.type }}">
+                    <input type="hidden" name="enabled" value="{{ row.enabled ? '0' : '1' }}">
+                    <button type="submit" class="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold {{ row.enabled ? 'text-slate-700' : 'text-blue-700' }} hover:bg-slate-50">{{ row.enabled ? 'Disable' : 'Enable' }}<span class="sr-only"> {{ row.label }}</span></button>
+                  </form>
+                {% else %}
+                  <span class="w-[4.6rem] text-right text-xs text-slate-400">Always on</span>
+                {% endif %}
+              </div>
+            </td>
           </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
+  <p class="-mt-2 mb-4 text-xs text-slate-400">Disable a type to hide it from the admin and the site; its files are kept, and enabling it again brings it back.</p>
 
   <form method="post" class="rounded-lg border border-slate-200 bg-white p-4">
     {{ csrf_field() }}
