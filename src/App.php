@@ -59,6 +59,7 @@ final class App
     private ?SettingsAdmin $settingsAdminService = null;
     private ?AdminChrome $adminChromeService = null;
     private ?UpdateInstaller $updateInstallerService = null;
+    private ?FirstAdmin $firstAdminService = null;
     private ?MenuAdmin $menuAdminService = null;
     private ?LogAdmin $logAdminService = null;
     private ?AdminNotices $adminNoticesService = null;
@@ -794,6 +795,11 @@ final class App
             return;
         }
 
+        if ($action === 'login' && !$this->auth->check() && $this->firstAdmin()->needed()) {
+            $this->handleSetup();
+            return;
+        }
+
         if ($action === 'login') {
             if ($this->auth->check() && ($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
                 $this->redirect('/admin');
@@ -922,6 +928,32 @@ final class App
             return;
         }
         $this->renderForbidden($message, 'Form expired');
+    }
+
+    /** A site with no accounts: the first visit makes the first administrator. */
+    private function handleSetup(): void
+    {
+        $payload = ['username' => '', 'display_name' => '', 'email' => ''];
+        $error = '';
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+            $result = $this->firstAdmin()->create($_POST);
+            if ($result['ok']) {
+                $this->redirect('/admin');
+                return;
+            }
+            $payload = $result['payload'];
+            $error = $result['error'];
+        }
+        $this->render('@admin/setup.twig', ['error' => $error, 'payload' => $payload]);
+    }
+
+    private function firstAdmin(): FirstAdmin
+    {
+        return $this->firstAdminService ??= new FirstAdmin(
+            $this->users,
+            $this->auth,
+            fn(string $action, string $level, ?string $type, ?string $id, string $message, array $context) => $this->logActivity($action, $level, $type, $id, $message, $context)
+        );
     }
 
     private function renderLogin(string $error = ''): void

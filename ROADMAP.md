@@ -21,7 +21,7 @@ Direction: one all-purpose theme (`themes/default`) that grows with blocks and v
 - Limits (done): storage limit (measured every 12 hours, adjusted on uploads and deletes), largest upload, and the kinds of file allowed
 - Resilience (done): a content file with unreadable front matter is treated as a draft and reported, and the rest of the site carries on
 - Tests on GitHub Actions (done): the whole suite on PHP 8.1, 8.3 and 8.5 for every push and pull request
-- Next candidates: draft preview links (not now), admin-level user management with limits, better search, import improvements, finishing the App.php split
+- Next candidates: draft preview links (not now), admin-level user management with limits, better search, import improvements, finishing the App.php split, updates for private repositories
 - Style references from the owner can refine the design system at any point (tokens and block CSS)
 - Phase 6 (done): content types with declared fields, an admin screen for them, archive layouts, filters, and pagination
 - Phase 7 (done): demo content rebuilt with blocks, accessibility pass with axe-core, theme developer guide and audit script

@@ -24,7 +24,7 @@ foreach (array_slice($argv, 1) as $arg) {
 
 /** What the package holds: folders (everything inside) and single files, relative to the root. */
 const DIRECTORIES = ['src', 'admin', 'vendor', 'themes', 'starter', 'public/assets'];
-const FILES = ['public/index.php', 'public/.htaccess', 'public/uploads/.htaccess', 'custom/README.md', 'VERSION', 'CHANGELOG.md', 'README.md', 'LICENSE', 'update.md', 'composer.json', 'composer.lock'];
+const FILES = ['public/index.php', 'public/.htaccess', 'public/uploads/.htaccess', 'custom/README.md', 'scripts/use-starter.php', 'VERSION', 'CHANGELOG.md', 'README.md', 'LICENSE', 'update.md', 'composer.json', 'composer.lock'];
 
 $version = trim((string)@file_get_contents($root . '/VERSION'));
 if (!preg_match('/^\d+\.\d+\.\d+$/', $version)) {

@@ -64,12 +64,13 @@ It is built for the kind of site an agency or freelancer hands to a client: a go
 ```bash
 git clone https://github.com/chiotis/faroscms.git
 cd faroscms
+php scripts/use-starter.php        # copies the demo site from starter/ into content/ and public/uploads/
 php -S 127.0.0.1:8087 -t public public/index.php
 ```
 
-Open <http://127.0.0.1:8087/> for the demo site and <http://127.0.0.1:8087/admin/login> for the admin.
+Open <http://127.0.0.1:8087/> for the demo site and <http://127.0.0.1:8087/admin/login> for the admin. A site with no accounts asks for its first administrator on that page: pick your own username and password. There is no default account.
 
-The demo ships with a development account, `admin` / `1234`. **Change it before the site is reachable by anyone else**: the admin shows a red banner on every screen until you do.
+The repository holds code only: a site's pages, posts, media, uploads, custom files and database are never part of it, so updates cannot touch them. That is also what makes **Admin → Updates → Install** safe. See [update.md](update.md) for putting a site on a server and for updating it.
 
 That is the whole setup. The repository includes its PHP dependencies (`vendor/`) and the compiled admin CSS, so a server needs neither Composer nor Node.js.
 
@@ -167,7 +168,7 @@ npm install && npm run build:css
 | [docs/security.md](docs/security.md) | Security model and operator checklist |
 | [docs/admin-accessibility.md](docs/admin-accessibility.md) | What was checked in the admin, the rules the templates keep, how to check again |
 | [docs/backups.md](docs/backups.md) | Local and remote backups, restore |
-| [docs/update-workflow.md](docs/update-workflow.md), [update.md](update.md) | Updating a live site safely |
+| [update.md](update.md), [docs/update-workflow.md](docs/update-workflow.md) | Putting a site on a server, installing updates from the admin, and how that stays safe |
 | [docs/system-database.md](docs/system-database.md) | What lives in SQLite |
 | [custom/README.md](custom/README.md) | How site-specific overrides work |
 | [CHANGELOG.md](CHANGELOG.md), [ROADMAP.md](ROADMAP.md) | What changed and what is next |

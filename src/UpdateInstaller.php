@@ -23,7 +23,7 @@ final class UpdateInstaller
     /** Folders replaced as a whole. */
     public const DIRECTORIES = ['src', 'admin', 'vendor', 'starter', 'public/assets'];
     /** Single files, VERSION last so a half-done swap never says it is the new version. */
-    public const FILES = ['public/index.php', 'public/.htaccess', 'public/uploads/.htaccess', 'custom/README.md', 'CHANGELOG.md', 'README.md', 'LICENSE', 'update.md', 'composer.json', 'composer.lock', 'VERSION'];
+    public const FILES = ['public/index.php', 'public/.htaccess', 'public/uploads/.htaccess', 'custom/README.md', 'scripts/use-starter.php', 'CHANGELOG.md', 'README.md', 'LICENSE', 'update.md', 'composer.json', 'composer.lock', 'VERSION'];
     private const MAX_ENTRIES = 20000;
     private const MAX_UNPACKED_BYTES = 314572800;
     private const KEEP_RUNS = 2;

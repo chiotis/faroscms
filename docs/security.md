@@ -72,11 +72,19 @@ Admin > History and the editor's History tab need `content.manage`. Restoring or
 - 8 failures from one address, or 12 failures for one username, within 15 minutes block further attempts (HTTP 429 with `Retry-After`) until the oldest counted failure ages out.
 - The address is `REMOTE_ADDR`. `X-Forwarded-For` is ignored for throttling because clients can forge it. Behind a reverse proxy all visitors share the proxy address, so configure the proxy to pass the real client address as `REMOTE_ADDR` (for example `mod_remoteip` or nginx `real_ip`).
 
-### Default Credentials
+### First administrator and default credentials
 
-- `content/users/users.yaml` ships a development admin with a plain-text password. It is imported into SQLite only when the users table is empty.
-- Signing in with that shipped password shows a red banner on every admin page and creates a `security.default_password` notification until the password is changed.
+- A new site ships no account. While the users table is empty, the sign-in page asks for the first administrator (username, email, a password of at least 8 characters that is not the shipped one) and makes a super admin. The page is gone as soon as one account exists, and a second account cannot be made through it. **Open `/admin` right after putting a site on a server**: until the first account exists, whoever visits first can make it.
+- Older sites may still have `content/users/users.yaml` with a plain-text development account. It is imported into SQLite only when the users table is empty. Signing in with that shipped password shows a red banner on every admin page and creates a `security.default_password` notification until the password is changed.
 - New passwords must be at least 8 characters and cannot equal the shipped password.
+
+### Installing updates
+
+- Only a person with `updates.manage` (a Critical permission) can install, and only with a verified backup made in the last 24 hours on the version being replaced.
+- The package is downloaded over https only and compared with the size and SHA-256 in the release manifest before it is opened. A package that is not the published one changes nothing.
+- A package is accepted only if every file in it is on a list of code paths (`UpdateInstaller::isAllowedPath`). One file for `content/`, `custom/`, `storage/` or `public/uploads/`, a path with `..`, an absolute or backslash path, or a link refuses the whole package, so a package cannot overwrite a site's data or write outside the site folder.
+- While the code is swapped the public site answers 503; the maintenance flag has a token that only the installer's own check of the new version knows, and a flag more than 15 minutes old is ignored.
+- If the new version fails the check, the old code (and the database, if its structure changed) is put back. The checksum protects against a corrupted or swapped file, not against a compromised release: anyone who can publish a release on the repository can publish code.
 
 ### Settings Secrets
 
