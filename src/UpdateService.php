@@ -11,8 +11,11 @@ namespace FarosCMS;
 final class UpdateService
 {
     public const STATUS_META_KEY = 'update_status';
+    public const RELEASE_META_KEY = 'update_release';
     public const CACHE_SECONDS = 43200;
     public const UNREACHABLE_CACHE_SECONDS = 3600;
+    /** The largest package an update may be. */
+    public const MAX_PACKAGE_BYTES = 104857600;
 
     /** @param array<string, mixed> $settings the `updates` settings block */
     public function __construct(
@@ -134,6 +137,71 @@ final class UpdateService
         ]);
 
         return $this->finalizeStatus($checkedAt, $source['version_url'], $remote, $current, false);
+    }
+
+    /** Where the manifest of the latest release is: release.json, attached to each GitHub Release. */
+    public function releaseManifestUrl(): string
+    {
+        $custom = trim((string)($this->settings['release_url'] ?? ''));
+        return $custom !== '' ? $custom : 'https://github.com/' . $this->sourceConfig()['repository'] . '/releases/latest/download/release.json';
+    }
+
+    /**
+     * The package of the latest release: its version, lowest PHP, address, SHA-256 and size. Read from the release,
+     * kept for as long as the update status is, and null when the release has none or it is not valid.
+     *
+     * @return array{version: string, min_php: string, package_url: string, sha256: string, size: int, requires_backup: bool}|null
+     */
+    public function releaseManifest(bool $forceRefresh = false): ?array
+    {
+        $url = $this->releaseManifestUrl();
+        $cached = $this->meta->getJson(self::RELEASE_META_KEY);
+        if (!$forceRefresh && is_array($cached) && (string)($cached['source'] ?? '') === $url) {
+            $age = time() - (int)strtotime((string)($cached['checked_at'] ?? ''));
+            $manifest = is_array($cached['manifest'] ?? null) ? $cached['manifest'] : null;
+            if ($age >= 0 && $age < ($manifest !== null ? self::CACHE_SECONDS : self::UNREACHABLE_CACHE_SECONDS)) {
+                return $manifest;
+            }
+        }
+        $body = $this->readRemoteText($url);
+        $manifest = $body !== '' ? self::validateManifest(json_decode($body, true)) : null;
+        $this->meta->setJson(self::RELEASE_META_KEY, ['checked_at' => gmdate('c'), 'source' => $url, 'manifest' => $manifest]);
+        return $manifest;
+    }
+
+    /**
+     * A release manifest that can be trusted to be what it says: a version, the lowest PHP, an address of the
+     * package (https, or http on this machine for tests), a SHA-256 and a size within what an update may be.
+     *
+     * @return array{version: string, min_php: string, package_url: string, sha256: string, size: int, requires_backup: bool}|null
+     */
+    public static function validateManifest(mixed $data): ?array
+    {
+        if (!is_array($data)) {
+            return null;
+        }
+        $version = (string)($data['version'] ?? '');
+        $minPhp = (string)($data['min_php'] ?? '');
+        $url = (string)($data['package_url'] ?? '');
+        $sha = strtolower((string)($data['sha256'] ?? ''));
+        $size = (int)($data['size'] ?? 0);
+        $parts = parse_url($url);
+        $scheme = strtolower((string)($parts['scheme'] ?? ''));
+        $host = strtolower((string)($parts['host'] ?? ''));
+        $local = in_array($host, ['127.0.0.1', 'localhost', '[::1]', '::1'], true);
+        if (!preg_match('/^\d+\.\d+\.\d+$/', $version) || !preg_match('/^\d+(\.\d+)*$/', $minPhp)
+            || !preg_match('/^[a-f0-9]{64}$/', $sha) || $size < 1 || $size > self::MAX_PACKAGE_BYTES
+            || $host === '' || !($scheme === 'https' || ($scheme === 'http' && $local))) {
+            return null;
+        }
+        return [
+            'version' => $version,
+            'min_php' => $minPhp,
+            'package_url' => $url,
+            'sha256' => $sha,
+            'size' => $size,
+            'requires_backup' => ($data['requires_backup'] ?? true) !== false,
+        ];
     }
 
     /** Status from cache only; never touches the network. Null when no check has run yet. */

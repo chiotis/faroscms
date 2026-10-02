@@ -115,6 +115,7 @@ final class SiteSettings
                 'version_url' => 'https://raw.githubusercontent.com/chiotis/faroscms/main/VERSION',
                 'changelog_url' => 'https://raw.githubusercontent.com/chiotis/faroscms/main/CHANGELOG.md',
                 'package_url' => 'https://github.com/chiotis/faroscms/archive/refs/heads/main.zip',
+                'release_url' => '',
                 'github_token' => '',
                 'latest_version' => '',
             ],
@@ -260,6 +261,7 @@ final class SiteSettings
             'update_version_url' => (string)($merged['updates']['version_url'] ?? ''),
             'update_changelog_url' => (string)($merged['updates']['changelog_url'] ?? ''),
             'update_package_url' => (string)($merged['updates']['package_url'] ?? ''),
+            'update_release_url' => (string)($merged['updates']['release_url'] ?? ''),
         ] + $this->maskedSecrets($merged);
     }
 
@@ -322,6 +324,7 @@ final class SiteSettings
             'update_version_url' => (string)($post['update_version_url'] ?? ''),
             'update_changelog_url' => (string)($post['update_changelog_url'] ?? ''),
             'update_package_url' => (string)($post['update_package_url'] ?? ''),
+            'update_release_url' => (string)($post['update_release_url'] ?? ''),
             'update_github_token' => (string)($post['update_github_token'] ?? ''),
             'clear_secrets' => is_array($post['clear_secret'] ?? null) ? array_map('strval', $post['clear_secret']) : [],
         ];
@@ -535,6 +538,7 @@ final class SiteSettings
             'version_url' => (string)($form['update_version_url'] ?? ''),
             'changelog_url' => (string)($form['update_changelog_url'] ?? ''),
             'package_url' => (string)($form['update_package_url'] ?? ''),
+            'release_url' => trim((string)($form['update_release_url'] ?? '')),
             'github_token' => '',
             'latest_version' => (string)($existingUpdates['latest_version'] ?? ''),
         ];

@@ -5,7 +5,7 @@
  *   php tests/unit/admin-screens.php
  */
 require dirname(__DIR__, 2) . '/vendor/autoload.php';
-use FarosCMS\{ActivityLogRepository, AdminNotices, BackupAdmin, BackupManager, BackupRunRepository, BackupService, ContentRepository, EmailLogRepository, LogAdmin, MenuAdmin, Menus, NotificationRepository, RedirectRepository, SystemDatabase, SystemMetaRepository, TaxonomyEditor, Taxonomies, UpdateAdmin, UpdateService};
+use FarosCMS\{ActivityLogRepository, AdminNotices, BackupAdmin, BackupManager, BackupRunRepository, BackupService, ContentRepository, EmailLogRepository, LogAdmin, MenuAdmin, Menus, NotificationRepository, RedirectRepository, SystemDatabase, SystemMetaRepository, TaxonomyEditor, Taxonomies, MaintenanceMode, UpdateAdmin, UpdateInstaller, UpdateService};
 use League\CommonMark\Environment\Environment;
 use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
 use League\CommonMark\MarkdownConverter;
@@ -107,7 +107,8 @@ $service = new BackupService($dir, $db);
 $runs = new BackupRunRepository($db);
 $manager = new BackupManager($service, $db, $runs, $notes, fn() => $settings, fn() => $updates, fn(string $iso) => null, fn(array $c) => throw new RuntimeException('no remote'));
 $backupAdmin = new BackupAdmin($service, $manager, $runs, $notes, $meta, fn() => $settings, fn(string $iso) => null, fn(bool $ok) => null, function (string $action, string $level, ?string $type, ?string $id, string $message, array $ctx, ?array $actor) use (&$log) { $log[] = [$action]; });
-$updateAdmin = new UpdateAdmin(fn() => $updates, $notices, fn() => $backupAdmin, $service, "$dir/content", $dir, $logger);
+$installer = new UpdateInstaller($dir, $db, new MaintenanceMode($dir), fn(string $u, string $d, int $m): ?string => 'No network in tests.', fn(string $t, string $v): array => ['reached' => false, 'ok' => false, 'message' => 'none'], $logger);
+$updateAdmin = new UpdateAdmin(fn() => $updates, $notices, fn() => $backupAdmin, fn() => $installer, $meta, $service, "$dir/content", $dir, $logger);
 $log = [];
 check('checking for an update says where to go and is logged', [$updateAdmin->check(), $log[0][0]], ['/admin/updates?checked=1', 'updates.check']);
 $u = $updateAdmin->screen(['checked' => '1']);
