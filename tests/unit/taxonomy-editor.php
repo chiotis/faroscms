@@ -61,6 +61,16 @@ check('a word the site uses is refused: reserved, a language, a content type, a 
 check('a different home page name is refused too', $editor->create('A', 'welcome', [], ['el', 'en'], 'welcome', 'tester')['error'] !== '', true);
 check('and nothing is written when refused', $store->names(), ['categories', 'kladoi', 'project-types', 'sectors', 'tags']);
 
+// ---- deleting one
+$store->save('kladoi', 'Κλάδοι', [['id' => 'a', 'slug' => 'a', 'labels' => ['el' => 'Α', 'en' => 'A']]]);
+file_put_contents("$dir/content/posts/two.md", "---\ntitle: Two\nstatus: published\nkladoi: [a]\n---\nBody\n");
+$gone = $editor->delete('kladoi', 'tester');
+check('a taxonomy of the site\'s own is deleted, and says how many entries were filed under it', [$gone, is_file("$dir/content/taxonomies/kladoi.yaml"), in_array('kladoi', $store->names(), true)], [['ok' => true, 'title' => 'Κλάδοι', 'filed' => 1], false, false]);
+check('the entries keep what they had', str_contains((string)file_get_contents("$dir/content/posts/two.md"), 'kladoi: [a]'), true);
+check('categories and tags cannot be deleted', [$editor->delete('tags', 't')['ok'], $editor->delete('categories', 't')['ok'], is_file("$dir/content/taxonomies/tags.yaml"), is_file("$dir/content/taxonomies/categories.yaml")], [false, false, true, true]);
+check('nor one that does not exist', [$editor->delete('nothing', 't')['ok'], $editor->delete('../tags', 't')['ok'], $editor->delete('', 't')['ok']], [false, false, false]);
+check('a taxonomy has to be made first: Taxonomies::delete leaves the built in files alone too', [$store->delete('tags'), is_file("$dir/content/taxonomies/tags.yaml")], [false, true]);
+
 // ---- counting
 $u = $editor->usage(['tags', 'categories']);
 check('every language and draft is counted, forms are not', $u['tags'], ['news' => 4, 'design' => 1]);

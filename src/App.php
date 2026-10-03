@@ -2028,6 +2028,11 @@ final class App
         $taxonomy = $editor->selected((string)($_GET['taxonomy'] ?? $_POST['taxonomy'] ?? ''));
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            if (isset($_POST['delete_taxonomy'])) {
+                $gone = $editor->delete($taxonomy, $this->currentUsername());
+                $this->redirect($gone['ok'] ? '/admin/taxonomies?deleted=' . urlencode($gone['title']) : '/admin/taxonomies?taxonomy=' . urlencode($taxonomy));
+                return;
+            }
             if (isset($_POST['new_taxonomy'])) {
                 $made = $editor->create(
                     (string)($_POST['new_title'] ?? ''),

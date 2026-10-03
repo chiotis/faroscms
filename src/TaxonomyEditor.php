@@ -111,6 +111,8 @@ final class TaxonomyEditor
             'type_names' => array_combine($types, array_map($typeLabel, $types)),
             'saved' => isset($get['saved']),
             'created' => isset($get['created']),
+            'deleted' => trim((string)($get['deleted'] ?? '')),
+            'is_custom' => Taxonomies::isCustom($taxonomy),
             'new_error' => trim((string)($get['new_error'] ?? '')),
             'moved' => (int)($get['moved'] ?? 0),
             'removed' => (int)($get['removed'] ?? 0),
@@ -221,6 +223,26 @@ final class TaxonomyEditor
             ($this->log)('taxonomies.create', 'info', 'taxonomy', $name, 'Taxonomy created.', ['title' => $title, 'types' => $types]);
         }
         return ['name' => $name, 'error' => ''];
+    }
+
+    /**
+     * Deletes a taxonomy the site added. Its terms and pages go; the entries keep the terms in their own files (they are
+     * no longer shown), so nothing of the content is lost.
+     *
+     * @return array{ok: bool, title: string, filed: int} filed: how many entries had terms of it
+     */
+    public function delete(string $taxonomy, string $by): array
+    {
+        if (!Taxonomies::isCustom($taxonomy) || !in_array($taxonomy, $this->store->names(), true)) {
+            return ['ok' => false, 'title' => '', 'filed' => 0];
+        }
+        $title = $this->store->load($taxonomy)['title'];
+        $filed = array_sum($this->usage([$taxonomy])[$taxonomy] ?? []);
+        $ok = $this->store->delete($taxonomy);
+        if ($ok && $this->log !== null) {
+            ($this->log)('taxonomies.delete', 'warning', 'taxonomy', $taxonomy, 'Taxonomy deleted.', ['title' => $title, 'filed' => $filed]);
+        }
+        return ['ok' => $ok, 'title' => $title, 'filed' => $filed];
     }
 
     /** The content types that can be listed on a taxonomy page. @return string[] */
