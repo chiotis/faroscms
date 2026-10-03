@@ -16,7 +16,7 @@ Two rules follow from that:
 | Theme contract | `themes/default/theme.yaml` | Done |
 | Design system: tokens, palettes, dark mode, fonts, corner shapes | `assets/css/site.css` | Done |
 | Content blocks per page or post | `themes/default/blocks/<block>/` + `blocks:` in front matter | 23 blocks in three families; admin block editor |
-| Site-level component variants (header, footer) | `components/`, Theme settings | Header: 4 layouts, transparent (per content type and per entry), sticky modes, top bar, CTA, phone bottom bar with its own list of icon links, 5 phone menu styles. Footer: 4 layouts (columns, one row, bar, centered). Header background (a solid tint) and a search box |
+| Site-level component variants (header, footer) | `components/`, Theme settings | Header: 7 layouts, floating or full width, height, edge, background, menu link style, transparent (per content type and per entry), sticky modes (including smart), top bar, CTA, search, phone bottom bar with its own list of icon links, 5 phone menu styles. Footer: 5 layouts, 4 backgrounds, a call to action band, bottom links, language switcher. Both are cards with a picture of the result in Theme |
 | Page templates (standard, landing, with sidebar) | `templates/`, `page_templates` in the manifest | Done |
 | Ready-made sections and page layouts | `presets/`, `custom/presets/` | Done |
 | Field definitions and archive settings per content type | `themes/default/content-types/`, `custom/content-types/`, Admin > Content types | Done |
@@ -273,16 +273,22 @@ Editors can tick blocks and **Save as section**: the blocks are checked and writ
 
 ## Header and footer
 
-Theme settings > Header:
+**Admin > Theme > Header** and **Footer** are a picture of the result (it follows what is chosen), the layouts to choose from, and a few small cards. Everything is a solid colour.
 
-- **Layout**: classic (logo left, menu right), centered (logo in the middle, menu below), minimal (logo and a menu button on all screens), stacked (menu in a full-width bar underneath, with a background of its own). **Header background** (page background, muted, or a soft tint of the palette colour) colours the row with the logo; **Search** can be an icon or a search box in the header; in the stacked bar the page you are on is highlighted (a palette can set `--bar-highlight`, Garnet uses gold). **Footer layout Bar**: the copyright on the left and the links on the right, one thin line between them. All of these are solid colours.
-- **Transparent over an opening hero**: on pages that start with a Hero block the header overlays it (light text over a cover image or dark hero) and turns solid when the page scrolls.
-- **Sticky**: slides in after scrolling, always at the top, or scrolls away.
-- **Button**: a CTA in the header and the mobile menu.
-- **Top bar**: a short message and/or phone and email (from the Footer section).
-- **Bottom bar on phones**: menu, call, email, and the CTA fixed at the bottom of small screens.
+Header:
 
-Theme settings > Footer > Layout: columns, one row, or centered.
+- **Layout**: *classic* (logo left, menu right), *menu left* (logo and menu together on the left, tools on the right), *split* (menu left, logo in the middle, tools right), *centered* (logo in the middle, menu below), *stacked* (menu in a full-width bar underneath, with a background of its own; the page you are on is highlighted, a palette can set `--bar-highlight`), *minimal* (logo and a menu button on all screens) and *minimal centered* (the button on the left, the logo in the middle).
+- **Style**: *shape* (full width bar or floating, detached from the edges with rounded corners), *content width* (contained or edge to edge), *height* (regular, compact, tall), *edge* (a line, nothing, a shadow), *background* of the row with the logo (page, muted, soft tint, dark, palette colour), *menu links* (soft background on hover, underline, plain).
+- **Behaviour**: *sticky* (slides in after scrolling, always at the top, **smart** (leaves while the page is read downwards and returns when it is scrolled back up), or scrolls away), *shrinks* once the page is scrolled, and **transparent over an opening hero** (on pages that start with a Hero block the header overlays it, with light text over a cover image or dark hero, and turns solid when the page scrolls; a content type or an entry can decide otherwise, see Single layouts).
+- **Elements**: *search* (an icon, a box, or none), the *language switcher* and the *dark mode switch* (each can be turned off), and a **button** (text, link, solid or outline) in the header and the phone menu.
+- **Top bar**: a message (optionally a link), the phone and email (from the Footer), the social icons, on a muted, dark or palette background; it shows when it has any of them.
+- **Phone**: how the menu opens (side drawer from the left or right, full screen, sheet from the top or bottom), and the bottom bar (menu, call, email, the button, or links of your own with icons).
+
+Footer:
+
+- **Layout**: *columns* (brand and summary, the footer menu, contact), *mega* (a column for each top-level link of the footer menu that has links under it; the links with none share the first column), *one row*, *bar* (the copyright on the left, the links on the right, thin lines between them) and *centered*.
+- **Background**: dark (the base), the page's, muted, or the palette colour; a colour or an image of your own replaces it. **Brand**: the site name, the logo, or nothing.
+- **Content**: the summary, the copyright line (`{year}` and `{site}` are filled in), email, phone, address and opening hours, a **call to action band** above the footer (heading, text, button), the **links at the bottom** (a menu given the place *Footer bottom links*), the social icons, a language switcher and a back to top link.
 
 A site-specific block goes in `custom/blocks/<type>/` with the same files.
 

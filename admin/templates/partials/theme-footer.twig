@@ -1,0 +1,112 @@
+{#
+  Theme > Footer: a picture of the footer that follows what is chosen, the layouts to choose from, and the rest in a few small
+  cards (look, texts, contact, elements, call to action). The choices are the theme's (`settings.footer` in theme.yaml); a choice
+  a theme does not declare is left out, and one this screen does not know is listed under "More".
+
+  section   the declared footer section        values   what is stored
+#}
+{% import '@admin/partials/layout-controls.twig' as c %}
+{% import '@admin/partials/fields.twig' as fields %}
+{% set f = section.fields %}
+{% set v = values %}
+{% set p = 'theme_settings[footer][' %}
+{% set short = {
+  layout: {columns: 'Columns', mega: 'Mega', simple: 'One row', bar: 'Bar', centered: 'Centered'},
+  tone: {dark: 'Dark', light: 'Page', muted: 'Muted', accent: 'Colour'},
+  brand: {name: 'Name', logo: 'Logo', none: 'None'}
+} %}
+{% set known = ['layout', 'tone', 'brand', 'background', 'background_image', 'summary', 'copyright', 'email', 'phone', 'address', 'hours', 'show_social', 'show_language', 'back_to_top', 'cta_heading', 'cta_text', 'cta_label', 'cta_url'] %}
+{% set map = {
+  layout: [p ~ 'layout]'], tone: [p ~ 'tone]'], brand: [p ~ 'brand]'], cta: [p ~ 'cta_heading]', p ~ 'cta_text]'], social: [p ~ 'show_social]'], language: [p ~ 'show_language]'],
+  top: [p ~ 'back_to_top]'], contact: [p ~ 'email]', p ~ 'phone]', p ~ 'address]', p ~ 'hours]']
+} %}
+
+<div class="space-y-3" data-hf-root data-layout="{{ v.layout }}">
+  <h2 class="sr-only">Footer</h2>
+  <p class="text-xs text-slate-500">Choose the layout, then how it looks and what it holds. The picture follows your choices; its links come from the menu Footer in Menus.</p>
+
+  {% if f.layout is defined %}
+    <section class="lc-card rounded-xl border border-slate-200 bg-white p-3" aria-label="Layout">
+      <div class="hfp hff" data-hf-preview data-hf-map="{{ map|json_encode|e('html_attr') }}"
+           data-layout="{{ v.layout }}" data-tone="{{ v.tone ?? 'dark' }}" data-brand="{{ v.brand ?? 'name' }}"
+           data-cta="{{ (v.cta_heading or v.cta_text) ? 'on' : 'off' }}" data-social="{{ (v.show_social ?? true) ? 'on' : 'off' }}"
+           data-language="{{ v.show_language ? 'on' : 'off' }}" data-top="{{ v.back_to_top ? 'on' : 'off' }}"
+           data-contact="{{ (v.email or v.phone or v.address or v.hours) ? 'on' : 'off' }}" aria-hidden="true">
+        <div class="hff-cta"><span><i></i><b></b></span><em></em></div>
+        <div class="hff-main">
+          <div class="hff-brand"><u></u><i></i><i></i></div>
+          <div class="hff-col"><u></u><i></i><i></i><i></i></div>
+          <div class="hff-col hff-more"><u></u><i></i><i></i><i></i></div>
+          <div class="hff-col hff-more"><u></u><i></i><i></i><i></i></div>
+          <div class="hff-col hff-contact"><u></u><i></i><i></i></div>
+          <div class="hff-links"><i></i><i></i><i></i><i></i></div>
+        </div>
+        <div class="hff-bottom"><i class="hff-copy"></i><span class="hff-legal"><i></i><i></i></span><span class="hff-bar-links"><i></i><i></i><i></i></span><span class="hff-extras"><em class="hff-soc"></em><em class="hff-soc"></em><em class="hff-lang"></em><em class="hff-up"></em></span></div>
+      </div>
+      <div class="mt-3">
+        {{ c.tiles(p ~ 'layout]', f.layout.options|keys|reduce((carry, k) => carry|merge({(k): short.layout[k] ?? f.layout.options[k]}), {}), v.layout, f.layout.label, 'footer', '', f.layout.options) }}
+      </div>
+    </section>
+  {% endif %}
+
+  <div class="grid items-start gap-3 xl:grid-cols-2">
+    <section class="lc-card rounded-xl border border-slate-200 bg-white" aria-labelledby="ft-look">
+      <h3 id="ft-look" class="px-3 pt-3 text-sm font-semibold text-slate-900">Look</h3>
+      <dl class="m-0 space-y-2.5 p-3">
+        {% if f.tone is defined %}{{ c.choice(f.tone, p ~ 'tone]', v.tone, 'seg', short.tone) }}{% endif %}
+        {% if f.brand is defined %}{{ c.choice(f.brand, p ~ 'brand]', v.brand, 'seg', short.brand) }}{% endif %}
+        {% if f.background is defined %}{{ c.text(f.background, p ~ 'background]', v.background) }}{% endif %}
+        {% if f.background_image is defined %}{{ c.text(f.background_image, p ~ 'background_image]', v.background_image) }}{% endif %}
+      </dl>
+    </section>
+
+    <section class="lc-card rounded-xl border border-slate-200 bg-white" aria-labelledby="ft-text">
+      <h3 id="ft-text" class="px-3 pt-3 text-sm font-semibold text-slate-900">Texts</h3>
+      <dl class="m-0 space-y-2.5 p-3">
+        {% if f.summary is defined %}{{ c.text(f.summary, p ~ 'summary]', v.summary) }}{% endif %}
+        {% if f.copyright is defined %}{{ c.text(f.copyright, p ~ 'copyright]', v.copyright) }}{% endif %}
+      </dl>
+      <p class="m-0 px-3 pb-3 text-[11px] leading-4 text-slate-500">The links at the very bottom (privacy, terms) are a menu: make it in <a class="font-medium text-blue-700" href="{{ url('admin/menus') }}">Menus</a> and give it the place “Footer bottom links”.</p>
+    </section>
+
+    <section class="lc-card rounded-xl border border-slate-200 bg-white" aria-labelledby="ft-contact">
+      <h3 id="ft-contact" class="px-3 pt-3 text-sm font-semibold text-slate-900">Contact</h3>
+      <dl class="m-0 space-y-2.5 p-3">
+        {% for key in ['email', 'phone', 'address', 'hours'] %}
+          {% if f[key] is defined %}{{ c.text(f[key], p ~ key ~ ']', v[key]) }}{% endif %}
+        {% endfor %}
+      </dl>
+      <p class="m-0 px-3 pb-3 text-[11px] leading-4 text-slate-500">The header’s top bar and the sidebar card use the phone and email too.</p>
+    </section>
+
+    <section class="lc-card rounded-xl border border-slate-200 bg-white" aria-labelledby="ft-extras">
+      <h3 id="ft-extras" class="px-3 pt-3 text-sm font-semibold text-slate-900">Elements</h3>
+      <dl class="m-0 space-y-2.5 p-3">
+        {% set shown = [] %}
+        {% if f.show_social is defined %}{% set shown = shown|merge([[p ~ 'show_social]', 'Social icons', v.show_social]]) %}{% endif %}
+        {% if f.show_language is defined %}{% set shown = shown|merge([[p ~ 'show_language]', f.show_language.label, v.show_language]]) %}{% endif %}
+        {% if f.back_to_top is defined %}{% set shown = shown|merge([[p ~ 'back_to_top]', f.back_to_top.label, v.back_to_top]]) %}{% endif %}
+        {% if shown is not empty %}{{ c.toggles('Show', shown) }}{% endif %}
+      </dl>
+    </section>
+
+    <section class="lc-card rounded-xl border border-slate-200 bg-white xl:col-span-2" aria-labelledby="ft-cta">
+      <h3 id="ft-cta" class="px-3 pt-3 text-sm font-semibold text-slate-900">Call to action <span class="font-normal text-slate-500">· a band above the footer, when it has a heading or a text</span></h3>
+      <dl class="m-0 grid gap-x-6 gap-y-2.5 p-3 md:grid-cols-2">
+        {% for key in ['cta_heading', 'cta_text', 'cta_label', 'cta_url'] %}
+          {% if f[key] is defined %}{{ c.text(f[key], p ~ key ~ ']', v[key]) }}{% endif %}
+        {% endfor %}
+      </dl>
+    </section>
+
+    {% set more = f|filter((field, key) => key not in known and not field.hidden) %}
+    {% if more is not empty %}
+      <section class="lc-card rounded-xl border border-slate-200 bg-white xl:col-span-2" aria-labelledby="ft-more">
+        <h3 id="ft-more" class="px-3 pt-3 text-sm font-semibold text-slate-900">More</h3>
+        <div class="grid gap-3 p-3 sm:grid-cols-2">
+          {% for key, field in more %}{{ fields.field(field, p ~ key ~ ']', v[key] ?? field.default) }}{% endfor %}
+        </div>
+      </section>
+    {% endif %}
+  </div>
+</div>

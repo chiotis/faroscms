@@ -75,6 +75,8 @@ return [
     'footer.legal_terms' => 'Terms of Use',
     'footer.legal_cookies' => 'Cookies',
     'footer.rights' => 'All rights reserved.',
+    'footer.legal' => 'Legal',
+    'footer.top' => 'Back to top',
     'error.404_title' => 'Page not found',
     'error.404_message' => 'The page you are looking for does not exist or has moved.',
     'error.back_home' => 'Back to home',

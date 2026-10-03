@@ -29,7 +29,7 @@ It is built for the kind of site an agency or freelancer hands to a client: a go
 | | |
 |---|---|
 | **Your content is just files** | Pages, posts, projects, menus and forms are Markdown/YAML in `content/`. Read them, diff them, keep them in Git, back them up with `cp`. |
-| **A design system, not a blank theme** | One all-purpose `default` theme: 25 blocks with layout variants, 6 colour palettes, light and dark mode, three corner styles, four header layouts, responsive images and WCAG-minded markup. |
+| **A design system, not a blank theme** | One all-purpose `default` theme: 25 blocks with layout variants, 6 colour palettes, light and dark mode, three corner styles, seven header layouts and five footer layouts, responsive images and WCAG-minded markup. |
 | **A block editor that keeps the design consistent** | Pages are built from ready-made sections (hero, features, pricing, comparison table, before/after slider, FAQ, gallery, map, forms…). Editors change text, images and order; the layout stays sound. |
 | **Multilingual from the start** | Each page can have a translation per language, with their own addresses, menus, labels and redirects. Greek is transliterated to clean Latin addresses out of the box. |
 | **Safe to hand over** | Roles and permissions (with roles of your own), history with compare and restore, redirects when an address changes, links that follow, storage and upload limits, activity log. |

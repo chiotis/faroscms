@@ -1372,7 +1372,7 @@ body.mobile-menu-open .mobile-drawer--bottom_sheet {
 }
 
 body.header-solid .site-header[data-sticky="always"] {
-  background: color-mix(in srgb, var(--color-bg) 90%, transparent);
+  background: color-mix(in srgb, var(--header-bg) 90%, transparent);
   -webkit-backdrop-filter: saturate(1.6) blur(14px);
   backdrop-filter: saturate(1.6) blur(14px);
 }
@@ -1558,6 +1558,263 @@ body.header-solid .site-header[data-sticky="always"] {
   margin-left: auto;
 }
 
+/* More layouts and styles (Theme settings > Header) --------------------------- */
+
+/* Menu left: the brand and the menu together on the left, the tools on the right. */
+.header--menu_left .site-nav {
+  margin-right: auto;
+  margin-left: var(--space-l);
+}
+
+.header--menu_left .header-tools {
+  margin-left: 0;
+}
+
+/* Split: menu on the left, brand in the middle, tools on the right. On a phone it is the usual header. */
+@media (min-width: 861px) {
+  .header--split .header-row {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+  }
+
+  .header--split .site-nav {
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: start;
+    margin: 0;
+  }
+
+  .header--split .site-brand {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: center;
+  }
+
+  .header--split .header-tools {
+    grid-column: 3;
+    grid-row: 1;
+    justify-self: end;
+    margin-left: 0;
+  }
+}
+
+/* Minimal centered: the menu button on the left, the brand in the middle, the tools on the right. */
+.header--minimal_center .header-row {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+}
+
+.header--minimal_center .mobile-menu-button {
+  display: inline-grid;
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: start;
+}
+
+.header--minimal_center .site-brand {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: center;
+}
+
+.header--minimal_center .header-tools {
+  grid-column: 3;
+  grid-row: 1;
+  justify-self: end;
+  margin-left: 0;
+}
+
+/* Height. */
+.site-header.size-compact .header-row {
+  min-height: 3.5rem;
+  padding-block: 0.3rem;
+}
+
+.site-header.size-compact .site-brand-logo {
+  height: 1.75rem;
+}
+
+.site-header.size-tall .header-row {
+  min-height: 6rem;
+}
+
+.site-header.size-tall .site-brand-logo {
+  height: 3rem;
+}
+
+@media (max-width: 860px) {
+  .site-header.size-tall .header-row {
+    min-height: 4.5rem;
+  }
+
+  .site-header.size-tall .site-brand-logo {
+    height: 2.25rem;
+  }
+}
+
+/* Shrinks once the page is scrolled (it only shows on a header that stays at the top). */
+.site-header.is-shrinking .header-row,
+.site-header.is-shrinking .site-brand-logo {
+  transition: min-height 0.2s var(--ease), height 0.2s var(--ease), padding 0.2s var(--ease);
+}
+
+body.header-solid .site-header.is-shrinking .header-row {
+  min-height: 3.5rem;
+  padding-block: 0.25rem;
+}
+
+body.header-solid .site-header.is-shrinking .site-brand-logo {
+  height: 1.75rem;
+}
+
+/* The edge under the header. */
+.site-header.edge-none {
+  border-bottom-color: transparent;
+}
+
+.site-header.edge-shadow {
+  border-bottom-color: transparent;
+  box-shadow: 0 10px 30px -22px rgb(15 23 42 / 0.45);
+}
+
+/* Content as wide as the screen. */
+.site-header.width-wide .site-wrap {
+  width: calc(100% - 2 * var(--gutter));
+  max-width: none;
+}
+
+/* Floating: detached from the edges, with rounded corners; it keeps its place while it sticks or overlays the page. */
+.site-header.is-floating {
+  width: min(100% - 2 * var(--gutter), var(--container));
+  margin: 0.75rem auto 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-l);
+}
+
+.site-header.is-floating.width-wide {
+  width: calc(100% - 2 * var(--gutter));
+}
+
+.site-header.is-floating.edge-none {
+  border-color: transparent;
+}
+
+.site-header.is-floating.edge-shadow {
+  border-color: var(--color-border);
+  box-shadow: var(--shadow-m);
+}
+
+.site-header.is-floating .topbar {
+  border-radius: var(--radius-l) var(--radius-l) 0 0;
+}
+
+.site-header.is-floating .header-bar {
+  border-radius: 0 0 var(--radius-l) var(--radius-l);
+}
+
+.site-header.is-floating[data-sticky="always"] {
+  top: 0.75rem;
+}
+
+body.header-sticky .site-header.is-floating {
+  border-bottom-color: var(--color-border);
+  border-radius: var(--radius-l);
+}
+
+body.header-solid .site-header.is-floating[data-sticky="always"] {
+  border-bottom-color: var(--color-border);
+}
+
+/* Smart: it leaves the screen while the page is read downwards and returns when it is scrolled back up. */
+.site-header[data-smart] {
+  transition: transform 0.25s var(--ease);
+}
+
+.site-header[data-smart].is-tucked {
+  transform: translateY(calc(-100% - 1.5rem));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-header[data-smart] {
+    transition: none;
+  }
+}
+
+/* A background of the palette colour or a dark one: the colours of the header follow, as in a dark section. */
+.site-header.row-contrast,
+.site-header.row-accent {
+  --header-bg: var(--section-bg);
+}
+
+/* Style of the menu links. Soft (the soft background on hover) is the base above. */
+.nav-underline .nav-list-1 > .nav-item > .nav-link:not(.nav-cta) {
+  margin-inline: 0.35rem;
+  padding-inline: 0.2rem;
+  border-radius: 0;
+  box-shadow: inset 0 -2px 0 transparent;
+}
+
+.nav-underline .nav-list-1 > .nav-item > .nav-link:not(.nav-cta):hover,
+.nav-underline .nav-list-1 > .nav-item > .nav-link:not(.nav-cta):focus-visible,
+.nav-underline .nav-list-1 > .nav-item.is-active > .nav-link:not(.nav-cta),
+.nav-underline .nav-list-1 > .nav-item.is-trail > .nav-link:not(.nav-cta) {
+  background: none;
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+.nav-plain .nav-list-1 > .nav-item > .nav-link:not(.nav-cta):hover,
+.nav-plain .nav-list-1 > .nav-item > .nav-link:not(.nav-cta):focus-visible,
+.nav-plain .nav-list-1 > .nav-item.is-active > .nav-link:not(.nav-cta),
+.nav-plain .nav-list-1 > .nav-item.is-trail > .nav-link:not(.nav-cta) {
+  background: none;
+}
+
+.nav-plain .nav-list-1 > .nav-item.is-active > .nav-link:not(.nav-cta) {
+  font-weight: 700;
+}
+
+/* The top bar: a background of its own, a link in its message, and the social icons. */
+.topbar.tone-contrast,
+.topbar.tone-accent {
+  border-bottom-color: var(--color-border);
+  background: var(--section-bg);
+  color: var(--color-muted);
+}
+
+.topbar-text a {
+  text-decoration: underline;
+}
+
+.topbar-icons {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0 0 0 auto;
+  padding: 0;
+  list-style: none;
+}
+
+.topbar-icons a {
+  display: inline-grid;
+  place-items: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 999px;
+  color: inherit;
+}
+
+.topbar-icons a:hover {
+  background: color-mix(in srgb, currentColor 14%, transparent);
+  text-decoration: none;
+}
+
+.topbar .topbar-icons svg {
+  width: 0.95rem;
+  height: 0.95rem;
+  color: inherit;
+  fill: currentColor;
+}
+
 /* Transparent over an opening hero; solid again once the page scrolls under it. */
 .has-transparent-header .site-header {
   position: absolute;
@@ -1581,7 +1838,7 @@ body.header-solid .site-header[data-sticky="always"] {
 body.has-transparent-header.header-solid .site-header[data-sticky="always"],
 body.has-transparent-header.header-sticky .site-header {
   border-bottom-color: var(--color-border);
-  background: color-mix(in srgb, var(--color-bg) 90%, transparent);
+  background: color-mix(in srgb, var(--header-bg) 90%, transparent);
 }
 
 /* Light text over a dark hero until the header turns solid (sticky modes differ in when). */
@@ -2419,6 +2676,12 @@ p.form-error {
   position: relative;
   overflow: hidden;
   margin-top: 0;
+  background: var(--footer-bg, var(--ink));
+  color: var(--color-text);
+}
+
+/* Dark is the base: the light, muted and palette backgrounds (Theme settings > Footer) keep the colours of the page. */
+.site-footer:not(.is-light, .is-muted, .is-accent) {
   color-scheme: dark;
   --color-text: var(--d-text);
   --color-muted: var(--d-muted);
@@ -2427,8 +2690,76 @@ p.form-error {
   --accent: var(--accent-d);
   --accent-hover: var(--accent-d-hover);
   --color-focus: var(--accent-d);
-  background: var(--footer-bg, var(--ink));
+}
+
+.site-footer.is-light {
+  border-top: 1px solid var(--color-border);
+  background: var(--footer-bg, var(--color-bg));
+}
+
+.site-footer.is-muted {
+  border-top: 1px solid var(--color-border);
+  background: var(--footer-bg, var(--color-surface));
+}
+
+.site-footer.is-accent {
+  background: var(--footer-bg, var(--section-bg));
+}
+
+.footer-logo {
+  width: auto;
+  height: 2.25rem;
+}
+
+.footer-cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-s) var(--space-l);
+  margin-bottom: var(--space-xl);
+  padding: var(--space-l);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-l);
+}
+
+.footer-cta-copy {
+  flex: 1 1 18rem;
+}
+
+.footer-cta-copy p {
+  margin: 0;
+}
+
+.footer-cta-title {
+  font-family: var(--font-heading);
+  font-size: var(--step-2);
+  font-weight: var(--heading-weight);
+  letter-spacing: -0.02em;
+}
+
+.footer-cta-text {
+  margin-top: 0.25rem;
+  color: var(--color-muted);
+}
+
+.footer-grid--mega {
+  grid-template-columns: minmax(0, 1.4fr) repeat(auto-fit, minmax(9rem, 1fr));
+}
+
+.footer-legal .footer-list-1,
+.footer-legal > .footer-list {
+  gap: 0.35rem 1.2rem;
+}
+
+.footer-top {
   color: var(--color-text);
+  text-decoration: none;
+}
+
+.footer-top:hover {
+  color: var(--accent);
+  text-decoration: underline;
 }
 
 .site-footer.has-image::before {
@@ -2646,7 +2977,8 @@ p.form-error {
 /* Responsive ----------------------------------------------------------------------- */
 
 @media (max-width: 960px) {
-  .footer-grid {
+  .footer-grid,
+  .footer-grid--mega {
     grid-template-columns: 1fr 1fr;
   }
 
@@ -2693,7 +3025,8 @@ p.form-error {
 }
 
 @media (max-width: 560px) {
-  .footer-grid {
+  .footer-grid,
+  .footer-grid--mega {
     grid-template-columns: 1fr;
   }
 

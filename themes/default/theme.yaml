@@ -8,7 +8,7 @@
 #   - retire a field by marking it `hidden: true` (it keeps its stored value), not by deleting it.
 name: default
 label: FarosCMS Default
-version: 1.16.0
+version: 1.17.0
 description: All-purpose FarosCMS theme.
 
 menu_locations:
@@ -18,6 +18,9 @@ menu_locations:
   footer:
     label: Footer
     default: footer
+  footer_legal:
+    label: Footer bottom links
+    default: legal
 
 # Templates editors can choose per page or post (front matter `template:`). "default" means the
 # normal template hierarchy. Keep keys stable: content refers to them by name.
@@ -153,9 +156,50 @@ settings:
         default: classic
         options:
           classic: 'Classic: logo left, menu right'
+          menu_left: 'Menu left: logo and menu together on the left, tools on the right'
+          split: 'Split: menu left, logo in the middle, tools right'
           centered: 'Centered: logo in the middle, menu below'
-          minimal: 'Minimal: logo and a menu button'
           stacked: 'Stacked: menu in a bar underneath'
+          minimal: 'Minimal: logo and a menu button'
+          minimal_center: 'Minimal centered: menu button left, logo in the middle'
+      shape:
+        type: select
+        label: Shape
+        default: full
+        options:
+          full: Full width bar
+          floating: Floating, detached from the edges
+      width:
+        type: select
+        label: Content width
+        default: contained
+        options:
+          contained: Contained like the page
+          wide: Wide, edge to edge
+      size:
+        type: select
+        label: Height
+        default: regular
+        options:
+          regular: Regular
+          compact: Compact
+          tall: Tall
+      border:
+        type: select
+        label: Edge
+        default: line
+        options:
+          line: A thin line
+          none: Nothing
+          shadow: A soft shadow
+      nav_style:
+        type: select
+        label: Menu links
+        default: soft
+        options:
+          soft: Soft background on hover
+          underline: Underline
+          plain: Plain text
       sticky:
         type: select
         label: Sticky
@@ -163,7 +207,13 @@ settings:
         options:
           on_scroll: Slides in after scrolling
           always: Always at the top
+          smart: 'Hides when scrolling down, returns when scrolling up'
           'off': Scrolls away
+      shrink:
+        type: toggle
+        label: Shrinks once the page is scrolled
+        help: Works with the header that stays at the top.
+        default: false
       row_tone:
         type: select
         label: Header background
@@ -173,6 +223,8 @@ settings:
           default: Page background
           muted: Muted (the soft surface colour)
           soft: Soft tint of the palette colour
+          contrast: Dark
+          accent: Palette colour
       search:
         type: select
         label: Search
@@ -180,6 +232,15 @@ settings:
         options:
           icon: 'An icon that opens the search page'
           field: 'A search box in the header'
+          none: 'No search'
+      show_language:
+        type: toggle
+        label: Language switcher
+        default: true
+      show_mode:
+        type: toggle
+        label: Dark mode switch
+        default: true
       bar_tone:
         type: select
         label: Menu bar background (stacked)
@@ -236,12 +297,37 @@ settings:
         label: Button link
         default: ''
         placeholder: contact
+      cta_style:
+        type: select
+        label: Button style
+        default: solid
+        options:
+          solid: Solid
+          outline: Outline
       topbar_text:
         type: text
         label: Top bar message
         default: ''
         placeholder: Free consultation for new projects this month
         span: full
+      topbar_url:
+        type: link
+        label: Top bar message link
+        default: ''
+        placeholder: contact
+      topbar_tone:
+        type: select
+        label: Top bar background
+        default: muted
+        options:
+          muted: Muted
+          contrast: Dark
+          accent: Palette colour
+      topbar_social:
+        type: toggle
+        label: Social icons in the top bar
+        help: Uses the profiles in Social profiles.
+        default: false
 
   sidebar:
     label: Sidebar card
@@ -426,9 +512,47 @@ settings:
         default: columns
         options:
           columns: Columns
+          mega: 'Mega: a column for each top-level link of the footer menu'
           simple: One row
           bar: 'Bar: copyright on the left, links on the right'
           centered: Centered
+      tone:
+        type: select
+        label: Background
+        default: dark
+        help: A solid colour. A colour or an image below replaces it.
+        options:
+          dark: Dark
+          light: Page background
+          muted: Muted
+          accent: Palette colour
+      brand:
+        type: select
+        label: Brand
+        default: name
+        options:
+          name: Site name
+          logo: Logo
+          none: Nothing
+      show_social:
+        type: toggle
+        label: Social icons
+        default: true
+      show_language:
+        type: toggle
+        label: Language switcher
+        default: false
+      back_to_top:
+        type: toggle
+        label: Back to top link
+        default: false
+      copyright:
+        type: text
+        label: Copyright line
+        default: ''
+        placeholder: © {year} {site}. All rights reserved.
+        help: "{year} and {site} are filled in. Empty uses the theme's own line."
+        span: full
       summary:
         type: textarea
         label: Summary
@@ -447,6 +571,31 @@ settings:
         label: Address
         default: ''
         span: full
+      hours:
+        type: text
+        label: Opening hours
+        default: ''
+        placeholder: Mon–Fri 9:00–17:00
+        span: full
+      cta_heading:
+        type: text
+        label: Call to action heading
+        default: ''
+        placeholder: Ready to start?
+      cta_label:
+        type: text
+        label: Call to action button text
+        default: ''
+        placeholder: Get in touch
+      cta_text:
+        type: text
+        label: Call to action text
+        default: ''
+      cta_url:
+        type: link
+        label: Call to action button link
+        default: ''
+        placeholder: contact
       background:
         type: color
         label: Background color

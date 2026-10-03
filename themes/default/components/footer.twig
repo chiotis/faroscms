@@ -1,13 +1,23 @@
 {#
-  Site footer. Theme settings > Footer: layout (columns, simple, bar, centered), texts, contact details,
-  and background. Social icons come from Theme settings > Social profiles.
+  Site footer. Theme settings > Footer: layout (columns, mega with a column for each top-level link of the footer menu, one
+  row, bar, centered), background (dark, the page's, muted, the palette colour), brand, a call to action above it, texts,
+  contact details, opening hours, the links at the bottom (menu place "Footer bottom links"), social icons, a language
+  switcher and a back to top link. Social icons come from Theme settings > Social profiles.
 #}
 {% import 'components/menu-macros.twig' as menu_macros %}
 {% set footer_menu = theme_menus.footer ?? [] %}
+{% set legal_menu = theme_menus.footer_legal ?? [] %}
 {% set footer = theme_settings.footer|default({}) %}
-{% set layout = footer.layout|default('columns') %}
+{% set layout = footer.layout|default('columns') in ['columns', 'mega', 'simple', 'bar', 'centered'] ? footer.layout|default('columns') : 'columns' %}
+{% set tone = footer.tone|default('dark') in ['light', 'muted', 'accent'] ? footer.tone : 'dark' %}
 {% set footer_bg = footer.background ?? '' %}
 {% set footer_bg_image = footer.background_image ?? '' %}
+{% set brand_mode = footer.brand|default('name') in ['logo', 'none'] ? footer.brand : 'name' %}
+{% set brand_logo = theme_settings.brand.logo|default('') %}
+{% set show_social = footer.show_social is defined ? footer.show_social : true %}
+{% set summary_text = footer.summary ?: site.tagline %}
+{% set cta_href = link_url(footer.cta_url|default(''), prefix) %}
+{% set has_cta = footer.cta_heading|default('') or footer.cta_text|default('') or (footer.cta_label|default('') and cta_href) %}
 {% set menu_markup %}
   {% if footer_menu is not empty %}
     {{ menu_macros.footer_menu(footer_menu, prefix, 1) }}
@@ -19,14 +29,54 @@
     </ul>
   {% endif %}
 {% endset %}
-{% set copyright %}<p class="footer-copy">© {{ "now"|date("Y") }} {{ site.title }}. {{ t('footer.rights') }}</p>{% endset %}
-<footer class="site-footer footer--{{ layout }}{% if footer_bg_image %} has-image{% endif %}"{% if footer_bg or footer_bg_image %} style="{% if footer_bg_image %}--footer-image:url('{{ footer_bg_image|e('html_attr') }}');{% endif %}{% if footer_bg %}--footer-bg:{{ footer_bg|e('html_attr') }};{% endif %}"{% endif %}>
+{% set copyright %}<p class="footer-copy">{% if footer.copyright|default('') %}{{ footer.copyright|replace({'{year}': 'now'|date('Y'), '{site}': site.title}) }}{% else %}© {{ "now"|date("Y") }} {{ site.title }}. {{ t('footer.rights') }}{% endif %}</p>{% endset %}
+{% set brand_markup %}
+  {% if brand_mode == 'logo' and brand_logo %}
+    <p class="footer-brand">{{ image(brand_logo, {alt: site.title, class: 'footer-logo', sizes: '14rem'}) }}</p>
+  {% elseif brand_mode != 'none' %}
+    <p class="footer-brand">{{ site.title }}</p>
+  {% endif %}
+{% endset %}
+{% set legal_markup %}
+  {% if legal_menu is not empty %}
+    <nav class="footer-legal footer-inline-nav" aria-label="{{ t('footer.legal', 'Legal') }}">{{ menu_macros.footer_menu(legal_menu, prefix, 1) }}</nav>
+  {% endif %}
+{% endset %}
+{% set social_markup %}{% if show_social %}{% include 'components/social-links.twig' with {list_class: 'footer-icons'} %}{% endif %}{% endset %}
+{% set extras_markup %}
+  {% if footer.show_language|default(false) %}{% include 'components/language-links.twig' with {links_class: 'lang-switcher'} %}{% endif %}
+  {% if footer.back_to_top|default(false) %}<a class="footer-top" href="#">{{ t('footer.top', 'Back to top') }} <span aria-hidden="true">↑</span></a>{% endif %}
+{% endset %}
+{% set contact_markup %}
+  {% if footer.email or footer.phone or footer.address or footer.hours|default('') %}
+    <div class="footer-contact">
+      <h2 class="footer-title">{{ t('footer.contact', 'Contact') }}</h2>
+      <address class="footer-list">
+        {% if footer.email %}<a class="footer-link" href="mailto:{{ footer.email }}">{{ footer.email }}</a>{% endif %}
+        {% if footer.phone %}<a class="footer-link" href="tel:{{ footer.phone|replace({' ': ''}) }}">{{ footer.phone }}</a>{% endif %}
+        {% if footer.address %}<span>{{ footer.address }}</span>{% endif %}
+        {% if footer.hours|default('') %}<span>{{ footer.hours }}</span>{% endif %}
+      </address>
+    </div>
+  {% endif %}
+{% endset %}
+<footer class="site-footer footer--{{ layout }}{% if tone != 'dark' %} is-{{ tone }}{% endif %}{% if tone == 'accent' %} tone-accent{% endif %}{% if footer_bg_image %} has-image{% endif %}"{% if footer_bg or footer_bg_image %} style="{% if footer_bg_image %}--footer-image:url('{{ footer_bg_image|e('html_attr') }}');{% endif %}{% if footer_bg %}--footer-bg:{{ footer_bg|e('html_attr') }};{% endif %}"{% endif %}>
   <div class="site-wrap site-footer-inner">
+    {% if has_cta %}
+      <div class="footer-cta">
+        <div class="footer-cta-copy">
+          {% if footer.cta_heading|default('') %}<p class="footer-cta-title">{{ footer.cta_heading }}</p>{% endif %}
+          {% if footer.cta_text|default('') %}<p class="footer-cta-text">{{ footer.cta_text }}</p>{% endif %}
+        </div>
+        {% if footer.cta_label|default('') and cta_href %}<a class="btn btn-primary" href="{{ cta_href }}">{{ footer.cta_label }}{{ icon('arrow-right', 'btn-icon') }}</a>{% endif %}
+      </div>
+    {% endif %}
+
     {% if layout == 'columns' %}
       <div class="footer-grid">
         <div>
-          <p class="footer-brand">{{ site.title }}</p>
-          <p class="footer-summary">{{ footer.summary ?: site.tagline }}</p>
+          {{ brand_markup }}
+          <p class="footer-summary">{{ summary_text }}</p>
         </div>
 
         <nav aria-labelledby="footer-company-title">
@@ -34,46 +84,79 @@
           {{ menu_markup }}
         </nav>
 
-        {% if footer.email or footer.phone or footer.address %}
-          <div>
-            <h2 class="footer-title">{{ t('footer.contact', 'Contact') }}</h2>
-            <address class="footer-list">
-              {% if footer.email %}<a class="footer-link" href="mailto:{{ footer.email }}">{{ footer.email }}</a>{% endif %}
-              {% if footer.phone %}<a class="footer-link" href="tel:{{ footer.phone|replace({' ': ''}) }}">{{ footer.phone }}</a>{% endif %}
-              {% if footer.address %}<span>{{ footer.address }}</span>{% endif %}
-            </address>
-          </div>
-        {% endif %}
+        {{ contact_markup }}
       </div>
 
       <div class="footer-bottom">
         {{ copyright }}
-        {% include 'components/social-links.twig' with {list_class: 'footer-icons'} %}
+        {{ legal_markup }}
+        {{ social_markup }}
+        {{ extras_markup }}
+      </div>
+    {% elseif layout == 'mega' %}
+      {# A column for each top-level link that has links under it; the links with none share the first column. #}
+      {% set groups = footer_menu|filter(i => i.children is defined and i.children is not empty) %}
+      {% set singles = footer_menu|filter(i => i.children is not defined or i.children is empty) %}
+      <div class="footer-grid footer-grid--mega">
+        <div>
+          {{ brand_markup }}
+          <p class="footer-summary">{{ summary_text }}</p>
+        </div>
+
+        {% if footer_menu is empty or singles is not empty %}
+          <nav aria-labelledby="footer-company-title">
+            <h2 class="footer-title" id="footer-company-title">{{ t('footer.company', 'Company') }}</h2>
+            {% if footer_menu is empty %}{{ menu_markup }}{% else %}{{ menu_macros.footer_menu(singles, prefix, 1) }}{% endif %}
+          </nav>
+        {% endif %}
+
+        {% for group in groups %}
+          {% set group_label = group.label|default('') ?: (group.label_key|default('') ? t(group.label_key, group.label_key) : '') %}
+          {% if group_label %}
+            <nav aria-labelledby="footer-group-{{ loop.index }}">
+              <h2 class="footer-title" id="footer-group-{{ loop.index }}">{{ group_label }}</h2>
+              {{ menu_macros.footer_menu(group.children, prefix, 2) }}
+            </nav>
+          {% endif %}
+        {% endfor %}
+
+        {{ contact_markup }}
+      </div>
+
+      <div class="footer-bottom">
+        {{ copyright }}
+        {{ legal_markup }}
+        {{ social_markup }}
+        {{ extras_markup }}
       </div>
     {% elseif layout == 'bar' %}
       <div class="footer-barrow">
         {{ copyright }}
+        {{ legal_markup }}
         <nav class="footer-inline-nav" aria-label="{{ t('footer.company', 'Company') }}">{{ menu_markup }}</nav>
-        {% include 'components/social-links.twig' with {list_class: 'footer-icons'} %}
+        {{ social_markup }}
+        {{ extras_markup }}
       </div>
     {% else %}
       {# simple: one row; centered: stacked and centred #}
       <div class="footer-compact">
-        <p class="footer-brand">{{ site.title }}</p>
-        {% if layout == 'centered' and (footer.summary ?: site.tagline) %}
-          <p class="footer-summary">{{ footer.summary ?: site.tagline }}</p>
+        {{ brand_markup }}
+        {% if layout == 'centered' and summary_text %}
+          <p class="footer-summary">{{ summary_text }}</p>
         {% endif %}
         <nav class="footer-inline-nav" aria-label="{{ t('footer.company', 'Company') }}">{{ menu_markup }}</nav>
-        {% include 'components/social-links.twig' with {list_class: 'footer-icons'} %}
+        {{ social_markup }}
       </div>
       <div class="footer-bottom">
         {{ copyright }}
+        {{ legal_markup }}
         {% if footer.email or footer.phone %}
           <p class="footer-inline-contacts">
             {% if footer.email %}<a class="footer-link" href="mailto:{{ footer.email }}">{{ footer.email }}</a>{% endif %}
             {% if footer.phone %}<a class="footer-link" href="tel:{{ footer.phone|replace({' ': ''}) }}">{{ footer.phone }}</a>{% endif %}
           </p>
         {% endif %}
+        {{ extras_markup }}
       </div>
     {% endif %}
   </div>

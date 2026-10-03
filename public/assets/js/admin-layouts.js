@@ -1,7 +1,7 @@
 /*
- * Theme > Single Layouts and Archive Layouts. The controls of a card are plain radio buttons, checkboxes and fields, so the
- * form works without this script; it only keeps the little page of a single layout card and the summary line of every card in
- * step with what is chosen.
+ * Theme > Single Layouts, Archive Layouts, Header and Footer. The controls of a card are plain radio buttons, checkboxes and
+ * fields, so the form works without this script; it only keeps the little page of a single layout card, the picture of the
+ * header and the footer, and the summary line of every card in step with what is chosen.
  */
 (function () {
   'use strict';
@@ -56,6 +56,61 @@
     }
     out.textContent = parts.filter(Boolean).join(' · ');
   }
+
+  /**
+   * The picture of the Header and Footer tabs: data-hf-map says which fields of the form each data-* of the picture comes
+   * from. A radio button or a list gives its value, a box "on" or "off", a text "on" when something is typed in it; several
+   * fields together give "on" when any of them is ({"all": [...]} when all of them are).
+   */
+  function fieldState(root, name) {
+    var els = root.querySelectorAll('[name="' + name + '"]');
+    var state = null;
+    els.forEach(function (el) {
+      if (el.type === 'radio') {
+        if (el.checked) { state = el.value; }
+      } else if (el.type === 'checkbox') {
+        state = el.checked ? 'on' : 'off';
+      } else if (el.tagName === 'SELECT') {
+        state = el.value;
+      } else {
+        state = el.value.trim() !== '' ? 'on' : 'off';
+      }
+    });
+    return state;
+  }
+
+  function updatePreview(root, preview, map) {
+    Object.keys(map).forEach(function (attr) {
+      var names = map[attr];
+      var value;
+      if (!Array.isArray(names)) {
+        // {"all": [...]}: on only when every one of them has something.
+        value = names.all.every(function (name) { return fieldState(root, name) === 'on'; }) ? 'on' : 'off';
+      } else if (names.length > 1) {
+        value = names.some(function (name) { return fieldState(root, name) === 'on'; }) ? 'on' : 'off';
+      } else {
+        value = fieldState(root, names[0]);
+      }
+      if (value === null) { return; }
+      // A box that says "on" or "off" is a switch; for the pictures of lists the value itself is what the style is named after.
+      if (attr === 'transparent' || attr === 'language' || attr === 'mode' || attr === 'phonebar' || attr === 'social' || attr === 'top') {
+        value = value === 'on' ? 'on' : 'off';
+      }
+      preview.setAttribute('data-' + attr, value);
+      if (attr === 'layout') { root.setAttribute('data-layout', value); }
+    });
+  }
+
+  document.querySelectorAll('[data-hf-root]').forEach(function (root) {
+    var preview = root.querySelector('[data-hf-preview]');
+    if (!preview) { return; }
+    var map = {};
+    try { map = JSON.parse(preview.getAttribute('data-hf-map') || '{}'); } catch (e) { map = {}; }
+    var sync = function () { updatePreview(root, preview, map); };
+    root.addEventListener('change', sync);
+    root.addEventListener('input', sync);
+    sync();
+  });
 
   document.querySelectorAll('[data-layout-card]').forEach(function (card) {
     update(card);

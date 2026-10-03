@@ -75,6 +75,8 @@ return [
     'footer.legal_terms' => 'Όροι Χρήσης',
     'footer.legal_cookies' => 'Cookies',
     'footer.rights' => 'Όλα τα δικαιώματα διατηρούνται.',
+    'footer.legal' => 'Νομικά',
+    'footer.top' => 'Επιστροφή στην κορυφή',
     'error.404_title' => 'Η σελίδα δεν βρέθηκε',
     'error.404_message' => 'Η σελίδα που αναζητάτε δεν υπάρχει ή έχει μετακινηθεί.',
     'error.back_home' => 'Επιστροφή στην αρχική',

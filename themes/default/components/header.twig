@@ -1,8 +1,9 @@
 {#
-  Site header. Theme settings > Header chooses the layout (classic, centered, minimal, stacked with a
-  navigation bar underneath), transparency over an opening hero, stickiness, a CTA button, a top bar,
-  a fixed bottom bar on phones, and how the phone menu opens (mobile_menu). The layout sets
-  transparent_header / transparent_on_dark.
+  Site header. Theme settings > Header chooses the layout (classic, menu left, split, centered, stacked with a
+  navigation bar underneath, minimal and minimal centered), its shape (full width or floating), width, height, edge and
+  background, the style of the menu links, stickiness (always, smart, on scroll), a CTA button, a top bar, the search,
+  the language and dark mode switches, a fixed bottom bar on phones, and how the phone menu opens (mobile_menu). The layout
+  sets transparent_header / transparent_on_dark.
 #}
 {% import 'components/menu-macros.twig' as menu_macros %}
 {% set menu = theme_menus.header ?? [] %}
@@ -37,14 +38,28 @@
   {% if contact.email|default('') %}<a href="mailto:{{ contact.email }}">{{ icon('mail') }}<span>{{ contact.email }}</span></a>{% endif %}
 {% endset %}
 
-{% set row_tone = hs.row_tone|default('default') in ['muted', 'soft'] ? hs.row_tone : 'default' %}
-{% set search_field = hs.search|default('icon') == 'field' %}
-<header class="site-header header--{{ layout }}{% if row_tone != 'default' %} row-{{ row_tone }}{% endif %}{% if search_field %} has-search-field{% endif %}{% if transparent_header|default(false) %} is-transparent{% endif %}{% if transparent_on_dark|default(false) %} is-on-dark{% endif %}" data-sticky="{{ hs.sticky|default('on_scroll') }}">
-  {% if hs.topbar_text|default('') or show_topbar_contacts %}
-    <div class="topbar">
+{% set row_tone = hs.row_tone|default('default') in ['muted', 'soft', 'contrast', 'accent'] ? hs.row_tone : 'default' %}
+{% set search_mode = hs.search|default('icon') in ['field', 'none'] ? hs.search : 'icon' %}
+{% set search_field = search_mode == 'field' %}
+{# A switch that is off is false, which Twig's default() would turn back into its default. #}
+{% set show_language = hs.show_language is defined ? hs.show_language : true %}
+{% set show_mode = hs.show_mode is defined ? hs.show_mode : true %}
+{% set shape = hs.shape|default('full') == 'floating' ? 'floating' : 'full' %}
+{% set size = hs.size|default('regular') in ['compact', 'tall'] ? hs.size : 'regular' %}
+{% set edge = hs.border|default('line') in ['none', 'shadow'] ? hs.border : 'line' %}
+{% set nav_style = hs.nav_style|default('soft') in ['underline', 'plain'] ? hs.nav_style : 'soft' %}
+{% set sticky_mode = hs.sticky|default('on_scroll') in ['always', 'smart', 'off'] ? hs.sticky|default('on_scroll') : 'on_scroll' %}
+{% set topbar_tone = hs.topbar_tone|default('muted') in ['contrast', 'accent'] ? hs.topbar_tone : 'muted' %}
+{% set cta_class = hs.cta_style|default('solid') == 'outline' ? 'btn' : 'btn btn-primary' %}
+{% set topbar_href = link_url(hs.topbar_url|default(''), prefix) %}
+{% set show_topbar_social = hs.topbar_social|default(false) and theme_settings.social|default({})|filter(v => v)|length > 0 %}
+<header class="site-header header--{{ layout }} size-{{ size }} edge-{{ edge }} nav-{{ nav_style }}{% if shape == 'floating' %} is-floating{% endif %}{% if hs.width|default('contained') == 'wide' %} width-wide{% endif %}{% if hs.shrink|default(false) %} is-shrinking{% endif %}{% if row_tone != 'default' %} row-{{ row_tone }}{% endif %}{% if row_tone in ['contrast', 'accent'] %} tone-{{ row_tone }}{% endif %}{% if search_field %} has-search-field{% endif %}{% if transparent_header|default(false) %} is-transparent{% endif %}{% if transparent_on_dark|default(false) %} is-on-dark{% endif %}" data-sticky="{{ sticky_mode == 'smart' ? 'always' : sticky_mode }}"{% if sticky_mode == 'smart' %} data-smart{% endif %}>
+  {% if hs.topbar_text|default('') or show_topbar_contacts or show_topbar_social %}
+    <div class="topbar tone-{{ topbar_tone }}">
       <div class="site-wrap topbar-row">
-        {% if hs.topbar_text|default('') %}<p class="topbar-text">{{ hs.topbar_text }}</p>{% endif %}
+        {% if hs.topbar_text|default('') %}<p class="topbar-text">{% if topbar_href %}<a href="{{ topbar_href }}">{{ hs.topbar_text }}</a>{% else %}{{ hs.topbar_text }}{% endif %}</p>{% endif %}
         {% if show_topbar_contacts %}<p class="topbar-contacts">{{ contact_links }}</p>{% endif %}
+        {% if show_topbar_social %}{% include 'components/social-links.twig' with {list_class: 'topbar-icons'} %}{% endif %}
       </div>
     </div>
   {% endif %}
@@ -64,7 +79,7 @@
       {% endif %}
     </a>
 
-    {% if layout == 'classic' %}{{ nav_markup }}{% endif %}
+    {% if layout in ['classic', 'menu_left', 'split'] %}{{ nav_markup }}{% endif %}
 
     {% if layout == 'stacked' and not show_topbar_contacts and (contact.phone|default('') or contact.email|default('')) %}
       <p class="header-contacts">{{ contact_links }}</p>
@@ -78,18 +93,22 @@
           <button class="btn btn-primary" type="submit">{{ t('search.title', 'Search') }}</button>
         </form>
       {% endif %}
-      <a class="search-link" href="{{ url(prefix ~ 'search') }}" aria-label="{{ t('search.title', 'Search') }}">
-        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-          <path d="M10.5 3a7.5 7.5 0 105.01 13.08l4.2 4.2 1.41-1.41-4.2-4.2A7.5 7.5 0 0010.5 3zm0 2a5.5 5.5 0 110 11 5.5 5.5 0 010-11z"></path>
-        </svg>
-      </a>
-      {% include 'components/language-links.twig' with {links_class: 'lang-switcher'} %}
-      <button type="button" class="mode-switch" data-theme-toggle role="switch" aria-checked="false" aria-label="{{ t('theme.switch_mode', 'Dark mode') }}">
-        <span class="mode-switch-track" aria-hidden="true">
-          <span class="mode-switch-thumb"></span>
-        </span>
-      </button>
-      {% if has_cta %}<a class="btn btn-primary header-cta" href="{{ cta_href }}">{{ hs.cta_label }}</a>{% endif %}
+      {% if search_mode != 'none' %}
+        <a class="search-link" href="{{ url(prefix ~ 'search') }}" aria-label="{{ t('search.title', 'Search') }}">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M10.5 3a7.5 7.5 0 105.01 13.08l4.2 4.2 1.41-1.41-4.2-4.2A7.5 7.5 0 0010.5 3zm0 2a5.5 5.5 0 110 11 5.5 5.5 0 010-11z"></path>
+          </svg>
+        </a>
+      {% endif %}
+      {% if show_language %}{% include 'components/language-links.twig' with {links_class: 'lang-switcher'} %}{% endif %}
+      {% if show_mode %}
+        <button type="button" class="mode-switch" data-theme-toggle role="switch" aria-checked="false" aria-label="{{ t('theme.switch_mode', 'Dark mode') }}">
+          <span class="mode-switch-track" aria-hidden="true">
+            <span class="mode-switch-thumb"></span>
+          </span>
+        </button>
+      {% endif %}
+      {% if has_cta %}<a class="{{ cta_class }} header-cta" href="{{ cta_href }}">{{ hs.cta_label }}</a>{% endif %}
     </div>
   </div>
 
@@ -125,8 +144,8 @@
   </nav>
 
   <div class="drawer-tools">
-    <a class="text-link" href="{{ url(prefix ~ 'search') }}">{{ t('search.title', 'Search') }}</a>
-    {% include 'components/language-links.twig' with {links_class: 'lang-switcher'} %}
+    {% if search_mode != 'none' %}<a class="text-link" href="{{ url(prefix ~ 'search') }}">{{ t('search.title', 'Search') }}</a>{% endif %}
+    {% if show_language %}{% include 'components/language-links.twig' with {links_class: 'lang-switcher'} %}{% endif %}
   </div>
 
   <div class="drawer-icons-wrap">
