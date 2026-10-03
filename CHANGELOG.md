@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.40 — 2026-10-03 — The catalogue test follows the title of the books list
+- The check that the list of books exists looked for the English word "Books" on a Greek page; since 0.1.39 the list has its own Greek title and subtitle ("Βιβλία"). The test now looks for them. No change to the product
+
 ## 0.1.39 — 2026-10-03 — Books and custom taxonomies in the starter site
 - **The starter site (the demo a new site can start from, `scripts/use-starter.php`) now shows the newer parts of the CMS.** Six **books** (Pride and Prejudice, Frankenstein, Moby-Dick, Dracula, Alice's Adventures in Wonderland, The Time Machine), each in Greek and English, with a cover made for it (a solid colour, a frame, a simple shape, the title and the author, 800 x 1200), author, publisher, year, a buy link on example.org and genres. Two **taxonomies of the site's own**: *Genre* (for the books, with six terms) and *Project types* (Workplaces, Retail, Hospitality), the three projects filed under it. Their pages are at `/genre/gothic` and `/project-types/workplace`. The Books type has to be on (Admin > Content types)
 - A book is now listed by its cover wherever it appears (the list of books, a category or genre page, the Latest content block): portrait, with the spine. The list of books can still choose square or landscape in Archive Layouts. The books list has its own title and subtitle ("Books", "Our books, with their covers and details") instead of the generic ones
