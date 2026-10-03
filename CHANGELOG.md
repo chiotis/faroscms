@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.38 — 2026-10-03 — A book cover looks like a book
+- **The cover on the book page has the shape of a book cover**: 2 by 3 (a picture of another shape is cropped to fit), with the **spine** along the left edge (a darker band and a fold line), the corners a little rounder on the right, and the **pages showing under the lower right corner** with a soft shadow. Solid colours only, no gradients. The cover keeps working with every placement (left, right, above)
+- **A new option on the book card, Cover style**: *Book* (the new default) or *Flat picture* (the image as uploaded, as before)
+- **In the list of books** the portrait covers (2 by 3, the default shape) have the spine too
+- Theme 1.18.3. Tests: `tests/http/type_options_test.py` and the option unit tests cover the style option and the styles
+
 ## 0.1.37 — 2026-10-03 — Content types bring their own options to Single and Archive Layouts
 - **A content type can declare options for its page and for its list**, and they appear on its card in Theme > Single Layouts and Archive Layouts, next to the standard choices. A type with a page of its own used to show only "This page has a layout of its own"; now its card has what its template can do. A definition (the theme's `content-types/<type>.yaml`, or the site's `custom/content-types/<type>.yaml`, merged option by option) declares `single: {sidebar, header, options}` and `archive_options`, with the kinds of field a card can draw (choices as segments or a list, toggles as chips, numbers, text, colour). A type the site makes gets its options the same way, with no code
 - **Books use it.** The book card now has: **cover** left, right or above; what shows (**author, summary, details, buy button**); a **sidebar** (none, right, left, with contents, related pages and the contact card, drawn by the book page itself); and the **header over the book** (solid, over the opening section, or the site's choice). The book list card has the **shape of the covers**: portrait (now the default, a book cover is not landscape), square or landscape

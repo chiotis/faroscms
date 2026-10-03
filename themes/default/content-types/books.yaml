@@ -47,6 +47,13 @@ single:
         left: { el: Αριστερά, en: Left }
         right: { el: Δεξιά, en: Right }
         top: { el: Από πάνω, en: Above }
+    cover_style:
+      type: select
+      label: { el: 'Στυλ εξωφύλλου', en: Cover style }
+      default: book
+      options:
+        book: { el: Βιβλίο, en: Book }
+        flat: { el: Απλή εικόνα, en: Flat picture }
     show_author: { type: toggle, label: { el: Συγγραφέας, en: Author }, default: true }
     show_summary: { type: toggle, label: { el: Περίληψη, en: Summary }, default: true }
     show_facts: { type: toggle, label: { el: Στοιχεία έκδοσης, en: Details }, default: true }

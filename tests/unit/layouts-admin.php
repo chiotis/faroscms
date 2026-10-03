@@ -99,7 +99,7 @@ check('a taxonomy that does not exist is not made', in_array('nothing', $taxonom
 
 // ---- a page of its own can still have what its content type declares
 $byType = array_column($admin->singleCards(['single_layouts' => ['books' => ['options' => ['cover' => 'right']]]], 'el'), null, 'type');
-check('the book card has a sidebar and a header choice and its options, with what is set', [$byType['books']['sidebar'], $byType['books']['header'], array_keys($byType['books']['options']), $byType['books']['values']['options']['cover']], [true, true, ['cover', 'show_author', 'show_summary', 'show_facts', 'show_buy'], 'right']);
+check('the book card has a sidebar and a header choice and its options, with what is set', [$byType['books']['sidebar'], $byType['books']['header'], array_keys($byType['books']['options']), $byType['books']['values']['options']['cover']], [true, true, ['cover', 'cover_style', 'show_author', 'show_summary', 'show_facts', 'show_buy'], 'right']);
 check('but not the page layout and the title area of a standard page', [$byType['books']['standard'], $byType['books']['layouts']], [false, false]);
 check('a standard page has all its choices and no options it has not declared', [$byType['posts']['sidebar'], $byType['posts']['header'], $byType['posts']['options']], [true, true, []]);
 check('a form has a header choice but no sidebar', [$byType['forms']['sidebar'], $byType['forms']['header']], [false, true]);

@@ -40,7 +40,7 @@ def body_tag(html):
 
 toggle(True)
 os.makedirs('app/content/books', exist_ok=True)
-open('app/content/books/dune.md', 'w', encoding='utf-8').write("---\ntitle: Dune\nstatus: published\nvisible: true\ndate: 1762732800\nexcerpt: A desert planet and a boy.\ncustom_fields:\n  author: Frank Herbert\n  publisher: Ace\n  year: 1965\n  buy_url: https://example.test/buy\n---\n\nIntro.\n\n## Plot\n\nSand.\n\n## Reception\n\nFamous.\n")
+open('app/content/books/dune.md', 'w', encoding='utf-8').write("---\ntitle: Dune\nstatus: published\nvisible: true\ndate: 1762732800\nexcerpt: A desert planet and a boy.\nmain_image: /uploads/media/5e6915a67b9ceec5.jpg\ncustom_fields:\n  author: Frank Herbert\n  publisher: Ace\n  year: 1965\n  buy_url: https://example.test/buy\n---\n\nIntro.\n\n## Plot\n\nSand.\n\n## Reception\n\nFamous.\n")
 open('app/content/books/emma.md', 'w', encoding='utf-8').write("---\ntitle: Emma\nstatus: published\nvisible: true\ndate: 1762732900\ncustom_fields:\n  author: Jane Austen\n---\n\nEmma text.\n")
 
 # ---- the card of a type with a page of its own
@@ -48,6 +48,7 @@ st, _, html = root.get('/admin/theme?tab=single_layouts')
 b = card(html, 'books')
 check('the books card has the options its content type declares', st == 200 and all(('name="single_layouts[books][options][%s]"' % k) in b for k in ('cover', 'show_author', 'show_summary', 'show_facts', 'show_buy')), re.findall(r'name="single_layouts\[books\][^"]*"', b))
 check('the cover is segments: left, right, above', re.findall(r'name="single_layouts\[books\]\[options\]\[cover\]" value="([a-z]+)"', b) == ['left', 'right', 'top'])
+check('and the style of the cover: a book or a flat picture, a book to begin with', re.findall(r'name="single_layouts\[books\]\[options\]\[cover_style\]" value="([a-z]+)"', b) == ['book', 'flat'] and re.search(r'\[cover_style\]" value="book" checked', b) is not None)
 check('and the toggles are chips, all on to begin with', all(re.search(r'name="single_layouts\[books\]\[options\]\[%s\]" value="1" checked' % k, b) for k in ('show_author', 'show_summary', 'show_facts', 'show_buy')))
 check('it has a sidebar and a header choice, as its page draws them', 'name="single_layouts[books][sidebar]"' in b and 'name="single_layouts[books][header]"' in b and 'name="single_layouts[books][toc]"' in b)
 check('but no page layout, no title area (it has its own) and no little preview', 'name="single_layouts[books][template]"' not in b and 'name="single_layouts[books][title]"' not in b and 'data-lc-preview' not in b and 'layout of its own' in b)
@@ -56,11 +57,12 @@ check('a type that declares nothing is as it was: the post card has no options',
 # ---- the page follows the card
 st, _, html = pub.get('/books/dune')
 check('the page of a book is as it always was by default: cover left, everything shown', st == 200 and 'book-hero is-cover-left' in html and 'class="book-author"' in html and 'class="book-lead"' in html and 'Ace' in html and 'class="book-buy"' in html and 'with-sidebar' not in html, st)
+check('the cover is drawn as a book: the shape of a cover, a spine, pages under it', 'book-cover media-frame is-book' in html)
 check('and the header is the site\'s own: solid', 'has-transparent-header' not in body_tag(html))
 st, hdr, _ = save({'single_layouts[books][options][cover]': 'right', 'single_layouts[books][options][show_author]': None, 'single_layouts[books][options][show_buy]': None,
                    'single_layouts[books][sidebar]': 'right', 'single_layouts[books][header]': 'on'})
 check('saving goes back to the tab', st == 302 and 'tab=single_layouts' in (hdr.get('Location') or ''), hdr.get('Location'))
-check('the options are stored under the type', re.search(r'books:.*?options:\s+cover: right\s+show_author: false\s+show_summary: true\s+show_facts: true\s+show_buy: false', stored(), re.S) is not None, stored()[-500:])
+check('the options are stored under the type', re.search(r'books:.*?options:\s+cover: right\s+cover_style: book\s+show_author: false\s+show_summary: true\s+show_facts: true\s+show_buy: false', stored(), re.S) is not None, stored()[-500:])
 st, _, html = pub.get('/books/dune')
 check('the cover moves, what is switched off is gone, what is on stays', 'book-hero is-cover-right' in html and 'class="book-author"' not in html and 'class="book-buy"' not in html and 'class="book-lead"' in html and 'Ace' in html, None)
 check('the book keeps its own layout (it did not become a standard page)', 'book-hero' in html and 'single-hero' not in html)
@@ -69,6 +71,9 @@ check('and the header sits over the opening section', 'has-transparent-header' i
 st, hdr, _ = save({'single_layouts[books][options][cover]': 'top', 'single_layouts[books][sidebar]': 'left', 'single_layouts[books][header]': 'off', 'single_layouts[books][options][show_buy]': '1', 'single_layouts[books][options][show_author]': '1', 'single_layouts[books][options][show_facts]': None})
 st, _, html = pub.get('/books/dune')
 check('another choice: the cover above, the sidebar on the left, a solid header, the facts off', 'is-cover-top' in html and 'with-sidebar is-left' in html and 'has-transparent-header' not in body_tag(html) and 'Ace' not in html and 'class="book-buy"' in html, body_tag(html))
+save({'single_layouts[books][options][cover_style]': 'flat'})
+check('a flat picture is drawn as it is', 'is-book' not in pub.get('/books/dune')[2] and 'book-cover media-frame' in pub.get('/books/dune')[2])
+save({'single_layouts[books][options][cover_style]': 'book'})
 st, _, html = pub.get('/books/emma')
 check('a book with no sidebar content still has its page, and no author line when it has none', st == 200 and 'Jane Austen' in html and 'class="book-buy"' not in html, st)
 st, hdr, _ = save({'single_layouts[books][options][cover]': 'zzz', 'single_layouts[books][sidebar]': 'none', 'single_layouts[books][header]': 'site'})
@@ -81,7 +86,7 @@ m = re.search(r'(?:href)="([^"]*site\.css[^"]*)"', pub.get('/books/dune')[2])
 if m:
     import urllib.parse
     u = urllib.parse.urlparse(m.group(1)); sheet = pub.get(u.path + ('?' + u.query if u.query else ''))[2]
-check('the stylesheet makes room under a transparent header, and has the cover places', '.has-transparent-header .main-shell > .book-hero:first-child' in sheet and '.book-hero.is-cover-right' in sheet and '.book-hero.is-cover-top' in sheet)
+check('the stylesheet makes room under a transparent header, and has the cover places', '.has-transparent-header .main-shell > .book-hero:first-child' in sheet and '.book-hero.is-cover-right' in sheet and '.book-hero.is-cover-top' in sheet and '.book-cover.is-book' in sheet and 'aspect-ratio: 2 / 3' in sheet)
 
 # ---- the entry's own choice of header wins, as for any page
 open('app/content/books/emma.md', 'w', encoding='utf-8').write("---\ntitle: Emma\nstatus: published\nvisible: true\nheader_transparent: on\ncustom_fields:\n  author: Jane Austen\n---\n\nEmma text.\n")

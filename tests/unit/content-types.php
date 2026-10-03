@@ -100,7 +100,7 @@ check('date empty', FieldSchema::clean($f, ''), '');
 
 // ---- options a type declares for its page and its list
 $books = $ct->definition('books', 'en', 'el');
-check('books declare options for their page: where the cover goes and what shows', array_keys($books['single']['options']), ['cover', 'show_author', 'show_summary', 'show_facts', 'show_buy']);
+check('books declare options for their page: where the cover goes and what shows', array_keys($books['single']['options']), ['cover', 'cover_style', 'show_author', 'show_summary', 'show_facts', 'show_buy']);
 check('with their texts chosen for the language and a default each', [$books['single']['options']['cover']['label'], $books['single']['options']['cover']['options']['top'], $books['single']['options']['cover']['default'], $books['single']['options']['show_buy']['default']], ['Cover', 'Above', 'left', true]);
 check('they say the page draws its own sidebar and header', [$books['single']['sidebar'], $books['single']['header']], [true, true]);
 check('and an option for the list, whose value starts at its default', [array_keys($books['archive_options']), $books['archive']['options']], [['cover_shape'], ['cover_shape' => 'portrait']]);
@@ -113,7 +113,7 @@ mkdir($root . '/custom/content-types', 0775, true);
 file_put_contents($root . '/custom/content-types/books.yaml', "single:\n  options:\n    ribbon: {type: toggle, label: Ribbon}\n    cover: {default: right}\n    junk: {type: repeater}\n    hidden_one: {type: toggle, hidden: true}\narchive_options:\n  gap: {type: select, options: {a: A, b: B}, default: b}\narchive:\n  options: {cover_shape: square, gap: a, unknown: x}\n");
 $ct = new ContentTypes(new Theme($root, 'default'));
 $books = $ct->definition('books', 'en', 'el');
-check('a site adds options to a theme type and changes one of the theme\'s, one by one', [array_keys($books['single']['options']), $books['single']['options']['cover']['default'], $books['single']['options']['cover']['label']], [['cover', 'show_author', 'show_summary', 'show_facts', 'show_buy', 'ribbon'], 'right', 'Cover']);
+check('a site adds options to a theme type and changes one of the theme\'s, one by one', [array_keys($books['single']['options']), $books['single']['options']['cover']['default'], $books['single']['options']['cover']['label']], [['cover', 'cover_style', 'show_author', 'show_summary', 'show_facts', 'show_buy', 'ribbon'], 'right', 'Cover']);
 check('a kind of option a card cannot draw, and a hidden one, are left out', [isset($books['single']['options']['junk']), isset($books['single']['options']['hidden_one'])], [false, false]);
 check('the theme\'s flags stay when a site adds options', [$books['single']['sidebar'], $books['single']['header']], [true, true]);
 check('the list options are merged too, and the values the site saved are checked against them', [array_keys($books['archive_options']), $books['archive']['options']], [['cover_shape', 'gap'], ['cover_shape' => 'square', 'gap' => 'a']]);

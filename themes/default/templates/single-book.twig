@@ -17,7 +17,7 @@
   <section class="book-hero is-cover-{{ opt.cover|default('left') }}">
     <div class="site-wrap book-hero-inner{% if not cover %} no-cover{% endif %}">
       {% if cover %}
-        <div class="book-cover media-frame">{{ image(cover, {alt: item.meta.title, priority: true, sizes: '(min-width: 800px) 22rem, 70vw', max_width: 900}) }}</div>
+        <div class="book-cover media-frame{% if (opt.cover_style|default('book')) == 'book' %} is-book{% endif %}">{{ image(cover, {alt: item.meta.title, priority: true, sizes: '(min-width: 800px) 22rem, 70vw', max_width: 900}) }}</div>
       {% endif %}
       <div class="book-summary">
         <h1 class="book-title">{{ item.meta.title }}</h1>
