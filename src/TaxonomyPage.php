@@ -100,6 +100,7 @@ final class TaxonomyPage
             'alternate_urls' => $alternates['urls'],
             'alternate_default' => $alternates['default'],
             'noindex_page' => $page['filtered'],
+            'seo_kind' => 'taxonomy',
         ] + $viewDefaults];
     }
 }

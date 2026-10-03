@@ -1,0 +1,354 @@
+{% extends '@admin/base.twig' %}
+{% set page_heading = 'SEO' %}
+
+{#
+  Admin > SEO: how the site meets search engines and social networks. A tab for each part; a tab saves only its own settings
+  (a plain form, so it works without script; admin-seo.js only draws the previews and counts characters).
+    Overview     the checks of the site and of every published entry
+    Search       the title format, descriptions, content types, pages kept out
+    Social       the share image and the cards of social networks
+    Crawling     visibility, robots.txt, the sitemap
+    Identity     who the site is, for structured data
+    Verification the ownership codes of search engines
+#}
+{% block content %}
+  {% import '@admin/partials/ui.twig' as ui %}
+  {% macro text(label, name, value, placeholder, help, max) %}
+    {% set id = 'seo-' ~ name|replace({'[': '-', ']': ''}) %}
+    <div class="seo-row">
+      <label class="seo-label" for="{{ id }}">{{ label }}</label>
+      <div class="min-w-0">
+        <input id="{{ id }}" type="text" name="{{ name }}" value="{{ value }}" placeholder="{{ placeholder }}" class="lc-input"{% if max %} maxlength="{{ max }}"{% endif %} autocomplete="off">
+        {% if help %}<p class="seo-help">{{ help }}</p>{% endif %}
+      </div>
+    </div>
+  {% endmacro %}
+  {% macro area(label, name, value, placeholder, help, max, rows) %}
+    {% set id = 'seo-' ~ name|replace({'[': '-', ']': ''}) %}
+    <div class="seo-row">
+      <label class="seo-label" for="{{ id }}">{{ label }}</label>
+      <div class="min-w-0">
+        <textarea id="{{ id }}" name="{{ name }}" rows="{{ rows|default(2) }}" placeholder="{{ placeholder }}" class="lc-input"{% if max %} maxlength="{{ max }}"{% endif %}>{{ value }}</textarea>
+        {% if help %}<p class="seo-help">{{ help }}</p>{% endif %}
+      </div>
+    </div>
+  {% endmacro %}
+  {% macro flag(name, label, help, checked) %}
+    <label class="seo-flag"><input type="checkbox" name="{{ name }}" value="1"{% if checked %} checked{% endif %}><span><strong>{{ label }}</strong>{% if help %}<small>{{ help }}</small>{% endif %}</span></label>
+  {% endmacro %}
+  {% macro pick(label, name, options, value) %}
+    <div class="seo-row">
+      <span class="seo-label" id="seo-{{ name }}-label">{{ label }}</span>
+      <div class="lc-seg" role="radiogroup" aria-labelledby="seo-{{ name }}-label">
+        {% for option, text in options %}
+          <label><input type="radio" name="{{ name }}" value="{{ option }}"{% if option ~ '' == value ~ '' %} checked{% endif %}><span>{{ text }}</span></label>
+        {% endfor %}
+      </div>
+    </div>
+  {% endmacro %}
+
+  {% import _self as f %}
+
+  {% set tabs = [['overview', 'Overview'], ['search', 'Search appearance'], ['social', 'Social'], ['crawling', 'Crawling & sitemap'], ['identity', 'Identity & schema'], ['verification', 'Verification']] %}
+  {% set card = 'lc-card rounded-xl border border-slate-200 bg-white' %}
+  {% set card_title = 'px-3 pt-3 text-sm font-semibold text-slate-900' %}
+  {% set card_note = 'm-0 px-3 pt-0.5 text-[11px] leading-4 text-slate-500' %}
+  {% set link = 'font-medium text-blue-700 hover:underline' %}
+
+  <header class="mb-3 flex flex-col gap-2">
+    <p class="text-xs text-slate-500">How the site appears in search results and when its links are shared, what search engines may read, and whether pages are healthy. Each page and post also has its own SEO tab; what you set here is the starting point for all of them.</p>
+    <nav class="flex gap-1 overflow-x-auto border-b border-slate-200" aria-label="SEO sections">
+      {% for t in tabs %}
+        <a href="{{ url('admin/seo' ~ (t[0] == 'overview' ? '' : '?tab=' ~ t[0])) }}" class="shrink-0 border-b-2 px-3 py-2 text-sm font-medium {{ tab == t[0] ? 'border-blue-600 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800' }}"{% if tab == t[0] %} aria-current="page"{% endif %}>{{ t[1] }}</a>
+      {% endfor %}
+    </nav>
+  </header>
+
+  {{ ui.flash(saved ? 'Saved.' : '', 'success') }}
+  {% if error == 'store' %}{{ ui.flash('The system database is not available, so nothing was saved.', 'error') }}{% endif %}
+
+  {% if tab == 'overview' %}
+    {% set attention = 0 %}
+    {% for key, check in audit.checks %}{% if check.level == 'warn' %}{% set attention = attention + check.count %}{% endif %}{% endfor %}
+    <div class="mb-3 grid grid-cols-3 gap-2">
+      {% for stat in [['Published entries', audit.entries], ['Open to search', audit.indexed], ['To improve', attention]] %}
+        <div class="seo-stat{% if loop.last and attention > 0 %} is-warn{% endif %}"><span>{{ stat[0] }}</span><strong>{{ stat[1] }}</strong></div>
+      {% endfor %}
+    </div>
+
+    <div class="grid items-start gap-3 lg:grid-cols-2">
+      <section class="{{ card }}" aria-labelledby="seo-h-site">
+        <h2 id="seo-h-site" class="{{ card_title }}">The site</h2>
+        <ul class="m-0 list-none p-1.5">
+          {% for row in health %}
+            <li class="seo-health">
+              <span class="seo-dot is-{{ row.level }}" aria-hidden="true"></span>
+              <span class="min-w-0 flex-1"><strong>{{ row.label }}</strong><small>{{ row.note }}</small></span>
+              {% if row.tab %}<a class="seo-fix" href="{{ url('admin/seo?tab=' ~ row.tab) }}">{{ row.level == 'ok' ? 'Review' : 'Fix' }}</a>{% elseif row.href %}<a class="seo-fix" href="{{ url(row.href|trim('/')) }}"{% if row.href ends with '.xml' %} target="_blank" rel="noopener"{% endif %}>{{ row.level == 'ok' ? 'Open' : 'Fix' }}</a>{% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      </section>
+
+      <section class="{{ card }}" aria-labelledby="seo-h-pages">
+        <h2 id="seo-h-pages" class="{{ card_title }}">The pages</h2>
+        <p class="{{ card_note }}">Published entries in every language. Drafts and hidden entries are not looked at.</p>
+        <div class="p-1.5">
+          {% for key, check in audit.checks %}
+            {% if check.count > 0 %}
+              <details class="seo-check">
+                <summary>
+                  <span class="seo-dot is-{{ check.level }}" aria-hidden="true"></span>
+                  <span class="min-w-0 flex-1"><strong>{{ check.label }}</strong></span>
+                  <em>{{ check.count }}</em>
+                </summary>
+                <p class="seo-help m-0 px-2 pt-1">{{ check.hint }}</p>
+                <ul class="m-0 list-none px-2 pb-2 pt-1">
+                  {% for item in check.items %}
+                    <li><a href="{{ url('admin/edit?type=' ~ item.type ~ '&slug=' ~ item.slug ~ '&lang=' ~ item.lang) }}">{{ item.title }}</a><small>{{ item.type }} · {{ item.lang }}{% if item.detail %} · {{ item.detail }}{% endif %}</small></li>
+                  {% endfor %}
+                  {% if check.count > check.items|length %}<li class="text-[11px] text-slate-500">and {{ check.count - check.items|length }} more</li>{% endif %}
+                </ul>
+              </details>
+            {% else %}
+              <div class="seo-check is-clear"><span class="seo-dot is-ok" aria-hidden="true"></span><span class="min-w-0 flex-1"><strong>{{ check.label }}</strong></span><em>0</em></div>
+            {% endif %}
+          {% endfor %}
+        </div>
+      </section>
+    </div>
+    <p class="mt-3 text-[11px] text-slate-500">Addresses that changed: <a href="{{ url('admin/redirects') }}" class="{{ link }}">Redirects</a> keeps the old ones working. Broken links inside content are listed in <a href="{{ url('admin/links') }}" class="{{ link }}">Links</a>.</p>
+  {% else %}
+    <form method="post" action="{{ url('admin/seo?tab=' ~ tab) }}" autocomplete="off">
+      {{ csrf_field() }}
+
+      {% if tab == 'search' %}
+        <div class="bp-grid">
+          <div class="space-y-3">
+            <section class="{{ card }} pb-3" aria-labelledby="seo-h-title">
+              <h2 id="seo-h-title" class="{{ card_title }}">Titles</h2>
+              <p class="{{ card_note }}">The title in the tab of the browser and in the search result. A page with a title of its own in its SEO tab keeps it.</p>
+              <div class="space-y-2.5 p-3 pb-0">
+                {{ f.pick('Separator', 'separator', {'|': '|', '-': '-', '–': '–', '—': '—', '·': '·', '•': '•', '»': '»', '/': '/'}, seo.separator) }}
+                {{ f.text('Title format', 'title_format', seo.title_format, default_format, 'Every page, unless its content type has its own below.') }}
+                <div class="seo-row">
+                  <span class="seo-label">Insert</span>
+                  <div class="flex flex-wrap gap-1.5" data-seo-vars>
+                    {% for key, label in variables %}<button type="button" class="seo-var" data-insert="{{ '{' ~ key ~ '}' }}" title="{{ label }}">{{ '{' ~ key ~ '}' }}</button>{% endfor %}
+                  </div>
+                </div>
+                {{ f.text('Home page title', 'home_title', seo.home_title, site_title, 'Empty uses the site name.', 120) }}
+              </div>
+            </section>
+
+            <section class="{{ card }} pb-3" aria-labelledby="seo-h-desc">
+              <h2 id="seo-h-desc" class="{{ card_title }}">Descriptions</h2>
+              <p class="{{ card_note }}">The text under the title in search results. A page without one of its own uses its summary, then the default below.</p>
+              <div class="space-y-2.5 p-3 pb-0">
+                {{ f.area('Home page', 'home_description', seo.home_description, site_tagline, 'Empty uses the default below.', 320) }}
+                {{ f.area('Default', 'default_description', seo.default_description, site_tagline, 'Empty uses the tagline of the site (Settings).', 320) }}
+              </div>
+            </section>
+
+            <section class="{{ card }} pb-3" aria-labelledby="seo-h-types">
+              <h2 id="seo-h-types" class="{{ card_title }}">Content types</h2>
+              <p class="{{ card_note }}">Its own title format, and whether the type is in search results and in the sitemap.</p>
+              <table class="seo-types">
+                <thead><tr><th scope="col">Type</th><th scope="col">Title format</th><th scope="col" title="Asks search engines to skip this type">No index</th><th scope="col">Sitemap</th></tr></thead>
+                <tbody>
+                  {% for t in type_rows %}
+                    <tr>
+                      <th scope="row">{{ t.label }}</th>
+                      <td><input type="text" name="types[{{ t.key }}][title_format]" value="{{ t.title_format }}" placeholder="{{ seo.title_format ?: default_format }}" class="lc-input" aria-label="Title format of {{ t.label }}"></td>
+                      <td><input type="checkbox" name="types[{{ t.key }}][noindex]" value="1"{% if t.noindex %} checked{% endif %} aria-label="Keep {{ t.label }} out of search"></td>
+                      <td><input type="checkbox" name="types[{{ t.key }}][sitemap]" value="1"{% if t.sitemap %} checked{% endif %} aria-label="List {{ t.label }} in the sitemap"></td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </section>
+
+            <section class="{{ card }} pb-3" aria-labelledby="seo-h-out">
+              <h2 id="seo-h-out" class="{{ card_title }}">Pages kept out of search</h2>
+              <div class="space-y-1 p-3 pb-0">
+                {{ f.flag('noindex_search', 'Search results', 'The results of the site\'s own search add nothing to search engines.', seo.noindex_search) }}
+                {{ f.flag('noindex_taxonomies', 'Category and tag pages', 'Leave them out when they only repeat the lists of posts.', seo.noindex_taxonomies) }}
+              </div>
+            </section>
+          </div>
+
+          <aside class="bp-preview" aria-label="Search result preview" data-seo-preview="search" data-site="{{ site_title }}" data-tagline="{{ site_tagline }}" data-url="{{ site_url }}" data-default-format="{{ default_format }}" data-title-limit="{{ limits.title }}" data-desc-limit="{{ limits.description_max }}">
+            <div class="bp-bar">
+              <label class="seo-sample">Preview <select class="lc-input lc-select" data-sp-kind><option value="">Home page</option>{% for t in type_rows %}<option value="{{ t.key }}">{{ t.label }}</option>{% endfor %}</select></label>
+              <label class="seo-sample min-w-0 flex-1" data-sp-sample-wrap>Page title <input type="text" class="lc-input" value="Our services" data-sp-sample></label>
+              <div class="lc-seg" role="radiogroup" aria-label="Device">
+                <label><input type="radio" name="sp-device" value="computer" checked data-sp-device><span>Computer</span></label>
+                <label><input type="radio" name="sp-device" value="phone" data-sp-device><span>Phone</span></label>
+              </div>
+            </div>
+            <div class="seo-serp" data-sp-card>
+              <div class="seo-serp-site"><span class="seo-serp-dot" data-sp-dot>{{ site_title|first|upper }}</span><span><b data-sp-site>{{ site_title }}</b><i data-sp-url></i></span></div>
+              <div class="seo-serp-title" data-sp-title></div>
+              <div class="seo-serp-desc" data-sp-desc></div>
+            </div>
+            <p class="bp-note" data-sp-meter></p>
+            <p class="bp-note">The result is shaped by the search engine: it may cut the title and change the description. This is the usual shape.</p>
+          </aside>
+        </div>
+
+      {% elseif tab == 'social' %}
+        <div class="bp-grid">
+          <div class="space-y-3">
+            <section class="{{ card }} pb-3" aria-labelledby="seo-h-img">
+              <h2 id="seo-h-img" class="{{ card_title }}">Share image</h2>
+              <p class="{{ card_note }}">Shown when a link to a page that has no picture of its own is shared. 1200 × 630 pixels works everywhere.</p>
+              <div class="space-y-2.5 p-3 pb-0">
+                <div class="seo-row">
+                  <label class="seo-label" for="seo-share_image">Default image</label>
+                  <div class="min-w-0">
+                    <input id="seo-share_image" type="text" name="share_image" value="{{ seo.share_image }}" placeholder="{{ brand_share_image ?: '/uploads/media/share.jpg' }}" class="lc-input" data-image-field>
+                    <p class="seo-help">{% if brand_share_image and not seo.share_image %}Empty uses the one of Theme &gt; Branding.{% else %}A page's own picture comes first.{% endif %}</p>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="{{ card }} pb-3" aria-labelledby="seo-h-x">
+              <h2 id="seo-h-x" class="{{ card_title }}">X (Twitter) and Facebook</h2>
+              <div class="space-y-2.5 p-3 pb-0">
+                {{ f.pick('Card on X', 'twitter_card', twitter_cards, seo.twitter_card) }}
+                {{ f.text('X account', 'twitter_site', seo.twitter_site ? '@' ~ seo.twitter_site : '', '@yourbrand', 'The account that publishes the site, without spaces.', 16) }}
+                {{ f.text('Facebook app ID', 'facebook_app_id', seo.facebook_app_id, '', 'Only if you use Facebook Insights for the domain. Numbers only.', 24) }}
+              </div>
+            </section>
+          </div>
+
+          <aside class="bp-preview" aria-label="Shared link preview" data-seo-preview="social" data-site="{{ site_title }}" data-tagline="{{ site_tagline }}" data-url="{{ site_url }}" data-brand-image="{{ brand_share_image }}">
+            <div class="bp-bar">
+              <div class="lc-seg" role="radiogroup" aria-label="Network">
+                <label><input type="radio" name="ss-net" value="facebook" checked><span>Facebook, LinkedIn</span></label>
+                <label><input type="radio" name="ss-net" value="x"><span>X</span></label>
+              </div>
+            </div>
+            <div class="seo-share" data-ss-card>
+              <div class="seo-share-img" data-ss-image><span>No image</span></div>
+              <div class="seo-share-body"><small data-ss-host></small><b data-ss-title>{{ site_title }}</b><span data-ss-desc>{{ site_tagline }}</span></div>
+            </div>
+            <p class="bp-note">A page uses its own title, description and picture (SEO tab of the page); this is how a page without them looks.</p>
+          </aside>
+        </div>
+
+      {% elseif tab == 'crawling' %}
+        <div class="grid items-start gap-3 lg:grid-cols-2">
+          <div class="space-y-3">
+            <section class="{{ card }} pb-3" aria-labelledby="seo-h-vis">
+              <h2 id="seo-h-vis" class="{{ card_title }}">Visibility</h2>
+              <div class="space-y-1 p-3 pb-0">
+                {{ f.flag('discourage', 'Ask search engines to stay out of the whole site', 'Adds a no-index tag to every page, closes robots.txt and removes the sitemap. For a site that is not ready; search engines may still keep what they already have for a while.', seo.discourage) }}
+                {{ f.flag('snippets', 'Allow large previews', 'Lets search engines show a large picture and a long snippet from your pages (max-image-preview). It usually earns more space in results.', seo.snippets) }}
+              </div>
+            </section>
+
+            <section class="{{ card }} pb-3" aria-labelledby="seo-h-robots">
+              <h2 id="seo-h-robots" class="{{ card_title }}">robots.txt</h2>
+              <p class="{{ card_note }}"><a href="{{ url('robots.txt') }}" target="_blank" rel="noopener" class="{{ link }}">/robots.txt</a> is made from these choices.</p>
+              <div class="space-y-2.5 p-3 pb-0">
+                {{ f.area('Paths not to visit', 'robots_disallow', robots_text, "/private/\n/thank-you\n/*.pdf$", 'One per line, starting with /. * and $ work as crawlers understand them. It asks well-behaved crawlers to stay away; it does not hide a page. To keep a page out of results use its No index setting.', 0, 4) }}
+                {{ f.flag('block_ai', 'Block AI crawlers', 'Asks the crawlers that collect text for AI products to stay away: ' ~ ai_crawlers|join(', ') ~ '. Search engines are not affected.', seo.block_ai) }}
+              </div>
+            </section>
+          </div>
+
+          <section class="{{ card }} pb-3" aria-labelledby="seo-h-map">
+            <h2 id="seo-h-map" class="{{ card_title }}">Sitemap</h2>
+            <p class="{{ card_note }}">{% if seo.sitemap.enabled and not seo.discourage %}<a href="{{ url('sitemap.xml') }}" target="_blank" rel="noopener" class="{{ link }}">/sitemap.xml</a> lists every public page in every language.{% else %}There is no sitemap now.{% endif %}</p>
+            <div class="space-y-1 p-3 pb-0">
+              {{ f.flag('sitemap_enabled', 'Publish a sitemap', 'Entries kept out of search, drafts and hidden ones are never listed.', seo.sitemap.enabled) }}
+              {{ f.flag('sitemap_images', 'Include the main picture of each entry', 'Helps pictures appear in image search.', seo.sitemap.images) }}
+              {{ f.flag('sitemap_taxonomies', 'Include category and tag pages', 'Only those that have entries.', seo.sitemap.taxonomies) }}
+            </div>
+            <div class="space-y-2.5 p-3 pb-0">
+              {{ f.area('Leave out', 'sitemap_exclude', sitemap_exclude_text, "/thank-you\n/forms/", 'Addresses that begin like this are not listed. One per line.', 0, 3) }}
+            </div>
+            <p class="m-0 px-3 pt-3 text-[11px] leading-4 text-slate-500">Tell search engines where it is: add it in <a class="{{ link }}" href="https://search.google.com/search-console" target="_blank" rel="noopener">Google Search Console</a> and <a class="{{ link }}" href="https://www.bing.com/webmasters" target="_blank" rel="noopener">Bing Webmaster Tools</a> (the Verification tab has their codes).</p>
+          </section>
+        </div>
+
+      {% elseif tab == 'identity' %}
+        <div class="grid items-start gap-3 lg:grid-cols-2" data-seo-identity>
+          <div class="space-y-3">
+            <section class="{{ card }} pb-3" aria-labelledby="seo-h-who">
+              <h2 id="seo-h-who" class="{{ card_title }}">Who the site is</h2>
+              <p class="{{ card_note }}">Search engines read it from the structured data of every page, and use it for the knowledge panel and the logo in results.</p>
+              <div class="space-y-2.5 p-3 pb-0">
+                {{ f.pick('Type', 'identity_type', identity_types, seo.identity.type) }}
+                {{ f.text('Name', 'identity_name', seo.identity.name, site_title, 'Empty uses the site name.', 120) }}
+                {{ f.text('Other name', 'identity_alternate_name', seo.identity.alternate_name, '', 'A short name or the name in another language.', 120) }}
+                {{ f.area('Description', 'identity_description', seo.identity.description, '', 'One or two sentences.', 320) }}
+              </div>
+              <p class="m-0 px-3 pt-3 text-[11px] leading-4 text-slate-500">The logo comes from <a class="{{ link }}" href="{{ url('admin/theme?tab=branding') }}">Theme &gt; Branding</a>, the phone and email from <a class="{{ link }}" href="{{ url('admin/theme?tab=footer') }}">Footer</a>, and the profiles from <a class="{{ link }}" href="{{ url('admin/theme?tab=social') }}">Social profiles</a>.</p>
+            </section>
+
+            <section class="{{ card }} pb-3" data-when-type="LocalBusiness" aria-labelledby="seo-h-addr">
+              <h2 id="seo-h-addr" class="{{ card_title }}">Business address</h2>
+              <div class="space-y-2.5 p-3 pb-0">
+                {{ f.text('Street', 'identity_street', seo.identity.street, '12 Main Street', '', 160) }}
+                {{ f.text('City', 'identity_locality', seo.identity.locality, '', '', 80) }}
+                {{ f.text('Region', 'identity_region', seo.identity.region, '', '', 80) }}
+                {{ f.text('Postal code', 'identity_postal', seo.identity.postal, '', '', 20) }}
+                {{ f.text('Country', 'identity_country', seo.identity.country, 'GR', 'Two letters.', 2) }}
+                {{ f.text('Price range', 'identity_price_range', seo.identity.price_range, '€€', '', 20) }}
+              </div>
+            </section>
+          </div>
+
+          <section class="{{ card }} pb-3" aria-labelledby="seo-h-rich">
+            <h2 id="seo-h-rich" class="{{ card_title }}">Rich results</h2>
+            <p class="{{ card_note }}">Structured data on the page tells search engines what kind of page it is.</p>
+            <div class="space-y-2.5 p-3 pb-0">
+              {{ f.pick('Posts are', 'article_type', article_types, seo.schema.article_type) }}
+            </div>
+            <div class="space-y-1 p-3 pb-0">
+              {{ f.flag('breadcrumbs', 'Breadcrumbs', 'The path to the page (Home › Posts › Title) can replace the address in results.', seo.schema.breadcrumbs) }}
+              {{ f.flag('search_box', 'Site search', 'Tells search engines the site has a search, so results may offer it.', seo.schema.search_box) }}
+            </div>
+          </section>
+        </div>
+
+      {% elseif tab == 'verification' %}
+        <div class="grid items-start gap-3 lg:grid-cols-2">
+          <section class="{{ card }} pb-3" aria-labelledby="seo-h-ver">
+            <h2 id="seo-h-ver" class="{{ card_title }}">Prove you own the site</h2>
+            <p class="{{ card_note }}">Each service gives a code, or a whole meta tag: paste either. It is added to the head of every page.</p>
+            <div class="space-y-2.5 p-3 pb-0">
+              {% for key, service in verification %}
+                {{ f.text(service[0], 'verify_' ~ key, seo.verification[key], service[1], '', 300) }}
+              {% endfor %}
+            </div>
+          </section>
+          <section class="{{ card }} pb-3" aria-labelledby="seo-h-next">
+            <h2 id="seo-h-next" class="{{ card_title }}">Then</h2>
+            <ul class="m-0 list-none space-y-1.5 p-3 text-xs text-slate-600">
+              <li><strong class="font-medium text-slate-800">Add the sitemap</strong> in each service: <code class="rounded bg-slate-100 px-1 py-0.5">{{ (site_url ?: '') ~ '/sitemap.xml' }}</code></li>
+              <li><strong class="font-medium text-slate-800">Watch the reports</strong> for pages that are not indexed, and for the searches that bring visitors.</li>
+              <li><strong class="font-medium text-slate-800">Fix what moved:</strong> <a href="{{ url('admin/redirects') }}" class="{{ link }}">Redirects</a> shows the addresses that were not found.</li>
+            </ul>
+          </section>
+        </div>
+      {% endif %}
+
+      {% embed '@admin/partials/action-bar.twig' %}
+        {% block leading %}
+          <a href="{{ url('admin/seo?tab=' ~ tab) }}" class="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50">Discard</a>
+        {% endblock %}
+        {% block actions %}
+          <button type="submit" class="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+            Save changes
+          </button>
+        {% endblock %}
+      {% endembed %}
+    </form>
+    <script src="{{ asset('js/admin-seo.js') }}" defer></script>
+  {% endif %}
+{% endblock %}

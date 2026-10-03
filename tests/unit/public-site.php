@@ -46,7 +46,7 @@ check('drafts and hidden entries are not', [in_array('https://s.test/draft', $lo
 check('an entry is listed once however it is found', count($locs) === count(array_unique($locs)), true);
 check('each has the time it last changed', date('c', 1700000100), $entries[array_search('https://s.test/about', $locs, true)]['lastmod']);
 $xml = $sitemap->xml();
-check('the sitemap is XML in the sitemap namespace', [str_starts_with($xml, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">"), str_ends_with($xml, "</urlset>\n"), substr_count($xml, '<url>') === count($entries)], [true, true, true]);
+check('the sitemap is XML in the sitemap namespace', [str_starts_with($xml, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\" xmlns:image=\"http://www.google.com/schemas/sitemap-image/1.1\">"), str_ends_with($xml, "</urlset>\n"), substr_count($xml, '<url>') === count($entries)], [true, true, true]);
 check('and parses', (new DOMDocument())->loadXML($xml) !== false, true);
 check('addresses are escaped', str_contains((new Sitemap($content, fn() => $settings, fn(string $p): string => 'https://s.test/?a=1&b=2'))->xml(), '?a=1&amp;b=2'), true);
 

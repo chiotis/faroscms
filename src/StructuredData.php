@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace FarosCMS;
 
 /**
- * The JSON-LD that describes a page to search engines: the organization, the website and its search, the article
- * or page itself, its breadcrumb, all as one graph, and the script tag that carries it.
+ * The JSON-LD that describes a page to search engines: who the site is (an organization, a local business or a person,
+ * as Admin > SEO > Identity says), the website and its search, the article or page itself, its breadcrumb, all as one
+ * graph, and the script tag that carries it.
  */
 final class StructuredData
 {
@@ -33,19 +34,36 @@ final class StructuredData
         return ($this->themeSettings)();
     }
 
-    /** Organization node shared by every frontend page. @return array<int, array<string, mixed>> */
+    /** @return array<string, mixed> */
+    private function seo(): array
+    {
+        return SeoSettings::from($this->settings());
+    }
+
+    /** The node that says who the site is, shared by every frontend page. @return array<int, array<string, mixed>> */
     public function site(): array
     {
+        $seo = $this->seo();
+        $identity = $seo['identity'];
         $siteUrl = ($this->absoluteUrl)('');
+        $person = $identity['type'] === 'Person';
         $organization = [
-            '@type' => 'Organization',
+            '@type' => $identity['type'],
             '@id' => $siteUrl . '#organization',
-            'name' => (string)($this->settings()['title'] ?? 'FarosCMS'),
+            'name' => $identity['name'] !== '' ? $identity['name'] : (string)($this->settings()['title'] ?? 'FarosCMS'),
             'url' => $siteUrl,
         ];
+        if ($identity['alternate_name'] !== '') {
+            $organization['alternateName'] = $identity['alternate_name'];
+        }
+        if ($identity['description'] !== '') {
+            $organization['description'] = $identity['description'];
+        }
         $logo = trim((string)($this->themeSettings()['brand']['logo'] ?? ''));
         if ($logo !== '') {
-            $organization['logo'] = preg_match('#^https?://#i', $logo) ? $logo : ($this->absoluteUrl)($logo);
+            $address = preg_match('#^https?://#i', $logo) ? $logo : ($this->absoluteUrl)($logo);
+            // A person has a picture, an organization a logo.
+            $organization[$person ? 'image' : 'logo'] = $address;
         }
         $social = is_array($this->themeSettings()['social'] ?? null) ? $this->themeSettings()['social'] : [];
         $sameAs = array_values(array_filter(array_map(static fn($url): string => trim((string)$url), $social), static fn(string $url): bool => $url !== ''));
@@ -55,7 +73,26 @@ final class StructuredData
         // The phone and email of the footer are how people reach the business.
         $phone = trim((string)($this->themeSettings()['footer']['phone'] ?? ''));
         $email = trim((string)($this->themeSettings()['footer']['email'] ?? ''));
-        if ($phone !== '' || $email !== '') {
+        if ($identity['type'] === 'LocalBusiness') {
+            $postal = array_filter([
+                'streetAddress' => $identity['street'], 'addressLocality' => $identity['locality'],
+                'addressRegion' => $identity['region'], 'postalCode' => $identity['postal'], 'addressCountry' => $identity['country'],
+            ], static fn(string $value): bool => $value !== '');
+            if ($postal !== []) {
+                $organization['address'] = ['@type' => 'PostalAddress'] + $postal;
+            }
+            if ($identity['price_range'] !== '') {
+                $organization['priceRange'] = $identity['price_range'];
+            }
+        }
+        if ($person) {
+            if ($email !== '') {
+                $organization['email'] = $email;
+            }
+            if ($phone !== '') {
+                $organization['telephone'] = $phone;
+            }
+        } elseif ($phone !== '' || $email !== '') {
             $contact = ['@type' => 'ContactPoint', 'contactType' => 'customer service'];
             if ($phone !== '') {
                 $contact['telephone'] = $phone;
@@ -64,6 +101,9 @@ final class StructuredData
                 $contact['email'] = $email;
             }
             $organization['contactPoint'] = $contact;
+            if ($identity['type'] === 'LocalBusiness') {
+                $organization += array_filter(['telephone' => $phone, 'email' => $email], static fn(string $value): bool => $value !== '');
+            }
         }
         return [$organization];
     }
@@ -72,25 +112,29 @@ final class StructuredData
     public function forItem(ContentItem $item, string $lang, string $canonical, bool $isHome, string $blockImage = ''): array
     {
         $graph = $this->site();
+        $siteSeo = $this->seo();
         $siteUrl = ($this->absoluteUrl)('');
         $organization = ['@id' => $siteUrl . '#organization'];
         $prefix = ($this->langPrefix)($lang);
         $homeUrl = ($this->absoluteUrl)($prefix);
 
         if ($isHome) {
-            $graph[] = [
+            $webSite = [
                 '@type' => 'WebSite',
                 '@id' => $siteUrl . '#website',
                 'url' => $homeUrl,
                 'name' => (string)($this->settings()['title'] ?? 'FarosCMS'),
                 'inLanguage' => $lang,
                 'publisher' => $organization,
-                'potentialAction' => [
+            ];
+            if ($siteSeo['schema']['search_box']) {
+                $webSite['potentialAction'] = [
                     '@type' => 'SearchAction',
                     'target' => ['@type' => 'EntryPoint', 'urlTemplate' => ($this->absoluteUrl)($prefix . 'search') . '?q={search_term_string}'],
                     'query-input' => 'required name=search_term_string',
-                ],
-            ];
+                ];
+            }
+            $graph[] = $webSite;
             return $graph;
         }
 
@@ -103,7 +147,7 @@ final class StructuredData
         if ($item->type === 'posts' || $item->type === 'projects') {
             // A post is a blog posting, a project an article; both name the author, the dates, and a picture.
             $article = [
-                '@type' => $item->type === 'posts' ? 'BlogPosting' : 'Article',
+                '@type' => $item->type === 'posts' ? $siteSeo['schema']['article_type'] : 'Article',
                 'headline' => mb_substr($title, 0, 110),
                 'mainEntityOfPage' => ['@type' => 'WebPage', '@id' => $canonical],
                 'url' => $canonical,
@@ -123,7 +167,7 @@ final class StructuredData
             }
             // The picture people see when the link is shared: the entry's own, the share image of its SEO settings,
             // the first picture in its blocks, then the site's default.
-            foreach ([$item->meta['main_image'] ?? '', $seo['og_image'] ?? '', $blockImage, $this->themeSettings()['brand']['share_image'] ?? ''] as $candidate) {
+            foreach ([$item->meta['main_image'] ?? '', $seo['og_image'] ?? '', $blockImage, $siteSeo['share_image'], $this->themeSettings()['brand']['share_image'] ?? ''] as $candidate) {
                 $candidate = trim((string)$candidate);
                 if ($candidate !== '') {
                     $article['image'] = $absolute($candidate);
@@ -146,6 +190,9 @@ final class StructuredData
             $graph[] = $page;
         }
 
+        if (!$siteSeo['schema']['breadcrumbs']) {
+            return $graph;
+        }
         $crumbs = [[($this->translate)('nav.main.home', 'Home'), $homeUrl]];
         if ($item->type !== 'pages') {
             $crumbs[] = [($this->translate)('type.' . $item->type, ucfirst($item->type)), ($this->absoluteUrl)($prefix . $item->type)];
