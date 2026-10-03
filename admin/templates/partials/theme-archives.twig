@@ -59,6 +59,7 @@
           {{ c.chip(name ~ '[show_meta]', 'Category and card fields', a.show_meta) }}
         </dd>
       </div>
+      {% if item.options %}{{ c.options(item.options, name ~ '[options]', a.options|default({})) }}{% endif %}
       {% if item.filters is not empty %}
         <div class="lc-row">
           <dt>Filters</dt>

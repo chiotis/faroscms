@@ -1982,7 +1982,7 @@ final class App
 
     private function singleLayouts(): SingleLayouts
     {
-        return $this->singleLayoutsService ??= new SingleLayouts($this->theme);
+        return $this->singleLayoutsService ??= new SingleLayouts($this->theme, $this->contentTypes());
     }
 
     private function layoutsAdmin(): LayoutsAdmin

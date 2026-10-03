@@ -96,4 +96,37 @@ $f = FieldSchema::normalize(['d' => ['type' => 'date']])['d'];
 check('date valid', FieldSchema::clean($f, '2026-12-31'), '2026-12-31');
 check('date invalid', FieldSchema::clean($f, '31/12/2026'), '');
 check('date empty', FieldSchema::clean($f, ''), '');
+
+
+// ---- options a type declares for its page and its list
+$books = $ct->definition('books', 'en', 'el');
+check('books declare options for their page: where the cover goes and what shows', array_keys($books['single']['options']), ['cover', 'show_author', 'show_summary', 'show_facts', 'show_buy']);
+check('with their texts chosen for the language and a default each', [$books['single']['options']['cover']['label'], $books['single']['options']['cover']['options']['top'], $books['single']['options']['cover']['default'], $books['single']['options']['show_buy']['default']], ['Cover', 'Above', 'left', true]);
+check('they say the page draws its own sidebar and header', [$books['single']['sidebar'], $books['single']['header']], [true, true]);
+check('and an option for the list, whose value starts at its default', [array_keys($books['archive_options']), $books['archive']['options']], [['cover_shape'], ['cover_shape' => 'portrait']]);
+$ctGreek = $ct->definition('books', 'el', 'el');
+check('in Greek the labels are Greek', [$ctGreek['single']['options']['cover']['label'], $ctGreek['archive_options']['cover_shape']['options']['portrait']], ['Εξώφυλλο', 'Κάθετα']);
+check('a type with none declares none, and does not draw a sidebar of its own', [$ct->definition('posts')['single'], $ct->definition('posts')['archive_options'], $ct->definition('posts')['archive']['options']], [['sidebar' => false, 'header' => false, 'options' => []], [], []]);
+check('an unknown type is the same', $ct->definition('nothing')['single']['options'], []);
+
+mkdir($root . '/custom/content-types', 0775, true);
+file_put_contents($root . '/custom/content-types/books.yaml', "single:\n  options:\n    ribbon: {type: toggle, label: Ribbon}\n    cover: {default: right}\n    junk: {type: repeater}\n    hidden_one: {type: toggle, hidden: true}\narchive_options:\n  gap: {type: select, options: {a: A, b: B}, default: b}\narchive:\n  options: {cover_shape: square, gap: a, unknown: x}\n");
+$ct = new ContentTypes(new Theme($root, 'default'));
+$books = $ct->definition('books', 'en', 'el');
+check('a site adds options to a theme type and changes one of the theme\'s, one by one', [array_keys($books['single']['options']), $books['single']['options']['cover']['default'], $books['single']['options']['cover']['label']], [['cover', 'show_author', 'show_summary', 'show_facts', 'show_buy', 'ribbon'], 'right', 'Cover']);
+check('a kind of option a card cannot draw, and a hidden one, are left out', [isset($books['single']['options']['junk']), isset($books['single']['options']['hidden_one'])], [false, false]);
+check('the theme\'s flags stay when a site adds options', [$books['single']['sidebar'], $books['single']['header']], [true, true]);
+check('the list options are merged too, and the values the site saved are checked against them', [array_keys($books['archive_options']), $books['archive']['options']], [['cover_shape', 'gap'], ['cover_shape' => 'square', 'gap' => 'a']]);
+
+// what a form says for the list options: only what differs from the theme's is kept
+$declared = $books['archive_options'];
+$defaults = ['layout' => 'cards', 'columns' => '4', 'per_page' => 12, 'order' => 'title_asc', 'show_image' => true, 'show_excerpt' => false, 'show_date' => true, 'show_meta' => false, 'title' => '', 'subtitle' => '', 'taxonomies' => ['categories'], 'options' => ['cover_shape' => 'portrait', 'gap' => 'b']];
+$post = ['layout' => 'cards', 'columns' => '4', 'per_page' => '12', 'order' => 'title_asc', 'show_image' => '1', 'show_date' => '1', 'taxonomies' => ['categories']];
+$kept = ContentTypes::archiveFromInput($post + ['options' => ['cover_shape' => 'square', 'gap' => 'b']], [], $defaults, ['categories'], true, $declared);
+check('an option that differs is kept, one that equals the theme\'s is not', $kept['options'] ?? null, ['cover_shape' => 'square']);
+$kept = ContentTypes::archiveFromInput($post + ['options' => ['cover_shape' => 'portrait', 'gap' => 'b']], ['options' => ['cover_shape' => 'square']], $defaults, ['categories'], true, $declared);
+check('and when nothing differs any more none are written', array_key_exists('options', $kept), false);
+$kept = ContentTypes::archiveFromInput($post + ['options' => ['cover_shape' => 'nonsense', 'gap' => 'a', 'unknown' => 'x']], ['options' => ['cover_shape' => 'square']], $defaults, ['categories'], true, $declared);
+check('a value the option does not offer keeps the last one; one that is not declared is dropped', $kept['options'] ?? null, ['cover_shape' => 'square', 'gap' => 'a']);
+check('a type with nothing declared keeps whatever the file has', ContentTypes::archiveFromInput($post, ['options' => ['x' => 1]], $defaults, ['categories'], true)['options'] ?? null, ['x' => 1]);
 echo $fail === 0 ? "\nALL PASSED\n" : "\n$fail FAILED\n";

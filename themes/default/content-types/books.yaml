@@ -33,6 +33,33 @@ fields:
     label: { el: 'Κείμενο συνδέσμου αγοράς', en: 'Buy link text' }
     placeholder: Buy the book
     show: false
+# Options of the book page and of the list, drawn on the cards of Theme > Single Layouts and Archive Layouts (see ContentTypes.php).
+# The page draws its own sidebar and sits under a transparent header when the card asks for one.
+single:
+  sidebar: true
+  header: true
+  options:
+    cover:
+      type: select
+      label: { el: Εξώφυλλο, en: Cover }
+      default: left
+      options:
+        left: { el: Αριστερά, en: Left }
+        right: { el: Δεξιά, en: Right }
+        top: { el: Από πάνω, en: Above }
+    show_author: { type: toggle, label: { el: Συγγραφέας, en: Author }, default: true }
+    show_summary: { type: toggle, label: { el: Περίληψη, en: Summary }, default: true }
+    show_facts: { type: toggle, label: { el: Στοιχεία έκδοσης, en: Details }, default: true }
+    show_buy: { type: toggle, label: { el: Κουμπί αγοράς, en: Buy button }, default: true }
+archive_options:
+  cover_shape:
+    type: select
+    label: { el: Εξώφυλλα, en: Covers }
+    default: portrait
+    options:
+      portrait: { el: Κάθετα, en: Portrait }
+      square: { el: Τετράγωνα, en: Square }
+      landscape: { el: Οριζόντια, en: Landscape }
 archive:
   layout: cards
   columns: '4'

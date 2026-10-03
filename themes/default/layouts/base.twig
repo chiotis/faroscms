@@ -25,7 +25,8 @@
 {% set wants_transparent = (item is defined and item ? opening.transparent(item, theme_settings)|trim : (header_settings.transparent|default(false) ? '1' : '')) != '' %}
 {# What opens the page under the header: the title area, a Hero block, or a Slider block that runs edge to edge. #}
 {% set slider_opens = page_blocks.opens_with_slider|default(false) %}
-{% set transparent_header = wants_transparent and (title_layout != '' or (lead_block and lead_block.type == 'hero') or slider_opens) %}
+{# A template with an opening section of its own (the book page) sets opens_under_header. #}
+{% set transparent_header = wants_transparent and (title_layout != '' or (lead_block and lead_block.type == 'hero') or slider_opens or opens_under_header|default(false)) %}
 {% if title_layout != '' %}
   {% set title_image = opening.image(item, theme_settings)|trim %}
   {% set transparent_on_dark = transparent_header and (title_layout == 'cover' or (title_layout == 'default' and title_image)) %}

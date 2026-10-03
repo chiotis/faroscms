@@ -45,6 +45,7 @@ final class LayoutsAdmin
             $source = $this->theme->templateSource($template);
             $standard = str_contains($source, 'components/page-header.twig');
             $values = $this->single->forType($type, $themeSettings);
+            $declared = $definition['single'];
             $cards[] = [
                 'type' => $type,
                 'label' => $definition['label'],
@@ -55,6 +56,11 @@ final class LayoutsAdmin
                 'standard' => $standard,
                 'layouts' => $standard && $type !== 'forms',
                 'byline' => $standard && str_contains($source, 'hero_meta'),
+                // A page of its own draws the sidebar and the header over it itself when its content type says so.
+                'sidebar' => ($standard && $type !== 'forms') || $declared['sidebar'],
+                'header' => $standard || $declared['header'],
+                // What the content type declares for its page (a book: where the cover goes, what it shows).
+                'options' => $declared['options'],
                 'template_file' => basename($template),
                 'edit_url' => $type === 'forms' ? '' : 'admin/content-types?type=' . $type,
             ];
@@ -81,6 +87,7 @@ final class LayoutsAdmin
                 'label' => $definition['label'],
                 'count' => ($this->itemCount)($type),
                 'archive' => $definition['archive'],
+                'options' => $definition['archive_options'],
                 'orders' => ContentTypes::orderOptions($definition['fields']),
                 'filters' => $names,
             ];

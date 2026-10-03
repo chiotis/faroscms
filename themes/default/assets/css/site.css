@@ -3218,6 +3218,37 @@ p.form-error {
   margin: 0;
 }
 
+/* Options of the book page (Theme > Single Layouts) and of the list (Archive Layouts). */
+.has-transparent-header .main-shell > .book-hero:first-child {
+  padding-top: calc(var(--header-height, 4.5rem) + clamp(2rem, 1rem + 4vw, 4.5rem));
+}
+
+@media (min-width: 800px) {
+  .book-hero.is-cover-right .book-hero-inner:not(.no-cover) {
+    grid-template-columns: minmax(0, 1fr) minmax(12rem, 22rem);
+  }
+
+  .book-hero.is-cover-right .book-cover {
+    order: 2;
+  }
+}
+
+.book-hero.is-cover-top .book-hero-inner:not(.no-cover) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.book-hero.is-cover-top .book-cover {
+  width: min(100%, 22rem);
+}
+
+.archive-body .block-latest.opt-cover-shape-portrait .latest-item .latest-media {
+  aspect-ratio: 2 / 3;
+}
+
+.archive-body .block-latest.opt-cover-shape-square .latest-item .latest-media {
+  aspect-ratio: 1;
+}
+
 .archive-filters {
   display: flex;
   flex-wrap: wrap;
