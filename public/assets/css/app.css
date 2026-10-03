@@ -387,7 +387,7 @@ body.fb-dragging, body.fb-dragging * { cursor: grabbing !important; user-select:
 .lc-chip input:checked + span::before { content: "\2713" / ""; font-size: .6875rem; }
 .lc-row { display: grid; grid-template-columns: 5.5rem minmax(0, 1fr); align-items: center; gap: .5rem; }
 .lc-row > dt, .lc-row > .lc-label { font-size: .75rem; font-weight: 500; color: #4d5d73; }
-.lc-card[data-template="landing"] [data-hide-landing], .lc-card:not([data-template="sidebar"]) [data-sidebar-only] { display: none; }
+.lc-card[data-template="landing"] [data-hide-landing], .lc-card[data-sidebar="none"] [data-sidebar-only], .lc-card[data-template="landing"] [data-sidebar-only] { display: none; }
 @media (max-width: 420px) { .lc-row { grid-template-columns: minmax(0, 1fr); gap: .25rem; } }
 
 /* The little page of a single layout card: header, title area, body, with the sidebar on its side. */
@@ -405,8 +405,9 @@ body.fb-dragging, body.fb-dragging * { cursor: grabbing !important; user-select:
 .lc-main { display: grid; flex: 1; align-content: start; gap: 3px; }
 .lc-side { display: none; width: 28%; align-content: start; gap: 3px; padding: 2px; border-radius: 2px; background: #e2e8f0; }
 .lc-side i { background: #94a3b8; }
-.lc-preview[data-template="sidebar"] .lc-side { display: grid; }
-.lc-preview[data-template="sidebar"][data-side="left"] .lc-body { flex-direction: row-reverse; }
+.lc-preview[data-sidebar="right"] .lc-side, .lc-preview[data-sidebar="left"] .lc-side { display: grid; }
+.lc-preview[data-sidebar="left"] .lc-body { flex-direction: row-reverse; }
+.lc-preview[data-template="landing"] .lc-side { display: none; }
 .lc-preview[data-template="landing"] .lc-title { display: none; }
 .lc-preview[data-template="landing"] .lc-main i { height: 9px; border-radius: 2px; }
 .lc-preview[data-title="centered"] .lc-title { flex-direction: column; text-align: center; }

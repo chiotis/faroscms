@@ -30,10 +30,10 @@
 
   function update(card) {
     var preview = card.querySelector('[data-lc-preview]');
-    ['template', 'title', 'header', 'side'].forEach(function (key) {
+    ['template', 'title', 'header', 'sidebar'].forEach(function (key) {
       var el = chosen(card, key);
       if (el && preview) { preview.setAttribute('data-' + key, el.value); }
-      if (el && key === 'template') { card.setAttribute('data-template', el.value); }
+      if (el && (key === 'template' || key === 'sidebar')) { card.setAttribute('data-' + key, el.value); }
     });
 
     var out = card.querySelector('[data-lc-summary]');
@@ -49,6 +49,8 @@
       var template = chosen(card, 'template');
       if (template) { parts.push(words(template)); }
       if (!template || template.value !== 'landing') { parts.push(words(chosen(card, 'title'))); }
+      var sidebar = chosen(card, 'sidebar');
+      if (sidebar && sidebar.value !== 'none' && (!template || template.value !== 'landing')) { parts.push('Sidebar ' + words(sidebar).toLowerCase()); }
       var header = chosen(card, 'header');
       if (header && header.value !== 'site') { parts.push(words(header)); }
     }

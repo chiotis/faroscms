@@ -35,7 +35,7 @@ def save(client, overrides, drop=(), tab='single_layouts'):
 st, _, html = root.get('/admin/theme?tab=single_layouts')
 cards = re.findall(r'<article class="lc-card[^>]*aria-labelledby="single-([a-z0-9_-]+)"', html)
 check('the tab has a card for each content type, forms and pages included', st == 200 and set(cards) >= {'pages', 'posts', 'projects', 'forms'}, cards)
-check('the page layout, the title area and the header are chosen on a card', all(('name="single_layouts[posts][%s]"' % k) in html for k in ('template', 'title', 'header', 'side')), '')
+check('the page layout, the title area and the header are chosen on a card', all(('name="single_layouts[posts][%s]"' % k) in html for k in ('template', 'title', 'header', 'sidebar')), '')
 check('the parts are chips', all(('name="single_layouts[posts][%s]"' % k) in html for k in ('image', 'excerpt', 'byline', 'toc', 'related', 'card')), '')
 check('a page has no line above its title to switch', 'name="single_layouts[pages][byline]"' not in html and 'name="single_layouts[posts][byline]"' in html)
 check('a form has no page layout to choose', 'name="single_layouts[forms][template]"' not in html and 'name="single_layouts[forms][title]"' in html)
@@ -49,14 +49,12 @@ st, _, html = root.get('/admin/theme?tab=single_layouts')
 check('a site that chose a title layout before finds it on the card', re.search(r'name="single_layouts\[posts\]\[title\]" value="split" checked', html) is not None)
 
 # ---- saving the cards: the page of a post changes
-post = '/en/posts/rebrand-readiness-guide'
-st, _, plain = pub.get(post)
-if st != 200:
-    post = '/posts/rebrand-readiness-guide'
-    st, _, plain = pub.get(post)
-st, hdr, _ = save(root, {'single_layouts[posts][template]': 'sidebar', 'single_layouts[posts][side]': 'left', 'single_layouts[posts][title]': 'centered', 'single_layouts[posts][header]': 'on'})
+# A post with no template of its own (the fixture posts ask for the sidebar one themselves).
+open('app/content/posts/typed.md', 'w', encoding='utf-8').write("---\ntitle: Typed post\nstatus: published\nvisible: true\ndate: '2026-03-01'\nexcerpt: A summary.\nauthor: Ada\ntags: [design]\n---\n\nIntro.\n\n## First\n\nText.\n\n## Second\n\nText.\n")
+post = '/posts/typed'
+st, hdr, _ = save(root, {'single_layouts[posts][sidebar]': 'left', 'single_layouts[posts][title]': 'centered', 'single_layouts[posts][header]': 'on'})
 check('saving goes back to the same tab', st == 302 and 'saved=1' in (hdr.get('Location') or '') and 'tab=single_layouts' in (hdr.get('Location') or ''), hdr.get('Location'))
-check('what is stored is under the content type', 'single_layouts:' in stored() and re.search(r'posts:\s+title: centered\s+header: \'?on\'?\s+side: left', stored()) is not None, stored()[-700:])
+check('what is stored is under the content type', 'single_layouts:' in stored() and re.search(r'posts:\s+title: centered\s+header: \'?on\'?\s+sidebar: left', stored()) is not None, stored()[-700:])
 st, _, html = pub.get(post)
 check('a post now has the sidebar layout, on the left', st == 200 and 'class="site-wrap with-sidebar is-left"' in html and 'with-sidebar-aside' in html, st)
 check('the title area is the centered one', 'single-hero-centered' in html, '')
@@ -65,12 +63,11 @@ st, _, html = pub.get('/about')
 check('the other content types are not touched', 'with-sidebar' not in html and 'has-transparent-header' not in html and re.search(r'<section class="single-hero[ "]', html) is not None, html[:200])
 
 # the parts of the title area and of the sidebar
-st, hdr, _ = save(root, {'single_layouts[posts][template]': 'sidebar', 'single_layouts[posts][title]': 'default', 'single_layouts[posts][header]': 'site', 'single_layouts[posts][side]': 'right'},
+st, hdr, _ = save(root, {'single_layouts[posts][sidebar]': 'right', 'single_layouts[posts][title]': 'default', 'single_layouts[posts][header]': 'site'},
                   drop=('single_layouts[posts][excerpt]', 'single_layouts[posts][byline]', 'single_layouts[posts][toc]', 'single_layouts[posts][related]'))
 st, _, html = pub.get(post)
 check('a box that is not ticked switches the part off', 'single-hero-subtitle' not in html and 'class="single-hero-meta"' not in html and 'sidebar-toc' not in html, '')
 check('and the sidebar is on the right again', 'class="site-wrap with-sidebar"' in html)
-
 # ---- a single entry can still choose
 open('app/content/posts/own.md', 'w', encoding='utf-8').write("---\ntitle: Own layout\nstatus: published\nvisible: true\ndate: '2026-03-01'\ntemplate: standard\nhero_layout: minimal\n---\n\nText.\n")
 st, _, html = pub.get('/posts/own')
@@ -78,6 +75,13 @@ check('an entry can ask for the plain layout, and its own title area', st == 200
 st, _, html = root.get('/admin/edit?type=posts&slug=own&lang=el')
 check('the editor offers the plain layout and says what the others get', 'value="standard"' in html and 'Like the others (With sidebar)' in html, '')
 os.remove('app/content/posts/own.md')
+
+st, hdr, _ = save(root, {'single_layouts[posts][sidebar]': 'none'})
+st, _, html = pub.get(post)
+check('and a sidebar of none leaves the page without one', st == 200 and 'with-sidebar' not in html and 'sidebar-toc' not in html, st)
+st, _, html = root.get('/admin/theme?tab=single_layouts')
+check('the sidebar is its own row (none, right, left), not a page layout', all(re.search(r'name="single_layouts\[posts\]\[sidebar\]" value="%s"' % v, html) for v in ('none', 'right', 'left')) and 'name="single_layouts[posts][template]" value="sidebar"' not in html and re.search(r'name="single_layouts\[posts\]\[sidebar\]" value="none" checked', html) is not None)
+
 
 # ---- a card that is not submitted leaves its type as it is
 st, hdr, _ = save(root, {}, drop=tuple(k for k in [x[0] for x in theme_form(root)['fields']] if k.startswith('single_layouts[projects]')))

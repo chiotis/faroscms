@@ -18,6 +18,9 @@ final class SingleLayouts
     /** What an entry's `template:` says when it asks for the plain layout although its content type has another. */
     public const PLAIN = 'standard';
 
+    /** The page layout that has a sidebar: a type chooses it with its sidebar setting, not as a page layout of its own. */
+    public const SIDEBAR = 'sidebar';
+
     public function __construct(private Theme $theme)
     {
     }
@@ -59,7 +62,7 @@ final class SingleLayouts
     public function templatesFor(string $type, array $themeSettings): array
     {
         $templates = $this->templates();
-        $chosen = (string)$this->forType($type, $themeSettings)['template'];
+        $chosen = $this->effectiveTemplate($type, $themeSettings);
         if ($chosen === 'default' || !isset($templates[$chosen])) {
             return $templates;
         }
@@ -98,7 +101,29 @@ final class SingleLayouts
         }
         $template = (string)($stored['template'] ?? 'default');
         $values['template'] = isset($this->templates()[$template]) ? $template : 'default';
+        // The sidebar layout is the sidebar choice now: a type that was given the template has its sidebar on the right.
+        if ($values['template'] === self::SIDEBAR) {
+            $values['template'] = 'default';
+            if (isset($fields['sidebar']) && !array_key_exists('sidebar', $stored)) {
+                $values['sidebar'] = 'right';
+            }
+        }
         return $values;
+    }
+
+    /**
+     * The page layout a type's entries get when they choose none: its layout, or the sidebar one when the type has a sidebar
+     * (a landing page has none), or "default" for the theme's normal hierarchy.
+     *
+     * @param array<string, mixed> $themeSettings
+     */
+    public function effectiveTemplate(string $type, array $themeSettings): string
+    {
+        $values = $this->forType($type, $themeSettings);
+        if ($values['template'] === 'default' && ($values['sidebar'] ?? 'none') !== 'none' && isset($this->templates()[self::SIDEBAR])) {
+            return self::SIDEBAR;
+        }
+        return (string)$values['template'];
     }
 
     /**
@@ -127,7 +152,7 @@ final class SingleLayouts
                     }
                 }
                 $template = $card['template'] ?? '';
-                if (is_string($template) && isset($templates[$template])) {
+                if (is_string($template) && isset($templates[$template]) && $template !== self::SIDEBAR) {
                     $values['template'] = $template;
                 }
             }

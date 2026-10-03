@@ -57,11 +57,12 @@ single_layouts:
         site: Site default
         'on': Over the title
         'off': Solid
-    side:
+    sidebar:
       type: select
-      label: Sidebar side
-      default: right
+      label: Sidebar
+      default: none
       options:
+        none: None
         right: Right
         left: Left
     image:

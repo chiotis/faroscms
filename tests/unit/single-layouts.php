@@ -21,14 +21,14 @@ $single = new SingleLayouts($theme);
 
 // ---- what the theme offers
 check('the theme declares single layouts', $single->declared(), true);
-check('with these choices', array_keys($single->fields()), ['title', 'header', 'side', 'image', 'excerpt', 'byline', 'toc', 'related', 'card']);
+check('with these choices', array_keys($single->fields()), ['title', 'header', 'sidebar', 'image', 'excerpt', 'byline', 'toc', 'related', 'card']);
 check('and these page layouts', array_keys($single->templates()), ['default', 'landing', 'sidebar']);
 check('the styles of title area', array_keys($single->titleChoices()), ['default', 'centered', 'split', 'cover', 'minimal']);
 check('and what an entry can ask of the header: not "follow the site"', array_keys($single->headerChoices()), ['on', 'off']);
 
 // ---- a type nobody chose for has the defaults, even one the theme has never heard of
 $none = $single->forType('events', []);
-check('defaults for a new type', $none, ['title' => 'default', 'header' => 'site', 'side' => 'right', 'image' => true, 'excerpt' => true, 'byline' => true, 'toc' => true, 'related' => true, 'card' => true, 'template' => 'default']);
+check('defaults for a new type', $none, ['title' => 'default', 'header' => 'site', 'sidebar' => 'none', 'image' => true, 'excerpt' => true, 'byline' => true, 'toc' => true, 'related' => true, 'card' => true, 'template' => 'default']);
 
 // ---- the older settings are the starting point
 $legacy = [
@@ -42,27 +42,29 @@ check('the header comes from Transparent Header', [$single->forType('pages', $le
 check('contents and related pages from the sidebar settings', [$single->forType('pages', $legacy)['toc'], $single->forType('pages', $legacy)['related']], [false, true]);
 
 // ---- what is stored wins
-$stored = $legacy + ['single_layouts' => ['posts' => ['title' => 'cover', 'header' => 'on', 'side' => 'left', 'toc' => true, 'template' => 'sidebar', 'image' => false]]];
+$stored = $legacy + ['single_layouts' => ['posts' => ['title' => 'cover', 'header' => 'on', 'sidebar' => 'left', 'toc' => true, 'template' => 'default', 'image' => false]]];
 $posts = $single->forType('posts', $stored);
-check('a stored choice wins over the old one', [$posts['title'], $posts['header'], $posts['side'], $posts['toc'], $posts['image']], ['cover', 'on', 'left', true, false]);
-check('and the page layout is kept', $posts['template'], 'sidebar');
+check('a stored choice wins over the old one', [$posts['title'], $posts['header'], $posts['sidebar'], $posts['toc'], $posts['image']], ['cover', 'on', 'left', true, false]);
+check('and the page layout is kept, the sidebar being a choice of its own', [$posts['template'], $single->effectiveTemplate('posts', $stored)], ['default', 'sidebar']);
 check('what the card left out comes from the old settings and the defaults', [$posts['excerpt'], $posts['related']], [true, true]);
 check('another type is not touched', $single->forType('pages', $stored)['title'], 'default');
-$bad = $single->forType('posts', ['single_layouts' => ['posts' => ['title' => 'nonsense', 'side' => 'up', 'template' => 'missing', 'image' => 'yes']]]);
-check('a value the theme does not offer falls back', [$bad['title'], $bad['side'], $bad['template']], ['default', 'right', 'default']);
+$bad = $single->forType('posts', ['single_layouts' => ['posts' => ['title' => 'nonsense', 'sidebar' => 'up', 'template' => 'missing', 'image' => 'yes']]]);
+check('a value the theme does not offer falls back', [$bad['title'], $bad['sidebar'], $bad['template']], ['default', 'none', 'default']);
 
 // ---- a submitted card
 $out = $single->fromInput([
-    'posts' => ['title' => 'centered', 'header' => 'off', 'template' => 'sidebar', 'side' => 'left', 'image' => '1', 'toc' => '1'],
+    'posts' => ['title' => 'centered', 'header' => 'off', 'template' => 'landing', 'sidebar' => 'left', 'image' => '1', 'toc' => '1'],
     'pages' => ['title' => 'nonsense', 'template' => 'missing'],
 ], ['pages', 'posts', 'projects', 'forms'], $legacy);
-check('a card stores its choices', [$out['posts']['title'], $out['posts']['header'], $out['posts']['template'], $out['posts']['side']], ['centered', 'off', 'sidebar', 'left']);
+check('a card stores its choices', [$out['posts']['title'], $out['posts']['header'], $out['posts']['template'], $out['posts']['sidebar']], ['centered', 'off', 'landing', 'left']);
 check('a box that was not ticked is off', [$out['posts']['image'], $out['posts']['excerpt'], $out['posts']['byline'], $out['posts']['toc'], $out['posts']['card']], [true, false, false, true, false]);
 check('a value the theme does not offer keeps what the type has', [$out['pages']['title'], $out['pages']['template']], ['default', 'default']);
 check('a type with no card keeps what it had, and is stored', [$out['projects']['title'], $out['forms']['header']], ['default', 'off']);
 check('every type is in what is stored', array_keys($out), ['pages', 'posts', 'projects', 'forms']);
-check('a page layout the theme does not offer is refused', $single->fromInput(['posts' => ['template' => 'landing']], ['posts'], [])['posts']['template'], 'landing');
-check('an unknown one too', $single->fromInput(['posts' => ['template' => '../x']], ['posts'], [])['posts']['template'], 'default');
+check('a page layout the theme offers is stored', $single->fromInput(['posts' => ['template' => 'landing']], ['posts'], [])['posts']['template'], 'landing');
+check('the sidebar is not a page layout of a card (it has its own choice), and neither is an unknown one', [$single->fromInput(['posts' => ['template' => 'sidebar']], ['posts'], [])['posts']['template'], $single->fromInput(['posts' => ['template' => '../x']], ['posts'], [])['posts']['template']], ['default', 'default']);
+check('a card stores the sidebar, and a landing page has none', [$single->fromInput(['posts' => ['sidebar' => 'right']], ['posts'], [])['posts']['sidebar'], $single->effectiveTemplate('posts', ['single_layouts' => ['posts' => ['sidebar' => 'right', 'template' => 'landing']]])], ['right', 'landing']);
+check('a type that had the sidebar template keeps its sidebar, on the right', [$single->forType('posts', ['single_layouts' => ['posts' => ['template' => 'sidebar']]])['sidebar'], $single->effectiveTemplate('posts', ['single_layouts' => ['posts' => ['template' => 'sidebar']]])], ['right', 'sidebar']);
 
 // ---- the layouts an entry can choose
 check('without a layout of its own for the type, the entry chooses among the theme\'s', array_keys($single->templatesFor('posts', [])), ['default', 'landing', 'sidebar']);

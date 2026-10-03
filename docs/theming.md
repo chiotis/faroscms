@@ -220,10 +220,10 @@ archive:
 
 **Admin > Theme > Single Layouts** has one card for each content type the site has (pages, posts, projects, forms, books, and any type added later gets its card by itself). A card sets, for the page of one entry of that type:
 
-- the **page layout**: one of the page templates below (Standard, Landing, With sidebar, or one a site adds). A type whose own template is not the standard one (the book page, `single-book.twig`) has no page layout and no title area to style; its card says so and links to the fields of the type;
+- the **page layout**: one of the page templates below (Standard, Landing, or one a site adds). A type whose own template is not the standard one (the book page, `single-book.twig`) has no page layout and no title area to style; its card says so and links to the fields of the type;
 - the **title area**: Default, Centered, Split, Cover or Minimal (the same five as the Hero block), and whether the header sits over it (Site default, Over the title, Solid);
 - what shows: the image, the excerpt, and for the templates that print a line above the title (posts and projects) the date and terms;
-- for the sidebar layout: the side (right or left) and which parts it holds: contents, related pages, the contact card. The text of the card is the same for every type, in a panel below the cards.
+- the **sidebar**: None, Right or Left, whatever the page layout (a landing page has none). With one, the page uses the With sidebar template and the card says which parts it holds: contents, related pages, the contact card. The text of the card is the same for every type, in a panel below the cards.
 
 The choices are stored in the theme settings under `single_layouts.<type>`, so a type with no choice yet has the defaults. A site that saved the older Hero Layouts, Transparent Header and Sidebar settings starts from them. A single entry can still choose its own title area and header in its editor (`hero_layout`, `header_transparent`), and its own page layout (`template:`; `standard` asks for the plain one when its type has another).
 
@@ -234,10 +234,10 @@ single_layouts:
   fields:
     title: {type: select, label: Title area, default: default, options: {default: Default, split: Split}}
     header: {type: select, label: Header, default: site, options: {site: Site default, 'on': Over the title, 'off': Solid}}
-    # side, image, excerpt, byline, toc, related, card
+    # sidebar (none, right, left), image, excerpt, byline, toc, related, card
 ```
 
-Templates read the choices of a type with `single_layout(type)` (a map of `template`, `title`, `header`, `side`, `image`, `excerpt`, `byline`, `toc`, `related`, `card`). The page layout and the title area follow from the template files: `usesTitleArea` is true for a template that includes `components/page-header.twig`, and the line above the title is offered for one that passes `hero_meta`.
+Templates read the choices of a type with `single_layout(type)` (a map of `template`, `title`, `header`, `sidebar`, `image`, `excerpt`, `byline`, `toc`, `related`, `card`). The page layout and the title area follow from the template files: `usesTitleArea` is true for a template that includes `components/page-header.twig`, and the line above the title is offered for one that passes `hero_meta`.
 
 **Admin > Theme > Archive Layouts** has one card for each list of entries: every content type that has one, then each taxonomy (the pages of a category or tag). A card sets the layout (seven pictures to choose from), columns, order, items per page, the parts shown, the taxonomies offered as filters, the title and the subtitle; a taxonomy also chooses which content types it lists. Only what differs from the theme's defaults is written, to `custom/content-types/<type>.yaml` and `content/taxonomies/<name>.yaml` as before. The Content types and Taxonomies screens link here instead of holding these settings.
 

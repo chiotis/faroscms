@@ -13,7 +13,8 @@
 {% set header_options = single_fields.header.options %}
 {% set template_options = {} %}
 {% set template_hints = {} %}
-{% for key, template in single_templates %}
+{# The sidebar layout is chosen with the Sidebar row, not as a page layout. #}
+{% for key, template in single_templates|filter((t, k) => k != 'sidebar') %}
   {% set template_options = template_options|merge({(key): template.label}) %}
   {% set template_hints = template_hints|merge({(key): template.description}) %}
 {% endfor %}
@@ -29,11 +30,12 @@
       {% set summary = [] %}
       {% if card.layouts %}{% set summary = summary|merge([template_options[v.template] ?? '']) %}{% endif %}
       {% if card.standard and v.template != 'landing' %}{% set summary = summary|merge([title_options[v.title] ?? '']) %}{% endif %}
+      {% if card.layouts and v.template != 'landing' and v.sidebar != 'none' %}{% set summary = summary|merge(['Sidebar ' ~ (single_fields.sidebar.options[v.sidebar]|lower)]) %}{% endif %}
       {% if card.standard and v.header != 'site' %}{% set summary = summary|merge([header_options[v.header] ?? '']) %}{% endif %}
-      <article class="lc-card rounded-xl border border-slate-200 bg-white" data-layout-card data-template="{{ v.template }}" aria-labelledby="single-{{ card.type }}">
+      <article class="lc-card rounded-xl border border-slate-200 bg-white" data-layout-card data-template="{{ v.template }}" data-sidebar="{{ v.sidebar }}" aria-labelledby="single-{{ card.type }}">
         <header class="flex items-start gap-3 p-3">
           {% if card.standard %}
-            <div class="lc-preview" data-lc-preview data-template="{{ v.template }}" data-title="{{ v.title }}" data-header="{{ v.header }}" data-side="{{ v.side }}" aria-hidden="true">
+            <div class="lc-preview" data-lc-preview data-template="{{ v.template }}" data-title="{{ v.title }}" data-header="{{ v.header }}" data-sidebar="{{ v.sidebar }}" aria-hidden="true">
               <div class="lc-hd"><i></i><i></i><i></i></div>
               <div class="lc-title"><div class="lc-bars"><i></i><i></i></div><div class="lc-img"></div></div>
               <div class="lc-body"><div class="lc-main"><i></i><i></i><i></i></div><div class="lc-side"><i></i><i></i></div></div>
@@ -53,7 +55,7 @@
               <div class="lc-row">
                 <dt>Page layout</dt>
                 <dd class="m-0">
-                  {% if single_templates|length > 4 %}
+                  {% if template_options|length > 4 %}
                     <select name="{{ name }}[template]" aria-label="Page layout" class="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900" data-lc="template">
                       {% for key, label in template_options %}<option value="{{ key }}"{% if key == v.template %} selected{% endif %}>{{ label }}</option>{% endfor %}
                     </select>
@@ -80,10 +82,13 @@
               </dd>
             </div>
             {% if card.layouts %}
-              <div class="lc-row" data-sidebar-only>
+              <div class="lc-row" data-hide-landing>
                 <dt>Sidebar</dt>
+                <dd class="m-0">{{ c.seg(name ~ '[sidebar]', single_fields.sidebar.options, v.sidebar, 'Sidebar', 'sidebar') }}</dd>
+              </div>
+              <div class="lc-row" data-sidebar-only>
+                <dt>In the sidebar</dt>
                 <dd class="m-0 flex flex-wrap items-center gap-1.5">
-                  {{ c.seg(name ~ '[side]', single_fields.side.options, v.side, 'Sidebar side', 'side') }}
                   {{ c.chip(name ~ '[toc]', single_fields.toc.label, v.toc) }}
                   {{ c.chip(name ~ '[related]', single_fields.related.label, v.related) }}
                   {{ c.chip(name ~ '[card]', single_fields.card.label, v.card) }}

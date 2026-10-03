@@ -2985,7 +2985,7 @@ final class App
             return $default;
         }
         // The page layout chosen for the type (Theme > Single Layouts) applies to the types whose own template is the standard one.
-        $chosen = (string)$this->singleLayouts()->forType($item->type, $this->themeSettings)['template'];
+        $chosen = $this->singleLayouts()->effectiveTemplate($item->type, $this->themeSettings);
         if ($chosen !== 'default' && $item->type !== 'forms' && $this->theme->hasTemplate('templates/' . $chosen . '.twig') && $this->theme->usesTitleArea($default)) {
             return 'templates/' . $chosen . '.twig';
         }
