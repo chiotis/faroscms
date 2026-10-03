@@ -89,9 +89,9 @@ check('widths and the header\'s height in pixels become rem; a margin and the sp
     has($css, '--container:87.5rem;'), has($css, '--container-narrow:50rem;'), has($css, '--gutter:clamp(1.25rem, calc('), has($css, '--section-scale:0.5;'), has($css, '--header-min:5rem;'), has($css, '--space-scale:1.2;'),
 ], [true, true, true, true, true, true]);
 check('a side margin under 20 pixels does not grow', has(Branding::css(['design' => ['gutter' => 16]]), '--gutter:1rem;'), true);
-$css = Branding::css(['design' => ['radius' => 10, 'button_radius' => 'square', 'shadows' => 'none']]);
+$css = Branding::css(['design' => ['radius' => 16, 'button_radius' => 'square', 'shadows' => 'none']]);
 check('a corner radius sets the four sizes from one number; buttons and shadows have their own choice', [
-    has($css, '--radius-m:0.625rem;'), has($css, '--radius-s:0.3562rem;'), has($css, '--radius-xl:1.25rem;'), has($css, '--radius-button:0px;'), has($css, '--shadow-s:none;--shadow-m:none;'),
+    has($css, '--radius-m:1rem;'), has($css, '--radius-s:0.57rem;'), has($css, '--radius-xl:2rem;'), has($css, '--radius-button:0px;'), has($css, '--shadow-s:none;--shadow-m:none;'),
 ], [true, true, true, true, true]);
 check('pill and rounded buttons', [has(Branding::css(['design' => ['button_radius' => 'pill']]), '--radius-button:999px;'), has(Branding::css(['design' => ['button_radius' => 'rounded']]), '--radius-button:var(--radius-s);')], [true, true]);
 check('zero is a radius: square corners', has(Branding::css(['design' => ['radius' => 0]]), '--radius-m:0px;'), true);
