@@ -82,7 +82,7 @@ Front matter `template:` accepts `landing`, `landing.twig`, or `templates/landin
 - an invalid submitted value keeps the current value;
 - keys the schema does not declare are kept, so hand-added options still reach templates.
 
-Field types: `text`, `textarea`, `email`, `url`, `image`, `color` (`hex: true` accepts only `#rgb` or `#rrggbb`, stored as `#rrggbb`), `number` (`min`, `max`; `blank: true` lets it be empty, meaning "not set"), `decimal`, `select` (`options`), `toggle`. Common keys: `label`, `help`, `placeholder`, `default`, `span: full`, `hidden: true`.
+Field types: `text`, `textarea`, `email`, `url`, `image`, `video` (a video address: the media library's videos, a YouTube or Vimeo link, or a file elsewhere), `color` (`hex: true` accepts only `#rgb` or `#rrggbb`, stored as `#rrggbb`), `number` (`min`, `max`; `blank: true` lets it be empty, meaning "not set"), `decimal`, `select` (`options`), `toggle`. Common keys: `label`, `help`, `placeholder`, `default`, `span: full`, `hidden: true`, and `when: {other_field: value}` (or a list of values), which makes the block editor show the field only while the other has one of those values.
 
 Colours accept `#hex`, `rgb()/hsl()`, `var(--token)`, or a colour name. URLs and images reject quotes, brackets, whitespace, and non-http schemes. Both end up in inline styles, which is why they are strict.
 
@@ -126,7 +126,7 @@ First block family:
 
 | Block | Variants | Notes |
 |-------|----------|-------|
-| `hero` | split, centered, cover, steps, minimal | Up to 2 buttons and 3 highlights. Opening hero images load first (`fetchpriority=high`). The `steps` layout is the cover layout with up to four numbered steps (title and text) under the buttons (each can link somewhere), like Features > Numbered steps. |
+| `hero` | split, centered, cover, steps, minimal | Up to 2 buttons and 3 highlights. Opening hero images load first (`fetchpriority=high`). The `steps` layout is the cover layout with up to four numbered steps (title and text) under the buttons (each can link somewhere), like Features > Numbered steps. The picture can be a **video** instead of an image (Picture > Video): a file from the media library (`.mp4`, `.webm`), a file on another site, or a YouTube or Vimeo link. It plays silently, in a loop, behind the text of the cover and steps layouts and in the frame of the split and centered ones, with a pause button, a still image under it (and when a visitor's device asks for less motion or less data, where it starts only on request), and it rests while off screen. YouTube and Vimeo are put in a frame by the page's script after it has loaded (YouTube through youtube-nocookie.com, Vimeo in its background mode), so a page asks nothing of them until then; a video file is a plain `<video>`. |
 | `content` | narrow, wide | The item's Markdown body. |
 | `text` | default, split, lead | Markdown text with optional buttons. |
 | `text-image` | image-right, image-left | Bullet lists show check marks. Image shape: landscape, portrait, square. |

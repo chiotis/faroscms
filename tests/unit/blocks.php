@@ -60,7 +60,21 @@ check('video non-video file', BlockRenderer::videoInfo('/uploads/media/a.docx'),
 
 // Round trip of the showcase page
 $showcase = $root . '/tests/fixtures/content/pages/blocks.md';
-if (!is_file($showcase)) { echo "skip showcase round trip (no fixture)\n"; echo $fail === 0 ? "\nALL PASSED\n" : "\n$fail FAILED\n"; exit($fail ? 1 : 0); }
+if (!is_file($showcase)) { echo "skip showcase round trip (no fixture)\n"; // ---- a video behind the hero
+$fields = $registry->get('hero')['fields'];
+check('hero has a choice of picture and a video with its still image', [isset($fields['background']), $fields['video']['type'], $fields['video_poster']['type'], array_keys($fields['background']['options'])], [true, 'video', 'image', ['image', 'video']]);
+check('and they show by "when" of the picture', [$fields['image']['when'], $fields['video']['when'], $fields['video_poster']['when']], [['background' => ['image']], ['background' => ['video']], ['background' => ['video']]]);
+check('a hero without the choice is an image hero', FieldSchema::defaults($fields)['background'], 'image');
+check('a video field is kept as a safe address, empty or not', [FieldSchema::clean($fields['video'], ' /uploads/media/a.mp4 '), FieldSchema::clean($fields['video'], 'javascript:alert(1)'), FieldSchema::clean($fields['video'], 'https://x.test/a b.mp4')], ['/uploads/media/a.mp4', '', '']);
+check('a field says when it matters: a map of other fields to values, tidied', FieldSchema::normalize(['a' => ['type' => 'text', 'when' => ['b' => 'x', 'c' => ['y', 'z'], 'Bad Key' => 'q', 'd' => '']]])['a']['when'], ['b' => ['x'], 'c' => ['y', 'z']]);
+check('and has none by default', isset(FieldSchema::normalize(['a' => ['type' => 'text']])['a']['when']), false);
+check('a file behind the hero', BlockRenderer::backgroundVideo('/uploads/media/loop.mp4'), ['provider' => 'file', 'src' => '/uploads/media/loop.mp4', 'type' => 'video/mp4']);
+check('on another site, other types', [BlockRenderer::backgroundVideo('https://cdn.test/a.webm?x=1')['type'], BlockRenderer::backgroundVideo('https://cdn.test/a.m4v')['type'], BlockRenderer::backgroundVideo('https://cdn.test/a.ogv')['type']], ['video/webm', 'video/mp4', 'video/ogg']);
+check('YouTube in the privacy host, silent, no controls, in a loop', BlockRenderer::backgroundVideo('https://youtu.be/dQw4w9WgXcQ'), ['provider' => 'youtube', 'type' => '', 'src' => 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?autoplay=1&mute=1&controls=0&loop=1&playlist=dQw4w9WgXcQ&playsinline=1&rel=0&disablekb=1&modestbranding=1&iv_load_policy=3']);
+check('a YouTube link of any kind', array_map(fn($u) => BlockRenderer::backgroundVideo($u)['provider'] ?? null, ['https://www.youtube.com/watch?v=dQw4w9WgXcQ', 'https://www.youtube.com/shorts/dQw4w9WgXcQ', 'https://m.youtube.com/embed/dQw4w9WgXcQ']), ['youtube', 'youtube', 'youtube']);
+check('Vimeo in background mode', str_contains(BlockRenderer::backgroundVideo('https://vimeo.com/76979871')['src'], 'player.vimeo.com/video/76979871?dnt=1&background=1&autoplay=1&loop=1&muted=1'), true);
+check('what is not a video, or not safe, is refused', [BlockRenderer::backgroundVideo(''), BlockRenderer::backgroundVideo('https://example.test/page'), BlockRenderer::backgroundVideo('javascript:alert(1)'), BlockRenderer::backgroundVideo('https://evil.test/embed/dQw4w9WgXcQ'), BlockRenderer::backgroundVideo('https://www.youtube.com/watch?v=short')], [null, null, null, null, null]);
+echo $fail === 0 ? "\nALL PASSED\n" : "\n$fail FAILED\n"; exit($fail ? 1 : 0); }
 $md = file_get_contents($showcase);
 preg_match('/^---\n(.*?)\n---/s', $md, $m);
 $blocks = Yaml::parse($m[1])['blocks'];

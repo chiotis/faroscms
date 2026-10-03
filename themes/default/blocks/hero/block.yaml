@@ -1,5 +1,5 @@
 label: Hero
-description: Opening section with a strong heading, supporting text, buttons, and an optional image. The steps layout adds up to four numbered steps over the image. As the first block of a page it becomes the page title (h1).
+description: Opening section with a strong heading, supporting text, buttons, and an image or a video behind it. The steps layout adds up to four numbered steps over the image. As the first block of a page it becomes the page title (h1).
 variants:
   split: Text and image side by side
   centered: Centered text, wide image below
@@ -44,10 +44,30 @@ fields:
       text: { type: textarea, label: Text }
       link: { type: link, label: Link }
       link_label: { type: text, label: Link text, placeholder: Learn more }
+  background:
+    type: select
+    label: Picture
+    default: image
+    options:
+      image: Image
+      video: Video that plays behind the text
   image:
     type: image
     label: Image
+    when: { background: image }
   image_alt:
     type: text
     label: Image description
     help: What the image shows, for people who cannot see it. Leave empty if it is purely decorative.
+    when: { background: image }
+  video:
+    type: video
+    label: Video
+    placeholder: https://www.youtube.com/watch?v=…
+    help: 'Choose a video from the media library (.mp4 or .webm), or paste a YouTube or Vimeo link, or the address of a video file elsewhere. It plays silently, in a loop, with a pause button. A YouTube or Vimeo video is loaded from them when the page opens.'
+    when: { background: video }
+  video_poster:
+    type: image
+    label: Still image
+    help: Shown while the video loads, when the visitor has asked their device for less motion, and under a video that is paused. Recommended, and it is the share image of the page when it has none.
+    when: { background: video }

@@ -93,6 +93,8 @@ return [
     'gallery.previous' => 'Προηγούμενη εικόνα',
     'gallery.next' => 'Επόμενη εικόνα',
     'gallery.open' => 'Άνοιγμα σε μεγαλύτερο μέγεθος',
+    'hero.pause_video' => 'Παύση του βίντεο φόντου',
+    'hero.play_video' => 'Αναπαραγωγή του βίντεο φόντου',
     'video.play' => 'Αναπαραγωγή βίντεο',
     'video.close' => 'Κλείσιμο βίντεο',
     'video.default_title' => 'Βίντεο',

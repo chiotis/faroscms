@@ -93,6 +93,8 @@ return [
     'gallery.previous' => 'Previous image',
     'gallery.next' => 'Next image',
     'gallery.open' => 'Open larger image',
+    'hero.pause_video' => 'Pause the background video',
+    'hero.play_video' => 'Play the background video',
     'video.play' => 'Play video',
     'video.close' => 'Close video',
     'video.default_title' => 'Video',

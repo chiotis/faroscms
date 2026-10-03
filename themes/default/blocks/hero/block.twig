@@ -1,15 +1,38 @@
 {% import 'components/ui.twig' as ui %}
+{# The picture behind the text: a video when the block asks for one the site can play (block._video), otherwise its image. #}
+{% macro video(video, poster, sizes, priority) %}
+  <div class="hero-video" data-hero-video data-provider="{{ video.provider }}"{% if video.provider != 'file' %} data-embed="{{ video.src }}"{% endif %}
+       data-label-pause="{{ t('hero.pause_video', 'Pause the background video') }}" data-label-play="{{ t('hero.play_video', 'Play the background video') }}">
+    {% if poster %}{{ image(poster, {alt: '', sizes: sizes, priority: priority}) }}{% endif %}
+    {% if video.provider == 'file' %}
+      <video muted loop playsinline autoplay preload="metadata" aria-hidden="true" tabindex="-1"><source src="{{ video.src }}"{% if video.type %} type="{{ video.type }}"{% endif %}></video>
+    {% endif %}
+  </div>
+{% endmacro %}
+{% macro toggle(in_cover) %}
+  <button type="button" class="hero-video-toggle{{ in_cover ? ' is-in-cover' : '' }}" data-hero-video-toggle aria-pressed="false" aria-label="{{ t('hero.pause_video', 'Pause the background video') }}" hidden>
+    {{ icon('pause', 'i-pause') }}{{ icon('play', 'i-play') }}
+  </button>
+{% endmacro %}
+{% import _self as hero %}
 {% set variant = block.variant %}
-{% set has_image = block.image and variant != 'minimal' %}
+{% set video = block._video|default(null) %}
+{% set has_video = video is not null and variant != 'minimal' %}
+{% set has_image = block.image and variant != 'minimal' and not has_video %}
+{% set has_picture = has_image or has_video %}
 {# The opening hero image is the largest thing on screen: load it first, never lazily. #}
 {% set is_cover = variant == 'cover' or variant == 'steps' %}
 {% set media_sizes = variant == 'split' ? '(min-width: 960px) 46vw, 92vw' : (is_cover ? '100vw' : '(min-width: 1280px) 1216px, 92vw') %}
-{% if is_cover and has_image %}
+{% if is_cover and has_picture %}
   <div class="hero-cover-media">
-    {{ image(block.image, {alt: block.image_alt, sizes: media_sizes, priority: block_first}) }}
+    {% if has_video %}
+      {{ hero.video(video, block.video_poster, media_sizes, block_first) }}
+    {% else %}
+      {{ image(block.image, {alt: block.image_alt, sizes: media_sizes, priority: block_first}) }}
+    {% endif %}
   </div>
 {% endif %}
-<div class="container hero-inner{% if not has_image %} no-media{% endif %}">
+<div class="container hero-inner{% if not has_picture %} no-media{% endif %}">
   <div class="hero-content">
     {% if block.eyebrow %}<p class="eyebrow">{{ block.eyebrow }}</p>{% endif %}
     <{{ heading_tag }} class="hero-title" id="{{ block_uid }}-title">{{ block.heading }}</{{ heading_tag }}>
@@ -42,9 +65,15 @@
       {% endfor %}
     </ol>
   {% endif %}
-  {% if has_image and not is_cover %}
+  {% if has_picture and not is_cover %}
     <div class="hero-media media-frame">
-      {{ image(block.image, {alt: block.image_alt, sizes: media_sizes, priority: block_first}) }}
+      {% if has_video %}
+        {{ hero.video(video, block.video_poster, media_sizes, block_first) }}
+        {{ hero.toggle(false) }}
+      {% else %}
+        {{ image(block.image, {alt: block.image_alt, sizes: media_sizes, priority: block_first}) }}
+      {% endif %}
     </div>
   {% endif %}
 </div>
+{% if is_cover and has_video %}{{ hero.toggle(true) }}{% endif %}

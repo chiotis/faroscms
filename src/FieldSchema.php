@@ -13,7 +13,7 @@ namespace FarosCMS;
  */
 final class FieldSchema
 {
-    public const TYPES = ['text', 'textarea', 'markdown', 'email', 'url', 'link', 'image', 'color', 'number', 'decimal', 'date', 'select', 'icon', 'toggle', 'repeater'];
+    public const TYPES = ['text', 'textarea', 'markdown', 'email', 'url', 'link', 'image', 'video', 'color', 'number', 'decimal', 'date', 'select', 'icon', 'toggle', 'repeater'];
 
     /**
      * @param array<string, mixed> $definitions raw map of key => definition
@@ -41,6 +41,17 @@ final class FieldSchema
                 'hidden' => ($definition['hidden'] ?? false) === true,
                 'required' => ($definition['required'] ?? false) === true,
             ];
+            // A field that matters only while another has a value: `when: {background: video}` (or a list of values).
+            $when = [];
+            foreach (is_array($definition['when'] ?? null) ? $definition['when'] : [] as $other => $wanted) {
+                $wanted = array_values(array_filter(array_map('strval', is_array($wanted) ? $wanted : [$wanted]), static fn(string $w): bool => $w !== ''));
+                if (preg_match('/^[a-z][a-z0-9_]*$/', (string)$other) && $wanted !== []) {
+                    $when[(string)$other] = $wanted;
+                }
+            }
+            if ($when !== []) {
+                $field['when'] = $when;
+            }
             // An icon is a choice from the theme's icon set; the set itself is filled in where the theme is known.
             if ($type === 'select' || $type === 'icon') {
                 $field['options'] = self::normalizeOptions($definition['options'] ?? []);
@@ -249,6 +260,7 @@ final class FieldSchema
                 return $value === '' || self::isSafeColor($value) ? $value : $fallback;
 
             case 'image':
+            case 'video':
             case 'url':
                 $value = is_scalar($value) ? trim((string)$value) : '';
                 return $value === '' || self::isSafeUrl($value) ? $value : $fallback;
