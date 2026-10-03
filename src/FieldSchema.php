@@ -53,6 +53,14 @@ final class FieldSchema
                 $field['min'] = isset($definition['min']) && is_numeric($definition['min']) ? (int)$definition['min'] : null;
                 $field['max'] = isset($definition['max']) && is_numeric($definition['max']) ? (int)$definition['max'] : null;
             }
+            // A number that may be left empty ("the theme's own size"), and a colour that must be a hex code (a theme works
+            // with it, for example to pick a readable text colour).
+            if ($type === 'number') {
+                $field['blank'] = ($definition['blank'] ?? false) === true;
+            }
+            if ($type === 'color') {
+                $field['hex'] = ($definition['hex'] ?? false) === true;
+            }
             if ($type === 'repeater') {
                 // Repeater items are flat: nested repeaters are not supported.
                 $subDefinitions = is_array($definition['fields'] ?? null) ? $definition['fields'] : [];
@@ -182,6 +190,9 @@ final class FieldSchema
                 return is_bool($value) ? $value : self::isTruthy($value);
 
             case 'number':
+                if (($field['blank'] ?? false) && is_string($value) && trim($value) === '') {
+                    return '';
+                }
                 if (!is_numeric($value)) {
                     return $fallback;
                 }
@@ -231,6 +242,10 @@ final class FieldSchema
 
             case 'color':
                 $value = is_scalar($value) ? trim((string)$value) : '';
+                if (($field['hex'] ?? false) && $value !== '') {
+                    $hex = self::normalizeHex($value);
+                    return $hex ?? $fallback;
+                }
                 return $value === '' || self::isSafeColor($value) ? $value : $fallback;
 
             case 'image':
@@ -283,6 +298,16 @@ final class FieldSchema
             return $value;
         }
         return in_array(strtolower(trim((string)(is_scalar($value) ? $value : ''))), ['1', 'true', 'yes', 'on'], true);
+    }
+
+    /** #rgb or #rrggbb (with or without the #) as lowercase #rrggbb, or null when it is not a hex colour. */
+    public static function normalizeHex(string $value): ?string
+    {
+        $value = ltrim(trim($value), '#');
+        if (preg_match('/^[0-9a-f]{3}$/i', $value)) {
+            $value = $value[0] . $value[0] . $value[1] . $value[1] . $value[2] . $value[2];
+        }
+        return preg_match('/^[0-9a-f]{6}$/i', $value) ? '#' . strtolower($value) : null;
     }
 
     /** Colours end up in inline style attributes, so only plain colour syntax is accepted. */
@@ -348,7 +373,7 @@ final class FieldSchema
     {
         return match ($field['type']) {
             'toggle' => false,
-            'number' => $field['min'] ?? 0,
+            'number' => ($field['blank'] ?? false) ? '' : ($field['min'] ?? 0),
             'repeater' => [],
             default => '',
         };

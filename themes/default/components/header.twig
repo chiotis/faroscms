@@ -14,6 +14,8 @@
 {% set has_cta = hs.cta_label|default('') != '' and cta_href != '' %}
 {% set show_topbar_contacts = hs.topbar_contacts|default(false) and (contact.phone|default('') or contact.email|default('')) %}
 {% set brand_logo = theme_settings.brand.logo|default('') %}
+{% set brand_logo_dark = theme_settings.brand.logo_dark|default('') %}
+{% set brand_show_name = theme_settings.brand.show_name|default(false) %}
 {% set mobile_menu = hs.mobile_menu|default('drawer') in ['drawer', 'drawer_right', 'fullscreen', 'top_sheet', 'bottom_sheet'] ? hs.mobile_menu|default('drawer') : 'drawer' %}
 
 {% set nav_markup %}
@@ -71,9 +73,12 @@
       <span aria-hidden="true"></span>
     </button>
 
-    <a class="site-brand" href="{{ url(prefix) }}"{% if brand_logo %} aria-label="{{ site.title }}"{% endif %}>
+    <a class="site-brand" href="{{ url(prefix) }}"{% if brand_logo and not brand_show_name %} aria-label="{{ site.title }}"{% endif %}>
       {% if brand_logo %}
-        {{ image(brand_logo, {alt: '', class: 'site-brand-logo', loading: 'eager', sizes: '12rem'}) }}
+        {# With a logo for dark backgrounds both are drawn and the style sheet shows the one that suits (dark mode, a dark header). #}
+        {{ image(brand_logo, {alt: '', class: brand_logo_dark ? 'site-brand-logo logo-on-light' : 'site-brand-logo', loading: 'eager', sizes: '12rem'}) }}
+        {% if brand_logo_dark %}{{ image(brand_logo_dark, {alt: '', class: 'site-brand-logo logo-on-dark', loading: 'eager', sizes: '12rem'}) }}{% endif %}
+        {% if brand_show_name %}<span class="site-brand-title">{{ site.title }}</span>{% endif %}
       {% else %}
         <span class="site-brand-title">{{ site.title }}</span>
       {% endif %}

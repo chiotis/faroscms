@@ -103,6 +103,12 @@
   {% for href in block_styles|default([]) %}
   <link rel="stylesheet" href="{{ href }}">
   {% endfor %}
+  {# The choices of Theme > Branding (colours, type, spacing, buttons, logo sizes) come after the theme's styles and before the site's own. #}
+  {% set branding_style = branding_css() %}
+  {% if branding_style %}
+  <style id="faros-branding">{{ branding_style|raw }}</style>
+  {% endif %}
+  {{ branding_head() }}
   {% set custom_css = custom_asset('css/custom.css') %}
   {% if custom_css %}
   <link rel="stylesheet" href="{{ custom_css }}">

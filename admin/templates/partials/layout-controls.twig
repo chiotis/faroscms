@@ -31,8 +31,8 @@
 {# A row that chooses one of a few things. mode: seg (side by side), select (a list). short: shorter words for the segments. #}
 {% macro choice(field, name, value, mode, short, only) %}
   {% import _self as c %}
-  {% set options = {} %}
-  {% for option, text in field.options %}{% set options = options|merge({(option): short[option] ?? text}) %}{% endfor %}
+  {# map keeps the keys (merge would number the options 0, 1, 2 when they are numbers, such as font weights). #}
+  {% set options = field.options|map((text, option) => short[option] ?? text) %}
   <div class="lc-row"{% if only %} data-only="{{ only }}"{% endif %}>
     <dt>{% if mode == 'select' %}<label for="f-{{ name|replace({'[': '-', ']': ''}) }}">{{ field.label }}</label>{% else %}{{ field.label }}{% endif %}</dt>
     <dd class="m-0">
@@ -77,5 +77,39 @@
     <dd class="m-0 flex flex-wrap gap-1.5">
       {% for item in items %}{{ c.chip(item[0], item[1], item[2]) }}{% endfor %}
     </dd>
+  </div>
+{% endmacro %}
+
+{#
+  Used by the Branding card (partials/theme-branding.twig).
+    num(field, name, value, unit)        a number with its unit: the label above, the box below; empty means the theme's own value
+    colour(label, name, value)           a hex colour: a picker, the code to type, and a button that clears it (empty means the theme's)
+    palette(name, options, value, dots)  the palettes as small chips with a dot of their colour
+#}
+{% macro num(field, name, value, unit) %}
+  {% set id = 'f-' ~ name|replace({'[': '-', ']': ''}) %}
+  <div class="bp-num">
+    <label for="{{ id }}">{{ field.label }}</label>
+    <span class="lc-unit">
+      <input id="{{ id }}" type="number" inputmode="decimal" step="{{ field.type == 'decimal' ? 'any' : '1' }}" name="{{ name }}" value="{{ value }}"{% if field.min is not null %} min="{{ field.min }}"{% endif %}{% if field.max is not null %} max="{{ field.max }}"{% endif %} placeholder="{{ field.placeholder }}" class="lc-input"{% if field.help %} aria-describedby="{{ id }}-help"{% endif %}>
+      {% if unit %}<em aria-hidden="true">{{ unit }}</em>{% endif %}
+    </span>
+    {% if field.help and field.help != 'In pixels.' %}<small id="{{ id }}-help">{{ field.help }}</small>{% elseif field.help %}<small id="{{ id }}-help" class="sr-only">{{ field.help }}</small>{% endif %}
+  </div>
+{% endmacro %}
+
+{% macro colour(label, name, value) %}
+  <span class="lc-colour" data-colour{% if not value %} data-empty{% endif %}>
+    <input type="color" value="{{ value ?: '#ffffff' }}" aria-label="{{ label }}, pick a colour" tabindex="-1">
+    <input type="text" name="{{ name }}" value="{{ value }}" placeholder="Theme" maxlength="7" spellcheck="false" autocomplete="off" aria-label="{{ label }}, hex code" class="lc-input">
+    <button type="button" class="lc-colour-x" aria-label="{{ label }}: back to the theme's colour">&times;</button>
+  </span>
+{% endmacro %}
+
+{% macro palette(name, options, value, dots) %}
+  <div class="bp-pal" role="radiogroup" aria-label="Palette">
+    {% for option, text in options %}
+      <label title="{{ text }}"><input type="radio" name="{{ name }}" value="{{ option }}"{% if option ~ '' == value ~ '' %} checked{% endif %}><span><i style="background: {{ dots[option] ?? '#64748b' }};" aria-hidden="true"></i>{{ text|split(' (')|first }}</span></label>
+    {% endfor %}
   </div>
 {% endmacro %}

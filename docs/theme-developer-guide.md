@@ -40,9 +40,9 @@ Use this command (not a bare `php -S -t public`) so generated files such as resi
 
 ### Change colours, fonts, and corners
 
-Most looks need no code: **Admin > Settings > Theme > Appearance** has six palettes, three corner shapes, light/dark/system mode, and four font choices (Inter is the default and is bundled, so there is no request to a font service).
+Most looks need no code: **Admin > Theme > Branding** has seven palettes, light/dark/system mode, **your own colours** for light and dark (the shades are worked out from the accent), thirteen font stacks or your own WOFF2 file, text size and heading scale, widths, spacing, header height, corner radius, button size and shape, logo sizes and a logo for dark backgrounds, and the favicon. Inter is the default and is bundled, so there is no request to a font service. The page beside the cards is the real site and follows each choice.
 
-For your own brand colour, override the tokens of a palette in `custom/assets/css/custom.css` (loaded automatically after the theme CSS):
+For something the screen does not offer, override the tokens in `custom/assets/css/custom.css` (loaded automatically after the theme CSS and the Branding choices), for example a palette:
 
 ```css
 :root[data-theme="indigo"] {
@@ -54,7 +54,7 @@ For your own brand colour, override the tokens of a palette in `custom/assets/cs
 }
 ```
 
-Then run the token audit (see [Testing](#testing)). Text on the accent must reach 4.5:1, and the accent itself against the page background too. The palette is chosen in Admin > Settings, so the override applies wherever that palette is used.
+Then run the token audit (see [Testing](#testing)). Text on the accent must reach 4.5:1, and the accent itself against the page background too. The palette is chosen in Admin > Theme > Branding, so the override applies wherever that palette is used.
 
 ### Add a block
 

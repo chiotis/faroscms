@@ -82,7 +82,7 @@ Front matter `template:` accepts `landing`, `landing.twig`, or `templates/landin
 - an invalid submitted value keeps the current value;
 - keys the schema does not declare are kept, so hand-added options still reach templates.
 
-Field types: `text`, `textarea`, `email`, `url`, `image`, `color`, `number` (`min`, `max`), `select` (`options`), `toggle`. Common keys: `label`, `help`, `placeholder`, `default`, `span: full`, `hidden: true`.
+Field types: `text`, `textarea`, `email`, `url`, `image`, `color` (`hex: true` accepts only `#rgb` or `#rrggbb`, stored as `#rrggbb`), `number` (`min`, `max`; `blank: true` lets it be empty, meaning "not set"), `decimal`, `select` (`options`), `toggle`. Common keys: `label`, `help`, `placeholder`, `default`, `span: full`, `hidden: true`.
 
 Colours accept `#hex`, `rgb()/hsl()`, `var(--token)`, or a colour name. URLs and images reject quotes, brackets, whitespace, and non-http schemes. Both end up in inline styles, which is why they are strict.
 
@@ -292,11 +292,24 @@ Footer:
 
 A site-specific block goes in `custom/blocks/<type>/` with the same files.
 
+## Branding
+
+**Admin > Theme > Branding** gathers everything that makes up the look of the site, for a designer: the theme's `appearance`, `brand` and `design` sections in one tab (a theme that declares `design` gets this tab; otherwise each section is its own tab). Cards on the left, the real site on the right: the frame shows the home page with the unsaved choices as they are made, at computer, tablet or phone width and in light or dark (the browser asks `POST /admin/theme?preview=branding`, which answers with the CSS and attributes and stores nothing).
+
+- **Identity** (`brand`): the logo, a **logo for dark backgrounds** (shown in dark mode, in a dark or palette footer, in a dark or palette header row, and over a dark opening hero; without it the logo is used everywhere), the site name beside the logo, heights of the logo (computer, phone, footer) and the size of the name, the **favicon**, the **app icon** (`apple-touch-icon`), the **browser colour** (`theme-color`) and the default share image.
+- **Colour**: the palette and the mode (`appearance`), and **your own colours** for light and for dark: accent, background, surface, text, muted text and border, and the near-black of dark panels and the footer. The hover and soft shades of the accent, the second shade of the surface and the border, and a readable text colour on the accent (white or the theme's near-black) are worked out from the ones given.
+- **Typography**: the font pairing (`appearance`), a family for headings and one for text (thirteen system stacks, so nothing is downloaded, or **your own WOFF2 file** from `custom/assets/fonts/`), text size, line height, a **heading scale** (a ratio from 1.125 to 1.618, gentler on a phone), heading weight, letter spacing, line height and capitals.
+- **Layout and spacing**: content width, reading width, side margin, space between sections, **header height** (compact and tall follow it), and a spacing scale.
+- **Shape and depth**: corners (`appearance`), a **radius in pixels**, button corners, shadows, decoration.
+- **Buttons**: height, side padding, text size, weight, capitals.
+
+Every `design` field is optional: empty, or "Theme", leaves the theme's own value, so a site that sets nothing looks as it did. `Branding::css()` (`src/Branding.php`) turns the choices into one rule on `:root[data-theme][data-mode]` (which beats the palette, font, shape and mode rules) plus a few element rules; the layout prints it in `<style id="faros-branding">` after the theme's style sheet and before `custom.css`, with `{{ branding_css()|raw }}` and `{{ branding_head() }}` (the icons, the browser colour and a hint to fetch a font file). It is made only of numbers, hex colours and words from fixed lists, so nothing a person types can reach the style sheet as code. The tokens it sets: `--accent-l*`, `--accent-d*`, `--accent-contrast-l/d`, `--n-*`, `--d-*`, `--ink*`, `--font-heading`, `--font-body`, `--type-scale`, `--step-1` to `--step-5`, `--heading-weight`, `--heading-tracking`, `--container`, `--container-narrow`, `--gutter`, `--section-scale`, `--space-scale`, `--header-min`, `--radius-*`, `--radius-button`, `--shadow-*`, `--btn-height`, `--btn-pad-x`, `--btn-size`, `--btn-weight`, `--btn-case`, `--btn-tracking`, `--logo-height`, `--logo-height-mobile`, `--footer-logo-height`, `--brand-name-size`; a theme's own CSS should read them with a fallback (`var(--btn-height, 2.875rem)`).
+
 ## Design tokens
 
 `site.css` defines semantic tokens (`--color-bg`, `--color-surface`, `--color-text`, `--color-muted`, `--color-border`, `--accent`, `--accent-soft`, `--accent-contrast`, spacing `--space-*`, type scale `--step-*`, radii `--radius-*`). Theme settings switch them through attributes on `<html>`:
 
-- `data-glow`: `solid` removes the decorative glows (Appearance > Decoration);
+- `data-glow`: `solid` removes the decorative glows (Branding > Shape and depth > Decoration);
 - `data-theme`: palette (slate, indigo, emerald, teal, rose, amber, garnet), with light and dark variants of each accent;
 - `data-mode` and the `.dark` class: colour mode, following the system until the visitor chooses;
 - `data-font`: sans (Inter), display (serif headings with Inter text), serif, or system (no font download);
@@ -321,7 +334,7 @@ Variants are created on first request at `/uploads/_v/<file>/<width>-<version>.w
 
 ## SEO
 
-The layout outputs the title (`Page | Site`, or the SEO title), meta description, canonical URL, `hreflang` alternates, Open Graph (`og:type`, `og:site_name`, `og:locale` and alternates, image), and Twitter card tags. The share image falls back from the SEO image to the main image, the first block image, and finally Theme settings > Brand.
+The layout outputs the title (`Page | Site`, or the SEO title), meta description, canonical URL, `hreflang` alternates, Open Graph (`og:type`, `og:site_name`, `og:locale` and alternates, image), and Twitter card tags. The share image falls back from the SEO image to the main image, the first block image, and finally Theme > Branding > Identity.
 
 Structured data is one JSON-LD graph per page:
 
