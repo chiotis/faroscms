@@ -32,10 +32,33 @@ final class Taxonomies
         return $this->contentDir . '/taxonomies';
     }
 
-    /** "category" for categories, "tag" for everything else: the word in the address (/category/news). */
+    /**
+     * The word in the address of a taxonomy's pages: "category" for categories (/category/news), "tag" for tags, and the
+     * name of any other taxonomy as it is (/project-types/web).
+     */
     public static function kind(string $name): string
     {
-        return $name === 'categories' ? 'category' : 'tag';
+        return match ($name) {
+            'categories' => 'category',
+            'tags' => 'tag',
+            default => $name,
+        };
+    }
+
+    /** The taxonomy an address word belongs to (category, categories, tag, tags, or the name of another), or null. */
+    public function fromWord(string $word): ?string
+    {
+        return match ($word) {
+            'category', 'categories' => 'categories',
+            'tag', 'tags' => 'tags',
+            default => in_array($word, $this->names(), true) ? $word : null,
+        };
+    }
+
+    /** True for a taxonomy a site added (not categories or tags). */
+    public static function isCustom(string $name): bool
+    {
+        return !in_array($name, ['categories', 'tags'], true);
     }
 
     /** @return string[] */

@@ -12,7 +12,7 @@ namespace FarosCMS;
 final class ContentTypeAdmin
 {
     /** Names a content type cannot take: they are addresses or folders the site already uses. */
-    private const RESERVED_NAMES = ['pages', 'settings', 'users', 'media', 'menus', 'taxonomies', 'forms', 'forms-submissions', 'search', 'tag', 'tags', 'category', 'categories', 'admin', 'uploads', 'assets', 'robots', 'sitemap', 'custom'];
+    public const RESERVED_NAMES = ['pages', 'settings', 'users', 'media', 'menus', 'taxonomies', 'forms', 'forms-submissions', 'search', 'tag', 'tags', 'category', 'categories', 'admin', 'uploads', 'assets', 'robots', 'sitemap', 'custom'];
 
     /**
      * @param callable(): string[] $taxonomyNames the taxonomies entries can be filtered by
@@ -96,7 +96,7 @@ final class ContentTypeAdmin
     public function create(array $post, array $existing): string
     {
         $name = Slug::plain((string)($post['name'] ?? ''));
-        if ($name === '' || !preg_match('/^[a-z][a-z0-9-]*$/', $name) || in_array($name, self::RESERVED_NAMES, true) || in_array($name, $existing, true)) {
+        if ($name === '' || !preg_match('/^[a-z][a-z0-9-]*$/', $name) || in_array($name, self::RESERVED_NAMES, true) || in_array($name, $existing, true) || in_array($name, ($this->taxonomyNames)(), true)) {
             return '/admin/content-types?error=name';
         }
         $label = trim((string)($post['label'] ?? ''));

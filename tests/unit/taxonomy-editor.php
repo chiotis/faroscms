@@ -40,6 +40,27 @@ file_put_contents("$dir/content/projects/p.md", "---\ntitle: P\nstatus: publishe
 file_put_contents("$dir/content/pages/about.md", "---\ntitle: About\nstatus: published\ntags: [news]\n---\nBody\n");
 file_put_contents("$dir/content/forms/contact.md", "---\ntitle: Contact\ntags: [news]\n---\nBody\n");
 
+// ---- a new taxonomy
+file_put_contents("$dir/content/pages/showcase.md", "---\ntitle: Showcase\nstatus: published\n---\nBody\n");
+$content = new ContentRepository("$dir/content", new MarkdownConverter($environment), $settings);
+$editor = new TaxonomyEditor($store, $redirects, $content, fn() => $menus);
+$made = $editor->create('Project types', '', ['projects', 'nonsense', 'pages'], ['el', 'en'], 'index', 'tester');
+check('a name makes the address and the file', [$made, is_file("$dir/content/taxonomies/project-types.yaml"), $store->names()], [['name' => 'project-types', 'error' => ''], true, ['categories', 'project-types', 'tags']]);
+$loaded = $store->load('project-types');
+check('with its title, no terms yet, and only the content types that can be listed', [$loaded['title'], $loaded['terms'], $loaded['archive']], ['Project types', [], ['types' => ['projects']]]);
+check('a Greek name becomes a Latin address', $editor->create('Κλάδοι', '', [], ['el', 'en'], 'index', 'tester'), ['name' => 'kladoi', 'error' => '']);
+check('an address of its own is used', $editor->create('Industries', 'sectors', [], ['el', 'en'], 'index', 'tester')['name'], 'sectors');
+check('none chosen lists every type, and writes no archive choice', $store->load('sectors')['archive'], []);
+$refused = fn(string $title, string $name) => $editor->create($title, $name, [], ['el', 'en'], 'index', 'tester')['error'] !== '';
+check('a name is needed', $refused('', 'x1'), true);
+check('an address with nothing to make it from is refused', $refused('!!!', ''), true);
+check('so is one that starts with a number, is one letter, or has odd characters', [$refused('A', 'x'), $refused('A', '1abc'), $refused('A', '!!')], [true, true, true]);
+check('a word the site uses is refused: reserved, a language, a content type, a taxonomy, the home page, a page', [
+    $refused('A', 'admin'), $refused('A', 'en'), $refused('A', 'posts'), $refused('A', 'sectors'), $refused('A', 'tags'), $refused('A', 'index'), $refused('A', 'showcase'),
+], [true, true, true, true, true, true, true]);
+check('a different home page name is refused too', $editor->create('A', 'welcome', [], ['el', 'en'], 'welcome', 'tester')['error'] !== '', true);
+check('and nothing is written when refused', $store->names(), ['categories', 'kladoi', 'project-types', 'sectors', 'tags']);
+
 // ---- counting
 $u = $editor->usage(['tags', 'categories']);
 check('every language and draft is counted, forms are not', $u['tags'], ['news' => 4, 'design' => 1]);

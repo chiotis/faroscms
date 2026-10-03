@@ -26,6 +26,11 @@ check('a page', [$x['kind'], $x['slug'], $x['lang'], $x['path_no_lang']], ['page
 $x = $r('en/about');
 check('a page in another language', [$x['kind'], $x['slug'], $x['lang'], $x['segments'], $x['path_no_lang']], ['page', 'about', 'en', ['about'], 'about']);
 check('the home page by name has no path', $r('index')['path_no_lang'], '');
+$rt = fn(string $path) => FrontRoute::resolve($path, $settings, $types, ['industries', 'posts']);
+check('a taxonomy the site added has pages at /name/term, in any language', [$rt('industries/retail')['kind'], $rt('en/industries/retail')['kind'], $rt('en/industries/retail')['lang']], ['taxonomy', 'taxonomy', 'en']);
+check('/name alone is an ordinary page address (a page can be made there)', [$rt('industries')['kind'], $rt('industries')['slug']], ['page', 'industries']);
+check('a content type of that name keeps its list and entries', [$rt('posts')['kind'], $rt('posts/hello')['kind']], ['archive', 'entry']);
+check('without the taxonomy in the list the address is a page', $r('industries/retail')['kind'], 'page');
 $x = $r('posts');
 check('the list of a type', [$x['kind'], $x['type'], $x['slug']], ['archive', 'posts', '']);
 check('with a trailing slash too', $r('posts/')['kind'], 'archive');

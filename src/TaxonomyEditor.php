@@ -110,6 +110,8 @@ final class TaxonomyEditor
             'type_labels' => array_combine($listable, array_map($typeLabel, $listable)),
             'type_names' => array_combine($types, array_map($typeLabel, $types)),
             'saved' => isset($get['saved']),
+            'created' => isset($get['created']),
+            'new_error' => trim((string)($get['new_error'] ?? '')),
             'moved' => (int)($get['moved'] ?? 0),
             'removed' => (int)($get['removed'] ?? 0),
             'orphaned' => (int)($get['orphaned'] ?? 0),
@@ -181,6 +183,44 @@ final class TaxonomyEditor
             return;
         }
         $this->store->save($taxonomy, $current['title'], $current['terms'], $archive);
+    }
+
+    /**
+     * Makes a new taxonomy. Its pages are at /<name>/<term>, so the name must not be an address the site already uses: a
+     * reserved word, a language, a content type, another taxonomy, the home page or a page.
+     *
+     * @param string[] $types the content types its pages list (none: all of them)
+     * @param string[] $languages
+     * @return array{name: string, error: string} the name made, or what is wrong with the one asked for
+     */
+    public function create(string $title, string $requestedName, array $types, array $languages, string $homeSlug, string $by): array
+    {
+        $title = trim(preg_replace('/[\x00-\x1F\x7F]+/', ' ', $title) ?? '');
+        if ($title === '') {
+            return ['name' => '', 'error' => 'Give the taxonomy a name.'];
+        }
+        $requestedName = trim($requestedName);
+        $name = Slug::plain($requestedName !== '' ? $requestedName : $title);
+        if (!preg_match('/^[a-z][a-z0-9-]{1,39}$/', $name)) {
+            return ['name' => '', 'error' => $requestedName !== ''
+                ? 'The address needs 2 to 40 letters, numbers or hyphens, and starts with a letter.'
+                : 'An address could not be made from that name. Type one with Latin letters, numbers or hyphens.'];
+        }
+        $taken = array_merge(ContentTypeAdmin::RESERVED_NAMES, $languages, $this->content->getTypes(), $this->store->names(), ['index', 'sitemap.xml', 'robots.txt', $homeSlug]);
+        if (in_array($name, $taken, true)) {
+            return ['name' => '', 'error' => 'The address /' . $name . ' is already used by the site. Choose another.'];
+        }
+        foreach ($this->content->getItems('pages', null, true) as $page) {
+            if ($page->slug === $name) {
+                return ['name' => '', 'error' => 'There is a page at /' . $name . '. Choose another address, or rename the page first.'];
+            }
+        }
+        $types = array_values(array_intersect($this->listableTypes(), array_map('strval', $types)));
+        $this->store->save($name, $title, [], $types !== [] ? ['types' => $types] : null);
+        if ($this->log !== null) {
+            ($this->log)('taxonomies.create', 'info', 'taxonomy', $name, 'Taxonomy created.', ['title' => $title, 'types' => $types]);
+        }
+        return ['name' => $name, 'error' => ''];
     }
 
     /** The content types that can be listed on a taxonomy page. @return string[] */

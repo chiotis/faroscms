@@ -41,9 +41,12 @@ final class TaxonomyPage
         if ($slug === '') {
             return null;
         }
-        $kind = in_array($segments[0] ?? '', ['category', 'categories'], true) ? 'category' : 'tag';
-        $key = $kind === 'category' ? 'categories' : 'tags';
         $taxonomies = ($this->taxonomies)();
+        $key = $taxonomies->fromWord((string)($segments[0] ?? ''));
+        if ($key === null) {
+            return null;
+        }
+        $kind = Taxonomies::kind($key);
         $term = $taxonomies->findBySlug($key, $slug);
         if ($term === null) {
             return null;
@@ -78,9 +81,13 @@ final class TaxonomyPage
         }
 
         $fill = static fn(string $text): string => str_replace('{term}', $label, $text);
-        $titlePrefix = $kind === 'category' ? ($this->translate)('taxonomy.category', 'Category') : ($this->translate)('taxonomy.tag', 'Tag');
+        $titlePrefix = match ($key) {
+            'categories' => ($this->translate)('taxonomy.category', 'Category'),
+            'tags' => ($this->translate)('taxonomy.tag', 'Tag'),
+            default => $taxonomies->load($key)['title'],
+        };
         $description = $taxonomies->description($key, $termId, $lang, $defaultLang);
-        $alternates = ($this->alternates)()->forTaxonomy($kind, $term['slug']);
+        $alternates = ($this->alternates)()->forTaxonomy($key, $term['slug']);
 
         return ['kind' => $kind, 'slug' => $slug, 'data' => [
             'items' => $page['items'],

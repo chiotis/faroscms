@@ -21,6 +21,11 @@
         {% endfor %}
       </span>
     {% endif %}
+    {% for group in item_terms(item, prefix) %}
+      <span>{{ group.title }}:
+        {% for term in group.terms %}<a href="{{ term.url }}">{{ term.label }}</a>{% if not loop.last %}, {% endif %}{% endfor %}
+      </span>
+    {% endfor %}
   {% endset %}
   {% set hero_meta_inline %}
     {% if item.meta.author is defined and item.meta.author %}

@@ -64,7 +64,7 @@ final class MenuSources
                     'title' => $taxonomies->label($name, $term['id'], $defaultLang),
                     'url' => $kind . '/' . $slug,
                     'labels' => $labels,
-                    'detail' => $kind === 'category' ? 'Category' : 'Tag',
+                    'detail' => match ($name) { 'categories' => 'Category', 'tags' => 'Tag', default => $taxonomy['title'] },
                     'draft' => false,
                 ];
             }
