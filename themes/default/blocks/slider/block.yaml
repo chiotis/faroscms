@@ -22,7 +22,7 @@ fields:
     options:
       contained: 'Within the page width'
       full: 'Full width of the screen'
-    help: 'Full width runs the slides edge to edge; the text inside stays in line with the page. Set the block spacing to None to sit against the header.'
+    help: 'Full width runs the slides edge to edge; the text inside stays in line with the page. Set the block spacing to None to sit against the header. A full width slider that opens the page also sits behind a transparent header (Theme > Header), and then the page has no title area of its own.'
   navigation:
     type: select
     label: Arrows and dots

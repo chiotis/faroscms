@@ -36,7 +36,7 @@ final class BlockRenderer
     /**
      * @param array<int, mixed> $rawBlocks
      * @param array<string, mixed> $context template variables shared with every block (item, lang, lang_prefix, body_html, …)
-     * @return array{html: string, types: string[], styles: string[], scripts: string[], structured_data: array<int, array<string, mixed>>, leads_with_hero: bool, lead: array{type: string, variant: string, tone: string}|null, count: int, image: string}
+     * @return array{html: string, types: string[], styles: string[], scripts: string[], structured_data: array<int, array<string, mixed>>, leads_with_hero: bool, opens_with_slider: bool, lead: array{type: string, variant: string, tone: string}|null, count: int, image: string}
      */
     public function render(array $rawBlocks, array $context): array
     {
@@ -45,6 +45,7 @@ final class BlockRenderer
         $types = [];
         $faq = [];
         $leadsWithHero = false;
+        $opensWithSlider = false;
         $firstImage = '';
         $lead = null;
 
@@ -53,6 +54,9 @@ final class BlockRenderer
             $isFirst = $index === 0;
             if ($isFirst && $type === 'hero') {
                 $leadsWithHero = true;
+            }
+            if ($isFirst && self::isOpeningSlider($type, $values)) {
+                $opensWithSlider = true;
             }
             if ($isFirst) {
                 $lead = ['type' => $type, 'variant' => (string)$values['variant'], 'tone' => (string)$values['tone']];
@@ -112,6 +116,7 @@ final class BlockRenderer
             'scripts' => $script !== '' ? [$script] : [],
             'structured_data' => $structuredData,
             'leads_with_hero' => $leadsWithHero,
+            'opens_with_slider' => $opensWithSlider,
             'lead' => $lead,
             'count' => count($blocks),
             'image' => $firstImage,
@@ -119,8 +124,19 @@ final class BlockRenderer
     }
 
     /**
+     * A slider that runs edge to edge opens the page the way a hero does: the header can sit over it, it has no title area
+     * above it, and the text of the page comes after it.
+     *
+     * @param array<string, mixed> $values
+     */
+    private static function isOpeningSlider(string $type, array $values): bool
+    {
+        return $type === 'slider' && ($values['width'] ?? '') === 'full' && in_array($values['variant'] ?? '', ['full', 'banner'], true);
+    }
+
+    /**
      * Valid, visible blocks with resolved values. When the page body has text and no `content`
-     * block places it, it is shown right after an opening hero (or first).
+     * block places it, it is shown right after an opening hero or slider (or first).
      *
      * @param array<int, mixed> $rawBlocks
      * @return array<int, array{0: string, 1: array<string, mixed>, 2: array<string, mixed>}>
@@ -151,7 +167,7 @@ final class BlockRenderer
         $content = $this->registry->get('content');
         if (!$hasContent && $content !== null && trim(strip_tags($bodyHtml, '<img><iframe><video>')) !== '') {
             $values = FieldSchema::resolve($content['common'], []) + FieldSchema::resolve($content['fields'], []);
-            $position = ($prepared[0][0] ?? '') === 'hero' ? 1 : 0;
+            $position = ($prepared[0][0] ?? '') === 'hero' || self::isOpeningSlider((string)($prepared[0][0] ?? ''), $prepared[0][2] ?? []) ? 1 : 0;
             array_splice($prepared, $position, 0, [['content', $content, $values]]);
         }
         return $prepared;

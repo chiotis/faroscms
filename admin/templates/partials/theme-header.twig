@@ -92,7 +92,7 @@
         {% if f.transparent is defined %}{% set behaviour = behaviour|merge([[p ~ 'transparent]', f.transparent.label, v.transparent]]) %}{% endif %}
         {% if behaviour is not empty %}{{ c.toggles('Also', behaviour) }}{% endif %}
       </dl>
-      {% if f.transparent is defined %}<p class="m-0 px-3 pb-3 text-[11px] leading-4 text-slate-500">Over an opening hero the header sits on it and turns solid on scroll. A content type or a single page can decide otherwise in <a class="font-medium text-blue-700" href="{{ url('admin/theme?tab=single_layouts') }}">Single Layouts</a>.</p>{% endif %}
+      {% if f.transparent is defined %}<p class="m-0 px-3 pb-3 text-[11px] leading-4 text-slate-500">Over an opening hero (a Hero block or a full width Slider) the header sits on it and turns solid on scroll. A content type or a single page can decide otherwise in <a class="font-medium text-blue-700" href="{{ url('admin/theme?tab=single_layouts') }}">Single Layouts</a>.</p>{% endif %}
     </section>
 
     <section class="lc-card rounded-xl border border-slate-200 bg-white" aria-labelledby="hd-elements">

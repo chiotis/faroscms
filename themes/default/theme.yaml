@@ -8,7 +8,7 @@
 #   - retire a field by marking it `hidden: true` (it keeps its stored value), not by deleting it.
 name: default
 label: FarosCMS Default
-version: 1.17.0
+version: 1.17.1
 description: All-purpose FarosCMS theme.
 
 menu_locations:
@@ -253,7 +253,7 @@ settings:
       transparent:
         type: toggle
         label: Transparent over an opening hero
-        help: On pages that start with a Hero block the header sits over it and turns solid on scroll.
+        help: On pages that start with a Hero block, or a full width Slider, the header sits over it and turns solid on scroll.
         default: false
       mobile_menu:
         type: select
@@ -464,7 +464,7 @@ settings:
   # Retired by Single Layouts, like hero_layouts above.
   transparent_header:
     label: Transparent Header
-    description: Whether the header sits over the opening hero (a Hero block, or the title area) and turns solid on scroll.
+    description: Whether the header sits over the opening hero (a Hero block, a full width Slider, or the title area) and turns solid on scroll.
     columns: 5
     fields:
       default:
