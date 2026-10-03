@@ -1,9 +1,14 @@
 {% extends 'layouts/base.twig' %}
-{% set title_header = not (page_blocks|default(null) and page_blocks.leads_with_hero) %}
+{% import 'components/hero-layout.twig' as opening %}
+{# The page opens with its first block when that is a Hero, or an edge-to-edge Slider under a transparent header: no title area then. #}
+{% set page_opens = page_blocks|default(null) and (page_blocks.leads_with_hero or (page_blocks.opens_with_slider and opening.transparent(item, theme_settings)|trim != '')) %}
+{% set title_header = not page_opens %}
 
 {% block content %}
-  {% if not (page_blocks|default(null) and page_blocks.leads_with_hero) %}
+  {% if not page_opens %}
     {% include 'components/page-header.twig' %}
+  {% elseif not page_blocks.leads_with_hero %}
+    <h1 class="visually-hidden">{{ item.meta.title }}</h1>
   {% endif %}
   {% include 'components/page-body.twig' %}
 {% endblock %}

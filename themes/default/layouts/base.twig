@@ -23,12 +23,14 @@
 {# Templates that show the title area set title_header; the layout is then the entry's own or its type's. #}
 {% set title_layout = title_header|default(false) and item is defined and item ? opening.layout(item, theme_settings)|trim : '' %}
 {% set wants_transparent = (item is defined and item ? opening.transparent(item, theme_settings)|trim : (header_settings.transparent|default(false) ? '1' : '')) != '' %}
-{% set transparent_header = wants_transparent and (title_layout != '' or (lead_block and lead_block.type == 'hero')) %}
+{# What opens the page under the header: the title area, a Hero block, or a Slider block that runs edge to edge. #}
+{% set slider_opens = page_blocks.opens_with_slider|default(false) %}
+{% set transparent_header = wants_transparent and (title_layout != '' or (lead_block and lead_block.type == 'hero') or slider_opens) %}
 {% if title_layout != '' %}
   {% set title_image = opening.image(item, theme_settings)|trim %}
   {% set transparent_on_dark = transparent_header and (title_layout == 'cover' or (title_layout == 'default' and title_image)) %}
 {% else %}
-  {% set transparent_on_dark = transparent_header and (lead_block.variant in ['cover', 'steps'] or lead_block.tone in ['contrast', 'accent']) %}
+  {% set transparent_on_dark = transparent_header and (slider_opens or lead_block.variant in ['cover', 'steps'] or lead_block.tone in ['contrast', 'accent']) %}
 {% endif %}
 {% set og_locales = {'el': 'el_GR', 'en': 'en_US', 'de': 'de_DE', 'fr': 'fr_FR', 'it': 'it_IT', 'es': 'es_ES'} %}
 <html lang="{{ current_language }}" data-theme="{{ palette }}" data-mode="{{ mode }}" data-font="{{ font }}" data-shape="{{ shape }}" data-glow="{{ glow }}">

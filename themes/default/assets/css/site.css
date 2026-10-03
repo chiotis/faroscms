@@ -1866,6 +1866,28 @@ body.has-transparent-header:not(.header-solid) .site-header.is-on-dark[data-stic
   padding-top: calc(var(--header-height, 4.5rem) + clamp(5rem, 10vw, 9rem));
 }
 
+/* A slider that opens the page (only the visually hidden title can come before it) sits behind the header: no space above it, the slide is taller by the height of the header, its
+   text clears the header, and a flat dark tint over the picture keeps the light header readable. */
+.has-transparent-header .main-shell > .block-slider:first-of-type {
+  padding-top: 0;
+}
+
+.has-transparent-header .main-shell > .block-slider:first-of-type .slider-full .slide {
+  min-height: calc(clamp(22rem, 12rem + 34vw, 34rem) + var(--header-height, 4.5rem));
+}
+
+.has-transparent-header .main-shell > .block-slider:first-of-type .slider-banner .slide {
+  min-height: calc(clamp(16rem, 9rem + 24vw, 26rem) + var(--header-height, 4.5rem));
+  padding-top: var(--header-height, 4.5rem);
+}
+
+.has-transparent-header .main-shell > .block-slider:first-of-type .slide-media::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgb(var(--ink-rgb) / 0.32);
+}
+
 /* A photo behind the title area: a darker top edge under the transparent header keeps its light text readable. */
 .has-transparent-header .main-shell > .single-hero.has-image:first-child::before {
   background-image: linear-gradient(180deg, rgb(var(--ink-rgb) / 0.6), rgb(var(--ink-rgb) / 0.8)), var(--hero-image);
