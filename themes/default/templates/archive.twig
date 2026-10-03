@@ -8,6 +8,8 @@
 {% set title_text = archive_title ?? (config.title|default('') ?: t(type_key ~ '.archive_title', '') ?: (t('type.' ~ type_key, type_key|title) ~ ' ' ~ t('archive.suffix'))) %}
 {% set subtitle_text = archive_subtitle is defined ? archive_subtitle : (config.subtitle|default('') ?: t(type_key ~ '.archive_subtitle', '') ?: t('archive.subtitle')) %}
 {% set document_title = title_text %}
+{# Its first section is a title band: a floating header floats over it from the start. #}
+{% set header_floats_over = true %}
 
 {% block content %}
   {% set prefix = lang_prefix|default('') %}

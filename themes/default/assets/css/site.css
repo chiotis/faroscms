@@ -1853,18 +1853,23 @@ body.header-solid .site-header.is-floating[data-sticky="always"] {
   fill: currentColor;
 }
 
-/* Transparent over an opening hero; solid again once the page scrolls under it. */
-.has-transparent-header .site-header {
+/* A header over the opening section of the page (a hero, a slider, a title area) takes no space of its own: transparent when the
+   page asks for it, or floating (it keeps its own background and its place detached from the edges). The section makes room. */
+.has-header-overlay .site-header {
   position: absolute;
   top: 0;
   right: 0;
   left: 0;
-  border-bottom-color: transparent;
-  background: transparent;
 }
 
-.has-transparent-header .site-header[data-sticky="always"] {
+.has-header-overlay .site-header[data-sticky="always"] {
   position: fixed;
+}
+
+/* Transparent over an opening hero; solid again once the page scrolls under it. */
+.has-transparent-header .site-header {
+  border-bottom-color: transparent;
+  background: transparent;
 }
 
 .has-transparent-header .site-header .topbar,
@@ -1911,25 +1916,25 @@ body.has-transparent-header:not(.header-solid) .site-header.is-on-dark[data-stic
   display: block;
 }
 
-.has-transparent-header .main-shell > .block:first-child {
+.has-header-overlay .main-shell > .block:first-child {
   padding-top: calc(var(--header-height, 4.5rem) + clamp(2.5rem, 1rem + 5vw, 6rem));
 }
 
-.has-transparent-header .main-shell > .block-hero:is(.block--cover, .block--steps):first-child {
+.has-header-overlay .main-shell > .block-hero:is(.block--cover, .block--steps):first-child {
   padding-top: calc(var(--header-height, 4.5rem) + clamp(5rem, 10vw, 9rem));
 }
 
 /* A slider that opens the page (only the visually hidden title can come before it) sits behind the header: no space above it, the slide is taller by the height of the header, its
    text clears the header, and a flat dark tint over the picture keeps the light header readable. */
-.has-transparent-header .main-shell > .block-slider:first-of-type {
+.has-header-overlay .main-shell > .block-slider:first-of-type {
   padding-top: 0;
 }
 
-.has-transparent-header .main-shell > .block-slider:first-of-type .slider-full .slide {
+.has-header-overlay .main-shell > .block-slider:first-of-type .slider-full .slide {
   min-height: calc(clamp(22rem, 12rem + 34vw, 34rem) + var(--header-height, 4.5rem));
 }
 
-.has-transparent-header .main-shell > .block-slider:first-of-type .slider-banner .slide {
+.has-header-overlay .main-shell > .block-slider:first-of-type .slider-banner .slide {
   min-height: calc(clamp(16rem, 9rem + 24vw, 26rem) + var(--header-height, 4.5rem));
   padding-top: var(--header-height, 4.5rem);
 }
@@ -1947,23 +1952,23 @@ body.has-transparent-header:not(.header-solid) .site-header.is-on-dark[data-stic
 }
 
 /* The same when the page opens with its title area: room for the header on top of each layout's own space. */
-.has-transparent-header .main-shell > .single-hero:first-child .single-hero-inner {
+.has-header-overlay .main-shell > .single-hero:first-child .single-hero-inner {
   padding-top: calc(var(--header-height, 4.5rem) + clamp(4.5rem, 12vw, 9rem));
 }
 
-.has-transparent-header .main-shell > .single-hero-centered:first-child .single-hero-inner {
+.has-header-overlay .main-shell > .single-hero-centered:first-child .single-hero-inner {
   padding-top: calc(var(--header-height, 4.5rem) + clamp(3rem, 8vw, 5.5rem));
 }
 
-.has-transparent-header .main-shell > .single-hero-split:first-child .single-hero-inner {
+.has-header-overlay .main-shell > .single-hero-split:first-child .single-hero-inner {
   padding-top: calc(var(--header-height, 4.5rem) + clamp(3rem, 8vw, 6rem));
 }
 
-.has-transparent-header .main-shell > .single-hero-minimal:first-child .single-hero-inner {
+.has-header-overlay .main-shell > .single-hero-minimal:first-child .single-hero-inner {
   padding-top: calc(var(--header-height, 4.5rem) + clamp(3.5rem, 9vw, 7rem));
 }
 
-.has-transparent-header .main-shell > .single-hero-cover:first-child .single-hero-inner {
+.has-header-overlay .main-shell > .single-hero-cover:first-child .single-hero-inner {
   padding-top: calc(var(--header-height, 4.5rem) + clamp(6rem, 12vw, 10rem));
 }
 
@@ -3267,7 +3272,7 @@ p.form-error {
 }
 
 /* Options of the book page (Theme > Single Layouts) and of the list (Archive Layouts). */
-.has-transparent-header .main-shell > .book-hero:first-child {
+.has-header-overlay .main-shell > .book-hero:first-child {
   padding-top: calc(var(--header-height, 4.5rem) + clamp(2rem, 1rem + 4vw, 4.5rem));
 }
 

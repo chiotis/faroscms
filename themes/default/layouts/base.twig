@@ -26,7 +26,10 @@
 {# What opens the page under the header: the title area, a Hero block, or a Slider block that runs edge to edge. #}
 {% set slider_opens = page_blocks.opens_with_slider|default(false) %}
 {# A template with an opening section of its own (the book page) sets opens_under_header. #}
-{% set transparent_header = wants_transparent and (title_layout != '' or (lead_block and lead_block.type == 'hero') or slider_opens or opens_under_header|default(false)) %}
+{% set opens_under = title_layout != '' or (lead_block and lead_block.type == 'hero') or slider_opens or opens_under_header|default(false) %}
+{% set transparent_header = wants_transparent and opens_under %}
+{# A floating header over such a section floats over it from the start: it takes no space of its own, and keeps its background. #}
+{% set header_overlay = transparent_header or (header_settings.shape|default('full') == 'floating' and (opens_under or header_floats_over|default(false))) %}
 {% if title_layout != '' %}
   {% set title_image = opening.image(item, theme_settings)|trim %}
   {% set transparent_on_dark = transparent_header and (title_layout == 'cover' or (title_layout == 'default' and title_image)) %}
@@ -118,7 +121,7 @@
   {% block head %}{% endblock %}
 </head>
 
-<body class="theme-body{% if transparent_header %} has-transparent-header{% endif %}{% if header_settings.mobile_bar|default(false) %} has-mobile-bar{% endif %}">
+<body class="theme-body{% if transparent_header %} has-transparent-header{% endif %}{% if header_overlay %} has-header-overlay{% endif %}{% if header_settings.mobile_bar|default(false) %} has-mobile-bar{% endif %}">
   {% set prefix = lang_prefix|default('') %}
   <a class="skip-link" href="#main">{{ t('a11y.skip_to_content', 'Skip to content') }}</a>
   <div class="app-shell">

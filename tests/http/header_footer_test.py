@@ -180,6 +180,27 @@ check('and the link with nothing under it in the first column', re.search(r'foot
 footer(layout='columns')
 check('columns shows the menu as before', 'footer-grid--mega' not in foot(page('/en/about')) and 'footer-group-1' not in foot(page('/en/about')))
 
+# ---- a floating header floats over the opening section from the start
+def body_class(html):
+    m = re.search(r'<body class="([^"]*)"', html)
+    return m.group(1).split() if m else []
+header(layout='classic', shape='floating', transparent=None)
+careers = body_class(pub.get('/careers')[2])
+about = body_class(pub.get('/about')[2])
+check('a floating header over a page that opens with a hero takes no space of its own: it overlays, and keeps its background', 'has-header-overlay' in careers and 'has-transparent-header' not in careers, careers)
+check('so it does over a title area, a list, the search and the page not found', all('has-header-overlay' in body_class(pub.get(p)[2]) and 'has-transparent-header' not in body_class(pub.get(p)[2]) for p in ('/about', '/projects', '/search?q=a', '/nothing-here')), [(p, body_class(pub.get(p)[2])) for p in ('/about', '/projects', '/search?q=a', '/nothing-here')])
+header(layout='classic', shape='full', transparent=None)
+check('a full width header never overlays unless it is transparent', 'has-header-overlay' not in body_class(pub.get('/careers')[2]))
+header(layout='classic', shape='full', transparent='1')
+careers = body_class(pub.get('/careers')[2])
+check('a transparent header overlays too, and is transparent', 'has-header-overlay' in careers and 'has-transparent-header' in careers, careers)
+header(layout='classic', shape='floating', transparent='1')
+careers = body_class(pub.get('/careers')[2])
+check('floating and transparent: both', 'has-header-overlay' in careers and 'has-transparent-header' in careers)
+sheet = asset('css')
+check('the stylesheet lets an overlay header take no space and the section make room; only a transparent one is transparent', '.has-header-overlay .site-header {\n  position: absolute;' in sheet and '.has-header-overlay .main-shell > .block:first-child' in sheet and re.search(r'\.has-transparent-header \.site-header \{\s+border-bottom-color: transparent;\s+background: transparent;', sheet) is not None)
+header(layout='classic', shape='full', transparent=None)
+
 # ---- the live preview: the page drawn with choices that are not saved
 def preview(client, path='', **fields):
     f = next(f for f in root.forms('/admin/theme?tab=header') if any(x[0] == 'active_tab' for x in f['fields']))
