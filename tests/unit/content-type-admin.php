@@ -88,6 +88,8 @@ check('theme fields missing from the form are not deleted from the theme, only n
 // archive
 $admin->update(['archive' => ['layout' => 'list', 'per_page' => '5'] + $same] + $base, $manageable, 'el');
 check('the layout of the list is kept when it differs from the theme', $types->customRaw('projects')['archive']['layout'] ?? null, 'list');
+$admin->update(['type' => 'projects'], $manageable, 'el');
+check('a form without the archive part (it is edited in Theme > Archive Layouts) leaves it alone', $types->customRaw('projects')['archive']['layout'] ?? null, 'list');
 $admin->update($base, $manageable, 'el');
 check('and dropped when it does not', $types->customRaw('projects')['archive'] ?? null, null);
 

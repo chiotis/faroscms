@@ -1,0 +1,166 @@
+<?php
+
+declare(strict_types=1);
+
+namespace FarosCMS;
+
+/**
+ * How the page of one entry looks, for each content type (Admin > Theme > Single Layouts): the page layout (a template
+ * the theme offers, such as the one with a sidebar), the style of the title area, whether the header sits over it, and
+ * which parts show. The theme declares the choices (`single_layouts` in its manifest); the values live in the theme
+ * settings under `single_layouts.<type>`, so a content type the site adds later simply has the defaults until it is saved.
+ *
+ * A site that saved the older Hero Layouts, Transparent Header and Sidebar settings keeps them: they are the starting
+ * point of every type that has no choice of its own yet.
+ */
+final class SingleLayouts
+{
+    /** What an entry's `template:` says when it asks for the plain layout although its content type has another. */
+    public const PLAIN = 'standard';
+
+    public function __construct(private Theme $theme)
+    {
+    }
+
+    /** Whether the theme has single layouts at all. */
+    public function declared(): bool
+    {
+        return $this->fields() !== [];
+    }
+
+    /** @return array<string, array<string, mixed>> the choices the theme offers, normalized (without the page layout) */
+    public function fields(): array
+    {
+        $raw = $this->theme->manifest()['single_layouts']['fields'] ?? [];
+        return is_array($raw) ? FieldSchema::normalize($raw) : [];
+    }
+
+    /** @return array<string, string> the styles of title area the theme offers (the older Hero Layouts options when it has no single layouts) */
+    public function titleChoices(): array
+    {
+        $options = $this->fields()['title']['options'] ?? $this->theme->settingOptions('hero_layouts', 'default');
+        return is_array($options) ? $options : [];
+    }
+
+    /** @return array<string, string> what an entry can ask of the header: over its title or solid ("the site's choice" is not among them) */
+    public function headerChoices(): array
+    {
+        $options = $this->fields()['header']['options'] ?? $this->theme->settingOptions('transparent_header', 'default');
+        return array_diff_key(is_array($options) ? $options : [], ['site' => true]);
+    }
+
+    /**
+     * The page layouts an entry of a type can choose. When the type has a layout of its own (say, the one with a sidebar)
+     * "default" follows it, and the plain one is offered as "standard" for the entries that should not.
+     *
+     * @param array<string, mixed> $themeSettings
+     * @return array<string, array{label: string, description: string}>
+     */
+    public function templatesFor(string $type, array $themeSettings): array
+    {
+        $templates = $this->templates();
+        $chosen = (string)$this->forType($type, $themeSettings)['template'];
+        if ($chosen === 'default' || !isset($templates[$chosen])) {
+            return $templates;
+        }
+        $out = ['default' => ['label' => 'Like the others (' . $templates[$chosen]['label'] . ')', 'description' => 'What the content type\'s layout is in Theme settings > Single Layouts. ' . $templates[$chosen]['description']]];
+        $out[self::PLAIN] = ['label' => 'Standard', 'description' => $templates['default']['description'] ?: 'Title header, then the text and the blocks.'];
+        return $out + array_diff_key($templates, ['default' => true]);
+    }
+
+    /** @return array<string, array{label: string, description: string}> the page layouts a type can have (templates the theme or the site offers) */
+    public function templates(): array
+    {
+        return $this->theme->pageTemplates();
+    }
+
+    /**
+     * What one content type's page does now.
+     *
+     * @param array<string, mixed> $themeSettings the resolved theme settings
+     * @return array<string, mixed> `template` and one value for each declared field
+     */
+    public function forType(string $type, array $themeSettings): array
+    {
+        $fields = $this->fields();
+        $values = FieldSchema::defaults($fields);
+        foreach ($this->legacy($themeSettings, $type) as $key => $value) {
+            if (isset($fields[$key])) {
+                $values[$key] = $value;
+            }
+        }
+        $stored = is_array($themeSettings['single_layouts'][$type] ?? null) ? $themeSettings['single_layouts'][$type] : [];
+        foreach ($fields as $key => $field) {
+            if (array_key_exists($key, $stored)) {
+                $values[$key] = $stored[$key];
+            }
+            $values[$key] = FieldSchema::clean($field, $values[$key]);
+        }
+        $template = (string)($stored['template'] ?? 'default');
+        $values['template'] = isset($this->templates()[$template]) ? $template : 'default';
+        return $values;
+    }
+
+    /**
+     * The values to store after the Single Layouts form was submitted: what every type does now, with the changes of the
+     * types the form had a card for. A type that was not submitted is left as it is.
+     *
+     * @param array<string, mixed> $input the submitted `single_layouts[<type>][...]`
+     * @param string[] $types the content types that exist
+     * @param array<string, mixed> $themeSettings the resolved theme settings now
+     * @return array<string, array<string, mixed>>
+     */
+    public function fromInput(array $input, array $types, array $themeSettings): array
+    {
+        $fields = $this->fields();
+        $templates = $this->templates();
+        $out = [];
+        foreach ($types as $type) {
+            $values = $this->forType($type, $themeSettings);
+            $card = $input[$type] ?? null;
+            if (is_array($card)) {
+                foreach ($fields as $key => $field) {
+                    if ($field['type'] === 'toggle') {
+                        $values[$key] = FieldSchema::isTruthy($card[$key] ?? false);
+                    } elseif (is_string($card[$key] ?? null) && isset($field['options'][$card[$key]])) {
+                        $values[$key] = $card[$key];
+                    }
+                }
+                $template = $card['template'] ?? '';
+                if (is_string($template) && isset($templates[$template])) {
+                    $values['template'] = $template;
+                }
+            }
+            $out[$type] = $values;
+        }
+        return $out;
+    }
+
+    /**
+     * What the Hero Layouts, Transparent Header and Sidebar settings said for a type, in the terms of single layouts.
+     *
+     * @param array<string, mixed> $themeSettings
+     * @return array<string, mixed>
+     */
+    private function legacy(array $themeSettings, string $type): array
+    {
+        $values = [];
+        $layouts = is_array($themeSettings['hero_layouts'] ?? null) ? $themeSettings['hero_layouts'] : [];
+        $title = $layouts[$type] ?? $layouts['default'] ?? null;
+        if (is_string($title)) {
+            $values['title'] = $title;
+        }
+        $transparent = is_array($themeSettings['transparent_header'] ?? null) ? $themeSettings['transparent_header'] : [];
+        $header = $transparent[$type] ?? $transparent['default'] ?? null;
+        if (is_string($header)) {
+            $values['header'] = $header;
+        }
+        $sidebar = is_array($themeSettings['sidebar'] ?? null) ? $themeSettings['sidebar'] : [];
+        foreach (['toc', 'related'] as $key) {
+            if (isset($sidebar[$key])) {
+                $values[$key] = $sidebar[$key];
+            }
+        }
+        return $values;
+    }
+}

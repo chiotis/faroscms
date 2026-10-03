@@ -228,12 +228,12 @@
           </div>
           {% if opening.layouts|default([]) is not empty or opening.transparent|default([]) is not empty %}
             <div class="{{ section_class }}" data-opening>
-              <h2 class="text-sm font-semibold text-slate-900">Hero Layout</h2>
-              <p class="mb-3 mt-0.5 text-xs text-slate-400">For this entry only. Leave both on “Follow settings” to use what Theme settings say for its content type. A page that starts with a Hero block uses that block as its opening.</p>
+              <h2 class="text-sm font-semibold text-slate-900">Title area</h2>
+              <p class="mb-3 mt-0.5 text-xs text-slate-400">For this entry only. Leave both on “Follow settings” to use what Theme settings > Single Layouts say for its content type. A page that starts with a Hero block uses that block as its opening.</p>
               <div class="grid gap-3">
                 {% if opening.layouts is not empty %}
                   <label class="block">
-                    <span class="mb-1 block text-sm font-medium text-slate-700">Title layout</span>
+                    <span class="mb-1 block text-sm font-medium text-slate-700">Title area</span>
                     <select name="hero_layout" class="{{ select_class }}">
                       <option value="">Follow settings ({{ opening.layouts[opening.type_layout]|default(opening.type_layout) }})</option>
                       {% for key, label in opening.layouts %}

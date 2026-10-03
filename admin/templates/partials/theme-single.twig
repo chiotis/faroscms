@@ -1,0 +1,114 @@
+{#
+  Theme > Single Layouts: one card for each content type, for the page of one entry. The cards follow the content types the
+  site has, so a new type gets its card by itself. What each can set is declared by the theme (single_layouts in theme.yaml).
+
+  single_cards       from LayoutsAdmin::singleCards()
+  single_fields      the choices the theme declares
+  single_templates   the page layouts the theme offers
+  sidebar_section    the shared card of the sidebar, shown below the cards
+#}
+{% import '@admin/partials/layout-controls.twig' as c %}
+{% import '@admin/partials/fields.twig' as fields %}
+{% set title_options = single_fields.title.options %}
+{% set header_options = single_fields.header.options %}
+{% set template_options = {} %}
+{% set template_hints = {} %}
+{% for key, template in single_templates %}
+  {% set template_options = template_options|merge({(key): template.label}) %}
+  {% set template_hints = template_hints|merge({(key): template.description}) %}
+{% endfor %}
+
+<div class="space-y-3">
+  <h2 class="sr-only">Single Layouts</h2>
+  <p class="text-xs text-slate-500">One card for each content type. Choose the layout of its page, how the title area looks, whether the header sits over it, and what shows. A single entry can still choose its own in its editor.</p>
+
+  <div class="grid items-start gap-3 xl:grid-cols-2">
+    {% for card in single_cards %}
+      {% set v = card.values %}
+      {% set name = 'single_layouts[' ~ card.type ~ ']' %}
+      {% set summary = [] %}
+      {% if card.layouts %}{% set summary = summary|merge([template_options[v.template] ?? '']) %}{% endif %}
+      {% if card.standard and v.template != 'landing' %}{% set summary = summary|merge([title_options[v.title] ?? '']) %}{% endif %}
+      {% if card.standard and v.header != 'site' %}{% set summary = summary|merge([header_options[v.header] ?? '']) %}{% endif %}
+      <article class="lc-card rounded-xl border border-slate-200 bg-white" data-layout-card data-template="{{ v.template }}" aria-labelledby="single-{{ card.type }}">
+        <header class="flex items-start gap-3 p-3">
+          {% if card.standard %}
+            <div class="lc-preview" data-lc-preview data-template="{{ v.template }}" data-title="{{ v.title }}" data-header="{{ v.header }}" data-side="{{ v.side }}" aria-hidden="true">
+              <div class="lc-hd"><i></i><i></i><i></i></div>
+              <div class="lc-title"><div class="lc-bars"><i></i><i></i></div><div class="lc-img"></div></div>
+              <div class="lc-body"><div class="lc-main"><i></i><i></i><i></i></div><div class="lc-side"><i></i><i></i></div></div>
+            </div>
+          {% endif %}
+          <div class="min-w-0 flex-1">
+            <h3 id="single-{{ card.type }}" class="truncate text-sm font-semibold text-slate-900">{{ card.label }}</h3>
+            <p class="mt-0.5 text-xs text-slate-500">{{ card.count }} {{ card.count == 1 ? 'entry' : 'entries' }} · <code class="rounded bg-slate-100 px-1 text-[11px]">{{ card.template_file }}</code></p>
+            {% if card.standard %}<p class="mt-1.5 text-xs font-medium text-slate-700" data-lc-summary>{{ summary|filter(x => x != '')|join(' · ') }}</p>{% endif %}
+          </div>
+          {% if card.edit_url %}<a href="{{ url(card.edit_url) }}" class="shrink-0 rounded-md px-2 py-1 text-xs font-medium text-slate-600 no-underline hover:bg-slate-100 hover:text-slate-900">Fields</a>{% endif %}
+        </header>
+
+        {% if card.standard %}
+          <dl class="m-0 space-y-2.5 border-t border-slate-100 p-3">
+            {% if card.layouts %}
+              <div class="lc-row">
+                <dt>Page layout</dt>
+                <dd class="m-0">
+                  {% if single_templates|length > 4 %}
+                    <select name="{{ name }}[template]" aria-label="Page layout" class="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900" data-lc="template">
+                      {% for key, label in template_options %}<option value="{{ key }}"{% if key == v.template %} selected{% endif %}>{{ label }}</option>{% endfor %}
+                    </select>
+                  {% else %}
+                    {{ c.seg(name ~ '[template]', template_options, v.template, 'Page layout', 'template', template_hints) }}
+                  {% endif %}
+                </dd>
+              </div>
+            {% endif %}
+            <div class="lc-row" data-hide-landing>
+              <dt>Title area</dt>
+              <dd class="m-0">{{ c.tiles(name ~ '[title]', title_options, v.title, 'Title area', 'title', 'title') }}</dd>
+            </div>
+            <div class="lc-row">
+              <dt>Header</dt>
+              <dd class="m-0">{{ c.seg(name ~ '[header]', header_options, v.header, 'Header', 'header') }}</dd>
+            </div>
+            <div class="lc-row" data-hide-landing>
+              <dt>Show</dt>
+              <dd class="m-0 flex flex-wrap gap-1.5">
+                {{ c.chip(name ~ '[image]', single_fields.image.label, v.image) }}
+                {{ c.chip(name ~ '[excerpt]', single_fields.excerpt.label, v.excerpt) }}
+                {% if card.byline %}{{ c.chip(name ~ '[byline]', single_fields.byline.label, v.byline) }}{% endif %}
+              </dd>
+            </div>
+            {% if card.layouts %}
+              <div class="lc-row" data-sidebar-only>
+                <dt>Sidebar</dt>
+                <dd class="m-0 flex flex-wrap items-center gap-1.5">
+                  {{ c.seg(name ~ '[side]', single_fields.side.options, v.side, 'Sidebar side', 'side') }}
+                  {{ c.chip(name ~ '[toc]', single_fields.toc.label, v.toc) }}
+                  {{ c.chip(name ~ '[related]', single_fields.related.label, v.related) }}
+                  {{ c.chip(name ~ '[card]', single_fields.card.label, v.card) }}
+                </dd>
+              </div>
+            {% endif %}
+          </dl>
+        {% else %}
+          <p class="m-0 border-t border-slate-100 p-3 text-xs text-slate-500">This page has a layout of its own, drawn by <code class="rounded bg-slate-100 px-1 text-[11px]">{{ card.template_file }}</code>. What it shows comes from the fields of the content type{% if card.edit_url %}: <a href="{{ url(card.edit_url) }}" class="font-medium text-blue-700">edit the fields</a>{% endif %}.</p>
+        {% endif %}
+      </article>
+    {% endfor %}
+  </div>
+
+  {% if sidebar_section %}
+    {% set card_fields = sidebar_section.fields|filter(field => not field.hidden) %}
+    {% if card_fields is not empty %}
+      <details class="rounded-xl border border-slate-200 bg-white" data-sidebar-card>
+        <summary class="cursor-pointer select-none rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-900">Sidebar card <span class="font-normal text-slate-500">· the text of the card, for every layout that has a sidebar</span></summary>
+        <div class="grid gap-3 border-t border-slate-100 p-3 sm:grid-cols-2">
+          {% for field in card_fields %}
+            {{ fields.field(field, 'theme_settings[sidebar][' ~ field.key ~ ']', theme_values.sidebar[field.key] ?? field.default) }}
+          {% endfor %}
+        </div>
+      </details>
+    {% endif %}
+  {% endif %}
+</div>

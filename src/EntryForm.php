@@ -298,7 +298,7 @@ final class EntryForm
             'form_submissions' => $formSubmissions,
             'form_submissions_total' => $formSubmissionsTotal,
             'block_editor_json' => $type === 'forms' ? '' : $this->blockEditorJson($pageBlocks, $lang),
-            'page_templates' => $type === 'forms' ? [] : $this->theme->pageTemplates(),
+            'page_templates' => $type === 'forms' ? [] : (new SingleLayouts($this->theme))->templatesFor($type, ($this->themeSettings)()),
             'opening' => $this->openingChoices($type),
         ];
     }
@@ -324,18 +324,16 @@ final class EntryForm
     private function openingChoices(string $type): array
     {
         $themeSettings = ($this->themeSettings)();
-        $layouts = $this->theme->settingOptions('hero_layouts', 'default');
-        $transparent = array_diff_key($this->theme->settingOptions('transparent_header', 'default'), ['site' => true]);
-        $layoutSettings = is_array($themeSettings['hero_layouts'] ?? null) ? $themeSettings['hero_layouts'] : [];
-        $transparentSettings = is_array($themeSettings['transparent_header'] ?? null) ? $themeSettings['transparent_header'] : [];
-        $typeTransparent = (string)($transparentSettings[$type] ?? $transparentSettings['default'] ?? 'site');
-        if (!isset($transparent[$typeTransparent])) {
+        $single = new SingleLayouts($this->theme);
+        $values = $single->forType($type, $themeSettings);
+        $typeTransparent = (string)$values['header'];
+        if (!isset($single->headerChoices()[$typeTransparent])) {
             $typeTransparent = Format::isTruthy($themeSettings['header']['transparent'] ?? false) ? 'on' : 'off';
         }
         return [
-            'layouts' => $layouts,
-            'transparent' => $transparent,
-            'type_layout' => (string)($layoutSettings[$type] ?? $layoutSettings['default'] ?? 'default'),
+            'layouts' => $single->titleChoices(),
+            'transparent' => $single->headerChoices(),
+            'type_layout' => (string)$values['title'],
             'type_transparent' => $typeTransparent,
         ];
     }

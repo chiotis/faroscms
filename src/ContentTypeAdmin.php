@@ -133,6 +133,51 @@ final class ContentTypeAdmin
     }
 
     /**
+     * Saves the archive settings of a type, as submitted by Theme > Archive Layouts. The file is only written when something
+     * changed. Returns false when it could not be written.
+     *
+     * @param array<string, mixed> $input the submitted `archive` values
+     */
+    public function updateArchive(string $type, array $input, string $default): bool
+    {
+        $before = $this->types->customRaw($type);
+        $after = $this->withArchive($type, $before, $input, $default);
+        if ($after == $before) {
+            return true;
+        }
+        if (!$this->types->saveCustom($type, $after)) {
+            return false;
+        }
+        ($this->log)('content_types.update', 'info', 'content_type', $type, 'Archive layout updated.', ['archive' => $after['archive'] ?? []]);
+        return true;
+    }
+
+    /**
+     * The site's definition of a type with the submitted archive settings in it: only what differs from the theme.
+     *
+     * @param array<string, mixed> $custom the site's definition now
+     * @param array<string, mixed> $input
+     * @return array<string, mixed>
+     */
+    private function withArchive(string $type, array $custom, array $input, string $default): array
+    {
+        $theme = $this->types->themeDefinition($type, $default, $default);
+        $archive = ContentTypes::archiveFromInput(
+            $input,
+            is_array($custom['archive'] ?? null) ? $custom['archive'] : [],
+            $theme['archive'],
+            ($this->taxonomyNames)(),
+            true
+        );
+        if ($archive === []) {
+            unset($custom['archive']);
+        } else {
+            $custom['archive'] = $archive;
+        }
+        return $custom;
+    }
+
+    /**
      * The fields of a type as the editor's rows: what they are called, what kind they are, and how they are used.
      *
      * @param array<string, mixed> $definition
@@ -208,18 +253,9 @@ final class ContentTypeAdmin
             }
         }
 
-        // Archive: only what differs from the theme.
-        $archive = ContentTypes::archiveFromInput(
-            is_array($post['archive'] ?? null) ? $post['archive'] : [],
-            is_array($out['archive'] ?? null) ? $out['archive'] : [],
-            $theme['archive'],
-            ($this->taxonomyNames)(),
-            true
-        );
-        if ($archive === []) {
-            unset($out['archive']);
-        } else {
-            $out['archive'] = $archive;
+        // Archive: only what differs from the theme. It is edited in Theme > Archive Layouts; a form without it leaves it alone.
+        if (is_array($post['archive'] ?? null)) {
+            $out = $this->withArchive($type, $out, $post['archive'], $default);
         }
 
         // Fields.

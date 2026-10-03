@@ -1,18 +1,20 @@
 {#
   Title header for a page, post, project or form. The layout is the entry's own choice or the one from
-  Theme settings > Hero Layouts (see hero-layout.twig) and follows the Hero block: default, centered, split,
-  cover, minimal. Image and colour come from front matter. A template can pass:
+  Theme settings > Single Layouts (see hero-layout.twig) and follows the Hero block: default, centered, split,
+  cover, minimal. The same place switches the image, the excerpt and the line above the title on or off for a
+  content type. Image and colour come from front matter. A template can pass:
     hero_subtitle  text under the title (default: the excerpt; nothing when there is none)
     hero_meta      small line above the title, as HTML
     hero_meta_inline  the same line worded for the centred layouts (default: hero_meta)
 #}
 {% import 'components/hero-layout.twig' as opening %}
 {% set layout = opening.layout(item, theme_settings)|trim %}
-{% set hero_image = item.meta.hero_image ?? item.meta.main_image ?? '' %}
+{% set single = single_layout(item.type|default('pages')) %}
+{% set hero_image = opening.image(item, theme_settings)|trim %}
 {% set hero_bg = item.meta.hero_background ?? item.meta.hero_color ?? '' %}
-{% set hero_text = hero_subtitle is defined ? hero_subtitle : item.meta.excerpt|default('') %}
-{% set meta_html = hero_meta|default('') %}
-{% set meta_inline = hero_meta_inline|default('')|trim ? hero_meta_inline : meta_html %}
+{% set hero_text = single.excerpt is same as(false) ? '' : (hero_subtitle is defined ? hero_subtitle : item.meta.excerpt|default('')) %}
+{% set meta_html = single.byline is same as(false) ? '' : hero_meta|default('') %}
+{% set meta_inline = single.byline is same as(false) ? '' : (hero_meta_inline|default('')|trim ? hero_meta_inline : meta_html) %}
 {% set bg_style = hero_bg ? ' style="--hero-bg:' ~ hero_bg|e('html_attr') ~ ';"' : '' %}
 {% if layout == 'centered' %}
   <section class="single-hero single-hero-centered"{{ bg_style|raw }}>

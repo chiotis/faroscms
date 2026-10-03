@@ -34,12 +34,17 @@
         <div class="mb-4 overflow-x-auto border-b border-slate-200">
           <div class="flex min-w-max gap-1" role="tablist" aria-label="Theme sections">
             {% for key in theme_tabs %}
-              <button type="button" role="tab" class="{{ tab_button_class }}{% if active_tab == key %} active{% endif %}" data-tab="{{ key }}" aria-selected="{{ active_tab == key ? 'true' : 'false' }}">{{ theme_schema[key].label }}</button>
+              <button type="button" role="tab" class="{{ tab_button_class }}{% if active_tab == key %} active{% endif %}" data-tab="{{ key }}" aria-selected="{{ active_tab == key ? 'true' : 'false' }}">{{ tab_labels[key] ?? theme_schema[key].label }}</button>
             {% endfor %}
           </div>
         </div>
 
         {% for key in theme_tabs %}
+          {% if key == 'single_layouts' or key == 'archive_layouts' %}
+            <div class="tab-panel space-y-4{% if active_tab != key %} hidden{% else %} active{% endif %}" data-panel="{{ key }}" role="tabpanel">
+              {% include key == 'single_layouts' ? '@admin/partials/theme-single.twig' : '@admin/partials/theme-archives.twig' %}
+            </div>
+          {% else %}
           {% set section = theme_schema[key] %}
           {% set visible_fields = section.fields|filter(field => not field.hidden) %}
           <div class="tab-panel space-y-4{% if active_tab != key %} hidden{% else %} active{% endif %}" data-panel="{{ key }}" role="tabpanel">
@@ -57,6 +62,7 @@
               </div>
             </div>
           </div>
+          {% endif %}
         {% endfor %}
       </div>
     {% endif %}
@@ -74,6 +80,7 @@
     {% endembed %}
   </form>
   {% include '@admin/partials/icon-library.twig' %}
+  <script src="{{ asset('js/admin-layouts.js') }}" defer></script>
 
   <script>
     (function () {

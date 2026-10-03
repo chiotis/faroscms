@@ -1,0 +1,122 @@
+{#
+  Theme > Archive Layouts: one card for each list of entries, the content types and the taxonomies (the pages of a category or
+  a tag). The settings are the ones the Content types and Taxonomies screens used to hold; only what differs from the
+  defaults is stored, in the site's content type files and taxonomy files.
+
+  archive_cards     from LayoutsAdmin::archiveCards(): types, taxonomies
+  archive_layouts   the layouts of a list
+#}
+{% import '@admin/partials/layout-controls.twig' as c %}
+{% import _self as m %}
+{% set short = {cards: 'Cards', list: 'List', compact: 'Compact', overlay: 'Tiles', featured: 'Featured', magazine: 'Magazine', editorial: 'Editorial'} %}
+
+{% macro card(item, name, kind, archive_layouts, short, labels) %}
+  {% import '@admin/partials/layout-controls.twig' as c %}
+  {% set a = item.archive %}
+  {% set field_class = 'w-full rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900 placeholder:text-slate-400' %}
+  {% set heading = kind == 'type' ? item.label : item.title %}
+  {% set id = 'archive-' ~ kind ~ '-' ~ (kind == 'type' ? item.type : item.name) %}
+  <article class="lc-card rounded-xl border border-slate-200 bg-white" data-layout-card aria-labelledby="{{ id }}">
+    <header class="flex items-start gap-3 p-3 pb-2">
+      <div class="min-w-0 flex-1">
+        <h3 id="{{ id }}" class="truncate text-sm font-semibold text-slate-900">{{ heading }}</h3>
+        <p class="mt-0.5 text-xs text-slate-500">
+          {% if kind == 'type' %}{{ item.count }} {{ item.count == 1 ? 'entry' : 'entries' }} · <code class="rounded bg-slate-100 px-1 text-[11px]">/{{ item.type }}</code>
+          {% else %}{{ item.terms }} {{ item.terms == 1 ? 'term' : 'terms' }} · every {{ item.kind }} page{% endif %}
+        </p>
+        <p class="mt-1.5 text-xs font-medium text-slate-700" data-lc-summary>{{ archive_layouts[a.layout] ?? a.layout }} · {{ a.columns }} columns · {{ a.per_page == 0 ? 'all on one page' : a.per_page ~ ' per page' }}</p>
+      </div>
+    </header>
+    <dl class="m-0 space-y-2.5 border-t border-slate-100 p-3">
+      <div class="lc-row">
+        <dt>Layout</dt>
+        <dd class="m-0">{{ c.tiles(name ~ '[layout]', short, a.layout, 'Layout', 'archive', 'archive', archive_layouts) }}</dd>
+      </div>
+      <div class="lc-row">
+        <dt>Columns</dt>
+        <dd class="m-0 flex flex-wrap items-center gap-x-4 gap-y-2">
+          {{ c.seg(name ~ '[columns]', {'2': '2', '3': '3', '4': '4'}, a.columns, 'Columns', 'columns') }}
+          <label class="flex items-center gap-1.5 text-xs text-slate-600">Per page
+            <input type="number" name="{{ name }}[per_page]" min="0" max="60" value="{{ a.per_page }}" class="w-16 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900" data-lc="per_page" aria-describedby="{{ id }}-pp">
+          </label>
+          <span id="{{ id }}-pp" class="text-[11px] text-slate-500">0 shows everything on one page</span>
+        </dd>
+      </div>
+      <div class="lc-row">
+        <dt><label for="{{ id }}-order">Order</label></dt>
+        <dd class="m-0">
+          <select id="{{ id }}-order" name="{{ name }}[order]" class="{{ field_class }} sm:w-auto">
+            {% for value, label in item.orders %}<option value="{{ value }}"{% if a.order == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select>
+        </dd>
+      </div>
+      <div class="lc-row">
+        <dt>Show</dt>
+        <dd class="m-0 flex flex-wrap gap-1.5">
+          {{ c.chip(name ~ '[show_image]', 'Images', a.show_image) }}
+          {{ c.chip(name ~ '[show_excerpt]', 'Excerpt', a.show_excerpt) }}
+          {{ c.chip(name ~ '[show_date]', 'Date', a.show_date) }}
+          {{ c.chip(name ~ '[show_meta]', 'Category and card fields', a.show_meta) }}
+        </dd>
+      </div>
+      {% if item.filters is not empty %}
+        <div class="lc-row">
+          <dt>Filters</dt>
+          <dd class="m-0 flex flex-wrap gap-1.5">
+            {% for filter in item.filters %}
+              <label class="lc-chip"><input type="checkbox" name="{{ name }}[taxonomies][]" value="{{ filter }}"{% if filter in a.taxonomies %} checked{% endif %}><span>{{ filter|capitalize }}</span></label>
+            {% endfor %}
+          </dd>
+        </div>
+      {% endif %}
+      {% if kind == 'taxonomy' and item.listable|length > 1 %}
+        <div class="lc-row">
+          <dt>Lists</dt>
+          <dd class="m-0 flex flex-wrap gap-1.5">
+            {% for type in item.listable %}
+              <label class="lc-chip"><input type="checkbox" name="{{ name }}[types][]" value="{{ type }}"{% if not a.types or type in a.types %} checked{% endif %}><span>{{ labels[type] ?? type }}</span></label>
+            {% endfor %}
+          </dd>
+        </div>
+      {% endif %}
+    </dl>
+    <details class="border-t border-slate-100 px-3 py-2.5">
+      <summary class="cursor-pointer select-none text-xs font-medium text-slate-600">Page title and subtitle</summary>
+      <div class="mt-2 grid gap-2 sm:grid-cols-2">
+        <label class="grid gap-1 text-xs font-medium text-slate-600">Title
+          <input type="text" name="{{ name }}[title]" value="{{ a.title }}" placeholder="{{ kind == 'taxonomy' ? 'Default: “' ~ (item.kind == 'category' ? 'Category' : 'Tag') ~ ': Name”' : 'Default: the theme’s text' }}" class="{{ field_class }}">
+        </label>
+        <label class="grid gap-1 text-xs font-medium text-slate-600">Subtitle
+          <input type="text" name="{{ name }}[subtitle]" value="{{ a.subtitle }}" class="{{ field_class }}">
+        </label>
+      </div>
+      {% if kind == 'taxonomy' %}<p class="mt-1 text-[11px] text-slate-500">Write {term} where the name should appear, for example “Articles about {term}”. A term’s own description is the subtitle unless one is written here.</p>{% endif %}
+    </details>
+  </article>
+{% endmacro %}
+
+<div class="space-y-4">
+  <p class="text-xs text-slate-500">One card for each list of entries. Only what you change is stored; the rest follows the theme’s defaults.</p>
+
+  <section aria-labelledby="archive-types-title">
+    <h2 id="archive-types-title" class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Content types</h2>
+    <div class="grid items-start gap-3 xl:grid-cols-2">
+      {% for item in archive_cards.types %}
+        {{ m.card(item, 'archive_types[' ~ item.type ~ ']', 'type', archive_layouts, short, {}) }}
+      {% else %}
+        <p class="text-sm text-slate-500">No content type has a list yet.</p>
+      {% endfor %}
+    </div>
+  </section>
+
+  {% if archive_cards.taxonomies is not empty %}
+    <section aria-labelledby="archive-tax-title">
+      <h2 id="archive-tax-title" class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Categories, tags and other taxonomies</h2>
+      <div class="grid items-start gap-3 xl:grid-cols-2">
+        {% for item in archive_cards.taxonomies %}
+          {{ m.card(item, 'archive_taxonomies[' ~ item.name ~ ']', 'taxonomy', archive_layouts, short, archive_cards.type_labels) }}
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+</div>

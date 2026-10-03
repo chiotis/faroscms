@@ -1,0 +1,28 @@
+{#
+  The controls of the layout cards (Theme > Single Layouts and Archive Layouts). All of them are ordinary radio buttons and
+  checkboxes, drawn as segments, tiles and chips (see .lc-* in app.css), so a form submits them without script.
+    seg(name, options, value, label, key)           a few words to choose from, side by side
+    tiles(name, options, value, label, kind, key)   pictures to choose from; kind is "title" or "archive"
+    chip(name, label, checked)                      one yes or no
+  `key` (optional) tells admin-layouts.js to keep the preview of the card in step with this choice.
+#}
+{% macro seg(name, options, value, label, key, hints) %}
+  <div class="lc-seg" role="radiogroup" aria-label="{{ label }}">
+    {% for option, text in options %}
+      <label{% if (hints[option] ?? '') != '' %} title="{{ hints[option] }}"{% endif %}><input type="radio" name="{{ name }}" value="{{ option }}"{% if option ~ '' == value ~ '' %} checked{% endif %}{% if key %} data-lc="{{ key }}"{% endif %}><span>{{ text }}</span></label>
+    {% endfor %}
+  </div>
+{% endmacro %}
+
+{% macro tiles(name, options, value, label, kind, key, full) %}
+  {% import '@admin/partials/layout-glyphs.twig' as glyphs %}
+  <div class="lc-tiles" role="radiogroup" aria-label="{{ label }}">
+    {% for option, text in options %}
+      <label class="lc-tile"{% if (full[option] ?? '') != '' %} title="{{ full[option] }}"{% endif %}><input type="radio" name="{{ name }}" value="{{ option }}"{% if option ~ '' == value ~ '' %} checked{% endif %}{% if key %} data-lc="{{ key }}"{% endif %}><span>{{ kind == 'title' ? glyphs.title(option) : glyphs.archive(option) }}{{ text }}</span></label>
+    {% endfor %}
+  </div>
+{% endmacro %}
+
+{% macro chip(name, label, checked) %}
+  <label class="lc-chip"><input type="checkbox" name="{{ name }}" value="1"{% if checked %} checked{% endif %}><span>{{ label }}</span></label>
+{% endmacro %}

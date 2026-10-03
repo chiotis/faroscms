@@ -41,8 +41,13 @@
     </div>
 
     <div class="{{ section_class }}">
-      <h2 class="mb-3 text-sm font-semibold text-slate-900">Archive page</h2>
-      {% include '@admin/partials/archive-settings.twig' with {archive: archive, layouts: layouts, orders: orders, filter_names: taxonomy_names} only %}
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="min-w-0">
+          <h2 class="text-sm font-semibold text-slate-900">Archive page</h2>
+          <p class="mt-0.5 text-xs text-slate-500">{{ layouts[archive.layout] ?? archive.layout }} · {{ archive.columns }} columns · {{ archive.per_page == 0 ? 'all on one page' : archive.per_page ~ ' per page' }}. How the list looks is set with the other layouts, in Theme.</p>
+        </div>
+        <a class="{{ btn_secondary }}" href="{{ url('admin/theme?tab=archive_layouts') }}">Archive Layouts</a>
+      </div>
     </div>
 
     <div class="{{ section_class }}">

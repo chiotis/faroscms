@@ -123,7 +123,7 @@ Editors never have to see that: the admin's block editor writes it for them, wit
 The `default` theme is one design system that grows by adding blocks and variants rather than by forking:
 
 - **25 blocks:** hero (split, centered, cover, steps, minimal), features, cards, text and image, stats, logos, testimonials, team, timeline, pricing, comparison table, before/after slider, tabs, FAQ, gallery (grid, masonry, strip), video with a viewer, slider, map, contact, forms, banner, call to action, and latest content in eight layouts.
-- **Site options** in *Theme* in the admin: palette, font, corner shape, header and footer layouts, a transparent header over the opening hero, a bottom action bar for phones, five styles for the phone menu, per-type title layouts, social profiles.
+- **Site options** in *Theme* in the admin: palette, font, corner shape, header and footer layouts, a transparent header over the opening hero, a bottom action bar for phones, five styles for the phone menu, a card for the single page and one for the list of every content type (page layout with or without a sidebar, title area, header, archive layout), social profiles.
 - **Content types** with their own fields, archive layouts, filters and pagination, plus categories and tags with layouts of their own.
 - **Accessible by default:** skip link, real landmarks and heading levels, keyboard-friendly menus and viewers, reduced motion, and a browser audit script (`scripts/theme-audit.js`) that runs axe-core against WCAG 2.2 AA.
 

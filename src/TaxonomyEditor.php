@@ -146,6 +146,43 @@ final class TaxonomyEditor
         return array_map(static fn(array $terms): array => array_map('array_sum', $terms), $counts);
     }
 
+    /**
+     * The archive settings to store for a taxonomy after a submitted form: only what differs from the defaults is written.
+     *
+     * @param array<string, mixed> $submitted the submitted `archive` values
+     * @return array<string, mixed>
+     */
+    public function archiveFromInput(string $taxonomy, array $submitted): array
+    {
+        $current = $this->store->load($taxonomy);
+        $archive = ContentTypes::archiveFromInput(
+            $submitted,
+            $current['archive'],
+            ContentTypes::resolveArchive([], static fn(mixed $v): mixed => $v),
+            array_values(array_diff($this->store->names(), [$taxonomy])),
+            false
+        );
+        $listable = $this->listableTypes();
+        $types = array_values(array_intersect($listable, Taxonomies::typeList($submitted['types'] ?? null)));
+        if ($types === [] || count($types) === count($listable)) {
+            unset($archive['types']);
+        } else {
+            $archive['types'] = $types;
+        }
+        return $archive;
+    }
+
+    /** Saves the archive settings of a taxonomy, as submitted by Theme > Archive Layouts. The file is only written when something changed. */
+    public function updateArchive(string $taxonomy, array $submitted): void
+    {
+        $current = $this->store->load($taxonomy);
+        $archive = $this->archiveFromInput($taxonomy, $submitted);
+        if ($archive == $current['archive']) {
+            return;
+        }
+        $this->store->save($taxonomy, $current['title'], $current['terms'], $archive);
+    }
+
     /** The content types that can be listed on a taxonomy page. @return string[] */
     public function listableTypes(): array
     {
@@ -196,21 +233,8 @@ final class TaxonomyEditor
         $title = trim((string)($post['taxonomy_title'] ?? $current['title']));
         $prepared = $this->store->prepare($taxonomy, $this->rowsFromPost($post, $languages), $defaultLang);
 
-        // How the pages of this taxonomy look: only what differs from the defaults is written.
-        $submitted = is_array($post['archive'] ?? null) ? $post['archive'] : [];
-        $archive = ContentTypes::archiveFromInput(
-            $submitted,
-            $current['archive'],
-            ContentTypes::resolveArchive([], static fn(mixed $v): mixed => $v),
-            array_values(array_diff($names, [$taxonomy])),
-            false
-        );
-        $types = array_values(array_intersect($listable, Taxonomies::typeList($submitted['types'] ?? null)));
-        if ($types === [] || count($types) === count($listable)) {
-            unset($archive['types']);
-        } else {
-            $archive['types'] = $types;
-        }
+        // How the pages of this taxonomy look is edited in Theme > Archive Layouts; a form without it leaves it alone.
+        $archive = is_array($post['archive'] ?? null) ? $this->archiveFromInput($taxonomy, $post['archive']) : null;
 
         $this->store->save($taxonomy, $title, $prepared['terms'], $archive);
 

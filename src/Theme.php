@@ -239,6 +239,48 @@ final class Theme
         return null;
     }
 
+    /**
+     * The template a content type's page uses when neither the entry nor the type's single layout chooses one: the first of
+     * single-<singular>, single, <type> (and page or post) that exists.
+     */
+    public function defaultSingleTemplate(string $type, string $singular): string
+    {
+        $candidates = [
+            'templates/single-' . $singular . '.twig',
+            'templates/single.twig',
+            'templates/' . $type . '.twig',
+        ];
+        if ($type === 'pages') {
+            $candidates[] = 'templates/page.twig';
+        } elseif ($type === 'posts') {
+            $candidates[] = 'templates/post.twig';
+        }
+        return $this->findTemplate($candidates) ?? 'templates/single.twig';
+    }
+
+    /**
+     * Whether a template draws the standard title area (so the title style, image, excerpt and header choices of a single
+     * layout apply to it) rather than a page of its own, such as the book page. Read from the template's source.
+     */
+    public function usesTitleArea(string $relative): bool
+    {
+        return str_contains($this->templateSource($relative), 'components/page-header.twig');
+    }
+
+    /** The source of a template of the site or the theme (the site's wins), or '' when there is none. */
+    public function templateSource(string $relative): string
+    {
+        if (!self::isSafeRelativePath($relative)) {
+            return '';
+        }
+        foreach ($this->templateRoots() as $root) {
+            if (is_file($root . '/' . $relative)) {
+                return (string)file_get_contents($root . '/' . $relative);
+            }
+        }
+        return '';
+    }
+
     public function hasTemplate(string $relative): bool
     {
         if (!self::isSafeRelativePath($relative) || !str_ends_with($relative, '.twig')) {

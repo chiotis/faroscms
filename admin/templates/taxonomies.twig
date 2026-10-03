@@ -221,28 +221,12 @@
           </label>
         </div>
 
-        <div class="border-t border-slate-200 px-4 py-4">
-          <h3 class="text-sm font-semibold text-slate-900">How its pages look</h3>
-          <p class="mt-0.5 text-xs text-slate-500">Applies to the page of every {{ taxonomy_kind }} in this taxonomy (for example /{{ taxonomy_kind }}/{{ (taxonomy_terms|first).slug|default('name') }}). Only what you change is stored; the rest follows the defaults. A term's description is shown under the title unless you write a subtitle here.</p>
-          <div class="mt-4">
-            {% include '@admin/partials/archive-settings.twig' with {
-              archive: archive, layouts: layouts, orders: orders, filter_names: other_taxonomies,
-              title_placeholder: 'Default: "' ~ (taxonomy_kind == 'category' ? 'Category' : 'Tag') ~ ': Name"',
-              title_hint: 'Write {term} where the name should appear, for example "Articles about {term}".',
-              filter_note: 'Visitors can narrow the list of a ' ~ taxonomy_kind ~ ' page by these.'
-            } only %}
-            {% if listable_types|length > 1 %}
-              <fieldset class="mt-3">
-                <legend class="text-sm font-medium text-slate-700">Content listed</legend>
-                <div class="mt-1 flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-700">
-                  {% for type in listable_types %}
-                    <label class="inline-flex items-center gap-2"><input type="checkbox" name="archive[types][]" value="{{ type }}"{% if not archive.types or type in archive.types %} checked{% endif %} class="h-4 w-4 rounded border-slate-300"> {{ type_labels[type] }}</label>
-                  {% endfor %}
-                </div>
-                <p class="mt-1 text-xs text-slate-500">Which kinds of content appear on these pages. All of them by default.</p>
-              </fieldset>
-            {% endif %}
+        <div class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-4 py-4">
+          <div class="min-w-0">
+            <h3 class="text-sm font-semibold text-slate-900">How its pages look</h3>
+            <p class="mt-0.5 text-xs text-slate-500">{{ layouts[archive.layout] ?? archive.layout }} · {{ archive.columns }} columns · {{ archive.per_page == 0 ? 'all on one page' : archive.per_page ~ ' per page' }}. The page of every {{ taxonomy_kind }} in this taxonomy is set with the other layouts, in Theme.</p>
           </div>
+          {% if can('settings.manage') %}<a class="{{ secondary_btn|default('inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm no-underline hover:bg-slate-50') }}" href="{{ url('admin/theme?tab=archive_layouts') }}">Archive Layouts</a>{% endif %}
         </div>
       </div>
     </div>

@@ -212,17 +212,42 @@ archive:
 - **Compatibility:** follow the same rules as theme settings. Never rename a field key, retire it with `hidden: true` instead (stored values are kept), and give a `select` a stable set of option values.
 - **On the page:** every single page shows its declared fields as a fact sheet (`components/type-fields.twig`, included by `components/page-body.twig`). In templates, `content_fields(item)` returns the fields to print and `content_fields(item, 'card')` those marked for cards; `content_type('projects')` returns the definition.
 - **Archive:** `templates/archive.twig` draws the list with the same eight layouts as the Latest content block (`components/entry-list.twig`). Filters are plain links and a `<form method="get">` (no JavaScript): `?filter[sector]=retail&page=2`. Filter values that no item has are never offered. Filtered pages are `noindex`; each page of a paginated listing has its own canonical URL. Category and tag pages use the same layout, with settings of their own per taxonomy (see below).
-- **Taxonomy archives:** each taxonomy (categories, tags) has its own archive settings in `content/taxonomies/<name>.yaml` under `archive:`, edited in Admin > Taxonomies. The keys are those of a content type's archive (`layout`, `columns`, `per_page`, `order`, `show_*`, `title`, `subtitle`, `taxonomies` for filters) plus `types: [posts, projects]` for the content types listed (none means all). `{term}` in `title` and `subtitle` is replaced by the term's name. A term can also have a description per language (Admin > Taxonomies): it is shown as the subtitle unless the taxonomy sets one, and templates receive it as `term_description`. Only what differs from the defaults is stored. The templates lookup is unchanged, so `archive-category.twig` or `archive-tag-<term>.twig` can still take over.
+- **Taxonomy archives:** each taxonomy (categories, tags) has its own archive settings in `content/taxonomies/<name>.yaml` under `archive:`, edited in Admin > Theme > Archive Layouts. The keys are those of a content type's archive (`layout`, `columns`, `per_page`, `order`, `show_*`, `title`, `subtitle`, `taxonomies` for filters) plus `types: [posts, projects]` for the content types listed (none means all). `{term}` in `title` and `subtitle` is replaced by the term's name. A term can also have a description per language (Admin > Taxonomies): it is shown as the subtitle unless the taxonomy sets one, and templates receive it as `term_description`. Only what differs from the defaults is stored. The templates lookup is unchanged, so `archive-category.twig` or `archive-tag-<term>.twig` can still take over.
 - **Per-type templates** still work: `custom/templates/archive-<type>.twig` and `single-<type>.twig` win over the defaults.
 - **Latest content block:** the block lists any type, so a new type is available in it straight away.
 
+## Single layouts and archive layouts
+
+**Admin > Theme > Single Layouts** has one card for each content type the site has (pages, posts, projects, forms, books, and any type added later gets its card by itself). A card sets, for the page of one entry of that type:
+
+- the **page layout**: one of the page templates below (Standard, Landing, With sidebar, or one a site adds). A type whose own template is not the standard one (the book page, `single-book.twig`) has no page layout and no title area to style; its card says so and links to the fields of the type;
+- the **title area**: Default, Centered, Split, Cover or Minimal (the same five as the Hero block), and whether the header sits over it (Site default, Over the title, Solid);
+- what shows: the image, the excerpt, and for the templates that print a line above the title (posts and projects) the date and terms;
+- for the sidebar layout: the side (right or left) and which parts it holds: contents, related pages, the contact card. The text of the card is the same for every type, in a panel below the cards.
+
+The choices are stored in the theme settings under `single_layouts.<type>`, so a type with no choice yet has the defaults. A site that saved the older Hero Layouts, Transparent Header and Sidebar settings starts from them. A single entry can still choose its own title area and header in its editor (`hero_layout`, `header_transparent`), and its own page layout (`template:`; `standard` asks for the plain one when its type has another).
+
+A theme declares what a card offers in its manifest:
+
+```yaml
+single_layouts:
+  fields:
+    title: {type: select, label: Title area, default: default, options: {default: Default, split: Split}}
+    header: {type: select, label: Header, default: site, options: {site: Site default, 'on': Over the title, 'off': Solid}}
+    # side, image, excerpt, byline, toc, related, card
+```
+
+Templates read the choices of a type with `single_layout(type)` (a map of `template`, `title`, `header`, `side`, `image`, `excerpt`, `byline`, `toc`, `related`, `card`). The page layout and the title area follow from the template files: `usesTitleArea` is true for a template that includes `components/page-header.twig`, and the line above the title is offered for one that passes `hero_meta`.
+
+**Admin > Theme > Archive Layouts** has one card for each list of entries: every content type that has one, then each taxonomy (the pages of a category or tag). A card sets the layout (seven pictures to choose from), columns, order, items per page, the parts shown, the taxonomies offered as filters, the title and the subtitle; a taxonomy also chooses which content types it lists. Only what differs from the theme's defaults is written, to `custom/content-types/<type>.yaml` and `content/taxonomies/<name>.yaml` as before. The Content types and Taxonomies screens link here instead of holding these settings.
+
 ## Page templates
 
-Pages and posts choose a template in Admin > Edit > Publish (stored as `template:`). The manifest's `page_templates` lists them; a template appears only if its file exists.
+Pages and posts choose a template in Admin > Edit > Publish (stored as `template:`), and a content type can have one as its layout (Theme > Single Layouts). The manifest's `page_templates` lists them; a template appears only if its file exists.
 
 - **Standard** (`default`): the normal hierarchy: title header, text, blocks.
 - **Landing** (`landing`): no title header; the page is its blocks. Without an opening hero the title is still the (visually hidden) `<h1>`.
-- **With sidebar** (`sidebar`): title header, then the text beside a sticky sidebar with "On this page" contents (from the text's `##` headings, which get ids), the related pages from the main-menu branch the page belongs to, and a card from Theme settings > Sidebar template (text, button, phone and email). Blocks follow below at full width; a Page content block does not repeat the text.
+- **With sidebar** (`sidebar`): title header, then the text beside a sticky sidebar with "On this page" contents (from the text's `##` headings, which get ids), the related pages from the main-menu branch the page belongs to, and a card from Theme settings > Single Layouts > Sidebar card (text, button, phone and email). Blocks follow below at full width; a Page content block does not repeat the text.
 
 Add a template by creating `templates/<name>.twig` and listing it under `page_templates` in the theme manifest. A site adds its own the same way without touching the theme: put `custom/templates/<name>.twig` next to a `custom/page-templates.yaml` (`name: {label: …, description: …}`); both are kept across updates.
 

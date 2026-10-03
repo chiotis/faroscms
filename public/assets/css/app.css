@@ -366,3 +366,79 @@ body.fb-dragging, body.fb-dragging * { cursor: grabbing !important; user-select:
   box-shadow: 0 10px 25px -8px rgba(15, 23, 42, .5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
+
+/* Layout cards (Theme > Single Layouts and Archive Layouts, admin-layouts.js). Their controls are plain radio buttons and
+   checkboxes drawn as segments, tiles and chips, so they work without script; the script only keeps the small preview of a
+   card and its summary line in step. Solid colours; the dark theme has its own set. */
+.lc-seg { display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 2px; border: 1px solid #cbd5e1; border-radius: .5rem; background: #f1f5f9; }
+.lc-seg label, .lc-tile, .lc-chip { position: relative; display: block; }
+.lc-seg input, .lc-tile input, .lc-chip input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.lc-seg span { display: block; padding: .15rem .6rem; border-radius: .375rem; font-size: .75rem; font-weight: 500; line-height: 1.25rem; color: #475569; }
+.lc-seg input:checked + span { background: #fff; color: #0f172a; box-shadow: 0 1px 2px rgba(15, 23, 42, .15); }
+.lc-seg input:focus-visible + span, .lc-tile input:focus-visible + span, .lc-chip input:focus-visible + span { outline: 2px solid #1d4ed8; outline-offset: 1px; }
+.lc-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(4.5rem, 1fr)); gap: .375rem; }
+.lc-tile span { display: flex; flex-direction: column; align-items: center; gap: .125rem; padding: .35rem .2rem .3rem; border: 1px solid #e2e8f0; border-radius: .5rem; background: #fff; color: #5f6f85; font-size: .6875rem; font-weight: 500; line-height: 1rem; text-align: center; }
+.lc-tile input:checked + span { border-color: #2563eb; background: #eff6ff; color: #1d4ed8; }
+.lc-tile:hover span { border-color: #94a3b8; }
+.lc-tile input:checked + span svg { color: #2563eb; }
+.lc-chip span { display: inline-flex; align-items: center; gap: .25rem; padding: .125rem .6rem; border: 1px solid #cbd5e1; border-radius: 999px; background: #fff; color: #475569; font-size: .75rem; font-weight: 500; line-height: 1.25rem; }
+.lc-chip { display: inline-block; }
+.lc-chip input:checked + span { border-color: #2563eb; background: #eff6ff; color: #1d4ed8; }
+.lc-chip input:checked + span::before { content: "\2713" / ""; font-size: .6875rem; }
+.lc-row { display: grid; grid-template-columns: 5.5rem minmax(0, 1fr); align-items: center; gap: .5rem; }
+.lc-row > dt, .lc-row > .lc-label { font-size: .75rem; font-weight: 500; color: #4d5d73; }
+.lc-card[data-template="landing"] [data-hide-landing], .lc-card:not([data-template="sidebar"]) [data-sidebar-only] { display: none; }
+@media (max-width: 420px) { .lc-row { grid-template-columns: minmax(0, 1fr); gap: .25rem; } }
+
+/* The little page of a single layout card: header, title area, body, with the sidebar on its side. */
+.lc-preview { position: relative; display: flex; flex-direction: column; flex: none; width: 6.75rem; height: 5.5rem; overflow: hidden; border: 1px solid #cbd5e1; border-radius: .375rem; background: #fff; }
+.lc-preview i { display: block; height: 3px; border-radius: 99px; background: #cbd5e1; }
+.lc-hd { display: flex; align-items: center; gap: 3px; flex: none; height: .6rem; padding: 0 .3rem; background: #cbd5e1; }
+.lc-hd i { width: 7px; background: #64748b; }
+.lc-hd i:first-child { width: 11px; margin-right: auto; }
+.lc-title { display: flex; flex: none; align-items: center; gap: .3rem; min-height: 1.6rem; padding: .3rem; background: #e2e8f0; }
+.lc-bars { display: grid; flex: 1; gap: 2px; }
+.lc-bars i { width: 70%; height: 4px; background: #475569; }
+.lc-bars i + i { width: 45%; height: 3px; background: #94a3b8; }
+.lc-img { display: none; background: #94a3b8; border-radius: 2px; }
+.lc-body { display: flex; flex: 1; gap: .3rem; padding: .3rem; }
+.lc-main { display: grid; flex: 1; align-content: start; gap: 3px; }
+.lc-side { display: none; width: 28%; align-content: start; gap: 3px; padding: 2px; border-radius: 2px; background: #e2e8f0; }
+.lc-side i { background: #94a3b8; }
+.lc-preview[data-template="sidebar"] .lc-side { display: grid; }
+.lc-preview[data-template="sidebar"][data-side="left"] .lc-body { flex-direction: row-reverse; }
+.lc-preview[data-template="landing"] .lc-title { display: none; }
+.lc-preview[data-template="landing"] .lc-main i { height: 9px; border-radius: 2px; }
+.lc-preview[data-title="centered"] .lc-title { flex-direction: column; text-align: center; }
+.lc-preview[data-title="centered"] .lc-bars i { margin-inline: auto; }
+.lc-preview[data-title="centered"] .lc-img { display: block; width: 60%; height: 8px; }
+.lc-preview[data-title="split"] .lc-img { display: block; width: 36%; height: 1.15rem; }
+.lc-preview[data-title="cover"] .lc-title { background: #475569; min-height: 2.1rem; }
+.lc-preview[data-title="cover"] .lc-bars i { background: #f1f5f9; }
+.lc-preview[data-title="cover"] .lc-bars i + i { background: #cbd5e1; }
+.lc-preview[data-title="minimal"] .lc-title { background: transparent; }
+.lc-preview[data-title="minimal"] .lc-bars i { height: 5px; background: #0f172a; }
+.lc-preview[data-header="on"] .lc-hd { position: absolute; inset: 0 0 auto 0; z-index: 1; background: transparent; }
+.lc-preview[data-header="on"] .lc-title { padding-top: .9rem; }
+.lc-preview[data-header="on"][data-title="minimal"] .lc-hd i, .lc-preview[data-header="on"][data-title="default"] .lc-hd i { background: #475569; }
+.lc-preview[data-header="on"] .lc-hd i { background: #f1f5f9; }
+.lc-preview[data-header="off"] .lc-hd { background: #94a3b8; }
+
+html.dark .lc-seg { border-color: #334155; background: #131c2e; }
+html.dark .lc-seg span { color: #94a3b8; }
+html.dark .lc-seg input:checked + span { background: #334155; color: #f8fafc; box-shadow: none; }
+html.dark .lc-tile span, html.dark .lc-chip span { border-color: #334155; background: #0f172a; color: #94a3b8; }
+html.dark .lc-tile input:checked + span, html.dark .lc-chip input:checked + span { border-color: #60a5fa; background: #172554; color: #bfdbfe; }
+html.dark .lc-tile input:checked + span svg { color: #93c5fd; }
+html.dark .lc-row > dt, html.dark .lc-row > .lc-label { color: #94a3b8; }
+html.dark .lc-preview { border-color: #334155; background: #0f172a; }
+html.dark .lc-preview i { background: #475569; }
+html.dark .lc-hd, html.dark .lc-title, html.dark .lc-side { background: #1e293b; }
+html.dark .lc-preview[data-title="cover"] .lc-title { background: #334155; }
+html.dark .lc-preview[data-title="minimal"] .lc-title, html.dark .lc-preview[data-header="on"] .lc-hd { background: transparent; }
+html.dark .lc-preview[data-title="minimal"] .lc-bars i { background: #e2e8f0; }
+html.dark .lc-bars i { background: #cbd5e1; }
+html.dark .lc-bars i + i { background: #64748b; }
+html.dark .lc-img { background: #475569; }
+html.dark .lc-hd i { background: #64748b; }
+html.dark .lc-preview[data-header="off"] .lc-hd { background: #334155; }

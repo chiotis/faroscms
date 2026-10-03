@@ -2,23 +2,29 @@
   How a page opens, decided in one place so the header, the layout, and the title area agree.
     layout(item, settings)       the title layout: default, centered, split, cover, minimal
     transparent(item, settings)  "1" when the header sits over the opening hero, otherwise empty
-  Each answers from the entry's own choice (front matter hero_layout / header_transparent), then the
-  setting for its content type (Theme settings > Hero Layouts / Transparent Header), then the site default.
+    image(item, settings)        the picture of the title area, or nothing (none, or switched off for the content type)
+  Each answers from the entry's own choice (front matter hero_layout / header_transparent), then the single layout of its
+  content type (Theme settings > Single Layouts, read with single_layout()), then the site default.
 #}
 {% macro layout(item, settings) -%}
-  {%- set layouts = settings.hero_layouts|default({}) -%}
+  {%- set single = single_layout(item.type|default('pages')) -%}
   {%- set own = item.meta.hero_layout|default('') -%}
-  {%- set layout = own in ['default', 'centered', 'split', 'cover', 'minimal'] ? own : (layouts[item.type|default('pages')]|default(layouts.default|default('default'))) -%}
+  {%- set layout = own in ['default', 'centered', 'split', 'cover', 'minimal'] ? own : single.title|default('default') -%}
   {%- set image = item.meta.hero_image|default(item.meta.main_image|default('')) -%}
   {#- A cover needs a picture; without one the title area is the plain one. -#}
-  {{- layout == 'cover' and not image ? 'default' : layout -}}
+  {{- layout == 'cover' and (not image or single.image is same as(false)) ? 'default' : layout -}}
 {%- endmacro %}
 
 {% macro transparent(item, settings) -%}
   {%- set own = item.meta.header_transparent|default('') -%}
   {%- set own = own is same as(true) ? 'on' : (own is same as(false) ? 'off' : own) -%}
-  {%- set per_type = settings.transparent_header|default({}) -%}
-  {%- set by_type = per_type[item.type|default('pages')]|default(per_type.default|default('site')) -%}
+  {%- set by_type = single_layout(item.type|default('pages')).header|default('site') -%}
   {%- set choice = own in ['on', 'off'] ? own : (by_type in ['on', 'off'] ? by_type : 'site') -%}
   {{- choice == 'on' or (choice == 'site' and settings.header.transparent|default(false)) ? '1' : '' -}}
+{%- endmacro %}
+
+{% macro image(item, settings) -%}
+  {%- if single_layout(item.type|default('pages')).image is not same as(false) -%}
+    {{- item.meta.hero_image|default(item.meta.main_image|default('')) -}}
+  {%- endif -%}
 {%- endmacro %}
