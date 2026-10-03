@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.41 — 2026-10-03 — Add the demo content to a site that has content
+- **Admin > System > Demo content** adds what a site lacks of the demo site (`starter/`): pages, posts, projects, books, forms, taxonomies, and the pictures and files they use, chosen by group (each says how many files are new, or that it is all there). **Only files that are missing are copied; one that exists is never replaced**, so a site's own pages, edits and deletions are safe, and doing it again adds nothing. The menus are never touched. A question is asked first, the result is told, the content index is brought up to date, and it is written to the activity log. For live sites that cannot run `php scripts/use-starter.php` (which refuses to run on a site with content, and needs a command line)
+- Tests: the new `tests/unit/starter-content.php` (missing only, the groups, nothing replaced, doing it again, a folder that cannot be written) and `tests/http/demo_content_test.py` (the card, adding, the books and the Genre taxonomy working afterwards, who may)
+
 ## 0.1.40 — 2026-10-03 — The catalogue test follows the title of the books list
 - The check that the list of books exists looked for the English word "Books" on a Greek page; since 0.1.39 the list has its own Greek title and subtitle ("Βιβλία"). The test now looks for them. No change to the product
 

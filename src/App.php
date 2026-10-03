@@ -1980,6 +1980,11 @@ final class App
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG);
     }
 
+    private function starterContent(): StarterContent
+    {
+        return new StarterContent($this->basePath, $this->contentDir, $this->basePath . '/public/uploads');
+    }
+
     private function singleLayouts(): SingleLayouts
     {
         return $this->singleLayoutsService ??= new SingleLayouts($this->theme, $this->contentTypes());
@@ -2242,6 +2247,17 @@ final class App
             return;
         }
 
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && (string)($_POST['system_action'] ?? '') === 'add_demo') {
+            $result = $this->starterContent()->add(is_array($_POST['demo'] ?? null) ? array_map('strval', $_POST['demo']) : []);
+            if ($result['added'] > 0) {
+                $this->taxonomies()->forget();
+                $this->rebuildContentIndex();
+                $this->logActivity('system.demo_content', 'info', 'system', 'demo_content', 'Demo content added.', $result);
+            }
+            $this->redirect('/admin/system?' . http_build_query(['demo' => $result['failed'] > 0 ? 'fail' : 'ok', 'demo_added' => $result['added'], 'demo_failed' => $result['failed']]));
+            return;
+        }
+
         $storage = $this->siteLimits()->summary();
         $checks = $this->systemStatus()->checks($storage);
         $auto = is_array($this->settings['backup']['auto'] ?? null) ? $this->settings['backup']['auto'] : [];
@@ -2263,6 +2279,10 @@ final class App
             'storage' => $storage,
             'rebuilt' => (string)($_GET['rebuilt'] ?? ''),
             'rebuilt_message' => trim((string)($_GET['msg'] ?? '')),
+            'demo_groups' => $this->starterContent()->available() ? $this->starterContent()->groups() : [],
+            'demo' => (string)($_GET['demo'] ?? ''),
+            'demo_added' => (int)($_GET['demo_added'] ?? 0),
+            'demo_failed' => (int)($_GET['demo_failed'] ?? 0),
             'types' => $this->content->getTypes(),
             'user' => $this->auth->user(),
             'admin_section' => 'system',
