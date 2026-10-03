@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.35 — 2026-10-03 — Delete a taxonomy, and a more compact New taxonomy
+- **A taxonomy of the site's own can be deleted** (Taxonomies > its Settings and pages tab > Delete taxonomy, after a confirmation that says what happens). Its terms and its pages go, and the address is free again. The entries that were filed under it keep the terms in their own files, so nothing of the content is lost; they are simply no longer shown. Categories and tags cannot be deleted. It is logged
+- **New taxonomy is compact**: a small button opens one row (name, address, Create) with the content types as chips, instead of a tall form with bare checkboxes
+- Tests: delete in the editor unit test and in `tests/http/custom_taxonomies_test.py` (the button and its question, who may, categories and tags refused, the pages and the menu editor afterwards, the entries untouched, the address used again)
+
 ## 0.1.34 — 2026-10-03 — New taxonomy, with pages of its own
 - **Admin > Taxonomies > New taxonomy** makes a taxonomy of the site's own (for example "Project types" or "Industries"): a name, an address (made from the name, Greek letters become Latin) and, if you like, the content types its pages list. Until now only categories and tags existed, and a third could only be made by writing a file, with no public page
 - **Every taxonomy has pages now.** The terms of "Project types" are at `/project-types/web` (and `/en/project-types/web`), titled "Project types: Websites", laid out by the card of the taxonomy in Theme > Archive Layouts (which content types it lists, columns, order, filters), with `hreflang` links, and a term that changes address leaves a redirect and updates the menus, as categories and tags do. `/project-types` alone is an ordinary page address: a page can be made there. Categories and tags keep `/category/...` and `/tag/...`

@@ -160,6 +160,19 @@ final class Taxonomies
         $this->cache = [];
     }
 
+    /** Removes a taxonomy the site added (never categories or tags). True when its file is gone. */
+    public function delete(string $name): bool
+    {
+        $name = Slug::plain($name);
+        if ($name === '' || !self::isCustom($name)) {
+            return false;
+        }
+        $path = $this->dir() . '/' . $name . '.yaml';
+        $gone = !is_file($path) || @unlink($path);
+        $this->cache = [];
+        return $gone;
+    }
+
     public function forget(): void
     {
         $this->cache = [];

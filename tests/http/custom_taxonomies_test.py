@@ -34,7 +34,7 @@ def entry(path, text):
 # ---- the screen offers it
 st, _, html = root.get('/admin/taxonomies')
 check('the Taxonomies screen has a New taxonomy form: a name, an address, the content types its pages list', st == 200 and 'data-new-taxonomy' in html and 'name="new_title"' in html and 'name="new_name"' in html and 'name="new_types[]" value="projects"' in html and 'name="new_types[]" value="posts"' in html and 'name="new_types[]" value="pages"' not in html, st)
-check('closed until asked for', ' open data-new-taxonomy' not in html and 'bg-white" data-new-taxonomy>' in html)
+check('closed until asked for', ' open data-new-taxonomy' not in html and 'data-new-taxonomy>' in html)
 
 # ---- making one
 st, hdr, _ = create('Project types', '', ['projects'])
@@ -128,6 +128,35 @@ data = json.loads(re.search(r'id="menu-editor-data">(.*?)</script>', html, re.S)
 groups = {g['id']: g for g in data['groups']} if 'groups' in data else {}
 flat = json.dumps(data)
 check('the menu editor offers the terms of the new taxonomy, by their address', 'project-types/websites' in flat and 'taxonomy-project-types' in flat, None)
+
+# ---- deleting one
+st, _, html = root.get('/admin/taxonomies?taxonomy=project-types')
+check('a taxonomy of the site\'s own has a Delete button, with a question that says what happens to the entries', 'form="delete-taxonomy"' in html and 'id="delete-taxonomy"' in html and 'data-confirm="Delete the taxonomy' in html and 'keep their terms' in html or 'keeps its term' in html, None)
+st, _, html = root.get('/admin/taxonomies?taxonomy=tags')
+check('categories and tags have none, and say why', 'delete-taxonomy' not in html and 'built in' in html)
+def delete(taxonomy, client=root, token=None):
+    token = token or next(x[1] for x in next(f for f in client.forms('/admin/taxonomies?taxonomy=' + taxonomy) if any(x[0] == 'taxonomy_title' for x in f['fields']))['fields'] if x[0] == '_csrf')
+    return client.request('/admin/taxonomies', data=[('_csrf', token), ('taxonomy', taxonomy), ('delete_taxonomy', '1')])
+tok = next(x[1] for x in new_form(root)['fields'] if x[0] == '_csrf')
+st, _, _ = delete('project-types', usr, tok)
+check('a person with no rights may not', __import__('os').path.exists('app/content/taxonomies/project-types.yaml'), st)
+st, hdr, _ = delete('tags')
+check('tags cannot be deleted, even when asked', __import__('os').path.exists('app/content/taxonomies/tags.yaml') and 'deleted=' not in loc(hdr), loc(hdr))
+st, hdr, _ = delete('industries', ed)
+check('an editor may delete one (taxonomies.manage), and is told', st == 302 and 'deleted=Industries' in loc(hdr) and not __import__('os').path.exists('app/content/taxonomies/industries.yaml'), loc(hdr))
+st, _, html = root.get(loc(hdr))
+check('the screen confirms it', 'Taxonomy “Industries” deleted' in html and 'taxonomy=industries' not in html)
+st, hdr, _ = delete('project-types')
+check('one with entries is deleted too', st == 302 and 'deleted=Project' in loc(hdr) and not __import__('os').path.exists('app/content/taxonomies/project-types.yaml'), loc(hdr))
+check('its term pages are gone: no entry is listed there any more', 'Alpha Project' not in pub.get('/project-types/websites')[2] and 'Alpha Project' not in pub.get('/en/project-types/websites')[2])
+check('the page at its address is an ordinary page again', pub.get('/project-types')[0] == 200)
+check('the entries keep their terms in their files, and show none', 'project-types:' in open('app/content/projects/alpha.md').read() and 'Project types:' not in pub.get('/projects/alpha')[2])
+check('it is gone from Archive Layouts and the menu editor', 'archive_taxonomies[project-types]' not in root.get('/admin/theme?tab=archive_layouts')[2] and 'taxonomy-project-types' not in root.get('/admin/menus-edit?key=main')[2])
+st, _, html = root.get('/admin/activity-logs')
+check('the log has it', 'taxonomies.delete' in html or 'Taxonomy deleted' in html)
+__import__('os').remove('app/content/pages/project-types.md')
+st, hdr, _ = create('Project types', '', ['projects'])
+check('the address can be used again', st == 302 and 'created=1' in loc(hdr), loc(hdr))
 
 print('\nALL PASSED' if not fails else '\n%d FAILED: %s' % (len(fails), fails))
 sys.exit(1 if fails else 0)
