@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.36 — 2026-10-03 — An address with more after it is a 404
+- **An address names one thing and nothing after it.** `/about/anything` used to show the About page, and so did `/en/about/anything`, `/about/a/b/c`, `/projects/alpha/anything`, `/search/anything`, `/tag/news/anything` and `/pages/about/anything`: the same page under any number of addresses, which search engines count as duplicates. They are now a 404 (a redirect made for such an old address still applies, as for any other 404). What has exactly its parts is served as before: `/about`, `/about/` (the trailing slash is dropped), `/en/about`, `/projects`, `/projects/alpha`, `/search?q=…`, `/tag/news`, `/pages/about` (still sent to `/about`). A language that is not one of the site's, as in `/de/about`, is not found either
+- Tests: the route unit test (`settings-and-front.php`) and `tests/http/custom_taxonomies_test.py` (ten extra addresses, and the ones that must still work)
+
 ## 0.1.35 — 2026-10-03 — Delete a taxonomy, and a more compact New taxonomy
 - **A taxonomy of the site's own can be deleted** (Taxonomies > its Settings and pages tab > Delete taxonomy, after a confirmation that says what happens). Its terms and its pages go, and the address is free again. The entries that were filed under it keep the terms in their own files, so nothing of the content is lost; they are simply no longer shown. Categories and tags cannot be deleted. It is logged
 - **New taxonomy is compact**: a small button opens one row (name, address, Create) with the content types as chips, instead of a tall form with bare checkboxes
