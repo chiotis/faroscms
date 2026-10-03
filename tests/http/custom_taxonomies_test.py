@@ -158,5 +158,12 @@ __import__('os').remove('app/content/pages/project-types.md')
 st, hdr, _ = create('Project types', '', ['projects'])
 check('the address can be used again', st == 302 and 'created=1' in loc(hdr), loc(hdr))
 
+# ---- an address names one thing and nothing after it
+for path in ('/about/anything', '/en/about/anything', '/projects/alpha/extra', '/en/projects/alpha/extra', '/search/x', '/tag/strategy/x', '/category/insights/x', '/pages/about/x', '/projects/alpha/extra/more', '/a/b/c'):
+    check('%s is a 404, not a second address' % path, pub.get(path)[0] == 404, (path, pub.get(path)[0]))
+check('what has exactly its parts is served as before', all(pub.get(p)[0] == 200 for p in ('/', '/about', '/en/about', '/projects', '/projects/alpha', '/en/projects/alpha', '/search?q=a', '/tag/strategy', '/en/tag/strategy', '/about/')), [(p, pub.get(p)[0]) for p in ('/', '/about', '/about/', '/projects/alpha', '/tag/strategy')])
+st, hdr, _ = pub.request('/pages/about')
+check('an old /pages/slug address still goes to the page', st == 301 and loc(hdr).endswith('/about'), (st, loc(hdr)))
+
 print('\nALL PASSED' if not fails else '\n%d FAILED: %s' % (len(fails), fails))
 sys.exit(1 if fails else 0)

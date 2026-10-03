@@ -544,6 +544,11 @@ final class App
             'theme_menus' => $this->menus()->forTheme($lang, $route['path_no_lang']),
         ];
 
+        if ($route['kind'] === 'not_found') {
+            $this->render404();
+            return;
+        }
+
         if ($route['kind'] === 'legacy_page') {
             header('Location: ' . $route['location'], true, 301);
             exit;

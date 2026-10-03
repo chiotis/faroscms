@@ -30,21 +30,24 @@ $rt = fn(string $path) => FrontRoute::resolve($path, $settings, $types, ['indust
 check('a taxonomy the site added has pages at /name/term, in any language', [$rt('industries/retail')['kind'], $rt('en/industries/retail')['kind'], $rt('en/industries/retail')['lang']], ['taxonomy', 'taxonomy', 'en']);
 check('/name alone is an ordinary page address (a page can be made there)', [$rt('industries')['kind'], $rt('industries')['slug']], ['page', 'industries']);
 check('a content type of that name keeps its list and entries', [$rt('posts')['kind'], $rt('posts/hello')['kind']], ['archive', 'entry']);
-check('without the taxonomy in the list the address is a page', $r('industries/retail')['kind'], 'page');
+check('without the taxonomy in the list the address is not found', $r('industries/retail')['kind'], 'not_found');
+check('an address with more after a page is not a page', [$r('about/anything')['kind'], $r('en/about/anything')['kind'], $r('index/x')['kind'], $r('a/b/c')['kind']], ['not_found', 'not_found', 'not_found', 'not_found']);
+check('nor after a list, an entry, a term, the search or an old page address', [$r('posts/hello/extra')['kind'], $r('tag/news/extra')['kind'], $r('category/news/extra')['kind'], $r('search/extra')['kind'], $r('pages/about/extra')['kind'], $rt('industries/retail/extra')['kind']], ['not_found', 'not_found', 'not_found', 'not_found', 'not_found', 'not_found']);
+check('but what has exactly its parts is what it was', [$r('about')['kind'], $r('posts')['kind'], $r('posts/hello')['kind'], $r('tag/news')['kind'], $r('search')['kind'], $r('pages/about')['kind'], $r('en')['kind'], $r('')['kind']], ['page', 'archive', 'entry', 'taxonomy', 'search', 'legacy_page', 'page', 'page']);
 $x = $r('posts');
 check('the list of a type', [$x['kind'], $x['type'], $x['slug']], ['archive', 'posts', '']);
 check('with a trailing slash too', $r('posts/')['kind'], 'archive');
 $x = $r('en/posts/hello');
 check('one entry of a type', [$x['kind'], $x['type'], $x['slug'], $x['lang']], ['entry', 'posts', 'hello', 'en']);
 check('a form is an entry of its type', [$r('forms/contact')['kind'], $r('forms/contact')['type']], ['entry', 'forms']);
-check('a type the site does not have is a page', [$r('gallery/one')['kind'], $r('gallery/one')['slug']], ['page', 'gallery']);
+check('a type the site does not have is not a type: gallery alone is a page, gallery/one is not found', [$r('gallery')['kind'], $r('gallery')['slug'], $r('gallery/one')['kind']], ['page', 'gallery', 'not_found']);
 check('categories and tags, in both spellings', [$r('tag/news')['kind'], $r('tags/news')['kind'], $r('category/news')['kind'], $r('en/categories/x')['kind']], ['taxonomy', 'taxonomy', 'taxonomy', 'taxonomy']);
 check('the search', $r('en/search')['kind'], 'search');
 $x = $r('pages/about');
 check('an old /pages/ address goes to the page itself', [$x['kind'], $x['location']], ['legacy_page', '/about']);
 check('in another language', $r('en/pages/about')['location'], '/en/about');
 check('the home page, or none, goes to the root of the language', [$r('pages/index')['location'], $r('pages')['location'], $r('en/pages/index')['location']], ['/', '/', '/en/']);
-check('a language that is not one is part of the address', [$r('de/about')['lang'], $r('de/about')['slug']], ['el', 'de']);
+check('a language that is not one is part of the address, so this is not found', [$r('de/about')['lang'], $r('de/about')['kind'], $r('de')['slug']], ['el', 'not_found', 'de']);
 check('without a home page setting it is index', FrontRoute::resolve('', ['languages' => ['default' => 'en']] + [], [])['slug'], 'index');
 
 // ---- the Settings screen
