@@ -3186,6 +3186,54 @@ p.form-error {
   height: auto;
 }
 
+/* A book: the picture takes the shape of a cover (2 by 3, cropped to fit), with the spine along the left edge, rounder corners on
+   the right and the pages showing under the lower right corner. Solid colours only. */
+.book-cover.is-book {
+  position: relative;
+  overflow: visible;
+  border-radius: 2px 7px 7px 2px;
+  box-shadow:
+    1px 1px 0 #f5f2ea,
+    2px 2px 0 #cdc6b6,
+    3px 3px 0 #f5f2ea,
+    4px 4px 0 #cdc6b6,
+    16px 24px 30px -14px rgb(15 23 42 / 0.55);
+}
+
+.book-cover.is-book picture,
+.book-cover.is-book img {
+  border-radius: inherit;
+}
+
+.book-cover.is-book img {
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+}
+
+.book-cover.is-book::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 6%;
+  border-radius: 2px 0 0 2px;
+  border-right: 1px solid rgb(255 255 255 / 0.4);
+  background: rgb(0 0 0 / 0.26);
+  pointer-events: none;
+}
+
+.book-cover.is-book::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 8.5%;
+  width: 1px;
+  background: rgb(0 0 0 / 0.18);
+  pointer-events: none;
+}
+
 .book-summary {
   display: grid;
   gap: var(--space-s);
@@ -3243,6 +3291,24 @@ p.form-error {
 
 .archive-body .block-latest.opt-cover-shape-portrait .latest-item .latest-media {
   aspect-ratio: 2 / 3;
+}
+
+/* The spine of a book along the left of a portrait cover. */
+.archive-body .block-latest.opt-cover-shape-portrait .latest-item .latest-media {
+  position: relative;
+}
+
+.archive-body .block-latest.opt-cover-shape-portrait .latest-item .latest-media::before {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 6%;
+  border-right: 1px solid rgb(255 255 255 / 0.4);
+  background: rgb(0 0 0 / 0.26);
+  pointer-events: none;
 }
 
 .archive-body .block-latest.opt-cover-shape-square .latest-item .latest-media {
