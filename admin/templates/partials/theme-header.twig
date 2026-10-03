@@ -1,0 +1,147 @@
+{#
+  Theme > Header: a picture of the header that follows what is chosen, the layouts to choose from, and the rest in a few small
+  cards (style, behaviour, elements, top bar, phone). The choices are the theme's (`settings.header` in theme.yaml); a choice a
+  theme does not declare is left out, and one this screen does not know is listed under "More".
+
+  section   the declared header section        values   what is stored
+#}
+{% import '@admin/partials/layout-controls.twig' as c %}
+{% import '@admin/partials/fields.twig' as fields %}
+{% set f = section.fields %}
+{% set v = values %}
+{% set p = 'theme_settings[header][' %}
+{% set short = {
+  layout: {classic: 'Classic', menu_left: 'Menu left', split: 'Split', centered: 'Centered', stacked: 'Stacked', minimal: 'Minimal', minimal_center: 'Minimal centered'},
+  shape: {full: 'Full width', floating: 'Floating'},
+  width: {contained: 'Contained', wide: 'Wide'},
+  size: {regular: 'Regular', compact: 'Compact', tall: 'Tall'},
+  border: {line: 'Line', none: 'None', shadow: 'Shadow'},
+  row_tone: {default: 'Page', muted: 'Muted', soft: 'Soft', contrast: 'Dark', accent: 'Colour'},
+  bar_tone: {default: 'Page', muted: 'Muted', contrast: 'Dark', accent: 'Colour'},
+  nav_style: {soft: 'Soft', underline: 'Underline', plain: 'Plain'},
+  sticky: {on_scroll: 'After scrolling', always: 'Always', smart: 'Smart', 'off': 'Scrolls away'},
+  search: {icon: 'Icon', field: 'Box', none: 'None'},
+  cta_style: {solid: 'Solid', outline: 'Outline'},
+  topbar_tone: {muted: 'Muted', contrast: 'Dark', accent: 'Colour'}
+} %}
+{% set known = ['layout', 'shape', 'width', 'size', 'border', 'row_tone', 'bar_tone', 'nav_style', 'sticky', 'shrink', 'transparent', 'search', 'show_language', 'show_mode', 'cta_label', 'cta_url', 'cta_style', 'topbar_text', 'topbar_url', 'topbar_tone', 'topbar_contacts', 'topbar_social', 'mobile_menu', 'mobile_bar', 'bar_items'] %}
+{% set map = {
+  layout: [p ~ 'layout]'], shape: [p ~ 'shape]'], width: [p ~ 'width]'], size: [p ~ 'size]'], edge: [p ~ 'border]'], tone: [p ~ 'row_tone]'], bar: [p ~ 'bar_tone]'],
+  nav: [p ~ 'nav_style]'], sticky: [p ~ 'sticky]'], transparent: [p ~ 'transparent]'], search: [p ~ 'search]'], language: [p ~ 'show_language]'], mode: [p ~ 'show_mode]'],
+  cta: {all: [p ~ 'cta_label]', p ~ 'cta_url]']}, ctastyle: [p ~ 'cta_style]'], topbar: [p ~ 'topbar_text]', p ~ 'topbar_contacts]', p ~ 'topbar_social]'], topbartone: [p ~ 'topbar_tone]'],
+  phonebar: [p ~ 'mobile_bar]']
+} %}
+
+<div class="space-y-3" data-hf-root data-layout="{{ v.layout }}">
+  <h2 class="sr-only">Header</h2>
+  <p class="text-xs text-slate-500">Choose the layout, then how it looks and behaves. The picture follows your choices; the menu itself is made in Menus.</p>
+
+  {% if f.layout is defined %}
+    <section class="lc-card rounded-xl border border-slate-200 bg-white p-3" aria-label="Layout">
+      <div class="hfp hfh" data-hf-preview data-hf-map="{{ map|json_encode|e('html_attr') }}"
+           data-layout="{{ v.layout }}" data-shape="{{ v.shape ?? 'full' }}" data-width="{{ v.width ?? 'contained' }}" data-size="{{ v.size ?? 'regular' }}" data-edge="{{ v.border ?? 'line' }}"
+           data-tone="{{ v.row_tone ?? 'default' }}" data-bar="{{ v.bar_tone ?? 'default' }}" data-nav="{{ v.nav_style ?? 'soft' }}" data-sticky="{{ v.sticky ?? 'on_scroll' }}"
+           data-transparent="{{ v.transparent ? 'on' : 'off' }}" data-search="{{ v.search ?? 'icon' }}" data-language="{{ (v.show_language ?? true) ? 'on' : 'off' }}" data-mode="{{ (v.show_mode ?? true) ? 'on' : 'off' }}"
+           data-cta="{{ v.cta_label ? 'on' : 'off' }}" data-ctastyle="{{ v.cta_style ?? 'solid' }}"
+           data-topbar="{{ (v.topbar_text or v.topbar_contacts or v.topbar_social) ? 'on' : 'off' }}" data-topbartone="{{ v.topbar_tone ?? 'muted' }}" data-phonebar="{{ v.mobile_bar ? 'on' : 'off' }}" aria-hidden="true">
+        <div class="hfp-desktop">
+          <div class="hfh-top"><i></i><b></b></div>
+          <div class="hfh-head">
+            <div class="hfh-row">
+              <span class="hfh-burger"><i></i><i></i><i></i></span>
+              <span class="hfh-logo"></span>
+              <span class="hfh-nav"><i></i><i></i><i></i><i></i></span>
+              <span class="hfh-tools"><em class="hfh-search"></em><em class="hfh-lang"></em><em class="hfh-mode"></em><em class="hfh-cta"></em></span>
+            </div>
+            <div class="hfh-barrow"><span class="hfh-nav"><i></i><i></i><i></i><i></i></span></div>
+          </div>
+          <div class="hfh-page"><div class="hfh-hero"><i></i><i></i></div><div class="hfh-lines"><i></i><i></i><i></i></div></div>
+        </div>
+        <div class="hfp-phone">
+          <div class="hfp-phone-head"><span class="hfh-burger"><i></i><i></i><i></i></span><span class="hfh-logo"></span><em></em></div>
+          <div class="hfp-phone-page"><i></i><i></i><i></i></div>
+          <div class="hfp-phone-bar"><i></i><i></i><i></i><i></i></div>
+        </div>
+      </div>
+      <div class="mt-3">
+        {{ c.tiles(p ~ 'layout]', f.layout.options|keys|reduce((carry, k) => carry|merge({(k): short.layout[k] ?? f.layout.options[k]}), {}), v.layout, f.layout.label, 'header', '', f.layout.options) }}
+      </div>
+    </section>
+  {% endif %}
+
+  <div class="grid items-start gap-3 xl:grid-cols-2">
+    <section class="lc-card rounded-xl border border-slate-200 bg-white" aria-labelledby="hd-style">
+      <h3 id="hd-style" class="px-3 pt-3 text-sm font-semibold text-slate-900">Style</h3>
+      <dl class="m-0 space-y-2.5 p-3">
+        {% if f.shape is defined %}{{ c.choice(f.shape, p ~ 'shape]', v.shape, 'seg', short.shape) }}{% endif %}
+        {% if f.width is defined %}{{ c.choice(f.width, p ~ 'width]', v.width, 'seg', short.width) }}{% endif %}
+        {% if f.size is defined %}{{ c.choice(f.size, p ~ 'size]', v.size, 'seg', short.size) }}{% endif %}
+        {% if f.border is defined %}{{ c.choice(f.border, p ~ 'border]', v.border, 'seg', short.border) }}{% endif %}
+        {% if f.row_tone is defined %}{{ c.choice(f.row_tone, p ~ 'row_tone]', v.row_tone, 'seg', short.row_tone) }}{% endif %}
+        {% if f.bar_tone is defined %}{{ c.choice(f.bar_tone, p ~ 'bar_tone]', v.bar_tone, 'seg', short.bar_tone, 'stacked') }}{% endif %}
+        {% if f.nav_style is defined %}{{ c.choice(f.nav_style, p ~ 'nav_style]', v.nav_style, 'seg', short.nav_style) }}{% endif %}
+      </dl>
+    </section>
+
+    <section class="lc-card rounded-xl border border-slate-200 bg-white" aria-labelledby="hd-behaviour">
+      <h3 id="hd-behaviour" class="px-3 pt-3 text-sm font-semibold text-slate-900">Behaviour</h3>
+      <dl class="m-0 space-y-2.5 p-3">
+        {% if f.sticky is defined %}{{ c.choice(f.sticky, p ~ 'sticky]', v.sticky, 'seg', short.sticky) }}{% endif %}
+        {% set behaviour = [] %}
+        {% if f.shrink is defined %}{% set behaviour = behaviour|merge([[p ~ 'shrink]', f.shrink.label, v.shrink]]) %}{% endif %}
+        {% if f.transparent is defined %}{% set behaviour = behaviour|merge([[p ~ 'transparent]', f.transparent.label, v.transparent]]) %}{% endif %}
+        {% if behaviour is not empty %}{{ c.toggles('Also', behaviour) }}{% endif %}
+      </dl>
+      {% if f.transparent is defined %}<p class="m-0 px-3 pb-3 text-[11px] leading-4 text-slate-500">Over an opening hero the header sits on it and turns solid on scroll. A content type or a single page can decide otherwise in <a class="font-medium text-blue-700" href="{{ url('admin/theme?tab=single_layouts') }}">Single Layouts</a>.</p>{% endif %}
+    </section>
+
+    <section class="lc-card rounded-xl border border-slate-200 bg-white" aria-labelledby="hd-elements">
+      <h3 id="hd-elements" class="px-3 pt-3 text-sm font-semibold text-slate-900">Elements</h3>
+      <dl class="m-0 space-y-2.5 p-3">
+        {% if f.search is defined %}{{ c.choice(f.search, p ~ 'search]', v.search, 'seg', short.search) }}{% endif %}
+        {% set shown = [] %}
+        {% if f.show_language is defined %}{% set shown = shown|merge([[p ~ 'show_language]', f.show_language.label, v.show_language]]) %}{% endif %}
+        {% if f.show_mode is defined %}{% set shown = shown|merge([[p ~ 'show_mode]', f.show_mode.label, v.show_mode]]) %}{% endif %}
+        {% if shown is not empty %}{{ c.toggles('Show', shown) }}{% endif %}
+        {% if f.cta_label is defined %}{{ c.text(f.cta_label, p ~ 'cta_label]', v.cta_label) }}{% endif %}
+        {% if f.cta_url is defined %}{{ c.text(f.cta_url, p ~ 'cta_url]', v.cta_url) }}{% endif %}
+        {% if f.cta_style is defined %}{{ c.choice(f.cta_style, p ~ 'cta_style]', v.cta_style, 'seg', short.cta_style) }}{% endif %}
+      </dl>
+    </section>
+
+    <section class="lc-card rounded-xl border border-slate-200 bg-white" aria-labelledby="hd-topbar">
+      <h3 id="hd-topbar" class="px-3 pt-3 text-sm font-semibold text-slate-900">Top bar</h3>
+      <dl class="m-0 space-y-2.5 p-3">
+        {% if f.topbar_text is defined %}{{ c.text(f.topbar_text, p ~ 'topbar_text]', v.topbar_text) }}{% endif %}
+        {% if f.topbar_url is defined %}{{ c.text(f.topbar_url, p ~ 'topbar_url]', v.topbar_url) }}{% endif %}
+        {% if f.topbar_tone is defined %}{{ c.choice(f.topbar_tone, p ~ 'topbar_tone]', v.topbar_tone, 'seg', short.topbar_tone) }}{% endif %}
+        {% set bar = [] %}
+        {% if f.topbar_contacts is defined %}{% set bar = bar|merge([[p ~ 'topbar_contacts]', 'Phone and email', v.topbar_contacts]]) %}{% endif %}
+        {% if f.topbar_social is defined %}{% set bar = bar|merge([[p ~ 'topbar_social]', 'Social icons', v.topbar_social]]) %}{% endif %}
+        {% if bar is not empty %}{{ c.toggles('Show', bar) }}{% endif %}
+      </dl>
+      <p class="m-0 px-3 pb-3 text-[11px] leading-4 text-slate-500">The bar shows when it has a message, the contact details or the icons. The phone and email are the ones in <a class="font-medium text-blue-700" href="{{ url('admin/theme?tab=footer') }}">Footer</a>, the icons those in Social profiles.</p>
+    </section>
+
+    <section class="lc-card rounded-xl border border-slate-200 bg-white xl:col-span-2" aria-labelledby="hd-phone">
+      <h3 id="hd-phone" class="px-3 pt-3 text-sm font-semibold text-slate-900">Phone</h3>
+      <dl class="m-0 space-y-2.5 p-3">
+        {% if f.mobile_menu is defined %}{{ c.choice(f.mobile_menu, p ~ 'mobile_menu]', v.mobile_menu, 'select', {}) }}{% endif %}
+        {% if f.mobile_bar is defined %}{{ c.toggles('Bottom bar', [[p ~ 'mobile_bar]', 'A bar of icons fixed at the bottom of the screen', v.mobile_bar]]) }}{% endif %}
+      </dl>
+      {% if f.bar_items is defined %}
+        <div class="border-t border-slate-100 p-3">{{ fields.field(f.bar_items, p ~ 'bar_items]', v.bar_items) }}</div>
+      {% endif %}
+    </section>
+
+    {% set more = f|filter((field, key) => key not in known and not field.hidden) %}
+    {% if more is not empty %}
+      <section class="lc-card rounded-xl border border-slate-200 bg-white xl:col-span-2" aria-labelledby="hd-more">
+        <h3 id="hd-more" class="px-3 pt-3 text-sm font-semibold text-slate-900">More</h3>
+        <div class="grid gap-3 p-3 sm:grid-cols-2">
+          {% for key, field in more %}{{ fields.field(field, p ~ key ~ ']', v[key] ?? field.default) }}{% endfor %}
+        </div>
+      </section>
+    {% endif %}
+  </div>
+</div>

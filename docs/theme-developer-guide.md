@@ -165,7 +165,7 @@ A template is offered only when its file exists. Keep the key stable: pages stor
 
 ### Add a content type
 
-**Admin > Content types** creates a type (a folder in `content/`), sets its archive layout, ordering, and filters, and adds fields. The editor form then gets a "<Type> details" tab, pages show the fields as a fact sheet, and the archive page lists items with the layout you chose. To do the same in a file, write `custom/content-types/events.yaml` (fields, archive) as described in [theming.md](theming.md#content-types). For a different look, add `custom/templates/archive-events.twig` or `single-events.twig`.
+**Admin > Content types** creates a type (a folder in `content/`) and adds fields; its archive layout, ordering, and filters, and the layout of its single page, are set on its cards in **Theme > Archive Layouts** and **Single Layouts**. The editor form then gets a "<Type> details" tab, pages show the fields as a fact sheet, and the archive page lists items with the layout you chose. To do the same in a file, write `custom/content-types/events.yaml` (fields, archive) as described in [theming.md](theming.md#content-types). For a different look, add `custom/templates/archive-events.twig` or `single-events.twig`.
 
 ### Save a ready-made section
 

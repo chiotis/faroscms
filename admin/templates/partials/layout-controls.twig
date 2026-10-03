@@ -1,0 +1,81 @@
+{#
+  The controls of the layout cards (Theme > Single Layouts and Archive Layouts). All of them are ordinary radio buttons and
+  checkboxes, drawn as segments, tiles and chips (see .lc-* in app.css), so a form submits them without script.
+    seg(name, options, value, label, key)           a few words to choose from, side by side
+    tiles(name, options, value, label, kind, key)   pictures to choose from; kind is "title", "archive", "header" or "footer"
+    choice(...), text(...), toggles(...)           a whole row of the Header and Footer cards: the label and what is chosen or typed
+    chip(name, label, checked)                      one yes or no
+  `key` (optional) tells admin-layouts.js to keep the preview of the card in step with this choice.
+#}
+{% macro seg(name, options, value, label, key, hints) %}
+  <div class="lc-seg" role="radiogroup" aria-label="{{ label }}">
+    {% for option, text in options %}
+      <label{% if (hints[option] ?? '') != '' %} title="{{ hints[option] }}"{% endif %}><input type="radio" name="{{ name }}" value="{{ option }}"{% if option ~ '' == value ~ '' %} checked{% endif %}{% if key %} data-lc="{{ key }}"{% endif %}><span>{{ text }}</span></label>
+    {% endfor %}
+  </div>
+{% endmacro %}
+
+{% macro tiles(name, options, value, label, kind, key, full) %}
+  {% import '@admin/partials/layout-glyphs.twig' as glyphs %}
+  <div class="lc-tiles" role="radiogroup" aria-label="{{ label }}">
+    {% for option, text in options %}
+      <label class="lc-tile"{% if (full[option] ?? '') != '' %} title="{{ full[option] }}"{% endif %}><input type="radio" name="{{ name }}" value="{{ option }}"{% if option ~ '' == value ~ '' %} checked{% endif %}{% if key %} data-lc="{{ key }}"{% endif %}><span>{{ kind == 'title' ? glyphs.title(option) : (kind == 'header' ? glyphs.header(option) : (kind == 'footer' ? glyphs.footer(option) : glyphs.archive(option))) }}{{ text }}</span></label>
+    {% endfor %}
+  </div>
+{% endmacro %}
+
+{% macro chip(name, label, checked) %}
+  <label class="lc-chip"><input type="checkbox" name="{{ name }}" value="1"{% if checked %} checked{% endif %}><span>{{ label }}</span></label>
+{% endmacro %}
+
+{# A row that chooses one of a few things. mode: seg (side by side), select (a list). short: shorter words for the segments. #}
+{% macro choice(field, name, value, mode, short, only) %}
+  {% import _self as c %}
+  {% set options = {} %}
+  {% for option, text in field.options %}{% set options = options|merge({(option): short[option] ?? text}) %}{% endfor %}
+  <div class="lc-row"{% if only %} data-only="{{ only }}"{% endif %}>
+    <dt>{% if mode == 'select' %}<label for="f-{{ name|replace({'[': '-', ']': ''}) }}">{{ field.label }}</label>{% else %}{{ field.label }}{% endif %}</dt>
+    <dd class="m-0">
+      {% if mode == 'select' %}
+        <select id="f-{{ name|replace({'[': '-', ']': ''}) }}" name="{{ name }}" class="lc-input lc-select">
+          {% for option, text in field.options %}<option value="{{ option }}"{% if option ~ '' == value ~ '' %} selected{% endif %}>{{ text }}</option>{% endfor %}
+        </select>
+      {% else %}
+        {{ c.seg(name, options, value, field.label, '', field.options) }}
+      {% endif %}
+      {% if field.help %}<span class="mt-1 block text-[11px] leading-4 text-slate-500">{{ field.help }}</span>{% endif %}
+    </dd>
+  </div>
+{% endmacro %}
+
+{# A row with a text, a link, an address, a colour or a picture to type or choose. #}
+{% macro text(field, name, value) %}
+  {% set id = 'f-' ~ name|replace({'[': '-', ']': ''}) %}
+  <div class="lc-row">
+    <dt><label for="{{ id }}">{{ field.label }}</label></dt>
+    <dd class="m-0">
+      {% if field.type == 'textarea' %}
+        <textarea id="{{ id }}" name="{{ name }}" rows="2" placeholder="{{ field.placeholder }}" class="lc-input">{{ value }}</textarea>
+      {% elseif field.type == 'color' %}
+        <span class="flex items-center gap-2">
+          <span class="h-6 w-6 shrink-0 rounded border border-slate-300" style="background: {{ value ?: 'transparent' }};" aria-hidden="true"></span>
+          <input id="{{ id }}" type="text" name="{{ name }}" value="{{ value }}" placeholder="{{ field.placeholder }}" class="lc-input">
+        </span>
+      {% else %}
+        <input id="{{ id }}" type="{{ field.type == 'email' ? 'email' : 'text' }}" name="{{ name }}" value="{{ value }}" placeholder="{{ field.placeholder }}" class="lc-input"{% if field.type == 'image' %} data-image-field{% endif %}>
+      {% endif %}
+      {% if field.help %}<span class="mt-1 block text-[11px] leading-4 text-slate-500">{{ field.help }}</span>{% endif %}
+    </dd>
+  </div>
+{% endmacro %}
+
+{# A row of yes or no chips: items is a list of [name, label, checked]. #}
+{% macro toggles(label, items) %}
+  {% import _self as c %}
+  <div class="lc-row">
+    <dt>{{ label }}</dt>
+    <dd class="m-0 flex flex-wrap gap-1.5">
+      {% for item in items %}{{ c.chip(item[0], item[1], item[2]) }}{% endfor %}
+    </dd>
+  </div>
+{% endmacro %}

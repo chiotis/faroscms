@@ -10,7 +10,8 @@
     {% include 'components/page-header.twig' %}
   {% endif %}
   {% set contents = toc(item.html) %}
-  <div class="site-wrap with-sidebar">
+  {# Which side the sidebar is on, and what it holds, is chosen per content type in Theme settings > Single Layouts. #}
+  <div class="site-wrap with-sidebar{% if single_layout(item.type).sidebar == 'left' %} is-left{% endif %}">
     <article class="with-sidebar-main prose-block">
       {{ contents.html|raw }}
     </article>

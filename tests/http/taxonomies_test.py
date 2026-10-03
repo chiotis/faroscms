@@ -20,6 +20,20 @@ pub = Client()
 def is_tax_form(f): return any(x[0] == 'taxonomy_title' for x in f['fields'])
 def save(client, taxonomy, overrides=None, drop=None):
     return client.submit('/admin/taxonomies?taxonomy=' + taxonomy, is_tax_form, overrides, drop=drop)
+def asave(client, taxonomy, overrides=None, drop=None):
+    """Saves the layout of a taxonomy's pages the way Theme > Archive Layouts does: the fields of its card, then the changes.
+    `archive[x]` names are those of the card, `archive_taxonomies[<taxonomy>][x]` in the form."""
+    prefix = 'archive_taxonomies[%s][' % taxonomy
+    rename = lambda k: prefix + k[len('archive['):]
+    over = {rename(k): v for k, v in (overrides or {}).items()}
+    gone = {rename(k) for k in (drop or [])}
+    form = next(f for f in client.forms('/admin/theme?tab=archive_layouts') if any(x[0] == 'active_tab' for x in f['fields']))
+    fields = [tuple(x) for x in form['fields'] if x[0] not in over and x[0] not in gone and x[0] != 'active_tab']
+    for k, v in over.items():
+        for item in (v if isinstance(v, list) else [v]):
+            fields.append((k, item))
+    fields.append(('active_tab', 'archive_layouts'))
+    return client.request('/admin/theme', data=fields)
 def terms_of(taxonomy):
     """Current rows of the form as (id, slug, {lang: name})."""
     f = next(f for f in root.forms('/admin/taxonomies?taxonomy=' + taxonomy) if is_tax_form(f))
@@ -39,9 +53,11 @@ def save_terms(client, taxonomy, rows, extra=None, drop=None):
 # ---- the screen
 st, _, html = root.get('/admin/taxonomies?taxonomy=tags')
 check('screen loads', st == 200 and 'How its pages look' in html)
-check('the same options a content type has', all(k in html for k in ('archive[layout]', 'archive[columns]', 'archive[order]', 'archive[per_page]', 'archive[title]', 'archive[subtitle]', 'archive[show_image]', 'archive[show_excerpt]', 'archive[show_date]', 'archive[show_meta]')))
-check('filters offered are the other taxonomies', re.findall(r'name="archive\[taxonomies\]\[\]" value="([a-z-]+)"', html) == ['categories'], re.findall(r'name="archive\[taxonomies\]\[\]" value="([a-z-]+)"', html))
-check('content types can be chosen', 'archive[types][]' in html and 'value="posts"' in html and 'value="projects"' in html)
+check('the layout of its pages is edited in Theme, with a link to it', 'archive[layout]' not in html and 'tab=archive_layouts' in html)
+st, _, th = root.get('/admin/theme?tab=archive_layouts')
+check('where it has the same options a content type has', all(('name="archive_taxonomies[tags][%s]"' % k) in th for k in ('layout', 'columns', 'order', 'per_page', 'title', 'subtitle', 'show_image', 'show_excerpt', 'show_date', 'show_meta')))
+check('filters offered are the other taxonomies', re.findall(r'name="archive_taxonomies\[tags\]\[taxonomies\]\[\]" value="([a-z-]+)"', th) == ['categories'], re.findall(r'name="archive_taxonomies\[tags\]\[taxonomies\]\[\]" value="([a-z-]+)"', th))
+check('content types can be chosen', 'archive_taxonomies[tags][types][]' in th and 'value="posts"' in th and 'value="projects"' in th)
 check('existing terms show their usage', 'entr' in html and 'data-used=' in html)
 check('the screen is a list of terms with search, add, sort and a settings tab', all(k in html for k in ('data-term-rows', 'data-term-search', 'data-term-add', 'data-term-sort', 'data-tab="settings"', 'data-term-dialog', 'role="tablist"')))
 check('taxonomies are switched with links that show their size', 'href="/admin/taxonomies?taxonomy=categories"' in html.replace('http://127.0.0.1', '') or 'taxonomy=categories' in html)
@@ -58,10 +74,9 @@ check('an unknown term is ignored, not an error', st == 200 and 'Filed under' no
 st, _, html = root.get('/admin/content?type=posts&lang=en&taxonomy=nothing&term=strategy')
 check('so is an unknown taxonomy', st == 200 and 'Filed under' not in html)
 st, _, html = root.get('/admin/content-types?type=posts')
-check('content type screen still has its archive options', all(k in html for k in ('archive[layout]', 'archive[columns]', 'archive[order]', 'archive[taxonomies][]')))
-st, hdr, _ = root.submit('/admin/content-types?type=posts', lambda f: any(x[0] == 'label' for x in f['fields']), {'archive[per_page]': '7'})
+check('the content type screen links to the archive layouts instead of holding them', 'archive[layout]' not in html and 'tab=archive_layouts' in html)
+st, hdr, _ = root.submit('/admin/content-types?type=posts', lambda f: any(x[0] == 'label' for x in f['fields']), {'label': 'Posts'})
 check('content type still saves', st == 302 and 'saved=1' in loc(hdr), loc(hdr))
-st, _, html = root.get('/admin/content-types?type=posts'); check('and keeps the choice', 'name="archive[per_page]" min="0" max="60" value="7"' in html)
 
 # ---- defaults
 st, _, html = pub.get('/en/tag/strategy')
@@ -71,7 +86,7 @@ check('default title', '<h1>Tag: Strategy</h1>' in html)
 st, _, html = pub.get('/en/category/news'); check('category page has the default layout too', 'block--cards' in html)
 
 # ---- each taxonomy has its own layout
-st, hdr, _ = save(root, 'tags', {'archive[layout]': 'list', 'archive[per_page]': '1', 'archive[order]': 'title_asc', 'archive[title]': 'Articles about {term}', 'archive[subtitle]': 'Everything filed under {term}'})
+st, hdr, _ = asave(root, 'tags', {'archive[layout]': 'list', 'archive[per_page]': '1', 'archive[order]': 'title_asc', 'archive[title]': 'Articles about {term}', 'archive[subtitle]': 'Everything filed under {term}'})
 check('saving tags succeeds', st == 302 and 'saved=1' in loc(hdr), loc(hdr))
 st, _, html = pub.get('/en/tag/strategy')
 check('tag page uses the chosen layout', 'block--list' in html and 'block--cards' not in html)
@@ -88,37 +103,37 @@ st, _, html = pub.get('/tag/strategy')
 check('other language keeps the choices and its own names', 'block--list' in html and 'Στρατηγική' in html, re.findall(r'<h1>[^<]*</h1>', html))
 
 # a different choice for categories
-save(root, 'categories', {'archive[layout]': 'compact', 'archive[title]': 'Stories: {term}'})
+asave(root, 'categories', {'archive[layout]': 'compact', 'archive[title]': 'Stories: {term}'})
 st, _, html = pub.get('/en/category/news')
 check('categories have their own layout', 'block--compact' in html and '<h1>Stories: News</h1>' in html, re.findall(r'<h1>[^<]*</h1>', html))
 st, _, html = pub.get('/en/tag/strategy?page=1'); check('and tags did not change', 'block--list' in html)
 
 # filters and content types
-save(root, 'tags', {'archive[taxonomies][]': ['categories'], 'archive[per_page]': '0'})
+asave(root, 'tags', {'archive[taxonomies][]': ['categories'], 'archive[per_page]': '0'})
 st, _, html = pub.get('/en/tag/strategy')
 check('a filter from another taxonomy is offered', 'name="filter[categories]"' in html and 'archive-filters' in html)
 st, _, html = pub.get('/en/tag/strategy?filter[categories]=news')
 check('choosing it narrows the list and asks search engines to skip it', 'Gamma Hospitality Rebrand' not in html and 'Rebrand' in html and 'noindex' in html)
-save(root, 'tags', {'archive[types][]': ['posts']})
+asave(root, 'tags', {'archive[types][]': ['posts']})
 st, _, html = pub.get('/en/tag/strategy')
 check('only the chosen content types are listed', 'Gamma Hospitality Rebrand' not in html and 'Rebrand' in html)
-save(root, 'tags', {'archive[types][]': ['posts', 'projects']})
+asave(root, 'tags', {'archive[types][]': ['posts', 'projects']})
 st, _, html = pub.get('/en/tag/strategy')
 check('choosing every type is the same as choosing none', 'Gamma Hospitality Rebrand' in html)
-st, _, html = root.get('/admin/taxonomies?taxonomy=tags')
-check('the form shows what is stored', 'name="archive[layout]"' in html and re.search(r'<option value="list" selected', html) is not None)
+st, _, html = root.get('/admin/theme?tab=archive_layouts')
+check('the Theme screen shows what is stored', re.search(r'name="archive_taxonomies\[tags\]\[layout\]" value="list" checked', html) is not None)
 check('the layout file holds only differences', 'types' not in open('app/content/taxonomies/tags.yaml').read() and 'layout: list' in open('app/content/taxonomies/tags.yaml').read())
 # turning things off
-save(root, 'tags', {}, drop=['archive[show_image]', 'archive[show_excerpt]', 'archive[show_date]', 'archive[show_meta]'])
+asave(root, 'tags', {}, drop=['archive[show_image]', 'archive[show_excerpt]', 'archive[show_date]', 'archive[show_meta]'])
 st, _, html = pub.get('/en/tag/strategy'); check('switching parts off hides them', 'entry-excerpt' not in html and st == 200, st)
 
 # ---- who can change it
-st, _, html = ed.get('/admin/taxonomies'); check('editor can open taxonomies', st == 200 and 'How its pages look' in html)
-st, hdr, _ = save(ed, 'categories', {'archive[layout]': 'cards'}); check('editor can change a layout', st == 302 and 'saved=1' in loc(hdr), st)
+st, _, html = ed.get('/admin/taxonomies'); check('editor can open taxonomies, but is not sent to a screen that is not theirs', st == 200 and 'How its pages look' in html and 'tab=archive_layouts' not in html)
+st, hdr, _ = save(ed, 'categories'); check('editor can save a taxonomy', st == 302 and 'saved=1' in loc(hdr), st)
 st, _, _ = usr.get('/admin/taxonomies'); check('basic user cannot', st in (302, 403), st)
 tok = re.search(r'name="_csrf" value="([0-9a-f]+)"', usr.get('/admin')[2]).group(1)
 st, _, _ = usr.request('/admin/taxonomies', data=[('_csrf', tok), ('taxonomy', 'tags'), ('archive[layout]', 'list')]); check('basic user cannot save either', st in (302, 403), st)
-st, _, html = pub.get('/en/category/news'); check('...and the editor\'s change took effect', 'block--cards' in html and '<h1>Stories: News</h1>' in html)
+st, _, html = pub.get('/en/category/news'); check('...and saving a taxonomy leaves the layout of its pages as it was', 'block--compact' in html and '<h1>Stories: News</h1>' in html)
 
 # ---- addresses of terms are made from their names
 before = terms_of('tags')
@@ -164,7 +179,7 @@ def with_description(text, term='strategy'):
     ids = [v for k, v in f['fields'] if k == 'term_id[]']
     el = [text if i == term else '' for i in ids]
     return root.submit('/admin/taxonomies?taxonomy=tags', is_tax_form, {'term_description[el][]': el, 'term_description[en][]': [('About growth strategy' if i == term else '') for i in ids]})
-save(root, 'tags', {'archive[subtitle]': ''})
+asave(root, 'tags', {'archive[subtitle]': ''})
 st, hdr, _ = with_description('Ό,τι αφορά τη στρατηγική')
 check('a description saves', st == 302 and 'saved=1' in loc(hdr), loc(hdr))
 st, _, html = root.get('/admin/taxonomies?taxonomy=tags')
@@ -173,10 +188,10 @@ st, _, html = pub.get('/tag/stratigiki')
 check('the term page shows it under the title', 'Ό,τι αφορά τη στρατηγική' in html, re.findall(r'<h1>[^<]*</h1>', html))
 st, _, html = pub.get('/en/tag/stratigiki')
 check('in the language of the page', 'About growth strategy' in html)
-save(root, 'tags', {'archive[subtitle]': 'Own subtitle for {term}'})
+asave(root, 'tags', {'archive[subtitle]': 'Own subtitle for {term}'})
 st, _, html = pub.get('/en/tag/stratigiki')
 check('a subtitle written for the taxonomy takes its place', 'Own subtitle for Strategy' in html and 'About growth strategy' not in html)
-save(root, 'tags', {'archive[subtitle]': ''})
+asave(root, 'tags', {'archive[subtitle]': ''})
 # a form with no description boxes at all does not wipe them
 f = next(f for f in root.forms('/admin/taxonomies?taxonomy=tags') if is_tax_form(f))
 save(root, 'tags', {}, drop=['term_description[el][]', 'term_description[en][]'])

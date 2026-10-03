@@ -79,6 +79,9 @@ check('the menu link follows', $menus->load('main')['items'][0]['url'], 'tag/nea
 $r = $editor->apply('tags', ['taxonomy_title' => 'Topics', 'term_id' => ['design'], 'term_slug' => ['design'], 'term_label' => ['el' => ['Σχεδιασμός'], 'en' => ['Design']], 'archive' => ['types' => ['posts', 'projects']]], ['el', 'en'], 'el', 'tester');
 check('removed terms and the entries still filed under them', [$r['removed'], $r['orphaned']], [2, 4]);
 check('choosing every type stores no type list', isset($store->load('tags')['archive']['types']), false);
+$editor->apply('tags', ['taxonomy_title' => 'Topics', 'term_id' => ['design'], 'term_slug' => ['design'], 'term_label' => ['el' => ['Σχεδιασμός'], 'en' => ['Design']], 'archive' => ['layout' => 'magazine', 'per_page' => '12']], ['el', 'en'], 'el', 'tester');
+$editor->apply('tags', ['taxonomy_title' => 'Topics', 'term_id' => ['design'], 'term_slug' => ['design'], 'term_label' => ['el' => ['Σχεδιασμός'], 'en' => ['Design']]], ['el', 'en'], 'el', 'tester');
+check('a form without the layout part (it is edited in Theme > Archive Layouts) leaves it alone', $store->load('tags')['archive']['layout'] ?? null, 'magazine');
 check('a form without a title keeps the title', $editor->apply('tags', ['term_id' => ['design'], 'term_slug' => ['design'], 'term_label' => ['el' => ['Σχεδιασμός'], 'en' => ['Design']]], ['el', 'en'], 'el', 't')['title'], 'Topics');
 
 exec('rm -rf ' . escapeshellarg($dir));

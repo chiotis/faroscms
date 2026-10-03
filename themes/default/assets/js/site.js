@@ -204,16 +204,36 @@
       root.style.setProperty('--header-height', headerEl.offsetHeight + 'px');
     };
 
+    // The height the header takes in the page, its margin included (a floating header has one).
+    const outerHeight = () => headerEl.offsetHeight + (parseFloat(getComputedStyle(headerEl).marginTop) || 0);
+
+    // Smart: the header leaves while the page is read downwards and returns when it is scrolled back up. It stays while
+    // something in it has the focus or the phone menu is open.
+    const smart = headerEl.hasAttribute('data-smart');
+    let lastY = window.scrollY;
+    const syncSmart = () => {
+      const y = window.scrollY;
+      const delta = y - lastY;
+      lastY = y;
+      if (!smart) return;
+      if (y <= 200 || delta < -6) {
+        headerEl.classList.remove('is-tucked');
+      } else if (delta > 6 && !headerEl.contains(document.activeElement) && !document.body.classList.contains('mobile-menu-open')) {
+        headerEl.classList.add('is-tucked');
+      }
+    };
+
     const syncScroll = () => {
       // A transparent header turns solid as soon as the page moves under it.
       document.body.classList.toggle('header-solid', window.scrollY > 8);
+      syncSmart();
       if (stickyMode !== 'on_scroll') return;
       const shouldStick = window.scrollY > 200;
       if (shouldStick === sticky) return;
       sticky = shouldStick;
       document.body.classList.toggle('header-sticky', sticky);
       // An overlaying header takes no space, so nothing needs to be held open.
-      headerSpacer.style.height = sticky && !overlays ? headerEl.offsetHeight + 'px' : '0px';
+      headerSpacer.style.height = sticky && !overlays ? outerHeight() + 'px' : '0px';
     };
 
     syncHeaderHeight();
@@ -223,7 +243,7 @@
     window.addEventListener('resize', () => {
       syncHeaderHeight();
       if (sticky && !overlays) {
-        headerSpacer.style.height = headerEl.offsetHeight + 'px';
+        headerSpacer.style.height = outerHeight() + 'px';
       }
     });
   }

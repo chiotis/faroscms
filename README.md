@@ -29,7 +29,7 @@ It is built for the kind of site an agency or freelancer hands to a client: a go
 | | |
 |---|---|
 | **Your content is just files** | Pages, posts, projects, menus and forms are Markdown/YAML in `content/`. Read them, diff them, keep them in Git, back them up with `cp`. |
-| **A design system, not a blank theme** | One all-purpose `default` theme: 25 blocks with layout variants, 6 colour palettes, light and dark mode, three corner styles, four header layouts, responsive images and WCAG-minded markup. |
+| **A design system, not a blank theme** | One all-purpose `default` theme: 25 blocks with layout variants, 6 colour palettes, light and dark mode, three corner styles, seven header layouts and five footer layouts, responsive images and WCAG-minded markup. |
 | **A block editor that keeps the design consistent** | Pages are built from ready-made sections (hero, features, pricing, comparison table, before/after slider, FAQ, gallery, map, forms…). Editors change text, images and order; the layout stays sound. |
 | **Multilingual from the start** | Each page can have a translation per language, with their own addresses, menus, labels and redirects. Greek is transliterated to clean Latin addresses out of the box. |
 | **Safe to hand over** | Roles and permissions (with roles of your own), history with compare and restore, redirects when an address changes, links that follow, storage and upload limits, activity log. |
@@ -123,7 +123,7 @@ Editors never have to see that: the admin's block editor writes it for them, wit
 The `default` theme is one design system that grows by adding blocks and variants rather than by forking:
 
 - **25 blocks:** hero (split, centered, cover, steps, minimal), features, cards, text and image, stats, logos, testimonials, team, timeline, pricing, comparison table, before/after slider, tabs, FAQ, gallery (grid, masonry, strip), video with a viewer, slider, map, contact, forms, banner, call to action, and latest content in eight layouts.
-- **Site options** in *Theme* in the admin: palette, font, corner shape, header and footer layouts, a transparent header over the opening hero, a bottom action bar for phones, five styles for the phone menu, per-type title layouts, social profiles.
+- **Site options** in *Theme* in the admin: palette, font, corner shape, header and footer layouts, a transparent header over the opening hero, a bottom action bar for phones, five styles for the phone menu, a card for the single page and one for the list of every content type (page layout with or without a sidebar, title area, header, archive layout), social profiles.
 - **Content types** with their own fields, archive layouts, filters and pagination, plus categories and tags with layouts of their own.
 - **Accessible by default:** skip link, real landmarks and heading levels, keyboard-friendly menus and viewers, reduced motion, and a browser audit script (`scripts/theme-audit.js`) that runs axe-core against WCAG 2.2 AA.
 

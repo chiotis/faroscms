@@ -216,14 +216,15 @@ final class ContentEditor
             $template = trim((string)$post['template']);
             if ($template === '' || $template === 'default') {
                 unset($data['template']);
-            } elseif (isset($this->theme->pageTemplates()[$template])) {
+            } elseif (isset($this->theme->pageTemplates()[$template]) || $template === SingleLayouts::PLAIN) {
                 $data['template'] = $template;
             }
         }
 
         // How the entry opens, when it should differ from its content type: a title layout, and whether the
         // header sits over it. Empty means "follow the settings"; a value the theme does not offer is left as it is.
-        foreach (['hero_layout' => $this->theme->settingOptions('hero_layouts', 'default'), 'header_transparent' => array_diff_key($this->theme->settingOptions('transparent_header', 'default'), ['site' => true])] as $key => $choices) {
+        $single = new SingleLayouts($this->theme);
+        foreach (['hero_layout' => $single->titleChoices(), 'header_transparent' => $single->headerChoices()] as $key => $choices) {
             if (!array_key_exists($key, $post)) {
                 continue;
             }

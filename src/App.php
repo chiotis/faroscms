@@ -90,6 +90,8 @@ final class App
     private ?RoleAdmin $roleAdminService = null;
     private ?UserAdmin $userAdminService = null;
     private ?ContentTypeAdmin $contentTypeAdminService = null;
+    private ?SingleLayouts $singleLayoutsService = null;
+    private ?LayoutsAdmin $layoutsAdminService = null;
     private ?ArchiveBuilder $archiveBuilderService = null;
     private ?BackupAdmin $backupAdminService = null;
     private ?PublicPaths $publicPathsService = null;
@@ -1846,21 +1848,45 @@ final class App
         ]);
     }
 
-    /** Theme settings: one screen, a tab for each section the theme declares. */
+    /**
+     * Theme settings: one screen, a tab for each section the theme declares, and two tabs that gather how pages look: Single
+     * Layouts (a card for each content type) and Archive Layouts (a card for each list of entries).
+     */
     private function handleTheme(): void
     {
         $schema = $this->theme->settingsSchema();
+        $single = $this->singleLayouts();
         $tabs = [];
         foreach ($schema as $key => $section) {
+            // The sidebar card is part of Single Layouts when the theme has them.
+            if ($key === 'sidebar' && $single->declared()) {
+                continue;
+            }
             if (array_filter($section['fields'], static fn(array $field): bool => !$field['hidden']) !== []) {
                 $tabs[] = $key;
             }
         }
+        // The two tabs that gather how pages look come after the header's.
+        $at = array_search('header', $tabs, true);
+        array_splice($tabs, $at === false ? min(1, count($tabs)) : $at + 1, 0, $single->declared() ? ['single_layouts', 'archive_layouts'] : ['archive_layouts']);
         $activeTab = (string)($_GET['tab'] ?? '');
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $activeTab = (string)($_POST['active_tab'] ?? $activeTab);
-            $save = $this->saveThemeSettings(is_array($_POST['theme_settings'] ?? null) ? $_POST['theme_settings'] : []);
+            $save = $this->saveThemeSettings(
+                is_array($_POST['theme_settings'] ?? null) ? $_POST['theme_settings'] : [],
+                is_array($_POST['single_layouts'] ?? null) ? $_POST['single_layouts'] : null
+            );
             $this->themeSettings = $this->loadThemeSettings();
+            if (($save['ok'] ?? false) === true && (is_array($_POST['archive_types'] ?? null) || is_array($_POST['archive_taxonomies'] ?? null))) {
+                $failed = $this->layoutsAdmin()->saveArchives(
+                    is_array($_POST['archive_types'] ?? null) ? $_POST['archive_types'] : [],
+                    is_array($_POST['archive_taxonomies'] ?? null) ? $_POST['archive_taxonomies'] : [],
+                    $this->defaultLanguage()
+                );
+                if ($failed !== []) {
+                    $save = ['ok' => false, 'message' => 'Could not write the archive layout of ' . implode(', ', $failed) . '. Check that the custom/ folder is writable.'];
+                }
+            }
             if (($save['ok'] ?? false) !== true) {
                 $this->redirect('/admin/theme?theme=fail&tab=' . urlencode($activeTab) . '&theme_msg=' . urlencode((string)($save['message'] ?? 'Theme settings could not be saved.')));
                 return;
@@ -1872,6 +1898,7 @@ final class App
         if (!in_array($activeTab, $tabs, true)) {
             $activeTab = $tabs[0] ?? '';
         }
+        $default = $this->defaultLanguage();
         $this->render('@admin/theme.twig', [
             'user' => $this->auth->user(),
             'types' => $this->content->getTypes(),
@@ -1881,6 +1908,7 @@ final class App
             'theme_message' => trim((string)($_GET['theme_msg'] ?? '')),
             'theme_schema' => $schema,
             'theme_tabs' => $tabs,
+            'tab_labels' => ['single_layouts' => 'Single Layouts', 'archive_layouts' => 'Archive Layouts'],
             'theme_values' => $this->themeSettings,
             'theme_info' => [
                 'name' => $this->theme->name(),
@@ -1889,7 +1917,35 @@ final class App
                 'custom_dir' => is_dir($this->theme->customPath()),
             ],
             'active_tab' => $activeTab,
+            'single_declared' => $single->declared(),
+            'single_fields' => $single->fields(),
+            'single_templates' => $single->templates(),
+            'single_cards' => $single->declared() ? $this->layoutsAdmin()->singleCards($this->themeSettings, $default) : [],
+            'archive_cards' => $this->layoutsAdmin()->archiveCards($default),
+            'archive_layouts' => ContentTypes::LAYOUTS,
+            'archive_columns' => ['2', '3', '4'],
+            'sidebar_section' => $schema['sidebar'] ?? null,
         ]);
+    }
+
+    private function singleLayouts(): SingleLayouts
+    {
+        return $this->singleLayoutsService ??= new SingleLayouts($this->theme);
+    }
+
+    private function layoutsAdmin(): LayoutsAdmin
+    {
+        return $this->layoutsAdminService ??= new LayoutsAdmin(
+            $this->theme,
+            $this->singleLayouts(),
+            $this->contentTypes(),
+            $this->contentTypeAdmin(),
+            $this->taxonomies(),
+            $this->taxonomyEditor(),
+            fn(): array => $this->content->getTypes(),
+            fn(string $type): int => count($this->content->getItems($type, null, true)),
+            fn(string $type): string => $this->singularizeType($type)
+        );
     }
 
     private function handleMenusList(): void
@@ -2453,6 +2509,11 @@ final class App
             );
         }));
 
+        // What the page of one entry of a type does (Theme > Single Layouts): title style, header, parts, sidebar.
+        $twig->addFunction(new TwigFunction('single_layout', function (string $type): array {
+            return $this->singleLayouts()->forType($type, $this->themeSettings);
+        }));
+
         $twig->addFunction(new TwigFunction('content_type', function (string $type): array {
             return $this->contentTypes()->definition($type, $this->currentLang, $this->defaultLanguage());
         }));
@@ -2770,16 +2831,21 @@ final class App
 
     /**
      * @param array<string, mixed> $input submitted `theme_settings[section][field]` values
+     * @param array<string, mixed>|null $singleInput submitted `single_layouts[<type>][...]` values, when the form had the Single Layouts cards
      * @return array{ok: bool, message?: string}
      */
-    private function saveThemeSettings(array $input): array
+    private function saveThemeSettings(array $input, ?array $singleInput = null): array
     {
         if (!$this->systemDatabase->isAvailable()) {
             return ['ok' => false, 'message' => 'Theme settings could not be saved because the SQLite system database is unavailable.'];
         }
 
         // Keys the theme does not declare (hand-added options) are kept, not dropped.
-        $data = $this->theme->settingsFromInput($input, $this->loadThemeSettings());
+        $current = $this->loadThemeSettings();
+        $data = $this->theme->settingsFromInput($input, $current);
+        if ($singleInput !== null && $this->singleLayouts()->declared()) {
+            $data['single_layouts'] = $this->singleLayouts()->fromInput($singleInput, $this->content->getTypes(), $current);
+        }
         $this->setSystemMeta('theme_settings', Yaml::dump($data, 4, 2));
         return ['ok' => true];
     }
@@ -2913,19 +2979,18 @@ final class App
             return $custom;
         }
 
-        $singular = $this->singularizeType($item->type);
-        $candidates = [
-            'templates/single-' . $singular . '.twig',
-            'templates/single.twig',
-            'templates/' . $item->type . '.twig',
-        ];
-        if ($item->type === 'pages') {
-            $candidates[] = 'templates/page.twig';
-        } elseif ($item->type === 'posts') {
-            $candidates[] = 'templates/post.twig';
+        $default = $this->theme->defaultSingleTemplate($item->type, $this->singularizeType($item->type));
+        // An entry can ask for the plain layout although its content type has another.
+        if ($custom === 'templates/' . SingleLayouts::PLAIN . '.twig') {
+            return $default;
+        }
+        // The page layout chosen for the type (Theme > Single Layouts) applies to the types whose own template is the standard one.
+        $chosen = $this->singleLayouts()->effectiveTemplate($item->type, $this->themeSettings);
+        if ($chosen !== 'default' && $item->type !== 'forms' && $this->theme->hasTemplate('templates/' . $chosen . '.twig') && $this->theme->usesTitleArea($default)) {
+            return 'templates/' . $chosen . '.twig';
         }
 
-        return $this->theme->findTemplate($candidates) ?? 'templates/single.twig';
+        return $default;
     }
 
     /** Front matter `template:` accepts `landing`, `landing.twig`, or `templates/landing.twig`. */

@@ -138,7 +138,7 @@ for kind, url in (('a page', 'type=pages&slug=plain&lang=el'), ('a post', 'type=
     check('the editor of ' + kind + ' offers both choices', st == 200 and 'name="hero_layout"' in html and 'name="header_transparent"' in html and 'Follow settings (' in html, st)
 st, _, html = root.get('/admin/edit?type=pages&slug=plain&lang=el')
 check('it says what the content type does now', 'Follow settings (Default)' in html or 'Follow settings (Split)' in html or 'Follow settings (Centered)' in html, re.findall(r'Follow settings \([^)]*\)', html))
-check('the choices are the theme\'s', all(('>%s<' % l) in html for l in ('Split', 'Cover', 'Minimal', 'Centered')) and '>On<' in html and '>Off<' in html)
+check('the choices are the theme\'s', all(('>%s<' % l) in html for l in ('Split', 'Cover', 'Minimal', 'Centered')) and '>Over the title<' in html and '>Solid<' in html)
 check('the "site default" choice is not offered per entry', '>Site default<' not in html)
 
 def save(url, **values):

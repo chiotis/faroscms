@@ -25,7 +25,7 @@
 {% set wants_transparent = (item is defined and item ? opening.transparent(item, theme_settings)|trim : (header_settings.transparent|default(false) ? '1' : '')) != '' %}
 {% set transparent_header = wants_transparent and (title_layout != '' or (lead_block and lead_block.type == 'hero')) %}
 {% if title_layout != '' %}
-  {% set title_image = item.meta.hero_image|default(item.meta.main_image|default('')) %}
+  {% set title_image = opening.image(item, theme_settings)|trim %}
   {% set transparent_on_dark = transparent_header and (title_layout == 'cover' or (title_layout == 'default' and title_image)) %}
 {% else %}
   {% set transparent_on_dark = transparent_header and (lead_block.variant in ['cover', 'steps'] or lead_block.tone in ['contrast', 'accent']) %}
