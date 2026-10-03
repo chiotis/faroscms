@@ -354,6 +354,27 @@ final class SiteSettings
         return true;
     }
 
+    /**
+     * Stores the `seo` settings (Admin > SEO) and leaves the rest of the site settings as they are. Returns false when the
+     * settings cannot be written.
+     *
+     * @param array<string, mixed> $seo
+     */
+    public function setSeo(array $seo): bool
+    {
+        if (!$this->meta->isAvailable()) {
+            return false;
+        }
+        $data = $this->parse($this->raw('site_settings', $this->defaults()));
+        if ($seo === []) {
+            unset($data['seo']);
+        } else {
+            $data['seo'] = $seo;
+        }
+        $this->meta->set('site_settings', Yaml::dump($data, 5, 2));
+        return true;
+    }
+
     /** Shows a menu in a place of the theme ("header", "footer"). Returns false when the settings cannot be written. */
     public function setMenuLocation(string $location, string $menu): bool
     {

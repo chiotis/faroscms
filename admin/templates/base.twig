@@ -106,6 +106,12 @@
             Content types
           </a>
         {% endif %}
+        {% if can('seo.manage') %}
+          <a href="{{ url('admin/seo') }}" class="{{ nav_base }} {{ section == 'seo' ? nav_active : nav_idle }}"{% if section == 'seo' %} aria-current="page"{% endif %}>
+            <svg class="h-4 w-4 {{ section == 'seo' ? 'text-white/80' : 'text-slate-400 group-hover:text-slate-600' }}" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.3-4.3M10.5 18a7.5 7.5 0 100-15 7.5 7.5 0 000 15zM7.5 12.5l2-2 1.5 1.5 3-3"/></svg>
+            SEO
+          </a>
+        {% endif %}
         {% if can('redirects.manage') %}
           <a href="{{ url('admin/redirects') }}" class="{{ nav_base }} {{ section == 'redirects' ? nav_active : nav_idle }}"{% if section == 'redirects' %} aria-current="page"{% endif %}>
             <svg class="h-4 w-4 {{ section == 'redirects' ? 'text-white/80' : 'text-slate-400 group-hover:text-slate-600' }}" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 12h13M13 7l5 5-5 5M4 6v12"/></svg>

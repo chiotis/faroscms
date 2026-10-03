@@ -54,6 +54,7 @@ final class App
     private array $formStates = [];
     private ?Menus $menuStore = null;
     private ?Sitemap $sitemapService = null;
+    private ?SeoAdmin $seoAdminService = null;
     private ?TaxonomyPage $taxonomyPageService = null;
     private ?PublicForms $publicFormsService = null;
     private ?SettingsAdmin $settingsAdminService = null;
@@ -323,8 +324,42 @@ final class App
         return $this->sitemapService ??= new Sitemap(
             $this->content,
             fn(): array => $this->settings,
-            fn(string $path): string => $this->buildAbsoluteUrl($path)
+            fn(string $path): string => $this->buildAbsoluteUrl($path),
+            fn(string $lang): array => $this->sitemapTerms($lang)
         );
+    }
+
+    /**
+     * The pages of the terms (categories, tags, a site's own taxonomies) that have entries in a language, with the date of
+     * the newest entry: what the sitemap lists of the taxonomies.
+     *
+     * @return array<int, array{path: string, lastmod: int}>
+     */
+    private function sitemapTerms(string $lang): array
+    {
+        $newest = [];
+        foreach ($this->content->getTypes() as $type) {
+            if (in_array($type, ['pages', 'forms'], true)) {
+                continue;
+            }
+            foreach ($this->content->getItems($type, $lang, false, false) as $item) {
+                foreach ($this->taxonomies()->names() as $name) {
+                    foreach (Format::list($item->meta[$name] ?? null) as $termId) {
+                        $key = $name . "\0" . $termId;
+                        $newest[$key] = max($newest[$key] ?? 0, $item->mtime);
+                    }
+                }
+            }
+        }
+        $terms = [];
+        foreach ($newest as $key => $mtime) {
+            [$name, $termId] = explode("\0", $key, 2);
+            $path = $this->buildTaxonomyPath($name, $termId, $this->langPrefix($lang));
+            if ($path !== '') {
+                $terms[] = ['path' => $path, 'lastmod' => $mtime];
+            }
+        }
+        return $terms;
     }
 
     private function taxonomyPage(): TaxonomyPage
@@ -565,6 +600,7 @@ final class App
             $this->render('templates/search.twig', [
                 'query' => $query,
                 'results' => $results,
+                'seo_kind' => 'search',
             ] + $viewDefaults);
             return;
         }
@@ -787,6 +823,7 @@ final class App
         'taxonomies' => 'handleTaxonomies',
         'roles' => 'handleRoles',
         'redirects' => 'handleRedirects',
+        'seo' => 'handleSeo',
         'revisions' => 'handleRevisions',
         'links' => 'handleLinks',
         'users' => 'handleUsersList',
@@ -1110,6 +1147,41 @@ final class App
         return $this->roleAdminService ??= new RoleAdmin(
             $this->systemMeta,
             $this->users,
+            fn(string $action, string $level, ?string $type, ?string $id, string $message, array $context) => $this->logActivity($action, $level, $type, $id, $message, $context)
+        );
+    }
+
+    /** Admin > SEO: a tab for each part of how the site meets search engines and social networks. */
+    private function handleSeo(): void
+    {
+        $admin = $this->seoAdmin();
+        $tab = SeoAdmin::tab((string)($_GET['tab'] ?? ''));
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $this->redirect($admin->save($tab, $_POST));
+            return;
+        }
+        $this->render('@admin/seo.twig', $admin->screen($tab) + [
+            'saved' => (string)($_GET['saved'] ?? '') === '1',
+            'error' => (string)($_GET['error'] ?? ''),
+            'user' => $this->auth->user(),
+            'types' => $this->content->getTypes(),
+            'admin_section' => 'seo',
+            'current_type' => 'pages',
+        ]);
+    }
+
+    private function seoAdmin(): SeoAdmin
+    {
+        return $this->seoAdminService ??= new SeoAdmin(
+            $this->siteSettings(),
+            new SeoAudit($this->content, fn(): array => $this->settings),
+            fn(): array => $this->settings,
+            function (): void {
+                $this->settings = $this->siteSettings()->load();
+            },
+            fn(): array => $this->themeSettings,
+            fn(): array => $this->content->getTypes(),
+            fn(): int => $this->redirects->isAvailable() ? $this->redirects->notFoundCount() : 0,
             fn(string $action, string $level, ?string $type, ?string $id, string $message, array $context) => $this->logActivity($action, $level, $type, $id, $message, $context)
         );
     }
@@ -2715,6 +2787,18 @@ final class App
 
         // What Theme > Branding adds to a page: a style sheet of the choices made there, and the icons and colour of the browser.
         $brandingBase = (string)($this->settings['base_url'] ?? '');
+        // The site-wide search engine settings (Admin > SEO) as a page uses them: its title and description, what the robots tag says,
+        // the tags that are the same on every page, and the card of a shared link.
+        $twig->addFunction(new TwigFunction('seo_title', fn(mixed $own, mixed $page, bool $home, mixed $type): string => SeoSettings::title(
+            SeoSettings::from($this->settings), (string)$own, (string)$page, (string)($this->settings['title'] ?? ''), (string)($this->settings['tagline'] ?? ''), $home, (string)$type
+        )));
+        $twig->addFunction(new TwigFunction('seo_description', fn(mixed $own, mixed $excerpt, mixed $document, bool $home): string => SeoSettings::description(
+            SeoSettings::from($this->settings), (string)$own, (string)$excerpt, (string)$document, (string)($this->settings['tagline'] ?? ''), $home
+        )));
+        $twig->addFunction(new TwigFunction('seo_robots', fn(bool $pageNoindex, mixed $kind): string => SeoSettings::robots(SeoSettings::from($this->settings), $pageNoindex, (string)$kind)));
+        $twig->addFunction(new TwigFunction('seo_head', fn(): string => SeoSettings::head(SeoSettings::from($this->settings)), ['is_safe' => ['html']]));
+        $twig->addFunction(new TwigFunction('seo_share_image', fn(): string => (string)SeoSettings::from($this->settings)['share_image']));
+        $twig->addFunction(new TwigFunction('seo_twitter_card', fn(bool $hasImage): string => SeoSettings::twitterCard(SeoSettings::from($this->settings), $hasImage)));
         $twig->addFunction(new TwigFunction('branding_css', fn(): string => Branding::css($this->themeSettings, $brandingBase), ['is_safe' => ['html']]));
         $twig->addFunction(new TwigFunction('branding_head', fn(): string => Branding::head($this->themeSettings, $brandingBase), ['is_safe' => ['html']]));
 
@@ -3178,14 +3262,25 @@ final class App
 
     private function renderSitemap(): void
     {
+        // A sitemap switched off (or a site that asked to stay out of search) is not there to be found.
+        if (!$this->sitemap()->enabled()) {
+            $this->render404();
+            return;
+        }
         header('Content-Type: application/xml; charset=utf-8');
         echo $this->sitemap()->xml();
     }
 
     private function renderRobots(): void
     {
+        $seo = SeoSettings::from($this->settings);
         header('Content-Type: text/plain; charset=utf-8');
-        echo RobotsTxt::render($this->buildAbsoluteUrl('sitemap.xml'), is_array($this->settings['seo']['robots_disallow'] ?? null) ? $this->settings['seo']['robots_disallow'] : []);
+        echo RobotsTxt::render(
+            $this->sitemap()->enabled() ? $this->buildAbsoluteUrl('sitemap.xml') : '',
+            $seo['robots_disallow'],
+            $seo['discourage'],
+            $seo['block_ai'] ? SeoSettings::AI_CRAWLERS : []
+        );
     }
 
     private function handleTaxonomy(array $segments, string $lang, array $viewDefaults): void

@@ -183,17 +183,14 @@
           </div>
         </div>
 
-        <div class="{{ section_class }}">
-          <div class="{{ section_header_class }}">
-            <h2 class="text-sm font-semibold text-slate-900">Search engines</h2>
-            <p class="mt-0.5 text-xs text-slate-400">The site is open to search engines. To keep some addresses out of their reach, list them in robots.txt.</p>
+        {% if can('seo.manage') %}
+          <div class="{{ section_class }}">
+            <div class="{{ section_header_class }}">
+              <h2 class="text-sm font-semibold text-slate-900">Search engines</h2>
+              <p class="mt-0.5 text-xs text-slate-400">Titles, descriptions, the sitemap, robots.txt and the rest of how the site meets search engines are in <a href="{{ url('admin/seo') }}" class="font-medium text-blue-700 hover:underline">SEO</a>.</p>
+            </div>
           </div>
-          <label class="block">
-            <span class="mb-1 block text-sm font-medium text-slate-700">Paths crawlers should not visit</span>
-            <textarea name="robots_disallow" rows="4" placeholder="/private/&#10;/thank-you&#10;/*.pdf$" spellcheck="false" aria-describedby="robots-help" class="{{ input_class }} font-mono text-[13px]">{{ settings_form.robots_disallow }}</textarea>
-          </label>
-          <p id="robots-help" class="mt-2 text-xs text-slate-400">One per line, each starting with <code class="rounded bg-slate-100 px-1 py-0.5">/</code>; <code class="rounded bg-slate-100 px-1 py-0.5">*</code> and <code class="rounded bg-slate-100 px-1 py-0.5">$</code> work as crawlers understand them. They become <code class="rounded bg-slate-100 px-1 py-0.5">Disallow</code> lines in <a href="{{ url('robots.txt') }}" target="_blank" rel="noopener" class="text-blue-600 hover:underline">/robots.txt</a>. Robots.txt asks well-behaved crawlers to stay away; it does not hide a page from people or protect it. To keep one page out of search results, use its "No index" setting instead. A rule of <code class="rounded bg-slate-100 px-1 py-0.5">/</code> asks crawlers to skip the whole site.</p>
-        </div>
+        {% endif %}
       </div>
 
       <div class="{{ panel_class }}{% if active_tab != 'smtp' %} hidden{% else %} active{% endif %}" data-panel="smtp">
