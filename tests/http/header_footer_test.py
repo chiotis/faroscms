@@ -50,16 +50,16 @@ def foot(html):
 
 # ---- the two tabs
 st, _, html = root.get('/admin/theme?tab=header')
-check('the Header tab shows a picture of the header', st == 200 and 'data-hf-preview' in html and 'class="hfp hfh"' in html)
+check('the Header tab has the real site beside it, in a frame that follows what is chosen', st == 200 and 'data-preview data-mode="page"' in html and 'theme?preview=page' in html and 'data-bp-frame' in html and 'class="hfp' not in html)
 layouts = re.findall(r'name="theme_settings\[header\]\[layout\]" value="([a-z_]+)"', html)
 check('with every layout to choose from', layouts == ['classic', 'menu_left', 'split', 'centered', 'stacked', 'minimal', 'minimal_center'], layouts)
 check('and a field for every choice, under the names the theme has always had', all(('name="theme_settings[header][%s]"' % k) in html for k in (
     'shape', 'width', 'size', 'border', 'nav_style', 'sticky', 'shrink', 'row_tone', 'bar_tone', 'transparent', 'search', 'show_language', 'show_mode', 'cta_label', 'cta_url', 'cta_style',
     'topbar_text', 'topbar_url', 'topbar_tone', 'topbar_contacts', 'topbar_social', 'mobile_menu', 'mobile_bar')) and 'name="theme_settings[header][bar_items][0][label]"' in html or 'theme_settings[header][bar_items]' in html)
 check('the tone of the bar is only asked for when the layout is stacked', 'data-only="stacked"' in html)
-check('the picture is told which fields it follows', 'data-hf-map=' in html and 'theme_settings[header][layout]' in htmllib.unescape(html.split('data-hf-map=')[1][:600]))
+check('and loads the script that does it, once', html.count('js/admin-preview.js') == 1)
 st, _, html = root.get('/admin/theme?tab=footer')
-check('the Footer tab shows its picture and every layout', 'class="hfp hff"' in html and re.findall(r'name="theme_settings\[footer\]\[layout\]" value="([a-z]+)"', html) == ['columns', 'mega', 'simple', 'bar', 'centered'])
+check('the Footer tab has its preview and every layout', 'data-preview data-mode="page"' in html and 'class="hfp' not in html and re.findall(r'name="theme_settings\[footer\]\[layout\]" value="([a-z]+)"', html) == ['columns', 'mega', 'simple', 'bar', 'centered'])
 check('and a field for every choice', all(('name="theme_settings[footer][%s]"' % k) in html for k in (
     'tone', 'brand', 'show_social', 'show_language', 'back_to_top', 'copyright', 'summary', 'email', 'phone', 'address', 'hours', 'cta_heading', 'cta_text', 'cta_label', 'cta_url', 'background', 'background_image')))
 check('the media picker can fill the footer image', re.search(r'name="theme_settings\[footer\]\[background_image\]"[^>]*data-image-field|data-image-field[^>]*name="theme_settings\[footer\]\[background_image\]"', html) is not None)
@@ -180,15 +180,47 @@ check('and the link with nothing under it in the first column', re.search(r'foot
 footer(layout='columns')
 check('columns shows the menu as before', 'footer-grid--mega' not in foot(page('/en/about')) and 'footer-group-1' not in foot(page('/en/about')))
 
-# ---- the pictures follow the form (initial state)
+# ---- the live preview: the page drawn with choices that are not saved
+def preview(client, path='', **fields):
+    f = next(f for f in root.forms('/admin/theme?tab=header') if any(x[0] == 'active_tab' for x in f['fields']))
+    token = next(x[1] for x in f['fields'] if x[0] == '_csrf')
+    data = [(x[0], x[1]) for x in f['fields'] if x[0].startswith('theme_settings[') and x[0] not in fields]
+    data += [('_csrf', token), ('preview_path', path)] + [(k, v) for k, v in fields.items()]
+    st, hdr, body = client.request('/admin/theme?preview=page', data=data)
+    return st, hdr, (json.loads(body) if st == 200 and body.startswith('{') else {})
 header(layout='classic', search='field')
-st, _, html = root.get('/admin/theme?tab=header')
-pv = re.search(r'<div class="hfp hfh"([^>]*)>', html).group(1)
-check('the picture of the header starts as the form is', 'data-layout="classic"' in pv and 'data-shape="full"' in pv and 'data-search="field"' in pv, pv[-500:])
+saved = root.get('/admin/theme?tab=header')[2]
+st, hdr, out = preview(root, '', **{'theme_settings[header][layout]': 'centered', 'theme_settings[header][sticky]': 'always'})
+check('asking for the page returns it as JSON, with the address it drew', st == 200 and 'application/json' in (hdr.get('Content-Type') or '') and out.get('path') == '/' and '<html' in out.get('html', ''), (st, hdr.get('Content-Type')))
+h = out.get('html', '')
+check('drawn with the layout that is not saved: the header is the centered one', 'header--centered' in h and 'header--classic' not in h, re.findall(r'<header class="[^"]*"', h))
+check('and the real stylesheet and scripts are in it', 'site.css' in h and 'site.js' in h and '<footer class="site-footer' in h)
+check('nothing was stored by asking', 'layout: classic' in __import__('sqlite3').connect('app/storage/db/app.sqlite').execute("select value from system_meta where key='theme_settings'").fetchone()[0])
+check('the public page is still the saved one', 'header--classic' in page() and 'header--centered' not in page())
+st, _, out = preview(root, '', **{'theme_settings[footer][tone]': 'accent', 'theme_settings[footer][layout]': 'bar'})
+check('the footer too: its tone and layout', 'is-accent' in foot(out.get('html', '')) and 'footer--bar' in foot(out.get('html', '')))
+st, _, out = preview(root, '/en/about', **{'theme_settings[header][layout]': 'minimal'})
+check('another page, in another language, is drawn with them', out.get('path') == '/en/about' and 'header--minimal' in out.get('html', '') and '<html lang="en"' in out.get('html', ''), out.get('path'))
+st, _, out = preview(root, '/projects?page=1', **{'theme_settings[header][layout]': 'split'})
+check('a list with its query', out.get('path') == '/projects?page=1' and 'header--split' in out.get('html', ''), out.get('path'))
+for odd in ('/admin/users', '/pages/about', '/nothing/at/all/here', '//evil.example/x', '/sitemap.xml'):
+    st, _, out = preview(root, odd)
+    check('%s is not a page a visitor opens as such: the home page is drawn' % odd, st == 200 and out.get('path') == '/' and '<html' in out.get('html', ''), (odd, out.get('path')))
+st, _, out = preview(root, '/search?q=rebrand')
+check('the search with its words', out.get('path') == '/search?q=rebrand' and 'rebrand' in out.get('html', '').lower())
+form_page = next((p for p in ('/contact', '/en/contact') if pub.get(p)[0] == 200), '')
+n_before = len(__import__('os').listdir('app/content/forms-submissions')) if __import__('os').path.isdir('app/content/forms-submissions') else 0
+st, _, out = preview(root, form_page, **{'theme_settings[header][layout]': 'classic', 'contact-name': 'X', 'form_submit': '1', 'name': 'X', 'email': 'x@example.test', 'message': 'hello'})
+n_after = len(__import__('os').listdir('app/content/forms-submissions')) if __import__('os').path.isdir('app/content/forms-submissions') else 0
+check('a page with a form is drawn as a visitor opens it: nothing is submitted', st == 200 and n_after == n_before, (n_before, n_after))
 
 # ---- someone who may not manage the theme
 root.submit('/admin/users-edit', has_field('username'), {'username': 'ed4', 'email': 'ed4@example.test', 'display_name': 'ed4', 'role': 'editor', 'status': 'active', 'password': 'Sturdy-pass-99', 'password_confirm': 'Sturdy-pass-99'})
 ed = Client(); ed.login('ed4', 'Sturdy-pass-99')
+st, _, out = preview(ed, '')
+check('an editor cannot ask for the preview', st in (302, 403, 419) and not out, st)
+st, _, out = preview(pub, '')
+check('nor someone who is not signed in', st in (302, 403, 419) and not out, st)
 before = head_tag(page())[0]
 st, _, _ = ed.request('/admin/theme', data=[('active_tab', 'header'), ('theme_settings[header][layout]', 'split')])
 check('an editor cannot save them', head_tag(page())[0] == before, st)

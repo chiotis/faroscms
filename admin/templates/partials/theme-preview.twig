@@ -1,0 +1,23 @@
+{#
+  The real site beside the settings, in a frame (Theme > Branding, Header, Footer). admin-preview.js keeps it in step with the
+  choices that are not saved yet. It needs the address of the page to show (preview_url).
+#}
+<aside class="bp-preview" aria-label="Preview">
+  <div class="bp-bar">
+    <div class="lc-seg" role="radiogroup" aria-label="Size of the preview">
+      <label><input type="radio" name="bp_size" value="1280" checked data-bp-size><span>Computer</span></label>
+      <label><input type="radio" name="bp_size" value="820" data-bp-size><span>Tablet</span></label>
+      <label><input type="radio" name="bp_size" value="390" data-bp-size><span>Phone</span></label>
+    </div>
+    <div class="lc-seg" role="radiogroup" aria-label="Colour mode of the preview">
+      <label><input type="radio" name="bp_mode" value="" checked data-bp-mode><span>Auto</span></label>
+      <label><input type="radio" name="bp_mode" value="light" data-bp-mode><span>Light</span></label>
+      <label><input type="radio" name="bp_mode" value="dark" data-bp-mode><span>Dark</span></label>
+    </div>
+    <button type="button" class="bp-reload" data-bp-reload>Reload</button>
+  </div>
+  <div class="bp-stage" data-bp-stage>
+    <iframe class="bp-frame" data-bp-frame src="{{ preview_url }}" title="Preview of the site" loading="lazy"></iframe>
+  </div>
+  <p class="bp-note">The real site, with your unsaved choices. Links inside it work; the choices stay while you look around.</p>
+</aside>

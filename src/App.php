@@ -1889,6 +1889,11 @@ final class App
                 $this->previewBranding(is_array($_POST['theme_settings'] ?? null) ? $_POST['theme_settings'] : []);
                 return;
             }
+            // Header and Footer ask for a whole page drawn with the unsaved choices.
+            if (($_GET['preview'] ?? '') === 'page') {
+                $this->previewPage(is_array($_POST['theme_settings'] ?? null) ? $_POST['theme_settings'] : [], (string)($_POST['preview_path'] ?? ''));
+                return;
+            }
             $activeTab = (string)($_POST['active_tab'] ?? $activeTab);
             $save = $this->saveThemeSettings(
                 is_array($_POST['theme_settings'] ?? null) ? $_POST['theme_settings'] : [],
@@ -1928,6 +1933,7 @@ final class App
             'theme_tabs' => $tabs,
             'tab_labels' => ['branding' => 'Branding', 'single_layouts' => 'Single Layouts', 'archive_layouts' => 'Archive Layouts'],
             'branding' => $branding ? $this->brandingScreen() : null,
+            'preview_url' => (string)($this->settings['base_url'] ?? '') . '/',
             'theme_values' => $this->themeSettings,
             'theme_info' => [
                 'name' => $this->theme->name(),
@@ -1978,6 +1984,43 @@ final class App
             'show_name' => ($brand['show_name'] ?? false) === true,
             'name' => (string)($this->settings['title'] ?? ''),
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG);
+    }
+
+    /**
+     * JSON for the live preview of Header and Footer: the page at `path` (the home page when it is not one a visitor can open)
+     * drawn as the site would draw it with the submitted, unsaved theme settings. Nothing is stored and no form is processed:
+     * the page is asked for as a visitor's GET.
+     */
+    private function previewPage(array $input, string $path): void
+    {
+        $data = $this->theme->resolveSettings($this->theme->settingsFromInput($input, $this->loadThemeSettings()));
+        $parts = parse_url('/' . ltrim($path, '/')) ?: [];
+        $clean = trim((string)($parts['path'] ?? ''), '/');
+        $query = [];
+        parse_str((string)($parts['query'] ?? ''), $query);
+        $route = FrontRoute::resolve($clean, $this->settings, $this->content->getTypes(), array_values(array_filter($this->taxonomies()->names(), [Taxonomies::class, 'isCustom'])));
+        if (str_starts_with($clean, 'admin') || !in_array($route['kind'], ['page', 'archive', 'entry', 'taxonomy', 'search'], true)) {
+            $clean = '';
+            $query = [];
+        }
+
+        $this->themeSettings = $data;
+        $this->twig = $this->initTwig();
+        $kept = [$_POST, $_GET, $_SERVER['REQUEST_METHOD'] ?? 'GET'];
+        $_POST = [];
+        $_GET = $query;
+        $_SERVER['REQUEST_METHOD'] = 'GET';
+        ob_start();
+        try {
+            $this->handleFront($clean);
+        } finally {
+            $html = (string)ob_get_clean();
+            [$_POST, $_GET, $_SERVER['REQUEST_METHOD']] = $kept;
+        }
+        http_response_code(200);
+        header('Content-Type: application/json; charset=utf-8');
+        header('Cache-Control: no-store');
+        echo json_encode(['html' => $html, 'path' => '/' . $clean . ($query !== [] ? '?' . http_build_query($query) : '')], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
     }
 
     private function starterContent(): StarterContent
