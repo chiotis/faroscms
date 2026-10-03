@@ -21,8 +21,25 @@ final class SingleLayouts
     /** The page layout that has a sidebar: a type chooses it with its sidebar setting, not as a page layout of its own. */
     public const SIDEBAR = 'sidebar';
 
-    public function __construct(private Theme $theme)
+    public function __construct(private Theme $theme, private ?ContentTypes $types = null)
     {
+    }
+
+    /** The values of options in the order they were declared. @param array<string, array<string, mixed>> $declared @param array<string, mixed> $values @return array<string, mixed> */
+    private static function inOrder(array $declared, array $values): array
+    {
+        return array_replace(array_fill_keys(array_keys($declared), null), array_intersect_key($values, $declared));
+    }
+
+    /**
+     * What a content type says about its own page: whether its template draws a sidebar and a header that sits over it
+     * (so the card offers them for a page layout that is not the standard one) and the options it declares.
+     *
+     * @return array{sidebar: bool, header: bool, options: array<string, array<string, mixed>>}
+     */
+    public function declaredBy(string $type): array
+    {
+        return ($this->types ??= new ContentTypes($this->theme))->definition($type)['single'];
     }
 
     /** Whether the theme has single layouts at all. */
@@ -99,6 +116,12 @@ final class SingleLayouts
             }
             $values[$key] = FieldSchema::clean($field, $values[$key]);
         }
+        // The options the content type declares for its page (a book: where the cover goes, what it shows).
+        $declared = $this->declaredBy($type)['options'];
+        $held = is_array($stored['options'] ?? null) ? $stored['options'] : [];
+        if ($declared !== []) {
+            $values['options'] = self::inOrder($declared, FieldSchema::resolve($declared, array_intersect_key($held, $declared)));
+        }
         $template = (string)($stored['template'] ?? 'default');
         $values['template'] = isset($this->templates()[$template]) ? $template : 'default';
         // The sidebar layout is the sidebar choice now: a type that was given the template has its sidebar on the right.
@@ -120,7 +143,8 @@ final class SingleLayouts
     public function effectiveTemplate(string $type, array $themeSettings): string
     {
         $values = $this->forType($type, $themeSettings);
-        if ($values['template'] === 'default' && ($values['sidebar'] ?? 'none') !== 'none' && isset($this->templates()[self::SIDEBAR])) {
+        // A type whose own template draws the sidebar keeps that template.
+        if ($values['template'] === 'default' && ($values['sidebar'] ?? 'none') !== 'none' && isset($this->templates()[self::SIDEBAR]) && !$this->declaredBy($type)['sidebar']) {
             return self::SIDEBAR;
         }
         return (string)$values['template'];
@@ -150,6 +174,10 @@ final class SingleLayouts
                     } elseif (is_string($card[$key] ?? null) && isset($field['options'][$card[$key]])) {
                         $values[$key] = $card[$key];
                     }
+                }
+                $declared = $this->declaredBy($type)['options'];
+                if ($declared !== []) {
+                    $values['options'] = self::inOrder($declared, FieldSchema::fromInput($declared, is_array($card['options'] ?? null) ? $card['options'] : [], $values['options'] ?? []));
                 }
                 $template = $card['template'] ?? '';
                 if (is_string($template) && isset($templates[$template]) && $template !== self::SIDEBAR) {

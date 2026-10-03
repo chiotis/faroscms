@@ -49,9 +49,9 @@
           {% if card.edit_url %}<a href="{{ url(card.edit_url) }}" class="shrink-0 rounded-md px-2 py-1 text-xs font-medium text-slate-600 no-underline hover:bg-slate-100 hover:text-slate-900">Fields</a>{% endif %}
         </header>
 
-        {% if card.standard %}
+        {% if card.standard or card.header or card.sidebar or card.options %}
           <dl class="m-0 space-y-2.5 border-t border-slate-100 p-3">
-            {% if card.layouts %}
+            {% if card.standard and card.layouts %}
               <div class="lc-row">
                 <dt>Page layout</dt>
                 <dd class="m-0">
@@ -65,23 +65,29 @@
                 </dd>
               </div>
             {% endif %}
-            <div class="lc-row" data-hide-landing>
-              <dt>Title area</dt>
-              <dd class="m-0">{{ c.tiles(name ~ '[title]', title_options, v.title, 'Title area', 'title', 'title') }}</dd>
-            </div>
-            <div class="lc-row">
-              <dt>Header</dt>
-              <dd class="m-0">{{ c.seg(name ~ '[header]', header_options, v.header, 'Header', 'header') }}</dd>
-            </div>
-            <div class="lc-row" data-hide-landing>
-              <dt>Show</dt>
-              <dd class="m-0 flex flex-wrap gap-1.5">
-                {{ c.chip(name ~ '[image]', single_fields.image.label, v.image) }}
-                {{ c.chip(name ~ '[excerpt]', single_fields.excerpt.label, v.excerpt) }}
-                {% if card.byline %}{{ c.chip(name ~ '[byline]', single_fields.byline.label, v.byline) }}{% endif %}
-              </dd>
-            </div>
-            {% if card.layouts %}
+            {% if card.standard %}
+              <div class="lc-row" data-hide-landing>
+                <dt>Title area</dt>
+                <dd class="m-0">{{ c.tiles(name ~ '[title]', title_options, v.title, 'Title area', 'title', 'title') }}</dd>
+              </div>
+            {% endif %}
+            {% if card.header %}
+              <div class="lc-row">
+                <dt>Header</dt>
+                <dd class="m-0">{{ c.seg(name ~ '[header]', header_options, v.header, 'Header', 'header') }}</dd>
+              </div>
+            {% endif %}
+            {% if card.standard %}
+              <div class="lc-row" data-hide-landing>
+                <dt>Show</dt>
+                <dd class="m-0 flex flex-wrap gap-1.5">
+                  {{ c.chip(name ~ '[image]', single_fields.image.label, v.image) }}
+                  {{ c.chip(name ~ '[excerpt]', single_fields.excerpt.label, v.excerpt) }}
+                  {% if card.byline %}{{ c.chip(name ~ '[byline]', single_fields.byline.label, v.byline) }}{% endif %}
+                </dd>
+              </div>
+            {% endif %}
+            {% if card.sidebar %}
               <div class="lc-row" data-hide-landing>
                 <dt>Sidebar</dt>
                 <dd class="m-0">{{ c.seg(name ~ '[sidebar]', single_fields.sidebar.options, v.sidebar, 'Sidebar', 'sidebar') }}</dd>
@@ -95,9 +101,11 @@
                 </dd>
               </div>
             {% endif %}
+            {% if card.options %}{{ c.options(card.options, name ~ '[options]', v.options|default({})) }}{% endif %}
           </dl>
-        {% else %}
-          <p class="m-0 border-t border-slate-100 p-3 text-xs text-slate-500">This page has a layout of its own, drawn by <code class="rounded bg-slate-100 px-1 text-[11px]">{{ card.template_file }}</code>. What it shows comes from the fields of the content type{% if card.edit_url %}: <a href="{{ url(card.edit_url) }}" class="font-medium text-blue-700">edit the fields</a>{% endif %}.</p>
+        {% endif %}
+        {% if not card.standard %}
+          <p class="m-0 border-t border-slate-100 px-3 py-2 text-[11px] leading-4 text-slate-500">This page has a layout of its own, drawn by <code class="rounded bg-slate-100 px-1 text-[11px]">{{ card.template_file }}</code>. What else it shows comes from the fields of the content type{% if card.edit_url %}: <a href="{{ url(card.edit_url) }}" class="font-medium text-blue-700">edit the fields</a>{% endif %}.</p>
         {% endif %}
       </article>
     {% endfor %}

@@ -113,3 +113,29 @@
     {% endfor %}
   </div>
 {% endmacro %}
+
+{#
+  The options a content type declares for its page or its list (single.options, archive_options in its definition): one
+  row for each. A select is segments (or a list when it has many), a number and a text are a box, and the toggles are chips
+  on one row. `declared` are the normalized definitions, `values` what is set now, `name` the prefix of the field names.
+#}
+{% macro options(declared, name, values) %}
+  {% import _self as c %}
+  {% set toggles = [] %}
+  {% for key, field in declared %}
+    {% set value = values[key] ?? field.default %}
+    {% if field.type == 'toggle' %}
+      {% set toggles = toggles|merge([[name ~ '[' ~ key ~ ']', field.label, value]]) %}
+    {% elseif field.type == 'select' %}
+      {{ c.choice(field, name ~ '[' ~ key ~ ']', value, field.options|length > 4 ? 'select' : 'seg', {}) }}
+    {% elseif field.type == 'number' or field.type == 'decimal' %}
+      <div class="lc-row">
+        <dt><label for="f-{{ (name ~ key)|replace({'[': '-', ']': ''}) }}">{{ field.label }}</label></dt>
+        <dd class="m-0"><input id="f-{{ (name ~ key)|replace({'[': '-', ']': ''}) }}" type="number" step="{{ field.type == 'decimal' ? 'any' : '1' }}" name="{{ name }}[{{ key }}]" value="{{ value }}"{% if field.min is not null %} min="{{ field.min }}"{% endif %}{% if field.max is not null %} max="{{ field.max }}"{% endif %} class="lc-input" style="width: 6rem">{% if field.help %}<span class="mt-1 block text-[11px] leading-4 text-slate-500">{{ field.help }}</span>{% endif %}</dd>
+      </div>
+    {% else %}
+      {{ c.text(field, name ~ '[' ~ key ~ ']', value) }}
+    {% endif %}
+  {% endfor %}
+  {% if toggles is not empty %}{{ c.toggles('Show', toggles) }}{% endif %}
+{% endmacro %}

@@ -97,5 +97,21 @@ check('every type ticked stores no list of types, and the defaults store nothing
 $admin->saveArchives([], ['nothing' => ['layout' => 'list']], 'el');
 check('a taxonomy that does not exist is not made', in_array('nothing', $taxonomies->names(), true), false);
 
+// ---- a page of its own can still have what its content type declares
+$byType = array_column($admin->singleCards(['single_layouts' => ['books' => ['options' => ['cover' => 'right']]]], 'el'), null, 'type');
+check('the book card has a sidebar and a header choice and its options, with what is set', [$byType['books']['sidebar'], $byType['books']['header'], array_keys($byType['books']['options']), $byType['books']['values']['options']['cover']], [true, true, ['cover', 'show_author', 'show_summary', 'show_facts', 'show_buy'], 'right']);
+check('but not the page layout and the title area of a standard page', [$byType['books']['standard'], $byType['books']['layouts']], [false, false]);
+check('a standard page has all its choices and no options it has not declared', [$byType['posts']['sidebar'], $byType['posts']['header'], $byType['posts']['options']], [true, true, []]);
+check('a form has a header choice but no sidebar', [$byType['forms']['sidebar'], $byType['forms']['header']], [false, true]);
+$a = $admin->archiveCards('el');
+$booksList = array_column($a['types'], null, 'type')['books'];
+check('the list card of books has the option its type declares for the list, with its value', [array_keys($booksList['options']), $booksList['archive']['options']], [['cover_shape'], ['cover_shape' => 'portrait']]);
+check('the list of posts has none', array_column($a['types'], null, 'type')['posts']['options'], []);
+// saving: only what differs from the theme is written to the site's file
+$admin->saveArchives(['books' => ['layout' => 'cards', 'columns' => '4', 'per_page' => '12', 'order' => 'title_asc', 'show_image' => '1', 'show_date' => '1', 'taxonomies' => ['categories'], 'options' => ['cover_shape' => 'square']]], [], 'el');
+check('a list option that differs is written to the type\'s own file', str_contains((string)@file_get_contents("$dir/custom/content-types/books.yaml"), 'cover_shape: square'), true);
+$admin->saveArchives(['books' => ['layout' => 'cards', 'columns' => '4', 'per_page' => '12', 'order' => 'title_asc', 'show_image' => '1', 'show_date' => '1', 'taxonomies' => ['categories'], 'options' => ['cover_shape' => 'portrait']]], [], 'el');
+check('and removed again when it is the theme\'s', is_file("$dir/custom/content-types/books.yaml") ? str_contains((string)file_get_contents("$dir/custom/content-types/books.yaml"), 'cover_shape') : false, false);
+
 echo $fail === 0 ? "\nALL PASSED\n" : "\n$fail FAILED\n";
 exit($fail === 0 ? 0 : 1);

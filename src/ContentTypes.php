@@ -20,6 +20,13 @@ use Symfony\Component\Yaml\Yaml;
  *     filterable: true               select fields only: offered as a filter in the archive
  *     card: true                     shown on the item's card
  *     show: false                    not shown on the item's own page
+ *   single:                          how the type's own page can be set in Theme > Single Layouts
+ *     sidebar: true                  its template draws a sidebar when the card asks for one (None, Right, Left)
+ *     header: true                   its template opens with a section the header can sit over
+ *     options:                       options of this page, key => definition (select, toggle, number, text, ...), drawn on
+ *                                    the card and stored with the theme settings; templates read single_layout(type).options
+ *   archive_options:                 the same, for the type's list (Theme > Archive Layouts); the values are `archive: {options: {...}}`
+ *                                    and templates read archive.settings.options
  *   archive:
  *     title, subtitle                text or a map per language
  *     layout, columns, per_page, order (newest, oldest, title, or field:<key>:asc|desc), show_image,
@@ -100,7 +107,7 @@ final class ContentTypes
      * The definition of a type with texts chosen for a language. Types without a file still get
      * a usable definition (no fields, default archive), so callers need no special cases.
      *
-     * @return array{type: string, origin: string, label: string, singular: string, description: string, fields: array<string, array<string, mixed>>, archive: array<string, mixed>}
+     * @return array{type: string, origin: string, label: string, singular: string, description: string, fields: array<string, array<string, mixed>>, archive: array<string, mixed>, archive_options: array<string, array<string, mixed>>, single: array{sidebar: bool, header: bool, options: array<string, array<string, mixed>>}}
      */
     public function definition(string $type, string $lang = 'en', string $defaultLang = 'en'): array
     {
@@ -112,7 +119,7 @@ final class ContentTypes
      * The definition as the theme alone ships it, without the site's file. The admin compares
      * against it so only real differences are written to custom/.
      *
-     * @return array{type: string, origin: string, label: string, singular: string, description: string, fields: array<string, array<string, mixed>>, archive: array<string, mixed>}
+     * @return array{type: string, origin: string, label: string, singular: string, description: string, fields: array<string, array<string, mixed>>, archive: array<string, mixed>, archive_options: array<string, array<string, mixed>>, single: array{sidebar: bool, header: bool, options: array<string, array<string, mixed>>}}
      */
     public function themeDefinition(string $type, string $lang = 'en', string $defaultLang = 'en'): array
     {
@@ -162,7 +169,7 @@ final class ContentTypes
 
     /**
      * @param array<string, mixed> $raw
-     * @return array{type: string, origin: string, label: string, singular: string, description: string, fields: array<string, array<string, mixed>>, archive: array<string, mixed>}
+     * @return array{type: string, origin: string, label: string, singular: string, description: string, fields: array<string, array<string, mixed>>, archive: array<string, mixed>, archive_options: array<string, array<string, mixed>>, single: array{sidebar: bool, header: bool, options: array<string, array<string, mixed>>}}
      */
     private function build(string $type, array $raw, string $lang, string $defaultLang): array
     {
@@ -199,6 +206,9 @@ final class ContentTypes
 
         $archive = is_array($raw['archive'] ?? null) ? $raw['archive'] : [];
         $archiveValues = self::resolveArchive($archive, $pick);
+        $archiveOptions = self::declareOptions($raw['archive_options'] ?? [], $pick);
+        $archiveValues['options'] = $archiveOptions === [] ? [] : FieldSchema::resolve($archiveOptions, array_intersect_key(is_array($archive['options'] ?? null) ? $archive['options'] : [], $archiveOptions));
+        $single = is_array($raw['single'] ?? null) ? $raw['single'] : [];
 
         // Ordering by a declared field: "field:<key>:asc" or "field:<key>:desc".
         $order = (string)($archive['order'] ?? '');
@@ -216,7 +226,45 @@ final class ContentTypes
             'description' => trim((string)$pick($raw['description'] ?? '')),
             'fields' => $fields,
             'archive' => $archiveValues,
+            'archive_options' => $archiveOptions,
+            'single' => [
+                'sidebar' => ($single['sidebar'] ?? false) === true,
+                'header' => ($single['header'] ?? false) === true,
+                'options' => self::declareOptions($single['options'] ?? [], $pick),
+            ],
         ];
+    }
+
+    /**
+     * The options a type declares for its page or its list: each is a field definition with texts chosen for the language.
+     * Only the kinds of field a card can draw (and the schema checks) are kept; every one is optional to fill in.
+     *
+     * @param callable(mixed): mixed $pick chooses the text for a language
+     * @return array<string, array<string, mixed>>
+     */
+    public static function declareOptions(mixed $raw, callable $pick): array
+    {
+        $options = [];
+        foreach (is_array($raw) ? $raw : [] as $key => $definition) {
+            if (!is_array($definition)) {
+                continue;
+            }
+            foreach (['label', 'help', 'placeholder'] as $text) {
+                if (isset($definition[$text])) {
+                    $definition[$text] = (string)$pick($definition[$text]);
+                }
+            }
+            if (is_array($definition['options'] ?? null)) {
+                foreach ($definition['options'] as $value => $optionLabel) {
+                    $definition['options'][$value] = is_array($optionLabel) ? (string)$pick($optionLabel) : $optionLabel;
+                }
+            }
+            $normalized = FieldSchema::normalize([$key => $definition])[(string)$key] ?? null;
+            if ($normalized !== null && in_array($normalized['type'], ['text', 'select', 'toggle', 'number', 'decimal', 'color'], true) && !$normalized['hidden']) {
+                $options[(string)$key] = $normalized;
+            }
+        }
+        return $options;
     }
 
     /**
@@ -405,9 +453,10 @@ final class ContentTypes
      * @param array<string, mixed> $defaults the resolved settings the site would have without its own file
      * @param string[] $taxonomyNames taxonomies that exist, the only ones that can be offered as filters
      * @param bool $fieldOrders whether an order by a declared field ("field:<key>:asc") is accepted
+     * @param array<string, array<string, mixed>> $declared the options the type declares for its list (`archive_options`), whose values are `options`
      * @return array<string, mixed>
      */
-    public static function archiveFromInput(array $input, array $current, array $defaults, array $taxonomyNames, bool $fieldOrders): array
+    public static function archiveFromInput(array $input, array $current, array $defaults, array $taxonomyNames, bool $fieldOrders, array $declared = []): array
     {
         $schema = self::archiveSchema();
         $submitted = [];
@@ -432,6 +481,23 @@ final class ContentTypes
                 unset($current[$key]);
             } else {
                 $current[$key] = $value;
+            }
+        }
+        if ($declared !== []) {
+            // The options of the type: what the form says for each declared one; only those that differ from the theme's are kept.
+            $held = is_array($current['options'] ?? null) ? array_intersect_key($current['options'], $declared) : [];
+            $now = FieldSchema::fromInput($declared, is_array($input['options'] ?? null) ? $input['options'] : [], FieldSchema::resolve($declared, $held));
+            $base = is_array($defaults['options'] ?? null) ? $defaults['options'] : [];
+            $differing = [];
+            foreach ($declared as $key => $field) {
+                if (($now[$key] ?? null) !== ($base[$key] ?? FieldSchema::clean($field, null))) {
+                    $differing[$key] = $now[$key];
+                }
+            }
+            if ($differing === []) {
+                unset($current['options']);
+            } else {
+                $current['options'] = $differing;
             }
         }
         return $current;
@@ -523,6 +589,19 @@ final class ContentTypes
                         : $definition;
                 }
                 $base['fields'] = $fields;
+            } elseif (($key === 'archive_options' || ($key === 'single' && isset($value['options']))) && is_array($value)) {
+                // Declared options are merged one by one, like fields.
+                $declared = $key === 'single' ? ($value['options'] ?? []) : $value;
+                $held = $key === 'single' ? ($base['single']['options'] ?? []) : ($base['archive_options'] ?? []);
+                $held = is_array($held) ? $held : [];
+                foreach (is_array($declared) ? $declared : [] as $optionKey => $definition) {
+                    $held[$optionKey] = is_array($definition) && is_array($held[$optionKey] ?? null) ? array_replace($held[$optionKey], $definition) : $definition;
+                }
+                if ($key === 'single') {
+                    $base['single'] = array_replace(is_array($base['single'] ?? null) ? $base['single'] : [], $value, ['options' => $held]);
+                } else {
+                    $base['archive_options'] = $held;
+                }
             } elseif ($key === 'archive' && is_array($value)) {
                 $base['archive'] = array_replace(is_array($base['archive'] ?? null) ? $base['archive'] : [], $value);
             } else {

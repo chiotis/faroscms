@@ -242,6 +242,23 @@ Templates read the choices of a type with `single_layout(type)` (a map of `templ
 
 **Admin > Theme > Archive Layouts** has one card for each list of entries: every content type that has one, then each taxonomy (the pages of a category or tag). A card sets the layout (seven pictures to choose from), columns, order, items per page, the parts shown, the taxonomies offered as filters, the title and the subtitle; a taxonomy also chooses which content types it lists. Only what differs from the theme's defaults is written, to `custom/content-types/<type>.yaml` and `content/taxonomies/<name>.yaml` as before. The Content types and Taxonomies screens link here instead of holding these settings.
 
+### Options of a content type
+
+A content type with a page or a list of its own can declare **options** in its definition (`themes/<theme>/content-types/<type>.yaml`, or `custom/content-types/<type>.yaml` for a type of the site's own, merged one by one with the theme's). They appear on the type's card in Theme > Single Layouts and Archive Layouts, so every special type brings its own choices to the one place where looks are set:
+
+```yaml
+single:
+  sidebar: true        # its template draws a sidebar when the card asks (None, Right, Left): the card offers the choice
+  header: true         # its template opens with a section the header can sit over: the card offers the choice
+  options:             # options of its page: key => definition (select, toggle, number, decimal, text, color)
+    cover: {type: select, label: Cover, default: left, options: {left: Left, right: Right, top: Above}}
+    show_buy: {type: toggle, label: Buy button, default: true}
+archive_options:       # options of its list
+  cover_shape: {type: select, label: Covers, default: portrait, options: {portrait: Portrait, square: Square}}
+```
+
+Values are checked against the declaration: a page's are stored with the theme settings (`single_layouts.<type>.options`) and read in the template with `single_layout(item.type).options`; a list's are stored in the site's file of the type (`archive.options`, only what differs from the theme's) and read as `archive.settings.options`. The default archive template also adds a class for each (`opt-cover-shape-portrait` for a choice, `opt-some-toggle` for a toggle that is on) to the list, for the style sheet. A template that declares `sidebar: true` draws the sidebar itself (as `templates/sidebar.twig` does), and one that declares `header: true` sets `{% set opens_under_header = true %}` so the layout lets the header go transparent over its first section. The Books type (`single-book.twig`) is the example: where the cover goes, what shows (author, summary, details, buy button), a sidebar, a header over the book, and the shape of the covers in the list.
+
 ## Page templates
 
 Pages and posts choose a template in Admin > Edit > Publish (stored as `template:`), and a content type can have one as its layout (Theme > Single Layouts). The manifest's `page_templates` lists them; a template appears only if its file exists.

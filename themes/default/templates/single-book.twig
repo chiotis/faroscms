@@ -2,26 +2,47 @@
 
 {#
   A book: the cover beside the title, the author, the summary (the excerpt), the facts and a buy link; then the text and the
-  blocks, such as Tabs for reviews and editions. Fields are those of the Books content type.
+  blocks, such as Tabs for reviews and editions. Fields are those of the Books content type. Theme > Single Layouts has a card
+  for it: where the cover goes (left, right, above), what shows, a sidebar, and a header that sits over the opening section.
 #}
+{% set single = single_layout(item.type) %}
+{% set opt = single.options|default({}) %}
+{# The opening section sits under a transparent header when the card (or the entry) asks for one. #}
+{% set opens_under_header = true %}
 {% block content %}
   {% set prefix = lang_prefix|default('') %}
   {% set cover = item.meta.main_image ?? '' %}
   {% set fields = item.meta.custom_fields ?? {} %}
   {% set buy = link_url(fields.buy_url ?? '', prefix) %}
-  <section class="book-hero">
+  <section class="book-hero is-cover-{{ opt.cover|default('left') }}">
     <div class="site-wrap book-hero-inner{% if not cover %} no-cover{% endif %}">
       {% if cover %}
         <div class="book-cover media-frame">{{ image(cover, {alt: item.meta.title, priority: true, sizes: '(min-width: 800px) 22rem, 70vw', max_width: 900}) }}</div>
       {% endif %}
       <div class="book-summary">
         <h1 class="book-title">{{ item.meta.title }}</h1>
-        {% if fields.author|default('') %}<p class="book-author">{{ fields.author }}</p>{% endif %}
-        {% if item.meta.excerpt|default('') %}<p class="book-lead">{{ item.meta.excerpt }}</p>{% endif %}
-        {% include 'components/type-fields.twig' with {item: item, lang_prefix: prefix} only %}
-        {% if buy %}<p class="book-buy"><a class="btn btn-primary" href="{{ buy }}">{{ fields.buy_label|default('') ?: t('book.buy', 'Buy the book') }}{{ icon('arrow-right', 'btn-icon') }}</a></p>{% endif %}
+        {% if (opt.show_author ?? true) and fields.author|default('') %}<p class="book-author">{{ fields.author }}</p>{% endif %}
+        {% if (opt.show_summary ?? true) and item.meta.excerpt|default('') %}<p class="book-lead">{{ item.meta.excerpt }}</p>{% endif %}
+        {% if opt.show_facts ?? true %}{% include 'components/type-fields.twig' with {item: item, lang_prefix: prefix} only %}{% endif %}
+        {% if (opt.show_buy ?? true) and buy %}<p class="book-buy"><a class="btn btn-primary" href="{{ buy }}">{{ fields.buy_label|default('') ?: t('book.buy', 'Buy the book') }}{{ icon('arrow-right', 'btn-icon') }}</a></p>{% endif %}
       </div>
     </div>
   </section>
-  {% include 'components/page-body.twig' with {facts_shown: true} %}
+  {% if single.sidebar|default('none') != 'none' %}
+    {# The text beside a sidebar (contents, related pages, contact card), as in the page layout with a sidebar; blocks follow at full width. #}
+    {% set contents = toc(item.html) %}
+    <div class="site-wrap with-sidebar{% if single.sidebar == 'left' %} is-left{% endif %}">
+      <article class="with-sidebar-main prose-block">
+        {{ contents.html|raw }}
+      </article>
+      <aside class="with-sidebar-aside" aria-label="{{ t('sidebar.label', 'More on this topic') }}">
+        {% include 'components/sidebar.twig' with {toc_items: contents.items} %}
+      </aside>
+    </div>
+    {% if page_blocks|default(null) %}
+      {{ page_blocks.html|raw }}
+    {% endif %}
+  {% else %}
+    {% include 'components/page-body.twig' with {facts_shown: true} %}
+  {% endif %}
 {% endblock %}

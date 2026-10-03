@@ -46,7 +46,9 @@
     {% if items is empty %}
       <p>{{ archive is defined and archive.filtered ? t('filter.none', 'Nothing matches these filters.') : (t(type_key ~ '.archive_empty', '') ?: t('archive.empty')) }}</p>
     {% else %}
-      <div class="block-latest block--{{ layout }}">
+      {# The options a content type declares for its list become classes (opt-cover-shape-portrait, opt-some-toggle) the style sheet can use. #}
+      {% set option_classes %}{% for key, value in config.options|default({}) %}{% if value is same as(true) %} opt-{{ key|replace({'_': '-'}) }}{% elseif value is not iterable and value is not same as(false) and value is not null and value != '' %} opt-{{ key|replace({'_': '-'}) }}-{{ value|lower|replace({'_': '-', ' ': '-'}) }}{% endif %}{% endfor %}{% endset %}
+      <div class="block-latest block--{{ layout }}{{ option_classes|trim ? ' ' ~ option_classes|trim : '' }}">
         {% include 'components/entry-list.twig' with {
           entries: items,
           variant: layout,

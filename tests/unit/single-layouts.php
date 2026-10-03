@@ -81,5 +81,20 @@ check('the page of a type is the first template that exists', [$theme->defaultSi
 file_put_contents("$root/custom/templates/single-event.twig", "{% include 'components/page-header.twig' %}");
 check('the site\'s own template takes over, and is read from there', [$theme->defaultSingleTemplate('events', 'event'), $theme->usesTitleArea('templates/single-event.twig')], ['templates/single-event.twig', true]);
 
+// ---- the options a content type declares for its page (books: where the cover goes, what shows)
+$books = $single->forType('books', []);
+check('a type that declares options has them, at their defaults', $books['options'], ['cover' => 'left', 'show_author' => true, 'show_summary' => true, 'show_facts' => true, 'show_buy' => true]);
+check('a type that declares none has no options key, and the others\' values are as before', array_key_exists('options', $single->forType('posts', [])), false);
+$saved = ['single_layouts' => ['books' => ['options' => ['cover' => 'right', 'show_buy' => false, 'bogus' => 'x']]]];
+check('stored options are read, checked against the declaration, and the unknown ones dropped', $single->forType('books', $saved)['options'], ['cover' => 'right', 'show_author' => true, 'show_summary' => true, 'show_facts' => true, 'show_buy' => false]);
+check('a value the option does not offer falls back to its default', $single->forType('books', ['single_layouts' => ['books' => ['options' => ['cover' => 'zzz']]]])['options']['cover'], 'left');
+$out = $single->fromInput(['books' => ['sidebar' => 'left', 'options' => ['cover' => 'top', 'show_author' => '1', 'show_facts' => '1']]], ['books', 'posts'], $saved);
+check('a submitted card sets the options: toggles not sent are off, choices not offered are ignored', $out['books']['options'], ['cover' => 'top', 'show_author' => true, 'show_summary' => false, 'show_facts' => true, 'show_buy' => false]);
+check('another type\'s card is left alone', array_key_exists('options', $out['posts']), false);
+$out = $single->fromInput(['books' => ['options' => ['cover' => 'nonsense']]], ['books'], $saved);
+check('an invalid choice keeps the one stored', $out['books']['options']['cover'], 'right');
+check('a type whose own template draws the sidebar keeps its template: no switch to the sidebar layout', [$single->effectiveTemplate('books', ['single_layouts' => ['books' => ['sidebar' => 'right']]]), $single->effectiveTemplate('posts', ['single_layouts' => ['posts' => ['sidebar' => 'right']]])], ['default', 'sidebar']);
+check('and what a type declares of its own page', [$single->declaredBy('books')['sidebar'], $single->declaredBy('books')['header'], $single->declaredBy('posts')['sidebar'], array_keys($single->declaredBy('books')['options'])], [true, true, false, ['cover', 'show_author', 'show_summary', 'show_facts', 'show_buy']]);
+
 echo $fail === 0 ? "\nALL PASSED\n" : "\n$fail FAILED\n";
 exit($fail === 0 ? 0 : 1);

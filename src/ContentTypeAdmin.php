@@ -167,7 +167,8 @@ final class ContentTypeAdmin
             is_array($custom['archive'] ?? null) ? $custom['archive'] : [],
             $theme['archive'],
             ($this->taxonomyNames)(),
-            true
+            true,
+            $this->types->definition($type, $default, $default)['archive_options']
         );
         if ($archive === []) {
             unset($custom['archive']);
