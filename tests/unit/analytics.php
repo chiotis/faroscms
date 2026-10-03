@@ -5,7 +5,7 @@
  *   php tests/unit/analytics.php
  */
 require dirname(__DIR__, 2) . '/vendor/autoload.php';
-use FarosCMS\{AnalyticsCollector as C, AnalyticsSettings as S, AnalyticsStore, SystemDatabase, SystemMetaRepository};
+use FarosCMS\{AnalyticsCollector as C, AnalyticsReport as R, AnalyticsSettings as S, AnalyticsStore, SystemDatabase, SystemMetaRepository};
 
 $fail = 0;
 function check(string $label, $actual, $expected): void { global $fail; $ok = $actual === $expected; if (!$ok) $fail++; echo ($ok ? 'ok   ' : 'FAIL ') . $label . ($ok ? '' : ' => ' . json_encode($actual, JSON_UNESCAPED_UNICODE) . ' expected ' . json_encode($expected, JSON_UNESCAPED_UNICODE)) . "\n"; }
@@ -112,6 +112,42 @@ $store->maintain(date('Y-m-d', strtotime($day . ' +20 months')), 12);
 check('days older than the time they are kept go', (int)$db->connection()->query('SELECT COUNT(*) FROM analytics_daily')->fetchColumn(), 0);
 $store->clear();
 check('everything counted can be deleted', [(int)$db->connection()->query('SELECT COUNT(*) FROM analytics_hits')->fetchColumn(), (int)$db->connection()->query('SELECT COUNT(*) FROM analytics_daily')->fetchColumn()], [0, 0]);
+
+// ---- the reports
+check('periods: today and yesterday', [R::span('today', '', '', '2026-03-10'), R::span('yesterday', '', '', '2026-03-10')['from']], [['key' => 'today', 'label' => 'Today', 'from' => '2026-03-10', 'to' => '2026-03-10', 'days' => 1], '2026-03-09']);
+check('periods: the last days, a year, a month', [R::span('7d', '', '', '2026-03-10')['from'], R::span('30d', '', '', '2026-03-10')['days'], R::span('12m', '', '', '2026-03-10')['from'], R::span('month', '', '', '2026-03-10')['from'], R::span('last_month', '', '', '2026-03-10')['from'] . ' ' . R::span('last_month', '', '', '2026-03-10')['to']], ['2026-03-04', 30, '2025-03-11', '2026-03-01', '2026-02-01 2026-02-28']);
+check('periods: a stretch of two dates', R::span('custom', '2026-01-05', '2026-02-02', '2026-03-10'), ['key' => 'custom', 'label' => '2026-01-05 – 2026-02-02', 'from' => '2026-01-05', 'to' => '2026-02-02', 'days' => 29]);
+check('periods: dates that are not a stretch are the last 30 days', [R::span('custom', '2026-02-02', '2026-01-05', '2026-03-10')['key'], R::span('custom', 'x', 'y', '2026-03-10')['days'], R::span('custom', '2026-03-01', '2026-04-01', '2026-03-10')['key'], R::span('custom', '2019-01-01', '2026-03-01', '2026-03-10')['key'], R::span('nonsense', '', '', '2026-03-10')['key']], ['30d', 30, '30d', '30d', '30d']);
+check('time reads as people read it', [R::duration(0), R::duration(45), R::duration(125), R::duration(3600)], ['0s', '45s', '2m 05s', '60m 00s']);
+check('words for the codes', [R::label('channel', 'search'), R::label('device', 'mobile'), R::label('event', 'outbound|example.com'), R::label('event', 'tel|'), R::label('page', '/about'), R::label('source', '(other)'), str_ends_with(R::label('country', 'GR'), 'Greece'), R::label('lang', 'el')], ['Search engines', 'Phone', 'Outbound link: example.com', 'Phone link', '/about', 'Other', true, 'Greek']);
+
+$dir2 = sys_get_temp_dir() . '/anr' . getmypid();
+mkdir("$dir2/storage/db", 0775, true);
+$db2 = new SystemDatabase("$dir2/storage"); $db2->initialize();
+$st2 = new AnalyticsStore($db2, new SystemMetaRepository($db2), 24);
+$row = fn(string $v, string $day, int $h, string $path, array $more = []) => $more + ['ts' => strtotime("$day $h:00:00"), 'day' => $day, 'visitor' => $v, 'kind' => 'view', 'path' => $path, 'name' => '', 'source' => 'Google', 'channel' => 'search', 'campaign' => '', 'device' => 'desktop', 'browser' => 'Chrome', 'os' => 'Windows', 'country' => 'GR', 'lang' => 'el'];
+foreach ([['a', '2026-03-09', 9, '/'], ['b', '2026-03-09', 10, '/'], ['b', '2026-03-09', 10, '/about'], ['a', '2026-03-10', 9, '/'], ['a', '2026-03-10', 9, '/about'], ['c', '2026-03-10', 14, '/']] as [$v, $d, $h, $pth]) {
+    $st2->record($row($v, $d, $h, $pth));
+}
+$st2->record($row('a', '2026-03-10', 9, '/about', ['kind' => 'event', 'name' => 'download|a.pdf']));
+$rep = new R($st2);
+$b = $rep->build(R::span('7d', '', '', '2026-03-10'), '2026-03-10');
+check('the totals of a period', array_map(fn($k) => $k['value'], $b['kpis']), ['4', '6', '1.5', '50%', '0s']);
+check('with the change from the period before (nothing to compare with yet)', array_map(fn($k) => $k['change'], $b['kpis']), [null, null, null, null, null]);
+$b2 = $rep->build(R::span('today', '', '', '2026-03-10'), '2026-03-10');
+check('against the day before, in percent (nothing to compare time with)', array_map(fn($k) => $k['change'], $b2['kpis']), [0, 0, 0, 0, null]);
+check('and whether it is good (no change is fine, nothing to compare is neither)', [$b2['kpis'][0]['good'], $b2['kpis'][4]['good']], [true, null]);
+check('the lists: pages, with their share', array_map(fn($r) => [$r['key'], $r['views'], $r['visitors'], $r['pct']], $b['lists']['page']['rows']), [['/', 4, 4, 100], ['/about', 2, 2, 50]]);
+check('where visits came from, with the words', [$b['lists']['channel']['rows'][0]['label'], $b['lists']['channel']['rows'][0]['visitors'], $b['lists']['source']['rows'][0]['label'], $b['lists']['event']['rows'][0]['label']], ['Search engines', 4, 'Google', 'Download: a.pdf']);
+check('a day is drawn an hour at a time', [$b2['chart']['unit'], count($b2['chart']['hover']), $b2['chart']['hover'][9]['views'], $b2['chart']['hover'][14]['visitors']], ['hour', 24, 2, 1]);
+check('a week a day at a time, with a hover area and a mark for each', [$b['chart']['unit'], count($b['chart']['hover']), count($b['chart']['ticks']), str_starts_with($b['chart']['visitors_line'], 'M'), str_ends_with($b['chart']['views_area'], 'Z')], ['day', 7, 3, true, true]);
+$year = $rep->build(R::span('12m', '', '', '2026-03-10'), '2026-03-10');
+check('a year a month at a time', [$year['chart']['unit'], count($year['chart']['hover'])], ['month', 13]);
+check('a period with no visits is empty, and still draws', [$rep->build(R::span('custom', '2025-01-01', '2025-01-10', '2026-03-10'), '2026-03-10')['empty'], count($rep->build(R::span('custom', '2025-01-01', '2025-01-10', '2026-03-10'), '2026-03-10')['chart']['hover'])], [true, 10]);
+$csv = $rep->csv('page', R::span('7d', '', '', '2026-03-10'), '2026-03-10');
+check('a list as CSV', $csv, "Page,Views,Visitors\n/,4,4\n/about,2,2\n");
+$st2->record($row('z', '2026-03-10', 15, '=HYPERLINK("x")'));
+check('and a cell that would run in a spreadsheet does not', str_contains($rep->csv('page', R::span('7d', '', '', '2026-03-10'), '2026-03-10'), "\"'=HYPERLINK"), true);
 
 echo $fail === 0 ? "\nALL PASSED\n" : "\n$fail FAILED\n";
 exit($fail === 0 ? 0 : 1);

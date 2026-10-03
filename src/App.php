@@ -1226,6 +1226,23 @@ final class App
             $this->redirect($admin->save($_POST, $mayWriteCode));
             return;
         }
+        if ((string)($_GET['realtime'] ?? '') === '1') {
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode($admin->now());
+            return;
+        }
+        $export = (string)($_GET['export'] ?? '');
+        if ($export !== '') {
+            $file = $admin->export($export, $_GET);
+            if ($file === null) {
+                $this->render404();
+                return;
+            }
+            header('Content-Type: text/csv; charset=utf-8');
+            header('Content-Disposition: attachment; filename="' . $file['name'] . '"');
+            echo $file['body'];
+            return;
+        }
         $tab = $admin->tab((string)($_GET['tab'] ?? ''));
         $this->render('@admin/analytics.twig', [
             'tab' => $tab,
@@ -1236,7 +1253,7 @@ final class App
             'types' => $this->content->getTypes(),
             'admin_section' => 'analytics',
             'current_type' => 'pages',
-        ] + $admin->settingsScreen($mayWriteCode));
+        ] + ($tab === 'reports' ? $admin->reportsScreen($_GET) : []) + $admin->settingsScreen($mayWriteCode));
     }
 
     /** Admin > SEO: a tab for each part of how the site meets search engines and social networks. */
@@ -3605,7 +3622,9 @@ final class App
             'ip' => (string)($_SERVER['REMOTE_ADDR'] ?? ''),
             'agent' => (string)($_SERVER['HTTP_USER_AGENT'] ?? ''),
         ]);
-        if (!empty($result['state']['success'])) {
+        // A form that was sent now (not the page that thanks for it, shown again, and not a robot's catch in the honeypot) is a goal.
+        $honeypot = (string)($result['state']['honeypot'] ?? '');
+        if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && !empty($result['state']['success']) && ($honeypot === '' || trim((string)($_POST[$honeypot] ?? '')) === '')) {
             $this->analyticsGoal('form', $form->slug, $currentPath);
         }
         if ($result['location'] !== '') {

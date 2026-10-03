@@ -30,6 +30,105 @@
   {{ ui.flash(cleared ? 'Everything that was counted is deleted.' : '', 'success') }}
   {% if error == 'store' %}{{ ui.flash('The system database is not available, so nothing was saved.', 'error') }}{% endif %}
 
+  {% if tab == 'reports' %}
+    {% set c = report.chart %}
+    <div class="an-toolbar">
+      <nav class="an-seg" aria-label="Period">
+        {% for key, label in ranges %}<a href="{{ url('admin/analytics?range=' ~ key) }}"{% if report.span.key == key %} aria-current="true"{% endif %}>{{ label }}</a>{% endfor %}
+      </nav>
+      <details class="an-more">
+        <summary class="{{ report.span.key in more_ranges|keys or report.span.key == 'custom' ? 'is-on' : '' }}">{{ report.span.key in more_ranges|keys or report.span.key == 'custom' ? report.span.label : 'More' }}</summary>
+        <div class="an-pop">
+          {% for key, label in more_ranges %}<a href="{{ url('admin/analytics?range=' ~ key) }}">{{ label }}</a>{% endfor %}
+          <form method="get" action="{{ url('admin/analytics') }}">
+            <input type="hidden" name="range" value="custom">
+            <label>From <input type="date" name="from" value="{{ report.span.from }}" max="{{ today }}" class="lc-input"></label>
+            <label>To <input type="date" name="to" value="{{ report.span.to }}" max="{{ today }}" class="lc-input"></label>
+            <button type="submit" class="an-apply">Show</button>
+          </form>
+        </div>
+      </details>
+      <div class="an-live" data-an-live="{{ url('admin/analytics?realtime=1') }}">
+        <span class="an-pulse" aria-hidden="true"></span><b data-an-live-count>{{ now.visitors }}</b> on the site now
+        <ul class="an-live-pages" data-an-live-pages>{% for path, n in now.pages %}<li><span>{{ path }}</span><b>{{ n }}</b></li>{% endfor %}</ul>
+      </div>
+    </div>
+
+    {% if report.empty %}
+      <section class="{{ card }} mb-3 p-4">
+        <h2 class="m-0 text-sm font-semibold text-slate-900">No visits in this period</h2>
+        <p class="m-0 mt-1 text-xs text-slate-500">The counting script is on every public page. Open the site in a window where you are not signed in (visits of signed-in people are not counted), and the visit shows here within a moment. Robots and visitors who ask not to be tracked are never counted.</p>
+      </section>
+    {% endif %}
+
+    <div class="an-kpis">
+      {% for k in report.kpis %}
+        <div class="an-kpi" title="{{ k.help }}">
+          <span>{{ k.label }}</span>
+          <strong>{{ k.value }}</strong>
+          {% if k.change is not null %}<em class="{{ k.good ? 'is-good' : 'is-bad' }}"><span aria-hidden="true">{{ k.change >= 0 ? '▲' : '▼' }}</span> {{ k.change|abs }}%<span class="sr-only"> {{ k.change >= 0 ? 'more' : 'less' }} than before</span></em>{% else %}<em class="is-none">—</em>{% endif %}
+        </div>
+      {% endfor %}
+    </div>
+    <p class="an-vs">{{ report.span.label }}{% if report.span.from != report.span.to %} · {{ report.span.from }} – {{ report.span.to }}{% endif %}; the change is against the {{ report.span.days }} {{ report.span.days == 1 ? 'day' : 'days' }} before ({{ report.previous.from }}{% if report.previous.from != report.previous.to %} – {{ report.previous.to }}{% endif %}).</p>
+
+    <section class="{{ card }} an-chart-card" aria-labelledby="an-h-chart">
+      <div class="an-chart-head">
+        <h2 id="an-h-chart" class="m-0 text-sm font-semibold text-slate-900">Visitors and page views</h2>
+        <span class="an-legend"><i class="is-visitors"></i>Visitors <i class="is-views"></i>Page views</span>
+      </div>
+      <svg class="an-chart" viewBox="0 0 {{ c.w }} {{ c.h }}" role="img" aria-label="Chart of visitors and page views by {{ c.unit }}, {{ report.span.label }}">
+        {% for t in c.ticks %}
+          <line x1="{{ c.left }}" x2="{{ c.right }}" y1="{{ t.y }}" y2="{{ t.y }}" class="an-grid"/>
+          <text x="{{ c.left - 6 }}" y="{{ t.y + 3 }}" text-anchor="end" class="an-axis">{{ t.value|number_format }}</text>
+        {% endfor %}
+        <path d="{{ c.views_area }}" class="an-area-views"/>
+        <path d="{{ c.views_line }}" class="an-line-views"/>
+        <path d="{{ c.visitors_area }}" class="an-area-visitors"/>
+        <path d="{{ c.visitors_line }}" class="an-line-visitors"/>
+        {% for l in c.labels %}<text x="{{ l.x }}" y="{{ c.h - 6 }}" text-anchor="middle" class="an-axis">{{ l.text }}</text>{% endfor %}
+        {% for p in c.hover %}
+          <g class="an-hit"><rect x="{{ p.x }}" y="0" width="{{ p.w }}" height="{{ c.base }}"/><circle cx="{{ p.cx }}" cy="{{ p.cy }}" r="3.5"/><title>{{ p.label }}: {{ p.visitors|number_format }} {{ p.visitors == 1 ? 'visitor' : 'visitors' }}, {{ p.views|number_format }} {{ p.views == 1 ? 'view' : 'views' }}</title></g>
+        {% endfor %}
+      </svg>
+      <table class="sr-only">
+        <caption>Visitors and page views by {{ c.unit }}</caption>
+        <thead><tr><th scope="col">{{ c.unit|capitalize }}</th><th scope="col">Visitors</th><th scope="col">Page views</th></tr></thead>
+        <tbody>{% for p in c.hover %}<tr><th scope="row">{{ p.label }}</th><td>{{ p.visitors }}</td><td>{{ p.views }}</td></tr>{% endfor %}</tbody>
+      </table>
+    </section>
+
+    <div class="an-cards">
+      {% for title, kinds in cards %}
+        <section class="{{ card }} an-card" data-an-card aria-labelledby="an-h-{{ loop.index }}">
+          <div class="an-card-head">
+            <h2 id="an-h-{{ loop.index }}" class="m-0 text-sm font-semibold text-slate-900">{{ title }}</h2>
+            {% if kinds|length > 1 %}
+              <div class="an-tabs">{% for kind, name in kinds %}<button type="button" data-an-tab="{{ kind }}" aria-pressed="{{ loop.first ? 'true' : 'false' }}">{{ name }}</button>{% endfor %}</div>
+            {% endif %}
+          </div>
+          {% for kind, name in kinds %}
+            {% set list = report.lists[kind] %}
+            <div data-an-panel="{{ kind }}">
+              {% if list.rows is empty %}
+                <p class="an-none">Nothing counted yet.</p>
+              {% else %}
+                <ul class="an-list">
+                  <li class="an-head"><span>{{ name }}</span><span>Visitors</span><span>Views</span></li>
+                  {% for row in list.rows %}
+                    <li class="an-row"><span class="an-bar" style="width: {{ row.pct }}%"></span><span class="an-label" title="{{ row.label }}">{% if kind in ['page', 'entry'] and row.key != '(other)' %}<a href="{{ url(row.key|trim('/')) }}" target="_blank" rel="noopener">{{ row.label }}</a>{% else %}{{ row.label }}{% endif %}</span><span class="an-num">{{ row.visitors|number_format }}</span><span class="an-num">{{ row.views|number_format }}</span></li>
+                  {% endfor %}
+                </ul>
+                <p class="an-foot">{% if list.total > list.rows|length %}{{ list.total - list.rows|length }} more · {% endif %}<a href="{{ url('admin/analytics?export=' ~ kind ~ '&range=' ~ report.span.key ~ (report.span.key == 'custom' ? '&from=' ~ report.span.from ~ '&to=' ~ report.span.to : '')) }}" class="{{ link }}">Export CSV</a></p>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </section>
+      {% endfor %}
+    </div>
+    <p class="mt-3 text-[11px] text-slate-500">Counted by the site itself, without cookies. Visitors are counted once a day, so a person who comes on two days is two visitors. Signed-in people, robots and visitors who ask not to be tracked are not counted. <a href="{{ url('admin/analytics?tab=settings') }}" class="{{ link }}">Settings</a></p>
+  {% endif %}
+
   {% if tab == 'settings' %}
     <form method="post" action="{{ url('admin/analytics?tab=settings') }}" autocomplete="off" data-an-form>
       {{ csrf_field() }}

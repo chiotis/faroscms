@@ -69,4 +69,40 @@ final class AnalyticsAdmin
             'store_ok' => $this->data->isAvailable(),
         ];
     }
+
+    /**
+     * The reports for the stretch of days the address asks for.
+     *
+     * @param array<string, mixed> $get
+     * @return array<string, mixed>
+     */
+    public function reportsScreen(array $get, ?string $today = null): array
+    {
+        $today ??= date('Y-m-d');
+        $span = AnalyticsReport::span((string)($get['range'] ?? '30d'), (string)($get['from'] ?? ''), (string)($get['to'] ?? ''), $today);
+        $report = (new AnalyticsReport($this->data))->build($span, $today);
+        return ['report' => $report, 'ranges' => AnalyticsReport::RANGES, 'more_ranges' => AnalyticsReport::MORE, 'cards' => AnalyticsReport::CARDS, 'now' => $this->data->now(), 'today' => $today];
+    }
+
+    /**
+     * A list as a CSV file, or null when the list is not one the store keeps.
+     *
+     * @param array<string, mixed> $get
+     * @return array{name: string, body: string}|null
+     */
+    public function export(string $kind, array $get, ?string $today = null): ?array
+    {
+        if (!array_key_exists($kind, AnalyticsStore::KINDS)) {
+            return null;
+        }
+        $today ??= date('Y-m-d');
+        $span = AnalyticsReport::span((string)($get['range'] ?? '30d'), (string)($get['from'] ?? ''), (string)($get['to'] ?? ''), $today);
+        return ['name' => 'analytics-' . $kind . '-' . $span['from'] . '-' . $span['to'] . '.csv', 'body' => (new AnalyticsReport($this->data))->csv($kind, $span, $today)];
+    }
+
+    /** @return array{visitors: int, pages: array<string, int>} who is on the site now */
+    public function now(): array
+    {
+        return $this->data->now();
+    }
 }
