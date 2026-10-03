@@ -47,7 +47,7 @@
           {% elseif key in ['header', 'footer'] and theme_schema[key].fields.layout is defined %}
             {# Header and Footer are cards with a picture of the result (partials/theme-header.twig, theme-footer.twig). #}
             <div class="tab-panel space-y-4{% if active_tab != key %} hidden{% else %} active{% endif %}" data-panel="{{ key }}" role="tabpanel">
-              {% include key == 'header' ? '@admin/partials/theme-header.twig' : '@admin/partials/theme-footer.twig' with {section: theme_schema[key], values: theme_values[key]} %}
+              {% include key == 'header' ? '@admin/partials/theme-header.twig' : '@admin/partials/theme-footer.twig' with {section: theme_schema[key], values: theme_values[key], preview_url: preview_url} %}
             </div>
           {% else %}
           {% set section = theme_schema[key] %}
@@ -91,6 +91,7 @@
   </form>
   {% include '@admin/partials/icon-library.twig' %}
   <script src="{{ asset('js/admin-layouts.js') }}" defer></script>
+  <script src="{{ asset('js/admin-preview.js') }}" defer></script>
 
   <script>
     (function () {

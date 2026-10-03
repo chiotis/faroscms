@@ -1,5 +1,5 @@
 {#
-  Theme > Footer: a picture of the footer that follows what is chosen, the layouts to choose from, and the rest in a few small
+  Theme > Footer: the real site beside it, the layouts to choose from, and the rest in a few small
   cards (look, texts, contact, elements, call to action). The choices are the theme's (`settings.footer` in theme.yaml); a choice
   a theme does not declare is left out, and one this screen does not know is listed under "More".
 
@@ -16,40 +16,22 @@
   brand: {name: 'Name', logo: 'Logo', none: 'None'}
 } %}
 {% set known = ['layout', 'tone', 'brand', 'background', 'background_image', 'summary', 'copyright', 'email', 'phone', 'address', 'hours', 'show_social', 'show_language', 'back_to_top', 'cta_heading', 'cta_text', 'cta_label', 'cta_url'] %}
-{% set map = {
-  layout: [p ~ 'layout]'], tone: [p ~ 'tone]'], brand: [p ~ 'brand]'], cta: [p ~ 'cta_heading]', p ~ 'cta_text]'], social: [p ~ 'show_social]'], language: [p ~ 'show_language]'],
-  top: [p ~ 'back_to_top]'], contact: [p ~ 'email]', p ~ 'phone]', p ~ 'address]', p ~ 'hours]']
-} %}
 
+<div class="bp" data-preview data-mode="page" data-endpoint="{{ url('admin/theme?preview=page') }}">
+<div class="bp-grid">
 <div class="space-y-3" data-hf-root data-layout="{{ v.layout }}">
   <h2 class="sr-only">Footer</h2>
-  <p class="text-xs text-slate-500">Choose the layout, then how it looks and what it holds. The picture follows your choices; its links come from the menu Footer in Menus.</p>
+  <p class="text-xs text-slate-500">Choose the layout, then how it looks and what it holds. The page beside it follows your choices; its links come from the menu Footer in Menus.</p>
 
   {% if f.layout is defined %}
     <section class="lc-card rounded-xl border border-slate-200 bg-white p-3" aria-label="Layout">
-      <div class="hfp hff" data-hf-preview data-hf-map="{{ map|json_encode|e('html_attr') }}"
-           data-layout="{{ v.layout }}" data-tone="{{ v.tone ?? 'dark' }}" data-brand="{{ v.brand ?? 'name' }}"
-           data-cta="{{ (v.cta_heading or v.cta_text) ? 'on' : 'off' }}" data-social="{{ (v.show_social ?? true) ? 'on' : 'off' }}"
-           data-language="{{ v.show_language ? 'on' : 'off' }}" data-top="{{ v.back_to_top ? 'on' : 'off' }}"
-           data-contact="{{ (v.email or v.phone or v.address or v.hours) ? 'on' : 'off' }}" aria-hidden="true">
-        <div class="hff-cta"><span><i></i><b></b></span><em></em></div>
-        <div class="hff-main">
-          <div class="hff-brand"><u></u><i></i><i></i></div>
-          <div class="hff-col"><u></u><i></i><i></i><i></i></div>
-          <div class="hff-col hff-more"><u></u><i></i><i></i><i></i></div>
-          <div class="hff-col hff-more"><u></u><i></i><i></i><i></i></div>
-          <div class="hff-col hff-contact"><u></u><i></i><i></i></div>
-          <div class="hff-links"><i></i><i></i><i></i><i></i></div>
-        </div>
-        <div class="hff-bottom"><i class="hff-copy"></i><span class="hff-legal"><i></i><i></i></span><span class="hff-bar-links"><i></i><i></i><i></i></span><span class="hff-extras"><em class="hff-soc"></em><em class="hff-soc"></em><em class="hff-lang"></em><em class="hff-up"></em></span></div>
-      </div>
-      <div class="mt-3">
+      <div>
         {{ c.tiles(p ~ 'layout]', f.layout.options|keys|reduce((carry, k) => carry|merge({(k): short.layout[k] ?? f.layout.options[k]}), {}), v.layout, f.layout.label, 'footer', '', f.layout.options) }}
       </div>
     </section>
   {% endif %}
 
-  <div class="grid items-start gap-3 xl:grid-cols-2">
+  <div class="grid items-start gap-3 ">
     <section class="lc-card rounded-xl border border-slate-200 bg-white" aria-labelledby="ft-look">
       <h3 id="ft-look" class="px-3 pt-3 text-sm font-semibold text-slate-900">Look</h3>
       <dl class="m-0 space-y-2.5 p-3">
@@ -90,7 +72,7 @@
       </dl>
     </section>
 
-    <section class="lc-card rounded-xl border border-slate-200 bg-white xl:col-span-2" aria-labelledby="ft-cta">
+    <section class="lc-card rounded-xl border border-slate-200 bg-white" aria-labelledby="ft-cta">
       <h3 id="ft-cta" class="px-3 pt-3 text-sm font-semibold text-slate-900">Call to action <span class="font-normal text-slate-500">· a band above the footer, when it has a heading or a text</span></h3>
       <dl class="m-0 grid gap-x-6 gap-y-2.5 p-3 md:grid-cols-2">
         {% for key in ['cta_heading', 'cta_text', 'cta_label', 'cta_url'] %}
@@ -101,7 +83,7 @@
 
     {% set more = f|filter((field, key) => key not in known and not field.hidden) %}
     {% if more is not empty %}
-      <section class="lc-card rounded-xl border border-slate-200 bg-white xl:col-span-2" aria-labelledby="ft-more">
+      <section class="lc-card rounded-xl border border-slate-200 bg-white" aria-labelledby="ft-more">
         <h3 id="ft-more" class="px-3 pt-3 text-sm font-semibold text-slate-900">More</h3>
         <div class="grid gap-3 p-3 sm:grid-cols-2">
           {% for key, field in more %}{{ fields.field(field, p ~ key ~ ']', v[key] ?? field.default) }}{% endfor %}
@@ -109,4 +91,7 @@
       </section>
     {% endif %}
   </div>
+</div>
+{% include '@admin/partials/theme-preview.twig' with {preview_url: preview_url} %}
+</div>
 </div>

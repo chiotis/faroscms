@@ -36,7 +36,7 @@
 {% set known_d = ['light_accent', 'light_background', 'light_surface', 'light_text', 'light_muted', 'light_border', 'dark_accent', 'dark_background', 'dark_surface', 'dark_text', 'dark_muted', 'dark_border', 'ink', 'heading_font', 'body_font', 'font_file', 'base_size', 'line_height', 'scale', 'heading_weight', 'heading_tracking', 'heading_leading', 'heading_case', 'container', 'reading_width', 'gutter', 'section_space', 'header_height', 'spacing', 'radius', 'button_radius', 'shadows', 'button_height', 'button_pad', 'button_size', 'button_weight', 'button_case'] %}
 {% set roles = [['accent', 'Accent'], ['background', 'Background'], ['surface', 'Surface'], ['text', 'Text'], ['muted', 'Muted text'], ['border', 'Border']] %}
 
-<div class="bp" data-bp data-endpoint="{{ url('admin/theme?preview=branding') }}">
+<div class="bp" data-bp data-preview data-mode="css" data-endpoint="{{ url('admin/theme?preview=branding') }}">
   <h2 class="sr-only">Branding</h2>
   <p class="mb-3 text-xs text-slate-500">Logo, colours, type, spacing, corners and buttons. Everything left empty or on “Theme” keeps the theme’s own value, so a site that changes nothing here looks as it always did.</p>
 
@@ -216,25 +216,7 @@
       {% endif %}
     </div>
 
-    <aside class="bp-preview" aria-label="Preview">
-      <div class="bp-bar">
-        <div class="lc-seg" role="radiogroup" aria-label="Size of the preview">
-          <label><input type="radio" name="bp_size" value="1280" checked data-bp-size><span>Computer</span></label>
-          <label><input type="radio" name="bp_size" value="820" data-bp-size><span>Tablet</span></label>
-          <label><input type="radio" name="bp_size" value="390" data-bp-size><span>Phone</span></label>
-        </div>
-        <div class="lc-seg" role="radiogroup" aria-label="Colour mode of the preview">
-          <label><input type="radio" name="bp_mode" value="" checked data-bp-mode><span>Auto</span></label>
-          <label><input type="radio" name="bp_mode" value="light" data-bp-mode><span>Light</span></label>
-          <label><input type="radio" name="bp_mode" value="dark" data-bp-mode><span>Dark</span></label>
-        </div>
-        <button type="button" class="bp-reload" data-bp-reload>Reload</button>
-      </div>
-      <div class="bp-stage" data-bp-stage>
-        <iframe class="bp-frame" data-bp-frame src="{{ info.preview_url }}" title="Preview of the site" loading="lazy"></iframe>
-      </div>
-      <p class="bp-note">The real site, with your unsaved choices. Links inside it work; the choices stay while you look around.</p>
-    </aside>
+    {% include '@admin/partials/theme-preview.twig' with {preview_url: info.preview_url} %}
   </div>
 </div>
 <script src="{{ asset('js/admin-branding.js') }}" defer></script>

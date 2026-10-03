@@ -291,7 +291,7 @@ Editors can tick blocks and **Save as section**: the blocks are checked and writ
 
 ## Header and footer
 
-**Admin > Theme > Header** and **Footer** are a picture of the result (it follows what is chosen), the layouts to choose from, and a few small cards. Everything is a solid colour.
+**Admin > Theme > Header** and **Footer** have the real site beside them (it follows what is chosen, before it is saved), the layouts to choose from, and a few small cards. Everything is a solid colour. The frame shows the page at a computer, tablet or phone width, in light or dark; because a header or footer choice changes what the page is made of, the server draws the page with the unsaved settings (`POST /admin/theme?preview=page`; nothing is stored and no form is processed) and the frame shows that, keeping its scroll and following links inside it.
 
 Header:
 
@@ -312,7 +312,7 @@ A site-specific block goes in `custom/blocks/<type>/` with the same files.
 
 ## Branding
 
-**Admin > Theme > Branding** gathers everything that makes up the look of the site, for a designer: the theme's `appearance`, `brand` and `design` sections in one tab (a theme that declares `design` gets this tab; otherwise each section is its own tab). Cards on the left, the real site on the right: the frame shows the home page with the unsaved choices as they are made, at computer, tablet or phone width and in light or dark (the browser asks `POST /admin/theme?preview=branding`, which answers with the CSS and attributes and stores nothing).
+**Admin > Theme > Branding** gathers everything that makes up the look of the site, for a designer: the theme's `appearance`, `brand` and `design` sections in one tab (a theme that declares `design` gets this tab; otherwise each section is its own tab). Cards on the left, the real site on the right: the frame shows the home page with the unsaved choices as they are made, at computer, tablet or phone width and in light or dark (the browser asks `POST /admin/theme?preview=branding`, which answers with the CSS and attributes and stores nothing; the same frame serves the Header and Footer tabs).
 
 - **Identity** (`brand`): the logo, a **logo for dark backgrounds** (shown in dark mode, in a dark or palette footer, in a dark or palette header row, and over a dark opening hero; without it the logo is used everywhere), the site name beside the logo, heights of the logo (computer, phone, footer) and the size of the name, the **favicon**, the **app icon** (`apple-touch-icon`), the **browser colour** (`theme-color`) and the default share image.
 - **Colour**: the palette and the mode (`appearance`), and **your own colours** for light and for dark: accent, background, surface, text, muted text and border, and the near-black of dark panels and the footer. The hover and soft shades of the accent, the second shade of the surface and the border, and a readable text colour on the accent (white or the theme's near-black) are worked out from the ones given.

@@ -72,10 +72,11 @@ check('the palettes are chips with a dot of their colour', html.count('class="bp
 check('colours can be picked and typed and cleared', html.count('data-colour') >= 13 and 'type="color"' in html and 'lc-colour-x' in html)
 check('numbers say their unit and may be empty', 'class="bp-num"' in html and 'class="lc-unit"' in html and re.search(r'name="theme_settings\[design\]\[radius\]" value=""', html) is not None)
 check('the colours are a table that says what is light and what is dark', '<table class="bp-colours">' in html and 'scope="col">Light<' in html and 'scope="col">Dark<' in html and 'scope="row">Accent<' in html)
-check('the real site is shown in a frame beside it, with a size and a mode to choose', 'data-bp-frame' in html and 'title="Preview of the site"' in html and html.count('data-bp-size') == 3 and html.count('data-bp-mode') == 3)
-check('it asks for the preview at the address of the screen, and loads its script', 'data-endpoint="' in html and 'theme?preview=branding' in html and 'admin-branding.js' in html)
-js = root.get('/assets/js/admin-branding.js')
-check('the script is served', js[0] == 200 and 'faros-branding' in js[2], js[0])
+check('the real site is shown in a frame beside it, with a size and a mode to choose', 'data-bp-frame' in html and 'title="Preview of the site"' in html and html.count('data-bp-size') >= 3 and html.count('data-bp-mode') >= 3)
+check('it asks for the preview at the address of the screen, and loads its script', 'data-endpoint="' in html and 'theme?preview=branding' in html and 'admin-branding.js' in html and html.count('js/admin-preview.js') == 1)
+js = root.get('/assets/js/admin-preview.js')
+check('the script of the preview is served', js[0] == 200 and 'faros-branding' in js[2] and 'preview_path' in js[2], js[0])
+check('and the one of the colours and the resets', root.get('/assets/js/admin-branding.js')[0] == 200)
 check('the old tabs are gone, an old link opens the first', root.get('/admin/theme?tab=brand')[2].count('name="active_tab" value="branding"') == 1)
 
 # ---- saving: colours
