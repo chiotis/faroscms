@@ -13,7 +13,10 @@ $dir = sys_get_temp_dir() . '/tax' . getmypid(); mkdir($dir, 0775, true);
 $t = new Taxonomies($dir, ['el', 'en']);
 $t->ensureDefaults();
 check('the two built-in taxonomies exist', $t->names(), ['categories', 'tags']);
-check('kind of a taxonomy names its address', [Taxonomies::kind('categories'), Taxonomies::kind('tags'), Taxonomies::kind('anything')], ['category', 'tag', 'tag']);
+check('kind of a taxonomy names its address: category, tag, or the taxonomy\'s own name', [Taxonomies::kind('categories'), Taxonomies::kind('tags'), Taxonomies::kind('project-types')], ['category', 'tag', 'project-types']);
+check('only the two built in are not the site\'s own', [Taxonomies::isCustom('categories'), Taxonomies::isCustom('tags'), Taxonomies::isCustom('industries')], [false, false, true]);
+$t->save('industries', 'Industries', [['id' => 'retail', 'slug' => 'retail', 'labels' => ['el' => 'Λιανική', 'en' => 'Retail']]]);
+check('an address word belongs to its taxonomy: category(ies), tag(s), or the name of a taxonomy the site added', [$t->fromWord('category'), $t->fromWord('categories'), $t->fromWord('tag'), $t->fromWord('tags'), $t->fromWord('industries'), $t->fromWord('nothing'), $t->fromWord('')], ['categories', 'categories', 'tags', 'tags', 'industries', null, null]);
 
 $row = fn(string $id, string $slug, string $el, string $en = '') => ['id' => $id, 'slug' => $slug, 'labels' => ['el' => $el, 'en' => $en]];
 $term = fn(array $p, string $id) => array_values(array_filter($p['terms'], fn($x) => $x['id'] === $id))[0] ?? null;

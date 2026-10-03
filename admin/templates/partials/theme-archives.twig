@@ -84,7 +84,7 @@
       <summary class="cursor-pointer select-none text-xs font-medium text-slate-600">Page title and subtitle</summary>
       <div class="mt-2 grid gap-2 sm:grid-cols-2">
         <label class="grid gap-1 text-xs font-medium text-slate-600">Title
-          <input type="text" name="{{ name }}[title]" value="{{ a.title }}" placeholder="{{ kind == 'taxonomy' ? 'Default: “' ~ (item.kind == 'category' ? 'Category' : 'Tag') ~ ': Name”' : 'Default: the theme’s text' }}" class="{{ field_class }}">
+          <input type="text" name="{{ name }}[title]" value="{{ a.title }}" placeholder="{{ kind == 'taxonomy' ? 'Default: “' ~ (item.kind == 'category' ? 'Category' : (item.kind == 'tag' ? 'Tag' : item.title)) ~ ': Name”' : 'Default: the theme’s text' }}" class="{{ field_class }}">
         </label>
         <label class="grid gap-1 text-xs font-medium text-slate-600">Subtitle
           <input type="text" name="{{ name }}[subtitle]" value="{{ a.subtitle }}" class="{{ field_class }}">

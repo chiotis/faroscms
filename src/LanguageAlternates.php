@@ -129,13 +129,12 @@ final class LanguageAlternates
     }
 
     /** @return array{urls: array<string, string>, default: string} */
-    public function forTaxonomy(string $kind, string $slug): array
+    public function forTaxonomy(string $key, string $slug): array
     {
         $defaultLang = $this->settings()['languages']['default'] ?? 'en';
         $available = $this->settings()['languages']['available'] ?? [$defaultLang];
         $slug = Slug::plain($slug);
-        $pathKind = $kind === 'category' ? 'category' : 'tag';
-        $key = $kind === 'category' ? 'categories' : 'tags';
+        $pathKind = Taxonomies::kind($key);
 
         $urls = [];
         foreach ($available as $lang) {

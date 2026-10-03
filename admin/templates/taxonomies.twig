@@ -112,6 +112,7 @@
 
   {% if saved %}<template data-flash data-type="success">Saved.{% if moved %} {{ moved }} address{{ moved == 1 ? '' : 'es' }} changed: the old {{ moved == 1 ? 'one keeps' : 'ones keep' }} working{% if can_redirects %} (see Redirects){% endif %}.{% endif %}</template>{% endif %}
   {% if removed and orphaned %}<template data-flash data-type="warning">{{ removed }} term{{ removed == 1 ? '' : 's' }} removed, but {{ orphaned }} {{ orphaned == 1 ? 'entry is' : 'entries are' }} still filed under {{ removed == 1 ? 'it' : 'them' }}. The entries keep the old term in their files, and the term no longer has a page.</template>{% endif %}
+  {% if created %}<template data-flash data-type="success">Taxonomy created. Add its first terms below; its pages will be at /{{ taxonomy_kind }}/term.</template>{% endif %}
   {% if error %}
     <div class="mb-4 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{{ error }}</div>
   {% endif %}
@@ -128,6 +129,43 @@
       {% endfor %}
     </nav>
   </header>
+
+  {# A new taxonomy: a name, an address (made from the name when left empty), and which content types its pages list. #}
+  <details class="mb-4 rounded-lg border border-slate-200 bg-white"{% if new_error %} open{% endif %} data-new-taxonomy>
+    <summary class="flex cursor-pointer items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-800">{{ me.icon('plus') }} New taxonomy <span class="text-xs font-normal text-slate-500">· for example “Project types” or “Industries”</span></summary>
+    <form method="post" class="grid gap-4 border-t border-slate-200 p-4" novalidate>
+      {{ csrf_field() }}
+      <input type="hidden" name="taxonomy" value="{{ taxonomy }}">
+      <input type="hidden" name="new_taxonomy" value="1">
+      {% if new_error %}<p class="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700" role="alert">{{ new_error }}</p>{% endif %}
+      <div class="grid gap-4 md:grid-cols-2">
+        <label class="grid gap-1 text-sm font-medium text-slate-700">
+          Name
+          <input type="text" name="new_title" required placeholder="Project types" class="{{ input_class }}">
+          <span class="text-xs font-normal text-slate-500">What the admin calls it, and the title of its pages.</span>
+        </label>
+        <label class="grid gap-1 text-sm font-medium text-slate-700">
+          Address
+          <span class="flex items-center rounded-md border border-slate-300 bg-white focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20">
+            <span class="select-none pl-3 text-sm text-slate-500">/</span>
+            <input type="text" name="new_name" autocomplete="off" spellcheck="false" placeholder="made from the name" class="min-w-0 flex-1 border-0 bg-transparent py-2 pl-0.5 pr-3 font-mono text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-0">
+            <span class="select-none pr-3 text-sm text-slate-500">/term</span>
+          </span>
+          <span class="text-xs font-normal text-slate-500">Latin letters, numbers and hyphens. It is also the field entries keep their terms in, and cannot change later.</span>
+        </label>
+      </div>
+      <fieldset class="grid gap-1.5">
+        <legend class="text-sm font-medium text-slate-700">Its pages list</legend>
+        <div class="flex flex-wrap gap-x-5 gap-y-1.5">
+          {% for type in listable_types %}
+            <label class="inline-flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" name="new_types[]" value="{{ type }}" class="h-4 w-4 rounded border-slate-300"> {{ type_labels[type] }}</label>
+          {% endfor %}
+        </div>
+        <span class="text-xs text-slate-500">Choose none to list every content type. You can change this later in Theme &gt; Archive Layouts.</span>
+      </fieldset>
+      <div><button type="submit" class="{{ primary_btn }}">Create taxonomy</button></div>
+    </form>
+  </details>
 
   <form method="post" class="grid gap-4" data-taxonomy-form data-kind="{{ taxonomy_kind }}" data-default-language="{{ default_language }}" data-can-redirects="{{ can_redirects ? '1' : '' }}" novalidate>
     {{ csrf_field() }}

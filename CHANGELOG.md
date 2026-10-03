@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.34 — 2026-10-03 — New taxonomy, with pages of its own
+- **Admin > Taxonomies > New taxonomy** makes a taxonomy of the site's own (for example "Project types" or "Industries"): a name, an address (made from the name, Greek letters become Latin) and, if you like, the content types its pages list. Until now only categories and tags existed, and a third could only be made by writing a file, with no public page
+- **Every taxonomy has pages now.** The terms of "Project types" are at `/project-types/web` (and `/en/project-types/web`), titled "Project types: Websites", laid out by the card of the taxonomy in Theme > Archive Layouts (which content types it lists, columns, order, filters), with `hreflang` links, and a term that changes address leaves a redirect and updates the menus, as categories and tags do. `/project-types` alone is an ordinary page address: a page can be made there. Categories and tags keep `/category/...` and `/tag/...`
+- Entries show their terms under the title (posts and projects), the menu editor offers them, and the Theme's archive card, the link review and the redirects work with them. A name that the site already uses is refused with the reason (a reserved word, a language, a content type, a taxonomy, the home page, a page), and a content type can no longer take the name of a taxonomy
+- Templates: `item_terms(item, prefix)` lists an entry's terms in the taxonomies a site added; `taxonomy_url()` and `taxonomy_label()` work for them. Theme 1.18.1
+- Tests: `tests/http/custom_taxonomies_test.py` (making one, what is refused, the public page and its languages, the types it lists, the entry's links, a moved address, the menu editor, who may) and the taxonomy, route and editor unit tests extended
+
 ## 0.1.33 — 2026-10-03 — A branding check no longer depends on how PHP rounds
 - The 0.1.32 check of the corner radius compared a size that falls exactly between two roundings (0.35625rem), which PHP 8.1 and 8.3 round differently from 8.5; it failed on those two in CI. The check now uses a radius whose sizes are exact. Nothing in the product changed (a site could never see a difference of 0.00005rem)
 ## 0.1.32 — 2026-10-03 — Branding: one tab for the whole look of the site

@@ -111,9 +111,9 @@ check('an entry that exists in no language has none', $alt->forItem('pages', 'gh
 check('a page missing in the default language has no default address', $alt->forItem('pages', 'team-en'), ['urls' => ['en' => 'https://s.test/en/team-en'], 'default' => '']);
 check('a content type list exists where it has entries', $alt->forArchive('posts'), ['urls' => ['el' => 'https://s.test/posts', 'en' => 'https://s.test/en/posts', 'de' => 'https://s.test/de/posts'], 'default' => 'https://s.test/posts']);
 check('a type with none has no addresses', $alt->forArchive('projects'), ['urls' => [], 'default' => '']);
-check('a tag page exists in the languages that have entries under it', $alt->forTaxonomy('tag', 'news'), ['urls' => ['el' => 'https://s.test/tag/news', 'en' => 'https://s.test/en/tag/news', 'de' => 'https://s.test/de/tag/news'], 'default' => 'https://s.test/tag/news']);
-check('a tag nothing uses has none', $alt->forTaxonomy('tag', 'empty'), ['urls' => [], 'default' => '']);
-check('an unknown tag has none', $alt->forTaxonomy('tag', 'nope')['urls'], []);
+check('a tag page exists in the languages that have entries under it', $alt->forTaxonomy('tags', 'news'), ['urls' => ['el' => 'https://s.test/tag/news', 'en' => 'https://s.test/en/tag/news', 'de' => 'https://s.test/de/tag/news'], 'default' => 'https://s.test/tag/news']);
+check('a tag nothing uses has none', $alt->forTaxonomy('tags', 'empty'), ['urls' => [], 'default' => '']);
+check('an unknown tag has none', $alt->forTaxonomy('tags', 'nope')['urls'], []);
 
 exec('rm -rf ' . escapeshellarg($dir));
 echo $fail === 0 ? "\nALL PASSED\n" : "\n$fail FAILED\n";

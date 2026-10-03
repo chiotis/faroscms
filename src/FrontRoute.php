@@ -21,10 +21,11 @@ final class FrontRoute
     /**
      * @param array<string, mixed> $settings
      * @param string[] $types the content types of the site
+     * @param string[] $taxonomies the taxonomies a site added: each has pages of its own at /<name>/<term>
      * @return array{kind: string, lang: string, segments: string[], lang_prefix: string, path_no_lang: string, home_slug: string, slug: string, type: string, location: string}
      *   kind is one of sitemap, robots, legacy_page, taxonomy, search, archive, entry, page
      */
-    public static function resolve(string $path, array $settings, array $types): array
+    public static function resolve(string $path, array $settings, array $types, array $taxonomies = []): array
     {
         $default = (string)($settings['languages']['default'] ?? 'en');
         $available = $settings['languages']['available'] ?? [];
@@ -56,7 +57,7 @@ final class FrontRoute
             $slug = $segments[1] ?? '';
             return ['kind' => 'legacy_page', 'location' => '/' . $prefix . ($slug !== '' && $slug !== $homeSlug ? $slug : '')] + $route;
         }
-        if (in_array($first, ['tag', 'tags', 'category', 'categories'], true)) {
+        if (in_array($first, ['tag', 'tags', 'category', 'categories'], true) || (count($segments) > 1 && in_array($first, $taxonomies, true) && !in_array($first, $types, true))) {
             return ['kind' => 'taxonomy'] + $route;
         }
         if ($first === 'search') {

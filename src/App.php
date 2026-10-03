@@ -510,7 +510,7 @@ final class App
 
     private function handleFront(string $path): void
     {
-        $route = FrontRoute::resolve($path, $this->settings, $this->content->getTypes());
+        $route = FrontRoute::resolve($path, $this->settings, $this->content->getTypes(), array_values(array_filter($this->taxonomies()->names(), [Taxonomies::class, 'isCustom'])));
         if ($route['kind'] === 'sitemap') {
             $this->renderSitemap();
             return;
@@ -2028,6 +2028,20 @@ final class App
         $taxonomy = $editor->selected((string)($_GET['taxonomy'] ?? $_POST['taxonomy'] ?? ''));
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            if (isset($_POST['new_taxonomy'])) {
+                $made = $editor->create(
+                    (string)($_POST['new_title'] ?? ''),
+                    (string)($_POST['new_name'] ?? ''),
+                    is_array($_POST['new_types'] ?? null) ? $_POST['new_types'] : [],
+                    $languages,
+                    (string)($this->settings['home_page'] ?? 'index'),
+                    $this->currentUsername()
+                );
+                $this->redirect($made['error'] === ''
+                    ? '/admin/taxonomies?taxonomy=' . urlencode($made['name']) . '&created=1'
+                    : '/admin/taxonomies?taxonomy=' . urlencode($taxonomy) . '&new_error=' . urlencode($made['error']) . '&new=1');
+                return;
+            }
             $this->redirect($editor->save($taxonomy, $_POST, $languages, $default, $this->currentUsername()));
             return;
         }
@@ -2586,6 +2600,34 @@ final class App
             return $this->buildAbsoluteUrl($path);
         }));
 
+        // The terms an entry has in the taxonomies a site added (categories and tags are drawn by the templates themselves):
+        // [{name, title, terms: [{label, url}]}], each term with a page.
+        $twig->addFunction(new TwigFunction('item_terms', function (mixed $item, string $prefix = ''): array {
+            $meta = is_object($item) && isset($item->meta) && is_array($item->meta) ? $item->meta : [];
+            $groups = [];
+            foreach ($this->taxonomies()->names() as $name) {
+                if (!Taxonomies::isCustom($name)) {
+                    continue;
+                }
+                $terms = [];
+                $known = array_column($this->taxonomies()->load($name)['terms'], 'id');
+                foreach (Format::list($meta[$name] ?? null) as $termId) {
+                    if (!in_array((string)$termId, $known, true)) {
+                        continue;
+                    }
+                    $label = $this->taxonomyTermLabel($name, (string)$termId);
+                    $path = $this->buildTaxonomyPath($name, (string)$termId, $prefix);
+                    if ($label !== '' && $path !== '') {
+                        $terms[] = ['label' => $label, 'url' => $this->buildAbsoluteUrl($path)];
+                    }
+                }
+                if ($terms !== []) {
+                    $groups[] = ['name' => $name, 'title' => $this->taxonomies()->load($name)['title'], 'terms' => $terms];
+                }
+            }
+            return $groups;
+        }));
+
         $twig->addFunction(new TwigFunction('can', function (string $capability): bool {
             return $this->permissions->can($this->auth->user(), $capability);
         }));
@@ -3096,7 +3138,7 @@ final class App
 
     private function buildTaxonomyPath(string $taxonomy, string $termId, string $prefix = ''): string
     {
-        $kind = $taxonomy === 'categories' ? 'category' : 'tag';
+        $kind = Taxonomies::kind($taxonomy);
         $slug = $this->taxonomies()->slug($taxonomy, $termId);
         if ($slug === '') {
             return '';

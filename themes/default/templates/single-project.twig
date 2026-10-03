@@ -13,6 +13,11 @@
         {% endfor %}
       </span>
     {% endif %}
+    {% for group in item_terms(item, prefix) %}
+      <span>{{ group.title }}:
+        {% for term in group.terms %}<a href="{{ term.url }}">{{ term.label }}</a>{% if not loop.last %}, {% endif %}{% endfor %}
+      </span>
+    {% endfor %}
   {% endset %}
   {% include 'components/page-header.twig' with {hero_subtitle: item.meta.excerpt ?? item.meta.summary ?? '', hero_meta: hero_meta} %}
   {% include 'components/page-body.twig' %}
