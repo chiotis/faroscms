@@ -22,11 +22,6 @@
     {{ csrf_field() }}
     <input type="hidden" name="active_tab" value="{{ active_tab }}" data-active-tab-input>
 
-    <div class="flex flex-col gap-1 rounded-lg border border-slate-200 bg-white px-4 py-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-      <span><span class="font-semibold text-slate-800">{{ theme_info.label }}</span>{% if theme_info.version %} <span class="text-slate-400">v{{ theme_info.version }}</span>{% endif %} · options declared in <code class="rounded bg-slate-100 px-1 py-0.5 text-[11px]">themes/{{ theme_info.name }}/theme.yaml</code></span>
-      <span>Site overrides: <code class="rounded bg-slate-100 px-1 py-0.5 text-[11px]">custom/</code> {{ theme_info.custom_dir ? 'in use' : 'not created yet' }}</span>
-    </div>
-
     {% if theme_tabs is empty %}
       <p class="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-500">This theme has no options to set.</p>
     {% else %}
@@ -66,6 +61,11 @@
         {% endfor %}
       </div>
     {% endif %}
+
+    <div class="flex flex-col gap-1 rounded-lg border border-slate-200 bg-white px-4 py-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+      <span><span class="font-semibold text-slate-800">{{ theme_info.label }}</span>{% if theme_info.version %} <span class="text-slate-400">v{{ theme_info.version }}</span>{% endif %} · options declared in <code class="rounded bg-slate-100 px-1 py-0.5 text-[11px]">themes/{{ theme_info.name }}/theme.yaml</code></span>
+      <span>Site overrides: <code class="rounded bg-slate-100 px-1 py-0.5 text-[11px]">custom/</code> {{ theme_info.custom_dir ? 'in use' : 'not created yet' }}</span>
+    </div>
 
     {% embed '@admin/partials/action-bar.twig' %}
       {% block leading %}
