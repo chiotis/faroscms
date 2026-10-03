@@ -70,6 +70,9 @@ final class BlockRenderer
                 // Share-image fallback for pages without a main image.
                 $firstImage = $values['image'];
             }
+            if ($firstImage === '' && is_string($values['video_poster'] ?? null) && $values['video_poster'] !== '' && ($values['_video'] ?? null) !== null) {
+                $firstImage = $values['video_poster'];
+            }
             $uid = $values['anchor'] !== '' ? $values['anchor'] : 'block-' . ($index + 1);
 
             $html .= $this->twig->render('components/block.twig', $context + [
@@ -221,6 +224,10 @@ final class BlockRenderer
             $values['videos'] = $videos;
             $values['_empty'] = $videos === [];
         }
+        if ($type === 'hero') {
+            // A video behind the text, when the Picture is a video the site can play; otherwise the image is the picture.
+            $values['_video'] = ($values['background'] ?? 'image') === 'video' ? self::backgroundVideo((string)($values['video'] ?? '')) : null;
+        }
         if ($type === 'banner') {
             // A changed announcement gets a new key, so a visitor who dismissed the old one sees it again.
             $values['key'] = substr(sha1($values['title'] . '|' . $values['text'] . '|' . $values['url']), 0, 10);
@@ -292,6 +299,34 @@ final class BlockRenderer
         // A direct video file, on this site or elsewhere.
         if (preg_match('/\.(mp4|webm|ogv|m4v)$/i', $path)) {
             return ['provider' => 'file', 'embed_url' => $url, 'watch_url' => $url];
+        }
+        return null;
+    }
+
+    /**
+     * A video that plays behind the text of a block, silently and in a loop, or null when the link is not one the site can play.
+     * A file plays in a plain <video>; YouTube (the privacy-friendly host) and Vimeo (in its background mode, no controls) are
+     * embedded in a frame the page opens after it has loaded. Anything else is refused, as in videoInfo().
+     *
+     * @return array{provider: string, src: string, type: string}|null src is the file or the address of the frame
+     */
+    public static function backgroundVideo(string $url): ?array
+    {
+        $info = self::videoInfo($url);
+        if ($info === null) {
+            return null;
+        }
+        if ($info['provider'] === 'file') {
+            $types = ['mp4' => 'video/mp4', 'm4v' => 'video/mp4', 'webm' => 'video/webm', 'ogv' => 'video/ogg'];
+            $extension = strtolower(pathinfo((string)parse_url($info['embed_url'], PHP_URL_PATH), PATHINFO_EXTENSION));
+            return ['provider' => 'file', 'src' => $info['embed_url'], 'type' => $types[$extension] ?? ''];
+        }
+        if ($info['provider'] === 'youtube' && preg_match('#/embed/([A-Za-z0-9_-]{11})#', $info['embed_url'], $m)) {
+            return ['provider' => 'youtube', 'type' => '', 'src' => 'https://www.youtube-nocookie.com/embed/' . $m[1]
+                . '?autoplay=1&mute=1&controls=0&loop=1&playlist=' . $m[1] . '&playsinline=1&rel=0&disablekb=1&modestbranding=1&iv_load_policy=3'];
+        }
+        if ($info['provider'] === 'vimeo') {
+            return ['provider' => 'vimeo', 'type' => '', 'src' => $info['embed_url'] . '&background=1&autoplay=1&loop=1&muted=1'];
         }
         return null;
     }

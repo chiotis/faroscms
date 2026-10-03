@@ -183,7 +183,7 @@
       });
     }
 
-    var wide = field.span === 'full' || type === 'textarea' || type === 'markdown' || type === 'image';
+    var wide = field.span === 'full' || type === 'textarea' || type === 'markdown' || type === 'image' || type === 'video';
     var labelText = field.label + (type === 'markdown' ? ' (Markdown)' : '') + (field.required ? ' *' : '');
     var wrapper = el('div', { class: wide ? 'col-span-full' : '' }, [
       el('label', { class: CLS.label, for: id, text: labelText })
@@ -206,6 +206,17 @@
         });
       });
       wrapper.appendChild(el('div', { class: 'flex items-center gap-2' }, [preview, control, choose]));
+    } else if (type === 'video') {
+      // A video: its address (the library, a YouTube or Vimeo link, a file elsewhere) with a Library button for the videos.
+      var chooseVideo = el('button', { type: 'button', class: CLS.btn, html: svg('image') + '<span>Library</span>' });
+      chooseVideo.setAttribute('aria-label', 'Choose a video from the media library');
+      chooseVideo.addEventListener('click', function () {
+        openMediaPicker(function (url) {
+          control.value = url;
+          onChange(url);
+        }, 'video');
+      });
+      wrapper.appendChild(el('div', { class: 'flex items-center gap-2' }, [control, chooseVideo]));
     } else {
       wrapper.appendChild(control);
     }
@@ -367,12 +378,28 @@
       body.appendChild(layout);
       if (def.description) body.appendChild(el('p', { class: 'text-xs text-slate-400', text: def.description }));
       var fields = el('div', { class: 'grid grid-cols-1 gap-3 sm:grid-cols-2' });
+      // A field with `when: {other: value}` shows only while the other field has one of those values.
+      var conditional = [];
+      var applyWhen = function () {
+        conditional.forEach(function (entry) {
+          var shown = Object.keys(entry.when).every(function (key) {
+            var other = def.fields.filter(function (f) { return f.key === key; })[0];
+            var have = block[key] == null ? (other && other.default != null ? other.default : '') : block[key];
+            return entry.when[key].indexOf(String(have)) !== -1;
+          });
+          entry.node.hidden = !shown;
+        });
+      };
       def.fields.forEach(function (field) {
-        fields.appendChild(fieldControl(field, block[field.key], function (value) {
+        var node = fieldControl(field, block[field.key], function (value) {
           block[field.key] = value;
           serialize();
-        }, idBase));
+          applyWhen();
+        }, idBase);
+        if (field.when) conditional.push({ node: node, when: field.when });
+        fields.appendChild(node);
       });
+      applyWhen();
       body.appendChild(fields);
       card.appendChild(body);
     }
@@ -631,8 +658,8 @@
   /* Media picker ------------------------------------------------------------- */
 
   // Choosing a picture is the shared picker (admin-media-picker.js): a dialog that asks the server a page at a time.
-  function openMediaPicker(callback) {
-    if (window.FarosMediaPicker) window.FarosMediaPicker.open(callback);
+  function openMediaPicker(callback, kind) {
+    if (window.FarosMediaPicker) window.FarosMediaPicker.open(callback, kind);
   }
 
   /* Save selected blocks as a reusable section ---------------------------------- */

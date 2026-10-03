@@ -37,7 +37,7 @@
   }
 
   var dialog = null;
-  var state = { q: '', tag: '', page: 1 };
+  var state = { q: '', tag: '', page: 1, kind: 'image' };
   var callback = null;
   var ui = {};
   var timer = null;
@@ -90,7 +90,9 @@
     state.page = payload.page;
     (payload.items || []).forEach(function (item) {
       var button = el('button', { type: 'button', class: 'overflow-hidden rounded-md border border-slate-200 bg-white text-left transition hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40' }, [
-        el('img', { src: item.thumb || item.url, alt: '', class: 'h-24 w-full object-cover', loading: 'lazy' }),
+        item.kind === 'video' || !(item.thumb || item.url)
+          ? el('span', { class: 'flex h-24 w-full items-center justify-center bg-slate-100 text-slate-500', 'aria-hidden': 'true', html: '<svg viewBox="0 0 24 24" class="h-8 w-8" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>' })
+          : el('img', { src: item.thumb || item.url, alt: '', class: 'h-24 w-full object-cover', loading: 'lazy' }),
         el('span', { class: 'block truncate px-2 py-1 text-[11px] text-slate-600', text: item.name })
       ]);
       button.setAttribute('aria-label', item.name + (item.alt ? ': ' + item.alt : ''));
@@ -109,14 +111,14 @@
     ui.prev.classList.toggle('opacity-50', ui.prev.disabled);
     ui.next.classList.toggle('opacity-50', ui.next.disabled);
     ui.status.textContent = payload.total === 0
-      ? (state.q || state.tag ? 'No images match.' : 'The media library has no images yet. Upload them in Media.')
+      ? (state.q || state.tag ? 'Nothing matches.' : (state.kind === 'video' ? 'The media library has no videos yet. Upload them in Media.' : 'The media library has no images yet. Upload them in Media.'))
       : '';
   }
 
   function load() {
     var mine = ++request;
     ui.status.textContent = 'Loading…';
-    var url = endpoint + (endpoint.indexOf('?') === -1 ? '?' : '&') + 'kind=image&page=' + state.page + '&q=' + encodeURIComponent(state.q) + '&tag=' + encodeURIComponent(state.tag);
+    var url = endpoint + (endpoint.indexOf('?') === -1 ? '?' : '&') + 'kind=' + state.kind + '&page=' + state.page + '&q=' + encodeURIComponent(state.q) + '&tag=' + encodeURIComponent(state.tag);
     fetch(url, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
       .then(function (response) {
         if (!response.ok) throw new Error('status ' + response.status);
@@ -134,10 +136,14 @@
       });
   }
 
-  function open(onPick) {
+  function open(onPick, kind) {
     if (!dialog) build();
     callback = onPick;
-    state = { q: '', tag: '', page: 1 };
+    state = { q: '', tag: '', page: 1, kind: kind === 'video' ? 'video' : 'image' };
+    var noun = state.kind === 'video' ? 'video' : 'image';
+    dialog.setAttribute('aria-label', 'Choose a ' + noun);
+    dialog.querySelector('h2').textContent = 'Choose a ' + noun;
+    ui.search.setAttribute('aria-label', 'Search ' + noun + 's');
     ui.search.value = '';
     ui.tag.value = '';
     dialog.showModal();
@@ -151,9 +157,10 @@
     if (input.dataset.imageReady === '1') return;
     input.dataset.imageReady = '1';
     var wrap = el('span', { class: 'flex items-center gap-2' });
+    var video = input.getAttribute('data-media-kind') === 'video';
     var thumb = el('img', { alt: '', class: 'h-9 w-9 shrink-0 rounded border border-slate-200 bg-slate-50 object-cover' });
     var choose = el('button', { type: 'button', class: CLS.btn + ' shrink-0', text: 'Library' });
-    choose.setAttribute('aria-label', 'Choose from the media library');
+    choose.setAttribute('aria-label', video ? 'Choose a video from the media library' : 'Choose from the media library');
     input.parentNode.insertBefore(wrap, input);
     wrap.appendChild(thumb);
     wrap.appendChild(input);
@@ -161,8 +168,9 @@
     input.classList.add('min-w-0', 'flex-1');
     var sync = function () {
       var value = input.value.trim();
-      thumb.hidden = value === '';
-      if (value !== '') thumb.setAttribute('src', value);
+      // A video has no thumbnail to show here.
+      thumb.hidden = video || value === '';
+      if (!video && value !== '') thumb.setAttribute('src', value);
     };
     input.addEventListener('input', sync);
     choose.addEventListener('click', function () {
@@ -171,7 +179,7 @@
         input.dispatchEvent(new Event('input', { bubbles: true }));
         input.dispatchEvent(new Event('change', { bubbles: true }));
         input.focus();
-      });
+      }, video ? 'video' : 'image');
     });
     sync();
   }
