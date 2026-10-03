@@ -605,3 +605,23 @@ html.dark .seo-serp-dot { background: #3c4043; color: #e8eaed; }
 html.dark .seo-share-body, html.dark .seo-share.is-x .seo-share-body { background: #1e293b; }
 html.dark .seo-share-body b { color: #f1f5f9; }
 html.dark .seo-share-body small, html.dark .seo-share-body span { color: #94a3b8; }
+
+/* Admin > Analytics (admin/templates/analytics.twig, admin-analytics.js). */
+.an-modes { display: grid; gap: .375rem; }
+.an-mode { position: relative; display: block; cursor: pointer; }
+.an-mode input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.an-mode > span { display: block; padding: .5rem .75rem .5rem 2.25rem; border: 1px solid #e2e8f0; border-radius: .625rem; background: #fff; position: relative; }
+.an-mode > span::before { content: ""; position: absolute; left: .75rem; top: .8rem; width: .875rem; height: .875rem; border: 2px solid #94a3b8; border-radius: 99px; background: #fff; }
+.an-mode strong { display: block; font-size: .8125rem; font-weight: 600; line-height: 1.25rem; color: #0f172a; }
+.an-mode small { display: block; font-size: .6875rem; line-height: 1rem; color: #5f6f85; }
+.an-mode:hover > span { border-color: #94a3b8; }
+.an-mode input:checked + span { border-color: #2563eb; background: #eff6ff; }
+.an-mode input:checked + span::before { border-color: #2563eb; background: #2563eb; box-shadow: inset 0 0 0 2px #eff6ff; }
+.an-mode input:focus-visible + span { outline: 2px solid #1d4ed8; outline-offset: 1px; }
+[data-when-mode][hidden] { display: none; }
+html.dark .an-mode > span { border-color: #334155; background: #0f172a; }
+html.dark .an-mode > span::before { border-color: #64748b; background: #0f172a; }
+html.dark .an-mode strong { color: #f1f5f9; }
+html.dark .an-mode small { color: #94a3b8; }
+html.dark .an-mode input:checked + span { border-color: #60a5fa; background: #172554; }
+html.dark .an-mode input:checked + span::before { border-color: #60a5fa; background: #60a5fa; box-shadow: inset 0 0 0 2px #172554; }

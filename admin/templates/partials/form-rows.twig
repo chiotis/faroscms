@@ -1,0 +1,40 @@
+{#
+  The rows of the settings screens that are made of a label and a control (Admin > SEO, Admin > Analytics): one line of text, a
+  box of text, a yes or no with its explanation, and a choice of a few words. Import it as `f`.
+    f.text(label, name, value, placeholder, help, max)      f.area(label, name, value, placeholder, help, max, rows)
+    f.flag(name, label, help, checked)                       f.pick(label, name, options, value)
+  The look is in public/assets/css/app.css (.seo-row, .seo-label, .seo-help, .seo-flag).
+#}
+{% macro text(label, name, value, placeholder, help, max) %}
+  {% set id = 'seo-' ~ name|replace({'[': '-', ']': ''}) %}
+  <div class="seo-row">
+    <label class="seo-label" for="{{ id }}">{{ label }}</label>
+    <div class="min-w-0">
+      <input id="{{ id }}" type="text" name="{{ name }}" value="{{ value }}" placeholder="{{ placeholder }}" class="lc-input"{% if max %} maxlength="{{ max }}"{% endif %} autocomplete="off">
+      {% if help %}<p class="seo-help">{{ help }}</p>{% endif %}
+    </div>
+  </div>
+{% endmacro %}
+{% macro area(label, name, value, placeholder, help, max, rows) %}
+  {% set id = 'seo-' ~ name|replace({'[': '-', ']': ''}) %}
+  <div class="seo-row">
+    <label class="seo-label" for="{{ id }}">{{ label }}</label>
+    <div class="min-w-0">
+      <textarea id="{{ id }}" name="{{ name }}" rows="{{ rows|default(2) }}" placeholder="{{ placeholder }}" class="lc-input"{% if max %} maxlength="{{ max }}"{% endif %}>{{ value }}</textarea>
+      {% if help %}<p class="seo-help">{{ help }}</p>{% endif %}
+    </div>
+  </div>
+{% endmacro %}
+{% macro flag(name, label, help, checked) %}
+  <label class="seo-flag"><input type="checkbox" name="{{ name }}" value="1"{% if checked %} checked{% endif %}><span><strong>{{ label }}</strong>{% if help %}<small>{{ help }}</small>{% endif %}</span></label>
+{% endmacro %}
+{% macro pick(label, name, options, value) %}
+  <div class="seo-row">
+    <span class="seo-label" id="seo-{{ name }}-label">{{ label }}</span>
+    <div class="lc-seg" role="radiogroup" aria-labelledby="seo-{{ name }}-label">
+      {% for option, text in options %}
+        <label><input type="radio" name="{{ name }}" value="{{ option }}"{% if option ~ '' == value ~ '' %} checked{% endif %}><span>{{ text }}</span></label>
+      {% endfor %}
+    </div>
+  </div>
+{% endmacro %}

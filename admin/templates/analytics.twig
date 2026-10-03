@@ -1,0 +1,148 @@
+{% extends '@admin/base.twig' %}
+{% set page_heading = 'Analytics' %}
+
+{#
+  Admin > Analytics: the choice between no tracking, tracking code of your own and the analytics of FarosCMS, its options, and
+  (when the platform's analytics are on) the reports. A plain form; admin-analytics.js only shows what belongs to the choice and
+  switches the lists of a card.
+#}
+{% block content %}
+  {% import '@admin/partials/ui.twig' as ui %}
+  {% import '@admin/partials/form-rows.twig' as f %}
+
+  {% set card = 'lc-card rounded-xl border border-slate-200 bg-white' %}
+  {% set card_title = 'px-3 pt-3 text-sm font-semibold text-slate-900' %}
+  {% set card_note = 'm-0 px-3 pt-0.5 text-[11px] leading-4 text-slate-500' %}
+  {% set link = 'font-medium text-blue-700 hover:underline' %}
+  {% set platform_on = a.mode == 'platform' %}
+
+  <header class="mb-3 flex flex-col gap-2">
+    <p class="text-xs text-slate-500">How visits to the site are counted. Use the analytics of FarosCMS (no cookies, in your admin), or put the tracking code of a service you already use on every page.</p>
+    {% if platform_on %}
+      <nav class="flex gap-1 border-b border-slate-200" aria-label="Analytics sections">
+        <a href="{{ url('admin/analytics') }}" class="border-b-2 px-3 py-2 text-sm font-medium {{ tab == 'reports' ? 'border-blue-600 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800' }}"{% if tab == 'reports' %} aria-current="page"{% endif %}>Reports</a>
+        <a href="{{ url('admin/analytics?tab=settings') }}" class="border-b-2 px-3 py-2 text-sm font-medium {{ tab == 'settings' ? 'border-blue-600 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800' }}"{% if tab == 'settings' %} aria-current="page"{% endif %}>Settings</a>
+      </nav>
+    {% endif %}
+  </header>
+
+  {{ ui.flash(saved ? 'Saved.' : '', 'success') }}
+  {{ ui.flash(cleared ? 'Everything that was counted is deleted.' : '', 'success') }}
+  {% if error == 'store' %}{{ ui.flash('The system database is not available, so nothing was saved.', 'error') }}{% endif %}
+
+  {% if tab == 'settings' %}
+    <form method="post" action="{{ url('admin/analytics?tab=settings') }}" autocomplete="off" data-an-form>
+      {{ csrf_field() }}
+      <div class="grid items-start gap-3 lg:grid-cols-2">
+        <div class="space-y-3">
+          <section class="{{ card }} pb-3" aria-labelledby="an-h-mode">
+            <h2 id="an-h-mode" class="{{ card_title }}">How visits are counted</h2>
+            <div class="an-modes p-3 pb-0" role="radiogroup" aria-labelledby="an-h-mode">
+              {% set blurbs = {
+                off: 'Nothing is added to the pages.',
+                custom: 'Google Analytics, Tag Manager, Plausible, Matomo, Meta Pixel… Paste their code.',
+                platform: 'Counted by the site itself: no cookies, no outside service, reports in this admin.'
+              } %}
+              {% for key, label in modes %}
+                <label class="an-mode"><input type="radio" name="mode" value="{{ key }}"{% if a.mode == key %} checked{% endif %}><span><strong>{{ label }}</strong><small>{{ blurbs[key] }}</small></span></label>
+              {% endfor %}
+            </div>
+          </section>
+
+          <section class="{{ card }} pb-3" data-when-mode="custom" aria-labelledby="an-h-code">
+            <h2 id="an-h-code" class="{{ card_title }}">Tracking code</h2>
+            <p class="{{ card_note }}">Added to every public page. It runs in your visitors' browsers: use code from a service you trust.</p>
+            <div class="space-y-2.5 p-3 pb-0">
+              {% if not may_write_code %}
+                <p class="m-0 rounded-lg bg-amber-50 px-2.5 py-2 text-[11px] leading-4 text-amber-800">Only people who may write raw HTML can change tracking code. What is saved stays as it is.</p>
+              {% endif %}
+              <div class="seo-row">
+                <label class="seo-label" for="an-tag_id">Google tag ID</label>
+                <div class="min-w-0">
+                  <input id="an-tag_id" type="text" name="tag_id" value="{{ a.tag_id }}" placeholder="G-XXXXXXXXXX or GTM-XXXXXXX" class="lc-input" maxlength="24"{% if not may_write_code %} disabled{% endif %}>
+                  <p class="seo-help">A Google Analytics 4 measurement ID or a Tag Manager container: the code is made for you. For anything else use the boxes below.</p>
+                </div>
+              </div>
+              <div class="seo-row">
+                <label class="seo-label" for="an-head_code">In the head</label>
+                <div class="min-w-0">
+                  <textarea id="an-head_code" name="head_code" rows="5" spellcheck="false" placeholder="&lt;script defer data-domain=&quot;example.com&quot; src=&quot;https://plausible.io/js/script.js&quot;&gt;&lt;/script&gt;" class="lc-input font-mono text-[11px]"{% if not may_write_code %} disabled{% endif %}>{{ a.head_code }}</textarea>
+                </div>
+              </div>
+              <div class="seo-row">
+                <label class="seo-label" for="an-body_code">Start of the body</label>
+                <div class="min-w-0">
+                  <textarea id="an-body_code" name="body_code" rows="3" spellcheck="false" placeholder="&lt;noscript&gt;…&lt;/noscript&gt;" class="lc-input font-mono text-[11px]"{% if not may_write_code %} disabled{% endif %}>{{ a.body_code }}</textarea>
+                  <p class="seo-help">Some services ask for a part right after the opening body tag.</p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="{{ card }} pb-3" data-when-mode="custom platform" aria-labelledby="an-h-who">
+            <h2 id="an-h-who" class="{{ card_title }}">Whose visits</h2>
+            <div class="space-y-1 p-3 pb-0">
+              {{ f.flag('skip_signed_in', 'Do not count people who are signed in', 'Your own visits while you edit the site would only distort the numbers. A signed-in person gets no tracking code at all.', a.skip_signed_in) }}
+            </div>
+          </section>
+        </div>
+
+        <div class="space-y-3">
+          <section class="{{ card }} pb-3" data-when-mode="platform" aria-labelledby="an-h-opt">
+            <h2 id="an-h-opt" class="{{ card_title }}">FarosCMS analytics</h2>
+            <p class="{{ card_note }}">What is counted, and what is not.</p>
+            <div class="space-y-1 p-3 pb-0">
+              {{ f.flag('respect_dnt', 'Respect Do Not Track', 'A visitor whose browser asks not to be tracked (Do Not Track, Global Privacy Control) is not counted.', a.respect_dnt) }}
+              {{ f.flag('track_links', 'Count clicks on links that leave the site, downloads, email and phone links', 'They appear as goals. The email address and the phone number are never kept.', a.track_links) }}
+            </div>
+            <div class="space-y-2.5 p-3 pb-0">
+              {{ f.area('Pages not to count', 'ignore_paths', ignore_text, "/thank-you\n/private/", 'Addresses that begin like this. One per line.', 0, 3) }}
+              <div class="seo-row">
+                <label class="seo-label" for="an-keep">Keep reports for</label>
+                <select id="an-keep" name="keep_months" class="lc-input lc-select">
+                  {% for months, label in keep %}<option value="{{ months }}"{% if a.keep_months == months %} selected{% endif %}>{{ label }}</option>{% endfor %}
+                </select>
+              </div>
+            </div>
+          </section>
+
+          <section class="{{ card }} pb-3" data-when-mode="platform" aria-labelledby="an-h-priv">
+            <h2 id="an-h-priv" class="{{ card_title }}">How it respects visitors</h2>
+            <ul class="m-0 list-none space-y-1.5 p-3 text-xs text-slate-600">
+              <li><strong class="font-medium text-slate-800">No cookies,</strong> nothing is stored in the browser.</li>
+              <li><strong class="font-medium text-slate-800">No address is kept.</strong> A visitor is a code made from the address and browser with a secret that is thrown away every day, so it cannot be traced back or matched with the next day.</li>
+              <li><strong class="font-medium text-slate-800">Counted by class,</strong> never by person: the kind of device, the browser, the country (only when the host's network says it), where the visit came from.</li>
+              <li><strong class="font-medium text-slate-800">Everything stays on your site,</strong> and in your backups. Nothing goes to a third party.</li>
+            </ul>
+            <p class="m-0 px-3 text-[11px] leading-4 text-slate-500">This is built to work without a consent banner, but the rules differ from country to country: check the ones that apply to you.</p>
+          </section>
+
+          <section class="{{ card }} pb-3" data-when-mode="platform" aria-labelledby="an-h-data">
+            <h2 id="an-h-data" class="{{ card_title }}">What is kept</h2>
+            <p class="{{ card_note }}">{% if not store_ok %}The system database is not available, so nothing can be counted.{% elseif stats.days > 0 %}{{ stats.days }} {{ stats.days == 1 ? 'day' : 'days' }} counted since {{ stats.first }}, and {{ stats.hits }} visits of the last two days not yet summed.{% elseif stats.hits > 0 %}{{ stats.hits }} visits so far.{% else %}Nothing has been counted yet.{% endif %}</p>
+            <div class="p-3 pb-0">
+              <button type="submit" form="an-clear" class="inline-flex items-center rounded-md border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-600 shadow-sm transition hover:bg-red-50" data-confirm="Delete everything that was counted? The reports start again from nothing." data-confirm-button="Delete">Delete everything counted</button>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      {% embed '@admin/partials/action-bar.twig' %}
+        {% block leading %}
+          <a href="{{ url('admin/analytics?tab=settings') }}" class="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50">Discard</a>
+        {% endblock %}
+        {% block actions %}
+          <button type="submit" class="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+            Save changes
+          </button>
+        {% endblock %}
+      {% endembed %}
+    </form>
+    <form id="an-clear" method="post" action="{{ url('admin/analytics?tab=settings') }}" hidden>
+      {{ csrf_field() }}
+      <input type="hidden" name="do" value="clear">
+    </form>
+  {% endif %}
+  <script src="{{ asset('js/admin-analytics.js') }}" defer></script>
+{% endblock %}

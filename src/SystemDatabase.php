@@ -100,6 +100,7 @@ final class SystemDatabase
         $this->applyMigration($pdo, '202609280002_content_index_search', fn(PDO $db) => $this->addContentIndexSearchColumns($db));
         $this->applyMigration($pdo, '202609290001_redirects', fn(PDO $db) => $this->createRedirectTables($db));
         $this->applyMigration($pdo, '202609290002_content_revisions', fn(PDO $db) => $this->createRevisionTable($db));
+        $this->applyMigration($pdo, '202610030001_analytics', fn(PDO $db) => $this->createAnalyticsTables($db));
     }
 
     private function addContentIndexSearchColumns(PDO $pdo): void
@@ -114,6 +115,47 @@ final class SystemDatabase
         if (!in_array('search_text', $columns, true)) {
             $pdo->exec('ALTER TABLE content_index ADD COLUMN search_text TEXT');
         }
+    }
+
+    private function createAnalyticsTables(PDO $pdo): void
+    {
+        // The visits of the last two days, one row for each page view or event, with no address and no cookie: visitor is a hash
+        // that cannot be repeated tomorrow. Finished days are summed into analytics_daily and the rows go.
+        $pdo->exec(
+            'CREATE TABLE IF NOT EXISTS analytics_hits (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ts INTEGER NOT NULL,
+                day TEXT NOT NULL,
+                visitor TEXT NOT NULL,
+                kind TEXT NOT NULL DEFAULT \'view\',
+                path TEXT NOT NULL DEFAULT \'\',
+                name TEXT NOT NULL DEFAULT \'\',
+                source TEXT NOT NULL DEFAULT \'\',
+                channel TEXT NOT NULL DEFAULT \'direct\',
+                campaign TEXT NOT NULL DEFAULT \'\',
+                device TEXT NOT NULL DEFAULT \'\',
+                browser TEXT NOT NULL DEFAULT \'\',
+                os TEXT NOT NULL DEFAULT \'\',
+                country TEXT NOT NULL DEFAULT \'\',
+                lang TEXT NOT NULL DEFAULT \'\'
+            )'
+        );
+        $pdo->exec('CREATE INDEX IF NOT EXISTS idx_analytics_hits_day ON analytics_hits (day, visitor)');
+        $pdo->exec('CREATE INDEX IF NOT EXISTS idx_analytics_hits_ts ON analytics_hits (ts)');
+        // One row for each day, kind of count (total, page, entry, channel, source, ...) and value.
+        $pdo->exec(
+            'CREATE TABLE IF NOT EXISTS analytics_daily (
+                day TEXT NOT NULL,
+                kind TEXT NOT NULL,
+                key TEXT NOT NULL,
+                views INTEGER NOT NULL DEFAULT 0,
+                visitors INTEGER NOT NULL DEFAULT 0,
+                bounces INTEGER NOT NULL DEFAULT 0,
+                seconds INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (day, kind, key)
+            )'
+        );
+        $pdo->exec('CREATE INDEX IF NOT EXISTS idx_analytics_daily_kind ON analytics_daily (kind, day)');
     }
 
     private function createRevisionTable(PDO $pdo): void

@@ -141,6 +141,12 @@
             Users &amp; Roles
           </a>
         {% endif %}
+        {% if can('analytics.manage') %}
+          <a href="{{ url('admin/analytics') }}" class="{{ nav_base }} {{ section == 'analytics' ? nav_active : nav_idle }}"{% if section == 'analytics' %} aria-current="page"{% endif %}>
+            <svg class="h-4 w-4 {{ section == 'analytics' ? 'text-white/80' : 'text-slate-400 group-hover:text-slate-600' }}" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
+            Analytics
+          </a>
+        {% endif %}
         {% if can('activity.manage') or can('email_logs.manage') %}
           {# One entry for both logs; the tabs inside pick which. #}
           {% set in_logs = section in ['activity', 'email_logs'] %}
