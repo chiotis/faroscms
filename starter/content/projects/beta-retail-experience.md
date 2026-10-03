@@ -11,6 +11,8 @@ tags:
   - growth
 categories:
   - case-studies
+project-types:
+  - retail
 custom_fields:
   client: 'Lumina Retail'
   location: 'Austin, TX'

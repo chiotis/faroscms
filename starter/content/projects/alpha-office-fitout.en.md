@@ -11,6 +11,8 @@ tags:
   - strategy
 categories:
   - case-studies
+project-types:
+  - workplace
 custom_fields:
   client: 'Northbridge Partners'
   location: 'Chicago, IL'

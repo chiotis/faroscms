@@ -11,6 +11,8 @@ tags:
   - growth
 categories:
   - case-studies
+project-types:
+  - hospitality
 custom_fields:
   client: 'Gamma Hotels Group'
   location: 'Athens, GR'

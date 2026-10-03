@@ -1,0 +1,20 @@
+title: 'Project types'
+terms:
+  - id: workplace
+    slug: workplace
+    labels:
+      el: 'Χώροι εργασίας'
+      en: Workplaces
+  - id: retail
+    slug: retail
+    labels:
+      el: Λιανική
+      en: Retail
+  - id: hospitality
+    slug: hospitality
+    labels:
+      el: Φιλοξενία
+      en: Hospitality
+archive:
+  types:
+    - projects

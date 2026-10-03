@@ -3289,16 +3289,14 @@ p.form-error {
   width: min(100%, 22rem);
 }
 
-.archive-body .block-latest.opt-cover-shape-portrait .latest-item .latest-media {
+/* A book is listed by its cover wherever it appears (the list, a category, the Latest content block): portrait, with the spine
+   along the left. The list of books can choose another shape (Theme > Archive Layouts > Covers). */
+.block-latest .latest-item.type-books .latest-media {
+  position: relative;
   aspect-ratio: 2 / 3;
 }
 
-/* The spine of a book along the left of a portrait cover. */
-.archive-body .block-latest.opt-cover-shape-portrait .latest-item .latest-media {
-  position: relative;
-}
-
-.archive-body .block-latest.opt-cover-shape-portrait .latest-item .latest-media::before {
+.block-latest .latest-item.type-books .latest-media::before {
   content: "";
   position: absolute;
   z-index: 1;
@@ -3311,8 +3309,17 @@ p.form-error {
   pointer-events: none;
 }
 
-.archive-body .block-latest.opt-cover-shape-square .latest-item .latest-media {
+.archive-body .block-latest.opt-cover-shape-square .latest-item.type-books .latest-media {
   aspect-ratio: 1;
+}
+
+.archive-body .block-latest.opt-cover-shape-landscape .latest-item.type-books .latest-media {
+  aspect-ratio: 16 / 10;
+}
+
+.archive-body .block-latest.opt-cover-shape-square .latest-item.type-books .latest-media::before,
+.archive-body .block-latest.opt-cover-shape-landscape .latest-item.type-books .latest-media::before {
+  display: none;
 }
 
 .archive-filters {

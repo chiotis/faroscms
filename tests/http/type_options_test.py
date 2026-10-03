@@ -107,7 +107,7 @@ save({'archive_types[books][options][cover_shape]': 'zzz'}, tab='archive_layouts
 check('a value it does not offer keeps the last choice', 'opt-cover-shape-square' in pub.get('/books')[2])
 save({'archive_types[books][options][cover_shape]': 'portrait'}, tab='archive_layouts')
 check('what the theme says is not stored: back to portrait removes it from the file', 'cover_shape' not in custom('books') and 'opt-cover-shape-portrait' in pub.get('/books')[2], custom('books'))
-sheet_ok = '.archive-body .block-latest.opt-cover-shape-portrait .latest-item .latest-media' in sheet
+sheet_ok = '.block-latest .latest-item.type-books .latest-media' in sheet and '.opt-cover-shape-square .latest-item.type-books' in sheet
 check('the stylesheet gives covers their shape', sheet_ok)
 
 # ---- a site can add options to a type of its own, and to a theme type
