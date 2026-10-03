@@ -68,6 +68,8 @@ archive_options:
       square: { el: Τετράγωνα, en: Square }
       landscape: { el: Οριζόντια, en: Landscape }
 archive:
+  title: { el: Βιβλία, en: Books }
+  subtitle: { el: 'Τα βιβλία μας, με εξώφυλλο και στοιχεία έκδοσης.', en: 'Our books, with their covers and details.' }
   layout: cards
   columns: '4'
   per_page: 12

@@ -1,0 +1,35 @@
+title: Genre
+terms:
+  - id: classic
+    slug: classic
+    labels:
+      el: Κλασικό
+      en: Classic
+  - id: gothic
+    slug: gothic
+    labels:
+      el: Γοτθικό
+      en: Gothic
+  - id: science-fiction
+    slug: science-fiction
+    labels:
+      el: 'Επιστημονική φαντασία'
+      en: 'Science fiction'
+  - id: adventure
+    slug: adventure
+    labels:
+      el: Περιπέτεια
+      en: Adventure
+  - id: fantasy
+    slug: fantasy
+    labels:
+      el: Φαντασία
+      en: Fantasy
+  - id: romance
+    slug: romance
+    labels:
+      el: Ρομάντζο
+      en: Romance
+archive:
+  types:
+    - books
