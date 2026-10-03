@@ -8,7 +8,7 @@
 #   - retire a field by marking it `hidden: true` (it keeps its stored value), not by deleting it.
 name: default
 label: FarosCMS Default
-version: 1.17.1
+version: 1.18.0
 description: All-purpose FarosCMS theme.
 
 menu_locations:
@@ -96,7 +96,7 @@ single_layouts:
 settings:
   appearance:
     label: Appearance
-    description: Global visual preferences.
+    description: Colour mode, palette, font pairing, corners and decoration, the starting points of the look.
     columns: 4
     fields:
       mode:
@@ -371,7 +371,7 @@ settings:
 
   brand:
     label: Brand
-    description: Logo in the header and the image shown when pages are shared without their own image.
+    description: The logo, the icons of the site and how it is shown when it is shared.
     columns: 2
     fields:
       logo:
@@ -380,12 +380,319 @@ settings:
         default: ''
         placeholder: /uploads/media/logo.svg
         help: Replaces the site name in the header. SVG or a wide PNG works best.
+      logo_dark:
+        type: image
+        label: Logo for dark backgrounds
+        default: ''
+        placeholder: /uploads/media/logo-light.svg
+        help: Used in dark mode, in the dark footer and over a dark opening hero. Without it the logo is used everywhere.
+      show_name:
+        type: toggle
+        label: Show the site name next to the logo
+        default: false
+      logo_height:
+        type: number
+        blank: true
+        min: 16
+        max: 160
+        label: Logo height
+        placeholder: '36'
+      logo_height_mobile:
+        type: number
+        blank: true
+        min: 14
+        max: 120
+        label: Logo on a phone
+        placeholder: '36'
+        help: Empty is as on a computer.
+      footer_logo_height:
+        type: number
+        blank: true
+        min: 16
+        max: 200
+        label: Logo in the footer
+        placeholder: '36'
+      name_size:
+        type: number
+        blank: true
+        min: 12
+        max: 56
+        label: Site name size
+        placeholder: '21'
+        help: When there is no logo.
+      favicon:
+        type: image
+        label: Favicon
+        default: ''
+        placeholder: /uploads/media/favicon.svg
+        help: The small icon in the browser tab. SVG, PNG or ICO.
+      touch_icon:
+        type: image
+        label: App icon
+        default: ''
+        placeholder: /uploads/media/app-icon.png
+        help: 180×180 pixels PNG, for the home screen of a phone.
+      theme_color:
+        type: color
+        hex: true
+        label: Browser colour
+        default: ''
+        placeholder: '#1e293b'
+        help: Colours the address bar of the browser on a phone.
       share_image:
         type: image
         label: Default share image
         default: ''
         placeholder: /uploads/media/share.jpg
         help: 1200×630 pixels is the common size for social previews.
+
+  # The numbers and colours behind the look of the site (the Branding screen). Every field is optional: an empty one leaves the
+  # theme's own value, so a site that sets nothing here looks the same as before. Branding.php turns them into CSS.
+  design:
+    label: Design
+    description: Colours, type, spacing, shape and buttons.
+    columns: 4
+    fields:
+      light_accent: {type: color, hex: true, label: Accent, default: ''}
+      light_background: {type: color, hex: true, label: Background, default: ''}
+      light_surface: {type: color, hex: true, label: Surface, default: ''}
+      light_text: {type: color, hex: true, label: Text, default: ''}
+      light_muted: {type: color, hex: true, label: Muted text, default: ''}
+      light_border: {type: color, hex: true, label: Border, default: ''}
+      dark_accent: {type: color, hex: true, label: Accent, default: ''}
+      dark_background: {type: color, hex: true, label: Background, default: ''}
+      dark_surface: {type: color, hex: true, label: Surface, default: ''}
+      dark_text: {type: color, hex: true, label: Text, default: ''}
+      dark_muted: {type: color, hex: true, label: Muted text, default: ''}
+      dark_border: {type: color, hex: true, label: Border, default: ''}
+      ink:
+        type: color
+        hex: true
+        label: Dark panels and footer
+        default: ''
+        help: The near-black behind pictures, dark panels and the footer.
+      heading_font:
+        type: select
+        label: Headings
+        default: pairing
+        options:
+          pairing: Follow the font pairing
+          inter: Inter
+          system: System font
+          humanist: Humanist
+          geometric: Geometric
+          neo_grotesque: Neo-grotesque
+          rounded: Rounded
+          industrial: Industrial
+          classical: Classical humanist
+          transitional: Transitional serif
+          old_style: Old-style serif
+          slab: Slab serif
+          didone: Didone serif
+          mono: Monospace
+          custom: Your own font file
+      body_font:
+        type: select
+        label: Text
+        default: pairing
+        options:
+          pairing: Follow the font pairing
+          inter: Inter
+          system: System font
+          humanist: Humanist
+          geometric: Geometric
+          neo_grotesque: Neo-grotesque
+          rounded: Rounded
+          industrial: Industrial
+          classical: Classical humanist
+          transitional: Transitional serif
+          old_style: Old-style serif
+          slab: Slab serif
+          didone: Didone serif
+          mono: Monospace
+          custom: Your own font file
+      font_file:
+        type: url
+        label: Font file
+        default: ''
+        placeholder: fonts/brand.woff2
+        help: A WOFF2 file (one variable font with all weights is best). Put it in custom/assets/fonts/ and type fonts/name.woff2, or give a full address.
+      base_size:
+        type: number
+        blank: true
+        min: 13
+        max: 24
+        label: Text size
+        placeholder: '16'
+        help: Headings follow it.
+      line_height:
+        type: decimal
+        min: 1.1
+        max: 2.4
+        label: Line height of text
+        default: ''
+        placeholder: '1.65'
+      scale:
+        type: select
+        label: Heading scale
+        default: auto
+        options:
+          auto: Theme
+          '1.125': Major second 1.125
+          '1.2': Minor third 1.2
+          '1.25': Major third 1.25
+          '1.333': Perfect fourth 1.333
+          '1.414': Augmented fourth 1.414
+          '1.5': Perfect fifth 1.5
+          '1.618': Golden ratio 1.618
+      heading_weight:
+        type: select
+        label: Heading weight
+        default: auto
+        options:
+          auto: Theme
+          '400': Regular
+          '500': Medium
+          '600': Semibold
+          '700': Bold
+          '800': Extra bold
+      heading_tracking:
+        type: select
+        label: Heading letter spacing
+        default: auto
+        options:
+          auto: Theme
+          tighter: Tighter
+          tight: Tight
+          normal: Normal
+          wide: Wide
+      heading_leading:
+        type: select
+        label: Heading line height
+        default: auto
+        options:
+          auto: Theme
+          tight: Tight
+          normal: Normal
+          relaxed: Relaxed
+      heading_case:
+        type: select
+        label: Heading case
+        default: auto
+        options:
+          auto: As typed
+          uppercase: Capitals
+      container:
+        type: number
+        blank: true
+        min: 640
+        max: 2400
+        label: Content width
+        placeholder: '1216'
+      reading_width:
+        type: number
+        blank: true
+        min: 480
+        max: 1200
+        label: Reading width
+        placeholder: '736'
+        help: Narrow pages and text.
+      gutter:
+        type: number
+        blank: true
+        min: 16
+        max: 160
+        label: Side margin
+        placeholder: '40'
+        help: A phone keeps 20.
+      section_space:
+        type: number
+        blank: true
+        min: 16
+        max: 320
+        label: Space between sections
+        placeholder: '112'
+        help: Phones use about half.
+      header_height:
+        type: number
+        blank: true
+        min: 40
+        max: 200
+        label: Header height
+        placeholder: '72'
+        help: Compact and tall follow it.
+      spacing:
+        type: select
+        label: Spacing
+        default: auto
+        options:
+          auto: Theme
+          tight: Tight
+          airy: Airy
+          roomy: Roomy
+      radius:
+        type: number
+        blank: true
+        min: 0
+        max: 48
+        label: Corner radius
+        placeholder: '14'
+        help: Empty follows Corners.
+      button_radius:
+        type: select
+        label: Button corners
+        default: auto
+        options:
+          auto: Theme
+          pill: Pill
+          rounded: Rounded
+          square: Square
+      shadows:
+        type: select
+        label: Shadows
+        default: auto
+        options:
+          auto: Theme
+          none: None
+          strong: Strong
+      button_height:
+        type: number
+        blank: true
+        min: 28
+        max: 80
+        label: Button height
+        placeholder: '46'
+      button_pad:
+        type: number
+        blank: true
+        min: 8
+        max: 80
+        label: Button side padding
+        placeholder: '22'
+      button_size:
+        type: number
+        blank: true
+        min: 11
+        max: 24
+        label: Button text size
+        placeholder: '15'
+      button_weight:
+        type: select
+        label: Button text weight
+        default: auto
+        options:
+          auto: Theme
+          '500': Medium
+          '600': Semibold
+          '700': Bold
+          '800': Extra bold
+      button_case:
+        type: select
+        label: Button text case
+        default: auto
+        options:
+          auto: As typed
+          uppercase: Capitals
 
   social:
     label: Social profiles

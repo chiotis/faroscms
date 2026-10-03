@@ -14,6 +14,7 @@
 {% set footer_bg_image = footer.background_image ?? '' %}
 {% set brand_mode = footer.brand|default('name') in ['logo', 'none'] ? footer.brand : 'name' %}
 {% set brand_logo = theme_settings.brand.logo|default('') %}
+{% set brand_logo_dark = theme_settings.brand.logo_dark|default('') %}
 {% set show_social = footer.show_social is defined ? footer.show_social : true %}
 {% set summary_text = footer.summary ?: site.tagline %}
 {% set cta_href = link_url(footer.cta_url|default(''), prefix) %}
@@ -32,7 +33,14 @@
 {% set copyright %}<p class="footer-copy">{% if footer.copyright|default('') %}{{ footer.copyright|replace({'{year}': 'now'|date('Y'), '{site}': site.title}) }}{% else %}© {{ "now"|date("Y") }} {{ site.title }}. {{ t('footer.rights') }}{% endif %}</p>{% endset %}
 {% set brand_markup %}
   {% if brand_mode == 'logo' and brand_logo %}
-    <p class="footer-brand">{{ image(brand_logo, {alt: site.title, class: 'footer-logo', sizes: '14rem'}) }}</p>
+    {# A dark or colour footer wears the logo for dark backgrounds; a light one wears the logo, and the dark one in dark mode. #}
+    {% if brand_logo_dark and tone in ['dark', 'accent'] %}
+      <p class="footer-brand">{{ image(brand_logo_dark, {alt: site.title, class: 'footer-logo', sizes: '14rem'}) }}</p>
+    {% elseif brand_logo_dark %}
+      <p class="footer-brand">{{ image(brand_logo, {alt: site.title, class: 'footer-logo logo-on-light', sizes: '14rem'}) }}{{ image(brand_logo_dark, {alt: site.title, class: 'footer-logo logo-on-dark', sizes: '14rem'}) }}</p>
+    {% else %}
+      <p class="footer-brand">{{ image(brand_logo, {alt: site.title, class: 'footer-logo', sizes: '14rem'}) }}</p>
+    {% endif %}
   {% elseif brand_mode != 'none' %}
     <p class="footer-brand">{{ site.title }}</p>
   {% endif %}

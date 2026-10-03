@@ -1,0 +1,198 @@
+import json, os, re, sys, sqlite3, urllib.parse
+sys.path.insert(0, '.')
+from client import Client
+
+fails = []
+def check(label, ok, detail=''):
+    print(('ok   ' if ok else 'FAIL ') + label + ('' if ok else '  ' + ' '.join(str(detail).split())[:260]))
+    if not ok: fails.append(label)
+
+def run(sql, args=()):
+    c = sqlite3.connect('app/storage/db/app.sqlite'); c.execute(sql, args); c.commit(); c.close()
+def stored():
+    c = sqlite3.connect('app/storage/db/app.sqlite'); v = c.execute("select value from system_meta where key='theme_settings'").fetchone(); c.close()
+    return v[0] if v else ''
+
+root = Client(); root.login()
+pub = Client()
+root.submit('/admin/users-edit', lambda f: any(x[0] == 'username' for x in f['fields']), {'username': 'ed1', 'email': 'ed1@example.test', 'display_name': 'ed1', 'role': 'editor', 'status': 'active', 'password': 'Sturdy-pass-99', 'password_confirm': 'Sturdy-pass-99'})
+ed = Client(); ed.login('ed1', 'Sturdy-pass-99')
+
+def post_theme(overrides, tab='branding'):
+    """Submit the Theme form the way the browser does: its own values, then what the test changes."""
+    form = next(f for f in root.forms('/admin/theme?tab=' + tab) if any(x[0] == 'active_tab' for x in f['fields']))
+    fields = [tuple(x) for x in form['fields'] if x[0] not in overrides and x[0] != 'active_tab']
+    for k, v in overrides.items():
+        for item in (v if isinstance(v, list) else [v]):
+            if item is not None:
+                fields.append((k, item))
+    fields.append(('active_tab', tab))
+    return root.request('/admin/theme', data=fields), fields
+def d(**v): return {'theme_settings[design][%s]' % k: val for k, val in v.items()}
+def b(**v): return {'theme_settings[brand][%s]' % k: val for k, val in v.items()}
+def a(**v): return {'theme_settings[appearance][%s]' % k: val for k, val in v.items()}
+def page(path='/about'):
+    return pub.get(path)[2]
+def style(html):
+    m = re.search(r'<style id="faros-branding">(.*?)</style>', html, re.S)
+    return m.group(1) if m else ''
+def header(html):
+    m = re.search(r'<header class="site-header[^"]*"[^>]*>.*?</header>', html, re.S)
+    return m.group(0) if m else ''
+def footer(html):
+    m = re.search(r'<footer class="site-footer.*?</footer>', html, re.S)
+    return m.group(0) if m else ''
+def asset(kind):
+    m = re.search(r'(?:href|src)="([^"]*site\.%s[^"]*)"' % kind, page())
+    u = urllib.parse.urlparse(m.group(1)) if m else None
+    return pub.get(u.path + ('?' + u.query if u.query else ''))[2] if u else ''
+
+# ---- a site that sets nothing is styled by the theme alone
+html = page()
+check('without any choice the page has no branding style and no icons', 'faros-branding' not in html and 'rel="icon"' not in html and 'theme-color' not in html and 'apple-touch-icon' not in html)
+
+# ---- the tab
+st, _, html = root.get('/admin/theme')
+labels = re.findall(r'role="tab"[^>]*data-tab="([a-z_]+)"[^>]*>([^<]+)</button>', html)
+check('Branding is the first tab and replaces Appearance and Brand', st == 200 and labels[0] == ('branding', 'Branding') and not any(k in ('appearance', 'brand', 'design') for k, _ in labels), labels)
+check('it is open first', re.search(r'class="[^"]*\bactive\b[^"]*" data-tab="branding"', html) is not None and 'name="active_tab" value="branding"' in html)
+for key in ('light_accent', 'light_background', 'light_surface', 'light_text', 'light_muted', 'light_border', 'dark_accent', 'dark_background', 'dark_surface', 'dark_text', 'dark_muted', 'dark_border', 'ink',
+            'heading_font', 'body_font', 'font_file', 'base_size', 'line_height', 'scale', 'heading_weight', 'heading_tracking', 'heading_leading', 'heading_case',
+            'container', 'reading_width', 'gutter', 'section_space', 'header_height', 'spacing', 'radius', 'button_radius', 'shadows', 'button_height', 'button_pad', 'button_size', 'button_weight', 'button_case'):
+    if ('name="theme_settings[design][%s]"' % key) not in html:
+        check('a field for ' + key, False)
+        break
+else:
+    check('a field for every design choice', True)
+check('a choice among numbers (a weight) offers the numbers themselves', re.findall(r'name="theme_settings\[design\]\[heading_weight\]" value="([^"]+)"', html) == ['auto', '400', '500', '600', '700', '800'] and re.findall(r'name="theme_settings\[design\]\[button_weight\]" value="([^"]+)"', html) == ['auto', '500', '600', '700', '800'], re.findall(r'name="theme_settings\[design\]\[heading_weight\]" value="([^"]+)"', html))
+check('and for the logo, its dark version, the sizes, the icons, the browser colour and the share image', all(('name="theme_settings[brand][%s]"' % k) in html for k in (
+    'logo', 'logo_dark', 'show_name', 'logo_height', 'logo_height_mobile', 'footer_logo_height', 'name_size', 'favicon', 'touch_icon', 'theme_color', 'share_image')))
+check('and for palette, mode, font pairing, corners and decoration', all(('name="theme_settings[appearance][%s]"' % k) in html for k in ('palette', 'mode', 'font', 'shape', 'glow')))
+check('the palettes are chips with a dot of their colour', html.count('class="bp-pal"') == 1 and len(re.findall(r'name="theme_settings\[appearance\]\[palette\]" value="[a-z]+"', html)) == 7)
+check('colours can be picked and typed and cleared', html.count('data-colour') >= 13 and 'type="color"' in html and 'lc-colour-x' in html)
+check('numbers say their unit and may be empty', 'class="bp-num"' in html and 'class="lc-unit"' in html and re.search(r'name="theme_settings\[design\]\[radius\]" value=""', html) is not None)
+check('the colours are a table that says what is light and what is dark', '<table class="bp-colours">' in html and 'scope="col">Light<' in html and 'scope="col">Dark<' in html and 'scope="row">Accent<' in html)
+check('the real site is shown in a frame beside it, with a size and a mode to choose', 'data-bp-frame' in html and 'title="Preview of the site"' in html and html.count('data-bp-size') == 3 and html.count('data-bp-mode') == 3)
+check('it asks for the preview at the address of the screen, and loads its script', 'data-endpoint="' in html and 'theme?preview=branding' in html and 'admin-branding.js' in html)
+js = root.get('/assets/js/admin-branding.js')
+check('the script is served', js[0] == 200 and 'faros-branding' in js[2], js[0])
+check('the old tabs are gone, an old link opens the first', root.get('/admin/theme?tab=brand')[2].count('name="active_tab" value="branding"') == 1)
+
+# ---- saving: colours
+(res, hdr, _), sent = post_theme({**d(light_accent='#C026D3', dark_accent='93c5fd', light_background='#fffdf8', ink='#323130'), **b(theme_color='#1e293b')})
+check('saving returns to the Branding tab', res == 302 and 'tab=branding' in (hdr.get('Location') or ''), (res, hdr.get('Location')))
+check('the colours are stored as #rrggbb in lower case', all(x in stored() for x in ("light_accent: '#c026d3'", "dark_accent: '#93c5fd'", "light_background: '#fffdf8'", "ink: '#323130'")), stored()[:600])
+css = style(page())
+check('the page has them in a style of its own, with the shades worked out', '--accent-l:#c026d3;' in css and '--accent-l-hover:' in css and '--accent-l-soft:' in css and '--accent-d:#93c5fd;' in css and '--n-bg:#fffdf8;' in css and '--ink:#323130;' in css and '--ink-rgb:50 49 48;' in css, css[:300])
+html = page()
+check('after the theme\'s style sheet and before the site\'s own', html.index('site.css') < html.index('id="faros-branding"'), None)
+check('and the browser colour is in the head', '<meta name="theme-color" content="#1e293b">' in html)
+(res, hdr, _), _ = post_theme(d(light_accent='not a colour', light_text='red', light_surface='#12'))
+check('a colour that is not hex keeps what was there', "light_accent: '#c026d3'" in stored() and 'light_text' in stored() and "light_text: ''" in stored() and "light_surface: ''" in stored(), stored()[:600])
+(res, hdr, _), _ = post_theme(d(light_accent='', dark_accent='', light_background='', ink=''))
+check('emptying a colour gives it back to the palette', style(page()) == '', style(page())[:200])
+
+# ---- saving: type, spacing, shape, buttons
+(res, hdr, _), _ = post_theme({**d(heading_font='geometric', body_font='slab', base_size='18', scale='1.25', line_height='1.8', heading_weight='800', heading_tracking='wide', heading_leading='tight', heading_case='uppercase',
+                                    container='1400', reading_width='800', gutter='48', section_space='80', header_height='80', spacing='airy', radius='6', button_radius='square', shadows='strong',
+                                    button_height='54', button_pad='30', button_size='16', button_weight='700', button_case='uppercase'),
+                               **b(logo_height='44', logo_height_mobile='30', footer_logo_height='40', name_size='26')})
+css = style(page())
+check('type: families, size, scale, weight, spacing, case', all(x in css for x in ('--font-heading:Avenir,', '--font-body:Rockwell,', '--type-scale:1.125;', '--step-5:clamp(', '--heading-weight:800;', '--heading-tracking:0.025em;',
+      'h1,h2,h3,h4,h5,h6{line-height:1.05;text-transform:uppercase}', 'body.theme-body{line-height:1.8}')), css[:600])
+check('layout: widths, margin, sections, spacing', all(x in css for x in ('--container:87.5rem;', '--container-narrow:50rem;', '--gutter:clamp(', '--section-scale:0.7143;', '--header-min:5rem;', '--space-scale:1.2;')), css[:900])
+check('shape: radius, button corners, shadows', all(x in css for x in ('--radius-m:0.375rem;', '--radius-button:0px;', '--shadow-m:0 30px 60px')), css[:900])
+check('buttons: height, padding, size, weight, capitals', all(x in css for x in ('--btn-height:3.375rem;', '--btn-pad-x:1.875rem;', '--btn-size:1rem;', '--btn-weight:700;', '--btn-case:uppercase;')), css[:1200])
+check('the logo sizes and the size of the name', all(x in css for x in ('--logo-height:2.75rem;', '--logo-height-mobile:1.875rem;', '--footer-logo-height:2.5rem;', '--brand-name-size:1.625rem;')), css[:1400])
+check('nothing of it can break out of the style', css.count('{') == css.count('}') and '<' not in css, css[-120:])
+check('values out of range are held inside it', 'radius' in stored() and re.search(r'^  radius: 6$', stored(), re.M) is not None, stored()[:200])
+(res, hdr, _), _ = post_theme(d(radius='999', button_height='3', base_size='abc'))
+check('out of range numbers are held to the limits, text keeps the last value', re.search(r'^  radius: 48$', stored(), re.M) and re.search(r'^  button_height: 28$', stored(), re.M) and re.search(r'^  base_size: 18$', stored(), re.M), stored()[:600])
+(res, hdr, _), _ = post_theme(d(heading_font='nonsense', scale='9', button_case='zzz', spacing='huge'))
+css = style(page())
+check('a word that is not on the list keeps the last choice', '--font-heading:Avenir,' in css and '--step-5:' in css and '--btn-case:uppercase;' in css and '--space-scale:1.2;' in css, css[:300])
+
+# ---- the theme's style sheet follows the tokens
+sheet = asset('css')
+check('the stylesheet reads the tokens: type, spacing, sections, buttons, logo', all(x in sheet for x in ('--type-scale', '--space-scale', '--section-scale', 'var(--header-min', 'var(--btn-height', 'var(--btn-pad-x', 'var(--btn-case', 'var(--logo-h)', 'var(--footer-logo-height', 'var(--brand-name-size')))
+check('and shows the logo for dark backgrounds where the header or the mode is dark', '.logo-on-dark' in sheet and ':root.dark .logo-on-light' in sheet and '.site-header.tone-contrast .logo-on-dark' in sheet and 'is-on-dark:not([data-sticky="always"]) .logo-on-dark' in sheet)
+
+# ---- everything back to the theme
+(res, hdr, _), _ = post_theme({**d(heading_font='pairing', body_font='pairing', base_size='', scale='auto', line_height='', heading_weight='auto', heading_tracking='auto', heading_leading='auto', heading_case='auto',
+                                    container='', reading_width='', gutter='', section_space='', header_height='', spacing='auto', radius='', button_radius='auto', shadows='auto',
+                                    button_height='', button_pad='', button_size='', button_weight='auto', button_case='auto'),
+                               **b(logo_height='', logo_height_mobile='', footer_logo_height='', name_size='')})
+check('emptying the numbers and choosing "Theme" everywhere leaves the page styled by the theme alone', style(page()) == '', style(page())[:300])
+
+# ---- palette, mode, font pairing, corners, decoration
+(res, hdr, _), _ = post_theme(a(palette='garnet', mode='dark', font='serif', shape='sharp', glow='solid'))
+html = page()
+check('the choices of Appearance are still on the page, as they were', all(x in html for x in ('data-theme="garnet"', 'data-mode="dark"', 'data-font="serif"', 'data-shape="sharp"', 'data-glow="solid"')), re.findall(r'<html[^>]*>', html))
+post_theme(a(palette='slate', mode='system', font='sans', shape='soft', glow='soft'))
+
+# ---- the icons
+(res, hdr, _), _ = post_theme(b(favicon='/uploads/media/fav.svg', touch_icon='/uploads/media/app.png', theme_color='#0F172A'))
+html = page()
+check('a favicon, an app icon and the colour of the browser', '<link rel="icon" href="/uploads/media/fav.svg" type="image/svg+xml">' in html and '<link rel="apple-touch-icon" href="/uploads/media/app.png">' in html and '<meta name="theme-color" content="#0f172a">' in html, re.findall(r'<link rel="(?:icon|apple)[^>]*>', html))
+(res, hdr, _), _ = post_theme(b(favicon='javascript:alert(1)', touch_icon='/x" onerror="y'))
+check('an address that could break out is not accepted', 'javascript' not in page() and 'onerror' not in page())
+post_theme(b(favicon='', touch_icon='', theme_color=''))
+check('and nothing is left when they are emptied', 'rel="icon"' not in page() and 'theme-color' not in page())
+
+# ---- the logo, and the logo for dark backgrounds
+post_theme(b(logo='/uploads/media/logo.svg', logo_dark='', show_name=None))
+h = header(page())
+check('a logo alone is drawn once, with no name', h.count('site-brand-logo') == 1 and 'logo-on-light' not in h and 'logo-on-dark' not in h and 'site-brand-title' not in h, h[:400])
+post_theme(b(logo='/uploads/media/logo.svg', logo_dark='/uploads/media/logo-light.svg', show_name='1'))
+h = header(page())
+check('with a logo for dark backgrounds both are drawn, each for its own place, and the name can follow', 'logo-on-light' in h and 'logo-on-dark' in h and 'logo-light.svg' in h and 'site-brand-title' in h, h[:600])
+check('a logo with a name beside it is not given the name as its label', 'aria-label' not in re.search(r'<a class="site-brand"[^>]*>', h).group(0), re.search(r'<a class="site-brand"[^>]*>', h).group(0))
+post_theme({**b(logo='/uploads/media/logo.svg', logo_dark='/uploads/media/logo-light.svg', show_name=None), 'theme_settings[footer][brand]': 'logo', 'theme_settings[footer][tone]': 'dark'}, tab='footer')
+f = footer(page())
+check('a dark footer wears the logo for dark backgrounds alone', 'logo-light.svg' in f and 'logo-on-' not in f and f.count('footer-logo') == 1, f[:300])
+post_theme({'theme_settings[footer][brand]': 'logo', 'theme_settings[footer][tone]': 'muted'}, tab='footer')
+f = footer(page())
+check('a light footer wears both, each for its mode', 'logo-on-light' in f and 'logo-on-dark' in f, f[:300])
+post_theme({**b(logo_dark=''), 'theme_settings[footer][tone]': 'dark'}, tab='footer')
+f = footer(page())
+check('without a dark logo the logo does for the footer', f.count('footer-logo') == 1 and 'logo-light.svg' not in f and 'logo.svg' in f)
+post_theme(b(logo='', logo_dark=''))
+
+# ---- a font file of the site's own
+os.makedirs('app/custom/assets/fonts', exist_ok=True)
+open('app/custom/assets/fonts/brand.woff2', 'wb').write(b'wOF2' + b'\0' * 40)
+st, hdr, _ = pub.request('/_custom/fonts/brand.woff2')
+check('a font file in custom/assets is served as a font', st == 200 and 'font/woff2' in (hdr.get('Content-Type') or ''), (st, hdr.get('Content-Type')))
+post_theme(d(heading_font='custom', font_file='fonts/brand.woff2'))
+html = page(); css = style(html)
+check('chosen for the headings it is loaded, and fetched early', '@font-face{font-family:"Brand Font"' in css and 'url("/_custom/fonts/brand.woff2") format("woff2")' in css and '--font-heading:"Brand Font"' in css and 'as="font"' in html, css[:300])
+check('the screen says the file is there', 'The file is there.' in root.get('/admin/theme?tab=branding')[2])
+post_theme(d(heading_font='custom', font_file='fonts/missing.woff2'))
+check('and says when it is not', 'There is no such file' in root.get('/admin/theme?tab=branding')[2])
+post_theme(d(heading_font='custom', font_file='fonts/brand.php'))
+check('only font files are used', 'Brand Font' not in style(page()))
+post_theme(d(heading_font='pairing', font_file=''))
+
+# ---- the preview: what the unsaved choices would make, and nothing stored
+before = stored()
+form = next(f for f in root.forms('/admin/theme?tab=branding') if any(x[0] == 'active_tab' for x in f['fields']))
+token = next(x[1] for x in form['fields'] if x[0] == '_csrf')
+def preview(client, **fields):
+    data = [('_csrf', token)] + [(k, v) for k, v in fields.items()]
+    st, hdr, body = client.request('/admin/theme?preview=branding', data=data)
+    return st, hdr, body
+st, hdr, body = preview(root, **{'theme_settings[design][light_accent]': '#ff0000', 'theme_settings[design][radius]': '20', 'theme_settings[appearance][palette]': 'rose', 'theme_settings[brand][logo]': '/uploads/media/p.svg', 'theme_settings[brand][show_name]': '1'})
+data = json.loads(body) if st == 200 else {}
+check('asks come back as JSON with the CSS, the attributes and the logo', st == 200 and 'application/json' in (hdr.get('Content-Type') or '') and '--accent-l:#ff0000;' in data.get('css', '') and '--radius-m:1.25rem;' in data.get('css', '') and data['attributes']['data-theme'] == 'rose' and data['logo'] == '/uploads/media/p.svg' and data['show_name'] is True, body[:300])
+check('and store nothing', stored() == before and 'ff0000' not in stored())
+st, hdr, body = preview(root, **{'theme_settings[design][light_accent]': 'nonsense'})
+check('a colour that is not hex is not previewed either', st == 200 and 'nonsense' not in body and json.loads(body)['css'] == '', body[:200])
+st, _, body = ed.request('/admin/theme?preview=branding', data=[('_csrf', token)])
+check('an editor cannot ask', st in (302, 403, 419), st)
+st, _, body = root.request('/admin/theme?preview=branding', data=[('theme_settings[design][radius]', '9')])
+check('nor can a request without the form token', st in (302, 403, 419) and '"css"' not in body, st)
+st, _, _ = pub.request('/admin/theme?preview=branding', data=[('_csrf', token)])
+check('nor someone who is not signed in', st in (302, 403, 419), st)
+
+print('\nALL PASSED' if not fails else '\n%d FAILED: %s' % (len(fails), fails))
+sys.exit(1 if fails else 0)

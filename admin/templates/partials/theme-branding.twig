@@ -1,0 +1,240 @@
+{#
+  Theme > Branding: everything that makes up the look of the site in one place (the theme's `appearance`, `brand` and `design`
+  sections of theme.yaml). Cards on the left, the real site on the right: it follows each choice as it is made, in a
+  computer, tablet or phone size and in light or dark. Nothing is stored until the page is saved.
+
+  schema   the theme's settings schema      values   what is stored      info   the screen's own data (stacks, preview address)
+#}
+{% import '@admin/partials/layout-controls.twig' as c %}
+{% import '@admin/partials/fields.twig' as fields %}
+{% set a = schema.appearance.fields %}
+{% set b = schema.brand.fields %}
+{% set d = schema.design.fields %}
+{% set va = values.appearance %}
+{% set vb = values.brand %}
+{% set vd = values.design %}
+{% set pa = 'theme_settings[appearance][' %}
+{% set pb = 'theme_settings[brand][' %}
+{% set pd = 'theme_settings[design][' %}
+{% set dots = {slate: '#1e293b', indigo: '#4338ca', emerald: '#047857', teal: '#0f766e', rose: '#be123c', amber: '#b45309', garnet: '#8f1d1d'} %}
+{% set short = {
+  mode: {system: 'System', light: 'Light', dark: 'Dark'},
+  glow: {soft: 'Soft glows', solid: 'Solid'},
+  shape: {soft: 'Soft', rounded: 'Rounded', sharp: 'Sharp'},
+  heading_weight: {auto: 'Theme', '400': 'Regular', '500': 'Medium', '600': 'Semi', '700': 'Bold', '800': 'Black'},
+  heading_tracking: {auto: 'Theme', tighter: 'Tighter', tight: 'Tight', normal: 'Normal', wide: 'Wide'},
+  heading_leading: {auto: 'Theme', tight: 'Tight', normal: 'Normal', relaxed: 'Relaxed'},
+  heading_case: {auto: 'As typed', uppercase: 'CAPITALS'},
+  spacing: {auto: 'Theme', tight: 'Tight', airy: 'Airy', roomy: 'Roomy'},
+  button_radius: {auto: 'Theme', pill: 'Pill', rounded: 'Rounded', square: 'Square'},
+  shadows: {auto: 'Theme', none: 'None', strong: 'Strong'},
+  button_weight: {auto: 'Theme', '500': 'Medium', '600': 'Semi', '700': 'Bold', '800': 'Black'},
+  button_case: {auto: 'As typed', uppercase: 'CAPITALS'}
+} %}
+{% set known_a = ['mode', 'palette', 'font', 'glow', 'shape'] %}
+{% set known_b = ['logo', 'logo_dark', 'show_name', 'logo_height', 'logo_height_mobile', 'footer_logo_height', 'name_size', 'favicon', 'touch_icon', 'theme_color', 'share_image'] %}
+{% set known_d = ['light_accent', 'light_background', 'light_surface', 'light_text', 'light_muted', 'light_border', 'dark_accent', 'dark_background', 'dark_surface', 'dark_text', 'dark_muted', 'dark_border', 'ink', 'heading_font', 'body_font', 'font_file', 'base_size', 'line_height', 'scale', 'heading_weight', 'heading_tracking', 'heading_leading', 'heading_case', 'container', 'reading_width', 'gutter', 'section_space', 'header_height', 'spacing', 'radius', 'button_radius', 'shadows', 'button_height', 'button_pad', 'button_size', 'button_weight', 'button_case'] %}
+{% set roles = [['accent', 'Accent'], ['background', 'Background'], ['surface', 'Surface'], ['text', 'Text'], ['muted', 'Muted text'], ['border', 'Border']] %}
+
+<div class="bp" data-bp data-endpoint="{{ url('admin/theme?preview=branding') }}">
+  <h2 class="sr-only">Branding</h2>
+  <p class="mb-3 text-xs text-slate-500">Logo, colours, type, spacing, corners and buttons. Everything left empty or on “Theme” keeps the theme’s own value, so a site that changes nothing here looks as it always did.</p>
+
+  <div class="bp-grid">
+    <div class="bp-cards">
+
+      <details class="bp-card" open>
+        <summary><span>Identity</span><small>Logo, icons, share image</small></summary>
+        <div class="bp-body">
+          <dl class="m-0 space-y-2.5">
+            {% if b.logo is defined %}{{ c.text(b.logo, pb ~ 'logo]', vb.logo) }}{% endif %}
+            {% if b.logo_dark is defined %}{{ c.text(b.logo_dark, pb ~ 'logo_dark]', vb.logo_dark) }}{% endif %}
+            {% if b.show_name is defined %}{{ c.toggles('Site name', [[pb ~ 'show_name]', b.show_name.label, vb.show_name]]) }}{% endif %}
+          </dl>
+          <div class="bp-nums">
+            {% for key in ['logo_height', 'logo_height_mobile', 'footer_logo_height', 'name_size'] %}
+              {% if b[key] is defined %}{{ c.num(b[key], pb ~ key ~ ']', vb[key], 'px') }}{% endif %}
+            {% endfor %}
+          </div>
+          <dl class="m-0 space-y-2.5">
+            {% for key in ['favicon', 'touch_icon', 'share_image'] %}
+              {% if b[key] is defined %}{{ c.text(b[key], pb ~ key ~ ']', vb[key]) }}{% endif %}
+            {% endfor %}
+            {% if b.theme_color is defined %}
+              <div class="lc-row">
+                <dt>{{ b.theme_color.label }}</dt>
+                <dd class="m-0">
+                  {{ c.colour(b.theme_color.label, pb ~ 'theme_color]', vb.theme_color) }}
+                  <span class="mt-1 block text-[11px] leading-4 text-slate-500">{{ b.theme_color.help }}</span>
+                </dd>
+              </div>
+            {% endif %}
+          </dl>
+          {% set more_b = b|filter((field, key) => key not in known_b and not field.hidden) %}
+          {% if more_b is not empty %}
+            <div class="grid gap-3 sm:grid-cols-2">{% for key, field in more_b %}{{ fields.field(field, pb ~ key ~ ']', vb[key] ?? field.default) }}{% endfor %}</div>
+          {% endif %}
+        </div>
+      </details>
+
+      <details class="bp-card" open>
+        <summary><span>Colour</span><small>Palette, mode, your own colours</small></summary>
+        <div class="bp-body">
+          <dl class="m-0 space-y-2.5">
+            {% if a.palette is defined %}
+              <div class="lc-row">
+                <dt>{{ a.palette.label }}</dt>
+                <dd class="m-0">{{ c.palette(pa ~ 'palette]', a.palette.options, va.palette, dots) }}</dd>
+              </div>
+            {% endif %}
+            {% if a.mode is defined %}{{ c.choice(a.mode, pa ~ 'mode]', va.mode, 'seg', short.mode) }}{% endif %}
+          </dl>
+          <table class="bp-colours">
+            <caption class="sr-only">Your own colours. An empty one keeps the colour of the palette.</caption>
+            <thead>
+              <tr><th scope="col"><span class="sr-only">Colour</span></th><th scope="col">Light</th><th scope="col">Dark</th></tr>
+            </thead>
+            <tbody>
+              {% for role in roles %}
+                <tr>
+                  <th scope="row">{{ role[1] }}</th>
+                  {% for mode in ['light', 'dark'] %}
+                    {% set key = mode ~ '_' ~ role[0] %}
+                    <td>{% if d[key] is defined %}{{ c.colour(role[1] ~ ', ' ~ mode, pd ~ key ~ ']', vd[key]) }}{% endif %}</td>
+                  {% endfor %}
+                </tr>
+              {% endfor %}
+              {% if d.ink is defined %}
+                <tr>
+                  <th scope="row">Dark panels</th>
+                  <td colspan="2">{{ c.colour('Dark panels and footer', pd ~ 'ink]', vd.ink) }}</td>
+                </tr>
+              {% endif %}
+            </tbody>
+          </table>
+          <p class="m-0 text-[11px] leading-4 text-slate-500">Empty keeps the palette’s colour. The hover and soft shades and the text colour on the accent are worked out from the accent you choose.</p>
+          <button type="button" class="bp-reset" data-bp-reset="colour">Back to the palette’s colours</button>
+        </div>
+      </details>
+
+      <details class="bp-card">
+        <summary><span>Typography</span><small>Fonts, sizes, headings</small></summary>
+        <div class="bp-body">
+          <dl class="m-0 space-y-2.5">
+            {% if a.font is defined %}{{ c.choice(a.font, pa ~ 'font]', va.font, 'select', {}) }}{% endif %}
+            {% if d.heading_font is defined %}{{ c.choice(d.heading_font, pd ~ 'heading_font]', vd.heading_font, 'select', {}) }}{% endif %}
+            {% if d.body_font is defined %}{{ c.choice(d.body_font, pd ~ 'body_font]', vd.body_font, 'select', {}) }}{% endif %}
+            {% if d.font_file is defined %}
+              <div class="lc-row" data-bp-custom-font>
+                <dt><label for="f-font-file">{{ d.font_file.label }}</label></dt>
+                <dd class="m-0">
+                  <input id="f-font-file" type="text" name="{{ pd }}font_file]" value="{{ vd.font_file }}" placeholder="{{ d.font_file.placeholder }}" class="lc-input">
+                  <span class="mt-1 block text-[11px] leading-4 text-slate-500">{{ d.font_file.help }}
+                    {% if info.font_found is same as(true) %}<strong class="font-medium text-emerald-700">The file is there.</strong>{% elseif info.font_found is same as(false) %}<strong class="font-medium text-red-700">There is no such file in custom/assets yet.</strong>{% endif %}
+                  </span>
+                </dd>
+              </div>
+            {% endif %}
+          </dl>
+          <div class="bp-nums">
+            {% if d.base_size is defined %}{{ c.num(d.base_size, pd ~ 'base_size]', vd.base_size, 'px') }}{% endif %}
+            {% if d.line_height is defined %}{{ c.num(d.line_height, pd ~ 'line_height]', vd.line_height, '') }}{% endif %}
+          </div>
+          <dl class="m-0 space-y-2.5">
+            {% if d.scale is defined %}{{ c.choice(d.scale, pd ~ 'scale]', vd.scale, 'select', {}) }}{% endif %}
+            {% for key in ['heading_weight', 'heading_tracking', 'heading_leading', 'heading_case'] %}
+              {% if d[key] is defined %}{{ c.choice(d[key], pd ~ key ~ ']', vd[key], 'seg', short[key]) }}{% endif %}
+            {% endfor %}
+          </dl>
+          <button type="button" class="bp-reset" data-bp-reset="type">Back to the theme’s type</button>
+        </div>
+      </details>
+
+      <details class="bp-card">
+        <summary><span>Layout and spacing</span><small>Widths, margins, rhythm</small></summary>
+        <div class="bp-body">
+          <div class="bp-nums">
+            {% for key in ['container', 'reading_width', 'gutter', 'section_space', 'header_height'] %}
+              {% if d[key] is defined %}{{ c.num(d[key], pd ~ key ~ ']', vd[key], 'px') }}{% endif %}
+            {% endfor %}
+          </div>
+          <dl class="m-0 space-y-2.5">
+            {% if d.spacing is defined %}{{ c.choice(d.spacing, pd ~ 'spacing]', vd.spacing, 'seg', short.spacing) }}{% endif %}
+          </dl>
+          <button type="button" class="bp-reset" data-bp-reset="layout">Back to the theme’s layout</button>
+        </div>
+      </details>
+
+      <details class="bp-card">
+        <summary><span>Shape and depth</span><small>Corners, shadows, decoration</small></summary>
+        <div class="bp-body">
+          <dl class="m-0 space-y-2.5">
+            {% if a.shape is defined %}{{ c.choice(a.shape, pa ~ 'shape]', va.shape, 'seg', short.shape) }}{% endif %}
+          </dl>
+          <div class="bp-nums">
+            {% if d.radius is defined %}{{ c.num(d.radius, pd ~ 'radius]', vd.radius, 'px') }}{% endif %}
+          </div>
+          <dl class="m-0 space-y-2.5">
+            {% for key in ['button_radius', 'shadows'] %}
+              {% if d[key] is defined %}{{ c.choice(d[key], pd ~ key ~ ']', vd[key], 'seg', short[key]) }}{% endif %}
+            {% endfor %}
+            {% if a.glow is defined %}{{ c.choice(a.glow, pa ~ 'glow]', va.glow, 'seg', short.glow) }}{% endif %}
+          </dl>
+          <button type="button" class="bp-reset" data-bp-reset="shape">Back to the theme’s shape</button>
+        </div>
+      </details>
+
+      <details class="bp-card">
+        <summary><span>Buttons</span><small>Height, padding, text</small></summary>
+        <div class="bp-body">
+          <div class="bp-nums">
+            {% for key in ['button_height', 'button_pad', 'button_size'] %}
+              {% if d[key] is defined %}{{ c.num(d[key], pd ~ key ~ ']', vd[key], 'px') }}{% endif %}
+            {% endfor %}
+          </div>
+          <dl class="m-0 space-y-2.5">
+            {% for key in ['button_weight', 'button_case'] %}
+              {% if d[key] is defined %}{{ c.choice(d[key], pd ~ key ~ ']', vd[key], 'seg', short[key]) }}{% endif %}
+            {% endfor %}
+          </dl>
+          <button type="button" class="bp-reset" data-bp-reset="buttons">Back to the theme’s buttons</button>
+        </div>
+      </details>
+
+      {% set more_a = a|filter((field, key) => key not in known_a and not field.hidden) %}
+      {% set more_d = d|filter((field, key) => key not in known_d and not field.hidden) %}
+      {% if more_a is not empty or more_d is not empty %}
+        <details class="bp-card">
+          <summary><span>More</span><small>Other choices of this theme</small></summary>
+          <div class="bp-body">
+            <div class="grid gap-3 sm:grid-cols-2">
+              {% for key, field in more_a %}{{ fields.field(field, pa ~ key ~ ']', va[key] ?? field.default) }}{% endfor %}
+              {% for key, field in more_d %}{{ fields.field(field, pd ~ key ~ ']', vd[key] ?? field.default) }}{% endfor %}
+            </div>
+          </div>
+        </details>
+      {% endif %}
+    </div>
+
+    <aside class="bp-preview" aria-label="Preview">
+      <div class="bp-bar">
+        <div class="lc-seg" role="radiogroup" aria-label="Size of the preview">
+          <label><input type="radio" name="bp_size" value="1280" checked data-bp-size><span>Computer</span></label>
+          <label><input type="radio" name="bp_size" value="820" data-bp-size><span>Tablet</span></label>
+          <label><input type="radio" name="bp_size" value="390" data-bp-size><span>Phone</span></label>
+        </div>
+        <div class="lc-seg" role="radiogroup" aria-label="Colour mode of the preview">
+          <label><input type="radio" name="bp_mode" value="" checked data-bp-mode><span>Auto</span></label>
+          <label><input type="radio" name="bp_mode" value="light" data-bp-mode><span>Light</span></label>
+          <label><input type="radio" name="bp_mode" value="dark" data-bp-mode><span>Dark</span></label>
+        </div>
+        <button type="button" class="bp-reload" data-bp-reload>Reload</button>
+      </div>
+      <div class="bp-stage" data-bp-stage>
+        <iframe class="bp-frame" data-bp-frame src="{{ info.preview_url }}" title="Preview of the site" loading="lazy"></iframe>
+      </div>
+      <p class="bp-note">The real site, with your unsaved choices. Links inside it work; the choices stay while you look around.</p>
+    </aside>
+  </div>
+</div>
+<script src="{{ asset('js/admin-branding.js') }}" defer></script>

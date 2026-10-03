@@ -1857,9 +1857,17 @@ final class App
         $schema = $this->theme->settingsSchema();
         $single = $this->singleLayouts();
         $tabs = [];
+        // A theme that declares the design section has the Branding screen: appearance, brand and design in one tab.
+        $branding = isset($schema['design']);
         foreach ($schema as $key => $section) {
             // The sidebar card is part of Single Layouts when the theme has them.
             if ($key === 'sidebar' && $single->declared()) {
+                continue;
+            }
+            if ($branding && in_array($key, ['appearance', 'brand', 'design'], true)) {
+                if (!in_array('branding', $tabs, true)) {
+                    $tabs[] = 'branding';
+                }
                 continue;
             }
             if (array_filter($section['fields'], static fn(array $field): bool => !$field['hidden']) !== []) {
@@ -1871,6 +1879,11 @@ final class App
         array_splice($tabs, $at === false ? min(1, count($tabs)) : $at + 1, 0, $single->declared() ? ['single_layouts', 'archive_layouts'] : ['archive_layouts']);
         $activeTab = (string)($_GET['tab'] ?? '');
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            // The live preview of Branding asks what the unsaved choices make of the pages (nothing is stored).
+            if ($branding && ($_GET['preview'] ?? '') === 'branding') {
+                $this->previewBranding(is_array($_POST['theme_settings'] ?? null) ? $_POST['theme_settings'] : []);
+                return;
+            }
             $activeTab = (string)($_POST['active_tab'] ?? $activeTab);
             $save = $this->saveThemeSettings(
                 is_array($_POST['theme_settings'] ?? null) ? $_POST['theme_settings'] : [],
@@ -1908,7 +1921,8 @@ final class App
             'theme_message' => trim((string)($_GET['theme_msg'] ?? '')),
             'theme_schema' => $schema,
             'theme_tabs' => $tabs,
-            'tab_labels' => ['single_layouts' => 'Single Layouts', 'archive_layouts' => 'Archive Layouts'],
+            'tab_labels' => ['branding' => 'Branding', 'single_layouts' => 'Single Layouts', 'archive_layouts' => 'Archive Layouts'],
+            'branding' => $branding ? $this->brandingScreen() : null,
             'theme_values' => $this->themeSettings,
             'theme_info' => [
                 'name' => $this->theme->name(),
@@ -1926,6 +1940,39 @@ final class App
             'archive_columns' => ['2', '3', '4'],
             'sidebar_section' => $schema['sidebar'] ?? null,
         ]);
+    }
+
+    /** What the Branding tab needs besides the settings: the font stacks, the address of the preview, the state of the font file. */
+    private function brandingScreen(): array
+    {
+        $file = trim((string)($this->themeSettings['design']['font_file'] ?? ''));
+        $found = null;
+        if ($file !== '' && !preg_match('#^(https?://|/)#i', $file) && !str_contains($file, '..')) {
+            $found = is_file($this->theme->customPath() . '/assets/' . ltrim($file, '/'));
+        }
+        return [
+            'stacks' => Branding::FONT_STACKS,
+            'preview_url' => (string)($this->settings['base_url'] ?? '') . '/',
+            'font_found' => $found,
+        ];
+    }
+
+    /** JSON for the live preview of the Branding tab: the CSS and attributes the submitted choices would give a page. */
+    private function previewBranding(array $input): void
+    {
+        $data = $this->theme->resolveSettings($this->theme->settingsFromInput($input, $this->loadThemeSettings()));
+        $base = (string)($this->settings['base_url'] ?? '');
+        $brand = is_array($data['brand'] ?? null) ? $data['brand'] : [];
+        header('Content-Type: application/json; charset=utf-8');
+        header('Cache-Control: no-store');
+        echo json_encode([
+            'css' => Branding::css($data, $base),
+            'attributes' => Branding::attributes($data),
+            'logo' => (string)($brand['logo'] ?? ''),
+            'logo_dark' => (string)($brand['logo_dark'] ?? ''),
+            'show_name' => ($brand['show_name'] ?? false) === true,
+            'name' => (string)($this->settings['title'] ?? ''),
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG);
     }
 
     private function singleLayouts(): SingleLayouts
@@ -2550,6 +2597,11 @@ final class App
         $twig->addFunction(new TwigFunction('csrf_field', function (): string {
             return '<input type="hidden" name="_csrf" value="' . htmlspecialchars($this->csrfToken(), ENT_QUOTES) . '">';
         }, ['is_safe' => ['html']]));
+
+        // What Theme > Branding adds to a page: a style sheet of the choices made there, and the icons and colour of the browser.
+        $brandingBase = (string)($this->settings['base_url'] ?? '');
+        $twig->addFunction(new TwigFunction('branding_css', fn(): string => Branding::css($this->themeSettings, $brandingBase), ['is_safe' => ['html']]));
+        $twig->addFunction(new TwigFunction('branding_head', fn(): string => Branding::head($this->themeSettings, $brandingBase), ['is_safe' => ['html']]));
 
         $twig->addGlobal('site', $this->settings);
         $twig->addGlobal('theme_settings', $this->themeSettings);

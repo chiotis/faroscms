@@ -62,24 +62,29 @@
   --heading-weight: 700;
   --heading-tracking: -0.028em;
 
-  --step--2: 0.78rem;
-  --step--1: 0.875rem;
-  --step-0: clamp(1rem, 0.97rem + 0.15vw, 1.0625rem);
-  --step-1: clamp(1.125rem, 1.07rem + 0.3vw, 1.3rem);
-  --step-2: clamp(1.35rem, 1.2rem + 0.7vw, 1.75rem);
-  --step-3: clamp(1.65rem, 1.35rem + 1.4vw, 2.4rem);
-  --step-4: clamp(2rem, 1.5rem + 2.4vw, 3.3rem);
-  --step-5: clamp(2.4rem, 1.6rem + 3.8vw, 4.6rem);
+  /* Branding (Theme > Branding) can scale the type, the spaces and the sections: --type-scale, --space-scale, --section-scale. */
+  --type-scale: 1;
+  --space-scale: 1;
+  --section-scale: 1;
 
-  --space-3xs: 0.25rem;
-  --space-2xs: 0.5rem;
-  --space-xs: 0.75rem;
-  --space-s: 1rem;
-  --space-m: 1.5rem;
-  --space-l: 2rem;
-  --space-xl: 3rem;
-  --space-2xl: 4.5rem;
-  --section-space: clamp(3.5rem, 2.4rem + 5vw, 7rem);
+  --step--2: calc(0.78rem * var(--type-scale));
+  --step--1: calc(0.875rem * var(--type-scale));
+  --step-0: calc(clamp(1rem, 0.97rem + 0.15vw, 1.0625rem) * var(--type-scale));
+  --step-1: calc(clamp(1.125rem, 1.07rem + 0.3vw, 1.3rem) * var(--type-scale));
+  --step-2: calc(clamp(1.35rem, 1.2rem + 0.7vw, 1.75rem) * var(--type-scale));
+  --step-3: calc(clamp(1.65rem, 1.35rem + 1.4vw, 2.4rem) * var(--type-scale));
+  --step-4: calc(clamp(2rem, 1.5rem + 2.4vw, 3.3rem) * var(--type-scale));
+  --step-5: calc(clamp(2.4rem, 1.6rem + 3.8vw, 4.6rem) * var(--type-scale));
+
+  --space-3xs: calc(0.25rem * var(--space-scale));
+  --space-2xs: calc(0.5rem * var(--space-scale));
+  --space-xs: calc(0.75rem * var(--space-scale));
+  --space-s: calc(1rem * var(--space-scale));
+  --space-m: calc(1.5rem * var(--space-scale));
+  --space-l: calc(2rem * var(--space-scale));
+  --space-xl: calc(3rem * var(--space-scale));
+  --space-2xl: calc(4.5rem * var(--space-scale));
+  --section-space: calc(clamp(3.5rem, 2.4rem + 5vw, 7rem) * var(--section-scale));
 
   --container: 76rem;
   --container-narrow: 46rem;
@@ -417,8 +422,8 @@ hr {
   color: var(--color-text);
 }
 
-.space-compact { --section-space: clamp(2.5rem, 2rem + 2.5vw, 4rem); }
-.space-spacious { --section-space: clamp(5rem, 3rem + 8vw, 10rem); }
+.space-compact { --section-space: calc(clamp(2.5rem, 2rem + 2.5vw, 4rem) * var(--section-scale)); }
+.space-spacious { --section-space: calc(clamp(5rem, 3rem + 8vw, 10rem) * var(--section-scale)); }
 .space-none { --section-space: 0px; }
 
 /* Two neighbouring sections on the same background share one gap. A full-width cover image is its own background,
@@ -494,15 +499,17 @@ hr {
   align-items: center;
   justify-content: center;
   gap: 0.55rem;
-  min-height: 2.875rem;
-  padding: 0.7rem 1.35rem;
+  min-height: var(--btn-height, 2.875rem);
+  padding: 0.7rem var(--btn-pad-x, 1.35rem);
   border: 1px solid var(--btn-border);
   border-radius: var(--radius-button);
   background: var(--btn-bg);
   color: var(--btn-text);
   font: inherit;
-  font-size: 0.95rem;
-  font-weight: 600;
+  font-size: var(--btn-size, 0.95rem);
+  font-weight: var(--btn-weight, 600);
+  letter-spacing: var(--btn-tracking, normal);
+  text-transform: var(--btn-case, none);
   line-height: 1.2;
   text-decoration: none;
   cursor: pointer;
@@ -858,7 +865,7 @@ body.header-sticky .site-header {
   display: flex;
   align-items: center;
   gap: var(--space-s);
-  min-height: 4.5rem;
+  min-height: var(--header-min, 4.5rem);
   padding: 0.6rem 0;
 }
 
@@ -875,13 +882,44 @@ body.header-sticky .site-header {
 }
 
 .site-brand-logo {
+  /* Theme > Branding sets --logo-height (and --logo-height-mobile); the header's height choices scale it. */
+  --logo-h: var(--logo-height, 2.25rem);
   width: auto;
-  height: 2.25rem;
+  height: var(--logo-h);
+}
+
+@media (max-width: 860px) {
+  .site-brand-logo {
+    --logo-h: var(--logo-height-mobile, var(--logo-height, 2.25rem));
+  }
+}
+
+/* A logo for dark backgrounds replaces the logo in dark mode, in the dark footer and over a dark opening hero. */
+.logo-on-dark {
+  display: none;
+}
+
+:root.dark .logo-on-light {
+  display: none;
+}
+
+:root.dark .logo-on-dark {
+  display: block;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-mode="system"]:not(.light) .logo-on-light {
+    display: none;
+  }
+
+  :root[data-mode="system"]:not(.light) .logo-on-dark {
+    display: block;
+  }
 }
 
 .site-brand-title {
   font-family: var(--font-heading);
-  font-size: 1.3rem;
+  font-size: var(--brand-name-size, 1.3rem);
   font-weight: var(--heading-weight);
   letter-spacing: -0.02em;
   line-height: 1.1;
@@ -1626,29 +1664,29 @@ body.header-solid .site-header[data-sticky="always"] {
 
 /* Height. */
 .site-header.size-compact .header-row {
-  min-height: 3.5rem;
+  min-height: calc(var(--header-min, 4.5rem) * 0.778);
   padding-block: 0.3rem;
 }
 
 .site-header.size-compact .site-brand-logo {
-  height: 1.75rem;
+  height: calc(var(--logo-h) * 0.78);
 }
 
 .site-header.size-tall .header-row {
-  min-height: 6rem;
+  min-height: calc(var(--header-min, 4.5rem) * 1.333);
 }
 
 .site-header.size-tall .site-brand-logo {
-  height: 3rem;
+  height: calc(var(--logo-h) * 1.333);
 }
 
 @media (max-width: 860px) {
   .site-header.size-tall .header-row {
-    min-height: 4.5rem;
+    min-height: var(--header-min, 4.5rem);
   }
 
   .site-header.size-tall .site-brand-logo {
-    height: 2.25rem;
+    height: var(--logo-h);
   }
 }
 
@@ -1659,12 +1697,12 @@ body.header-solid .site-header[data-sticky="always"] {
 }
 
 body.header-solid .site-header.is-shrinking .header-row {
-  min-height: 3.5rem;
+  min-height: calc(var(--header-min, 4.5rem) * 0.778);
   padding-block: 0.25rem;
 }
 
 body.header-solid .site-header.is-shrinking .site-brand-logo {
-  height: 1.75rem;
+  height: calc(var(--logo-h) * 0.78);
 }
 
 /* The edge under the header. */
@@ -1856,6 +1894,21 @@ body.has-transparent-header:not(.header-solid) .site-header.is-on-dark[data-stic
   --accent-contrast: var(--ink);
   --color-focus: #ffffff;
   color: #ffffff;
+}
+
+/* The logo for dark backgrounds where the header is dark (Theme > Branding): a dark or colour row, or the light-text state above. */
+.site-header.tone-contrast .logo-on-light,
+.site-header.tone-accent .logo-on-light,
+body.has-transparent-header:not(.header-sticky) .site-header.is-on-dark:not([data-sticky="always"]) .logo-on-light,
+body.has-transparent-header:not(.header-solid) .site-header.is-on-dark[data-sticky="always"] .logo-on-light {
+  display: none;
+}
+
+.site-header.tone-contrast .logo-on-dark,
+.site-header.tone-accent .logo-on-dark,
+body.has-transparent-header:not(.header-sticky) .site-header.is-on-dark:not([data-sticky="always"]) .logo-on-dark,
+body.has-transparent-header:not(.header-solid) .site-header.is-on-dark[data-sticky="always"] .logo-on-dark {
+  display: block;
 }
 
 .has-transparent-header .main-shell > .block:first-child {
@@ -2730,7 +2783,7 @@ p.form-error {
 
 .footer-logo {
   width: auto;
-  height: 2.25rem;
+  height: var(--footer-logo-height, 2.25rem);
 }
 
 .footer-cta {
