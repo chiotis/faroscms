@@ -1,5 +1,7 @@
 {% extends 'layouts/base.twig' %}
 {% set document_title = t('error.404_title', 'Page not found') %}
+{# Its first section is a title band: a floating header floats over it from the start. #}
+{% set header_floats_over = true %}
 
 {% block content %}
   <section class="single-hero">

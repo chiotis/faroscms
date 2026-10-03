@@ -197,7 +197,7 @@
   const headerSpacer = document.querySelector('[data-header-spacer]');
   if (headerEl && headerSpacer) {
     const stickyMode = headerEl.dataset.sticky || 'on_scroll';
-    const overlays = document.body.classList.contains('has-transparent-header');
+    const overlays = document.body.classList.contains('has-header-overlay');
     let sticky = false;
 
     const syncHeaderHeight = () => {

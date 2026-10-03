@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.43 — 2026-10-03 — A floating header floats over the page from the start
+- **A floating header (Theme > Header > Shape) now floats over the opening section when the page loads**, instead of sitting in the flow with a strip of page background above it and the hero starting below. Over a Hero block, a Slider, a title area, a list, the search or the page not found, the header takes no space of its own, keeps its own background, rounded corners and detachment from the edges, and the section makes room for it, as it does for a transparent header. On a page that opens with something else (a text, say) it stays in the flow, as there is nothing to float over
+- A transparent header overlays in the same way and stays transparent; both together work. The body gets a class for each (`has-header-overlay`, `has-transparent-header`); the darkening of a picture under a transparent header is only for the transparent one
+- Tests: the header test covers a floating header over a hero, a title area, a list, the search and the not found page, a full width one, a transparent one, and both
+
 ## 0.1.42 — 2026-10-03 — Header and Footer have the real site beside them
 - **Theme > Header and Footer now have a live preview in a frame beside the cards, like Branding**: the real site, drawn with the choices that are not saved yet, at computer, tablet or phone width, in light or dark, with a Reload button. A header or footer choice changes what the page is made of (a layout, a menu, a bar), so the server draws the page with the unsaved settings and the frame shows it: where the page was scrolled is kept, and a link followed inside the frame is drawn the same way. The page is asked for as a visitor's GET: nothing is stored, no form is submitted, and only an administrator can ask
 - The little wireframe pictures of the Header and Footer tabs (and their styles and script) are gone: the real page is the picture. The layouts are still chosen from small pictures, and the cards are in one column to leave room

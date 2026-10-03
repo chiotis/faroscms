@@ -1,6 +1,9 @@
 {% extends 'layouts/base.twig' %}
 {% set document_title = t('search.title') %}
 
+{# Its first section is a title band: a floating header floats over it from the start. #}
+{% set header_floats_over = true %}
+
 {% block content %}
   {% set prefix = lang_prefix|default('') %}
   <section class="single-hero">
