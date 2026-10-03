@@ -13,41 +13,7 @@
 #}
 {% block content %}
   {% import '@admin/partials/ui.twig' as ui %}
-  {% macro text(label, name, value, placeholder, help, max) %}
-    {% set id = 'seo-' ~ name|replace({'[': '-', ']': ''}) %}
-    <div class="seo-row">
-      <label class="seo-label" for="{{ id }}">{{ label }}</label>
-      <div class="min-w-0">
-        <input id="{{ id }}" type="text" name="{{ name }}" value="{{ value }}" placeholder="{{ placeholder }}" class="lc-input"{% if max %} maxlength="{{ max }}"{% endif %} autocomplete="off">
-        {% if help %}<p class="seo-help">{{ help }}</p>{% endif %}
-      </div>
-    </div>
-  {% endmacro %}
-  {% macro area(label, name, value, placeholder, help, max, rows) %}
-    {% set id = 'seo-' ~ name|replace({'[': '-', ']': ''}) %}
-    <div class="seo-row">
-      <label class="seo-label" for="{{ id }}">{{ label }}</label>
-      <div class="min-w-0">
-        <textarea id="{{ id }}" name="{{ name }}" rows="{{ rows|default(2) }}" placeholder="{{ placeholder }}" class="lc-input"{% if max %} maxlength="{{ max }}"{% endif %}>{{ value }}</textarea>
-        {% if help %}<p class="seo-help">{{ help }}</p>{% endif %}
-      </div>
-    </div>
-  {% endmacro %}
-  {% macro flag(name, label, help, checked) %}
-    <label class="seo-flag"><input type="checkbox" name="{{ name }}" value="1"{% if checked %} checked{% endif %}><span><strong>{{ label }}</strong>{% if help %}<small>{{ help }}</small>{% endif %}</span></label>
-  {% endmacro %}
-  {% macro pick(label, name, options, value) %}
-    <div class="seo-row">
-      <span class="seo-label" id="seo-{{ name }}-label">{{ label }}</span>
-      <div class="lc-seg" role="radiogroup" aria-labelledby="seo-{{ name }}-label">
-        {% for option, text in options %}
-          <label><input type="radio" name="{{ name }}" value="{{ option }}"{% if option ~ '' == value ~ '' %} checked{% endif %}><span>{{ text }}</span></label>
-        {% endfor %}
-      </div>
-    </div>
-  {% endmacro %}
-
-  {% import _self as f %}
+  {% import '@admin/partials/form-rows.twig' as f %}
 
   {% set tabs = [['overview', 'Overview'], ['search', 'Search appearance'], ['social', 'Social'], ['crawling', 'Crawling & sitemap'], ['identity', 'Identity & schema'], ['verification', 'Verification']] %}
   {% set card = 'lc-card rounded-xl border border-slate-200 bg-white' %}

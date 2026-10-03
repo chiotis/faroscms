@@ -355,24 +355,30 @@ final class SiteSettings
     }
 
     /**
-     * Stores the `seo` settings (Admin > SEO) and leaves the rest of the site settings as they are. Returns false when the
-     * settings cannot be written.
+     * Stores one section of the site settings (`seo`, `analytics`: the screens that own them) and leaves the rest as it is. An
+     * empty section is removed. Returns false when the settings cannot be written.
      *
-     * @param array<string, mixed> $seo
+     * @param array<string, mixed> $values
      */
-    public function setSeo(array $seo): bool
+    public function setSection(string $key, array $values): bool
     {
-        if (!$this->meta->isAvailable()) {
+        if (!$this->meta->isAvailable() || !preg_match('/^[a-z_]+$/', $key)) {
             return false;
         }
         $data = $this->parse($this->raw('site_settings', $this->defaults()));
-        if ($seo === []) {
-            unset($data['seo']);
+        if ($values === []) {
+            unset($data[$key]);
         } else {
-            $data['seo'] = $seo;
+            $data[$key] = $values;
         }
         $this->meta->set('site_settings', Yaml::dump($data, 5, 2));
         return true;
+    }
+
+    /** @param array<string, mixed> $seo */
+    public function setSeo(array $seo): bool
+    {
+        return $this->setSection('seo', $seo);
     }
 
     /** Shows a menu in a place of the theme ("header", "footer"). Returns false when the settings cannot be written. */

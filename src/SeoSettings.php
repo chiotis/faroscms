@@ -307,8 +307,18 @@ final class SeoSettings
     /** Whether a path is one the sitemap is told to leave out: each rule matches the start of the address, `*` and a closing `$` as in robots.txt. */
     public static function excluded(array $seo, string $path): bool
     {
+        return self::matches($seo['sitemap']['exclude'], $path);
+    }
+
+    /**
+     * Whether an address starts like one of the rules (paths that begin with a slash, `*` for any text, a closing `$` for the end).
+     *
+     * @param string[] $rules
+     */
+    public static function matches(array $rules, string $path): bool
+    {
         $path = '/' . ltrim((string)(parse_url($path, PHP_URL_PATH) ?? $path), '/');
-        foreach ($seo['sitemap']['exclude'] as $rule) {
+        foreach ($rules as $rule) {
             $pattern = str_replace('\*', '.*', preg_quote(rtrim($rule, '$'), '#'));
             if (preg_match('#^' . $pattern . (str_ends_with($rule, '$') ? '$' : '') . '#', $path) === 1) {
                 return true;

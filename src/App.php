@@ -55,6 +55,9 @@ final class App
     private ?Menus $menuStore = null;
     private ?Sitemap $sitemapService = null;
     private ?SeoAdmin $seoAdminService = null;
+    private ?AnalyticsStore $analyticsStoreService = null;
+    private ?AnalyticsCollector $analyticsCollectorService = null;
+    private ?AnalyticsAdmin $analyticsAdminService = null;
     private ?TaxonomyPage $taxonomyPageService = null;
     private ?PublicForms $publicFormsService = null;
     private ?SettingsAdmin $settingsAdminService = null;
@@ -168,6 +171,12 @@ final class App
         if (str_starts_with($path, 'admin')) {
             $this->sendSecurityHeaders(true);
             $this->handleAdmin($path);
+            return;
+        }
+
+        // The script of the platform's analytics reports a visit here: no page, no answer.
+        if ($path === '_a/collect') {
+            $this->handleCollect();
             return;
         }
 
@@ -824,6 +833,7 @@ final class App
         'roles' => 'handleRoles',
         'redirects' => 'handleRedirects',
         'seo' => 'handleSeo',
+        'analytics' => 'handleAnalytics',
         'revisions' => 'handleRevisions',
         'links' => 'handleLinks',
         'users' => 'handleUsersList',
@@ -1149,6 +1159,101 @@ final class App
             $this->users,
             fn(string $action, string $level, ?string $type, ?string $id, string $message, array $context) => $this->logActivity($action, $level, $type, $id, $message, $context)
         );
+    }
+
+    /** The platform's analytics: the script of a page reports a view or an event, and nothing comes back. */
+    private function handleCollect(): void
+    {
+        header('Cache-Control: no-store');
+        header('X-Content-Type-Options: nosniff');
+        if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+            http_response_code(405);
+            header('Allow: POST');
+            return;
+        }
+        $raw = (string)file_get_contents('php://input', false, null, 0, 4096);
+        $payload = json_decode($raw, true);
+        if (!is_array($payload)) {
+            $payload = $_POST;
+        }
+        try {
+            $this->analyticsCollector()->collect($payload, $_SERVER, $this->auth->check());
+        } catch (\Throwable) {
+            // Counting visits must never break a page, or tell anyone what went wrong.
+        }
+        http_response_code(204);
+    }
+
+    /** Counts a goal that happened on the server (a form that was sent) for the visit that caused it. */
+    private function analyticsGoal(string $type, string $value, string $path): void
+    {
+        try {
+            $this->analyticsCollector()->collect(['p' => '/' . ltrim($path, '/'), 'e' => $type, 'v' => $value], $_SERVER, $this->auth->check());
+        } catch (\Throwable) {
+            // A goal that cannot be counted is not worth an error.
+        }
+    }
+
+    private function analyticsStore(): AnalyticsStore
+    {
+        return $this->analyticsStoreService ??= new AnalyticsStore($this->systemDatabase, $this->systemMeta, AnalyticsSettings::from($this->settings)['keep_months']);
+    }
+
+    private function analyticsCollector(): AnalyticsCollector
+    {
+        return $this->analyticsCollectorService ??= new AnalyticsCollector(fn(): AnalyticsStore => $this->analyticsStore(), fn(): array => $this->settings);
+    }
+
+    private function analyticsAdmin(): AnalyticsAdmin
+    {
+        return $this->analyticsAdminService ??= new AnalyticsAdmin(
+            $this->siteSettings(),
+            $this->analyticsStore(),
+            fn(): array => $this->settings,
+            function (): void {
+                $this->settings = $this->siteSettings()->load();
+            },
+            fn(string $action, string $level, ?string $type, ?string $id, string $message, array $context) => $this->logActivity($action, $level, $type, $id, $message, $context)
+        );
+    }
+
+    /** Admin > Analytics: the settings, and the reports when the platform's analytics are on. */
+    private function handleAnalytics(): void
+    {
+        $admin = $this->analyticsAdmin();
+        $mayWriteCode = $this->permissions->can($this->auth->user(), 'content.raw_html');
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $this->redirect($admin->save($_POST, $mayWriteCode));
+            return;
+        }
+        if ((string)($_GET['realtime'] ?? '') === '1') {
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode($admin->now());
+            return;
+        }
+        $export = (string)($_GET['export'] ?? '');
+        if ($export !== '') {
+            $file = $admin->export($export, $_GET);
+            if ($file === null) {
+                $this->render404();
+                return;
+            }
+            header('Content-Type: text/csv; charset=utf-8');
+            header('Content-Disposition: attachment; filename="' . $file['name'] . '"');
+            echo $file['body'];
+            return;
+        }
+        $tab = $admin->tab((string)($_GET['tab'] ?? ''));
+        $this->render('@admin/analytics.twig', [
+            'tab' => $tab,
+            'saved' => (string)($_GET['saved'] ?? '') === '1',
+            'cleared' => (string)($_GET['cleared'] ?? '') === '1',
+            'error' => (string)($_GET['error'] ?? ''),
+            'user' => $this->auth->user(),
+            'types' => $this->content->getTypes(),
+            'admin_section' => 'analytics',
+            'current_type' => 'pages',
+        ] + ($tab === 'reports' ? $admin->reportsScreen($_GET) : []) + $admin->settingsScreen($mayWriteCode));
     }
 
     /** Admin > SEO: a tab for each part of how the site meets search engines and social networks. */
@@ -2787,6 +2892,9 @@ final class App
 
         // What Theme > Branding adds to a page: a style sheet of the choices made there, and the icons and colour of the browser.
         $brandingBase = (string)($this->settings['base_url'] ?? '');
+        // The tracking of Admin > Analytics: the owner's code (or the platform's script) for the head, and the owner's code for the end of the page.
+        $twig->addFunction(new TwigFunction('analytics_head', fn(string $scriptUrl = '', string $apiUrl = ''): string => AnalyticsSettings::head(AnalyticsSettings::from($this->settings), $this->auth->check(), $scriptUrl, $apiUrl), ['is_safe' => ['html']]));
+        $twig->addFunction(new TwigFunction('analytics_body', fn(): string => AnalyticsSettings::body(AnalyticsSettings::from($this->settings), $this->auth->check()), ['is_safe' => ['html']]));
         // The site-wide search engine settings (Admin > SEO) as a page uses them: its title and description, what the robots tag says,
         // the tags that are the same on every page, and the card of a shared link.
         $twig->addFunction(new TwigFunction('seo_title', fn(mixed $own, mixed $page, bool $home, mixed $type): string => SeoSettings::title(
@@ -3514,6 +3622,11 @@ final class App
             'ip' => (string)($_SERVER['REMOTE_ADDR'] ?? ''),
             'agent' => (string)($_SERVER['HTTP_USER_AGENT'] ?? ''),
         ]);
+        // A form that was sent now (not the page that thanks for it, shown again, and not a robot's catch in the honeypot) is a goal.
+        $honeypot = (string)($result['state']['honeypot'] ?? '');
+        if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && !empty($result['state']['success']) && ($honeypot === '' || trim((string)($_POST[$honeypot] ?? '')) === '')) {
+            $this->analyticsGoal('form', $form->slug, $currentPath);
+        }
         if ($result['location'] !== '') {
             $this->redirect($result['location']);
         }

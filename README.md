@@ -33,6 +33,7 @@ It is built for the kind of site an agency or freelancer hands to a client: a go
 | **A block editor that keeps the design consistent** | Pages are built from ready-made sections (hero, features, pricing, comparison table, before/after slider, FAQ, gallery, map, forms…). Editors change text, images and order; the layout stays sound. |
 | **Multilingual from the start** | Each page can have a translation per language, with their own addresses, menus, labels and redirects. Greek is transliterated to clean Latin addresses out of the box. |
 | **SEO in one place** | A Manage > SEO screen: checks of the site and of every entry, title formats, descriptions, share cards, robots.txt and the sitemap, structured data for an organization, a business or a person, and ownership codes, each with a live preview. See [docs/seo.md](docs/seo.md). |
+| **Analytics, or your own** | A System > Analytics screen: count visits with the site's own cookieless analytics (visitors, pages, sources, devices, countries, goals, live visitors, CSV) or add the tracking code of the service you already use. See [docs/analytics.md](docs/analytics.md). |
 | **Safe to hand over** | Roles and permissions (with roles of your own), history with compare and restore, redirects when an address changes, links that follow, storage and upload limits, activity log. |
 | **Quiet to run** | Scheduled backups (local and S3-compatible), one-click checks for updates, email through SMTP or Amazon SES, a system status screen. |
 | **Yours to change** | Everything site-specific lives in `custom/`, which updates never touch: CSS, JS, templates, blocks, icons, strings. |
@@ -134,7 +135,7 @@ Read [docs/theming.md](docs/theming.md) for the contract and [docs/theme-develop
 
 ### The admin
 
-A calm, fixed layout: content types and Media under **Content**, Forms, Menus (a two-panel editor: pick what the site has, drag it into place, set each link's labels in every language), Theme, Taxonomies, SEO, Redirects, Translations and History under **Manage**, and Users & Roles, Logs, Backups, Updates and Settings under **System**. Every screen with a form ends in one fixed Save bar that also carries messages. Settings are split into tabs, and choosing an icon anywhere opens one shared picker.
+A calm, fixed layout: content types and Media under **Content**, Forms, Menus (a two-panel editor: pick what the site has, drag it into place, set each link's labels in every language), Theme, Taxonomies, SEO, Redirects, Translations and History under **Manage**, and Users & Roles, Analytics, Logs, Backups, Updates and Settings under **System**. Every screen with a form ends in one fixed Save bar that also carries messages. Settings are split into tabs, and choosing an icon anywhere opens one shared picker.
 
 ## Security
 
