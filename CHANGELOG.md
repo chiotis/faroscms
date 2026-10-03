@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.45 — 2026-10-03 — The footer layouts say where their links come from
+- **Theme > Footer, under the layouts:** a short note that the links come from the menu with the place *Footer* in Menus (with a link to it), and what separates *Columns* (all the links in one column) from *Mega* (a column for each top-level link that has links under it, titled with that link)
+- Not run: the full test suite and CI
+
 ## 0.1.44 — 2026-10-03 — A video behind the Hero
 - **The Hero block can have a video instead of an image.** In the block, *Picture* is *Image* (as before) or *Video that plays behind the text*. The video is chosen from the **media library** (a new Library button for videos, `.mp4` and `.webm`), or it is a **YouTube** or **Vimeo** link, or the address of a **video file on another site**. A still image goes with it (recommended): it shows while the video loads, under a paused video, and for a visitor whose device asks for less motion or less data, and it is the page's share image when the page has none
 - It plays silently, in a loop, inline on a phone, behind the text of the *cover* and *steps* layouts and in the frame of *split* and *centered* (the minimal hero has no picture). **A pause button** is on it for everyone (a video that moves by itself must be stoppable), and it rests while it is off screen. A video file is a plain `<video>`; **YouTube and Vimeo are put in a frame by the page's script once the page is open** (YouTube through youtube-nocookie.com, Vimeo in its background mode), so a page asks nothing of them before, and a frame is made big enough to cover the space like an image. A link that is not a video the site can play (or a script address) is not used and the image is the picture. A hero saved before is unchanged

@@ -28,6 +28,7 @@
       <div>
         {{ c.tiles(p ~ 'layout]', f.layout.options|keys|reduce((carry, k) => carry|merge({(k): short.layout[k] ?? f.layout.options[k]}), {}), v.layout, f.layout.label, 'footer', '', f.layout.options) }}
       </div>
+      <p class="m-0 mt-2 text-[11px] leading-4 text-slate-500">The links come from the menu with the place “Footer” in <a class="font-medium text-blue-700" href="{{ url('admin/menus') }}">Menus</a>. <strong class="font-medium text-slate-700">Columns</strong> lists them in one column; <strong class="font-medium text-slate-700">Mega</strong> makes a column of each top-level link that has links under it, titled with that link.</p>
     </section>
   {% endif %}
 
