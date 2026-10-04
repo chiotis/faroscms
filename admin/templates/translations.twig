@@ -1,125 +1,120 @@
 {% extends '@admin/base.twig' %}
 {% set page_heading = 'Translations' %}
 
+{#
+  Admin > Translations: the words the theme prints ("Read more", form messages…) in a language of the site. A language to pick
+  (with how far it is translated), a search and filters, the strings grouped by the area of the site they belong to, each with its
+  source beside the box to type in, and a place to add a string of your own. A plain form (keys[], values[], reset[] of every string,
+  as ThemeStrings::save reads them); admin-translations.js only filters, counts the changes and copies the source text.
+#}
 {% block content %}
-  {% set btn_primary = 'inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700' %}
-  {% set btn_secondary = 'inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50' %}
-  {% set input_soft = 'w-full rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20' %}
+  {% import '@admin/partials/ui.twig' as ui %}
 
-  <header class="mb-4 flex flex-col gap-3 border-b border-slate-200 pb-4 lg:flex-row lg:items-center lg:justify-between">
-    <div class="min-w-0">
-      <p class="truncate text-xs text-slate-400">Theme strings for {{ lang|upper }}. Changes are saved as site overrides in <code>{{ custom_file }}</code> and survive updates.</p>
-    </div>
+  {% set translated_pct = progress[lang] %}
+  {% set is_source_language = lang == default_lang %}
+
+  <header class="mb-3">
+    <p class="m-0 text-xs text-slate-500">The words the theme prints on the site. What you change is kept as an override of the theme in <code class="rounded bg-slate-100 px-1 py-0.5">{{ custom_file }}</code>, so updates never replace it. Menu labels are edited in <a href="{{ url('admin/menus') }}" class="font-medium text-blue-700 hover:underline">Menus</a>, and the text of pages in their own editor.</p>
   </header>
 
-  {% if saved %}
-    <template data-flash data-type="success">Saved.</template>
-  {% endif %}
-  {% if write_error %}
-    <template data-flash data-type="error">Could not write {{ custom_file }}. Check that the custom/ folder is writable.</template>
-  {% endif %}
+  {{ ui.flash(saved ? 'Saved.' : '', 'success') }}
+  {% if write_error %}{{ ui.flash('Could not write ' ~ custom_file ~ '. Check that the custom/ folder is writable.', 'error') }}{% endif %}
 
-  <div class="mb-4 rounded-lg border border-slate-200 bg-white p-4">
-    <form method="get" class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-      <label class="grid gap-1 text-sm font-medium text-slate-700">
-        Language
-        <select name="lang" class="w-full min-w-32 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20">
-          {% for l in languages %}
-            <option value="{{ l }}" {% if l == lang %}selected{% endif %}>{{ l|upper }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <button type="submit" class="{{ btn_secondary }}">Apply</button>
-    </form>
-  </div>
-
-  <form method="post" class="translations">
+  <form method="post" action="{{ url('admin/translations?lang=' ~ lang) }}" class="translations" data-tr-form autocomplete="off">
     {{ csrf_field() }}
     <input type="hidden" name="lang" value="{{ lang }}">
 
-    <div class="rounded-lg border border-slate-200 bg-white">
-      <div class="flex flex-col gap-3 border-b border-slate-200 p-3 sm:flex-row sm:items-center sm:justify-between">
-        <div class="flex items-center gap-3 text-sm">
-          <span class="font-medium text-slate-700">{{ translations|length }} strings</span>
-          <span class="h-4 w-px bg-slate-200"></span>
-          <span class="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">{{ lang|upper }}</span>
-          <span class="text-xs text-slate-400">Source: {{ default_lang|upper }}</span>
-          {% if customized is not empty %}
-            <span class="text-xs text-slate-400">{{ customized|length }} customized</span>
+    <div class="tr-bar">
+      <nav class="tr-langs" aria-label="Language">
+        {% for code in languages %}
+          <a href="{{ url('admin/translations?lang=' ~ code) }}" class="tr-lang" style="--p: {{ progress[code] }}%"{% if code == lang %} aria-current="true"{% endif %} data-tr-lang>
+            <b>{{ language_names[code] }}</b><small>{{ code == default_lang ? 'source' : progress[code] ~ '%' }}</small>
+          </a>
+        {% endfor %}
+      </nav>
+      <div class="tr-tools">
+        <label class="tr-search"><span class="sr-only">Search the strings</span>
+          <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.3-4.3M10.5 18a7.5 7.5 0 100-15 7.5 7.5 0 000 15z"/></svg>
+          <input type="search" class="lc-input" placeholder="Search by key or text" data-tr-search>
+        </label>
+        <div class="tr-filters" role="group" aria-label="Show">
+          <button type="button" data-tr-filter="all" aria-pressed="true">All <em>{{ stats.total }}</em></button>
+          {% if stats.missing > 0 %}<button type="button" data-tr-filter="missing" aria-pressed="false">Missing <em>{{ stats.missing }}</em></button>{% endif %}
+          {% if not is_source_language and stats.source > 0 %}<button type="button" data-tr-filter="source" aria-pressed="false">Same as {{ language_names[default_lang] }} <em>{{ stats.source }}</em></button>{% endif %}
+          {% if stats.custom > 0 %}<button type="button" data-tr-filter="custom" aria-pressed="false">Customized <em>{{ stats.custom }}</em></button>{% endif %}
+          <button type="button" data-tr-filter="dirty" aria-pressed="false" hidden>Changed <em data-tr-dirty-count>0</em></button>
+        </div>
+        <select class="lc-input lc-select tr-area" aria-label="Area" data-tr-area>
+          <option value="">All areas</option>
+          {% for group, info in groups %}<option value="{{ group }}">{{ info.label }} ({{ info.count }})</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <details class="tr-add">
+      <summary>Add a string of your own</summary>
+      <div class="tr-add-body">
+        <label>Key <input type="text" name="keys[]" class="lc-input font-mono" placeholder="shop.buy_now" aria-label="New string key" autocomplete="off" spellcheck="false"></label>
+        <label>Text <input type="text" name="values[]" class="lc-input" placeholder="Buy now" aria-label="New string text"></label>
+        <p class="tr-note">A theme uses it with <code>{% verbatim %}{{ t('shop.buy_now') }}{% endverbatim %}</code>. Add it in each language.</p>
+      </div>
+    </details>
+
+    <p class="tr-count" data-tr-shown aria-live="polite">{{ stats.total }} strings{% if not is_source_language %} · {{ translated_pct }}% translated{% endif %}</p>
+
+    {% set current = '' %}
+    {% for row in rows %}
+      {% if row.group != current %}
+        {% if current != '' %}</div></details>{% endif %}
+        {% set current = row.group %}
+        <details class="tr-group" open data-tr-group="{{ row.group }}">
+          <summary><span>{{ groups[row.group].label }}</span><em>{{ groups[row.group].count }}</em></summary>
+          <div class="tr-rows">
+      {% endif %}
+      <div class="tr-row" data-key="{{ row.key }}" data-status="{{ row.status }}" data-custom="{{ row.custom ? '1' : '0' }}" data-group="{{ row.group }}" data-text="{{ (row.key ~ ' ' ~ row.source ~ ' ' ~ row.value)|lower }}">
+        <div class="tr-src">
+          <code>{{ row.key }}</code>
+          {% if row.source != '' %}<p>{{ row.source }}</p>{% endif %}
+          {% if row.own %}<span class="tr-chip is-own">Added by you</span>{% endif %}
+        </div>
+        <div class="tr-edit">
+          <input type="hidden" name="keys[]" value="{{ row.key }}">
+          {% if row.long %}
+            <textarea name="values[]" rows="2" class="lc-input tr-field" data-original="{{ row.value }}" placeholder="{{ is_source_language ? 'Add the text…' : 'Translate…' }}" aria-label="Translation of {{ row.key }}">{{ row.value }}</textarea>
+          {% else %}
+            <input type="text" name="values[]" value="{{ row.value }}" data-original="{{ row.value }}" class="lc-input tr-field" placeholder="{{ is_source_language ? 'Add the text…' : 'Translate…' }}" aria-label="Translation of {{ row.key }}">
+          {% endif %}
+          {% set copy_source = row.status == 'missing' and not is_source_language and row.source != '' %}
+          {% if row.status != 'translated' or row.custom or copy_source %}
+            <div class="tr-meta">
+              {% if row.status == 'missing' %}<span class="tr-chip is-missing">Missing</span>
+              {% elseif row.status == 'source' %}<span class="tr-chip is-source">Same as {{ language_names[default_lang] }}</span>{% endif %}
+              {% if row.custom %}<span class="tr-chip is-custom">Customized</span>{% endif %}
+              {% if copy_source %}<button type="button" class="tr-link" data-tr-copy="{{ row.source }}" title="Put the {{ language_names[default_lang] }} text in the box">Use {{ language_names[default_lang] }} text</button>{% endif %}
+              {% if row.custom %}
+                <label class="tr-reset"><input type="checkbox" name="reset[]" value="{{ row.key }}"> {{ row.own ? 'Delete this string' : 'Back to the theme text' }}</label>
+              {% endif %}
+            </div>
           {% endif %}
         </div>
       </div>
+    {% endfor %}
+    {% if current != '' %}</div></details>{% endif %}
 
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-          <thead>
-            <tr class="border-b border-slate-100 bg-slate-50/50 text-left text-xs font-medium text-slate-400">
-              <th class="px-4 py-2 font-medium">Key</th>
-              <th class="px-4 py-2 font-medium">Source ({{ default_lang|upper }})</th>
-              <th class="px-4 py-2 font-medium">Translation</th>
-              <th class="px-4 py-2 font-medium">Status</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-50">
-            {% for key, value in translations %}
-              {% set default_value = defaults[key] ?? '' %}
-              {% set is_missing = value is same as('') %}
-              {% set is_source = lang != default_lang and value == default_value %}
-              {% set is_custom = key in customized %}
-              <tr class="align-top hover:bg-slate-50">
-                <td class="px-4 py-2.5">
-                  <input type="hidden" name="keys[]" value="{{ key }}">
-                  <code class="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-600">{{ key }}</code>
-                </td>
-                <td class="max-w-md px-4 py-2.5 text-sm text-slate-600">
-                  {{ default_value }}
-                </td>
-                <td class="min-w-80 px-4 py-2.5">
-                  <input type="text" name="values[]" value="{{ value }}" aria-label="Translation of {{ key }}" placeholder="Add translation..." class="{{ input_soft }} {% if is_missing %}border-red-200 bg-red-50/30{% elseif is_source %}border-amber-200 bg-amber-50/30{% endif %}">
-                </td>
-                <td class="px-4 py-2.5">
-                  {% if is_custom %}
-                    <span class="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 ring-1 ring-inset ring-blue-200">customized</span>
-                    <label class="mt-1.5 flex items-center gap-1.5 text-[11px] text-slate-400">
-                      <input type="checkbox" name="reset[]" value="{{ key }}" class="h-3.5 w-3.5 rounded border-slate-300">
-                      Reset to theme text
-                    </label>
-                  {% elseif is_missing %}
-                    <span class="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-700 ring-1 ring-inset ring-red-200">missing</span>
-                  {% elseif is_source %}
-                    <span class="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 ring-1 ring-inset ring-amber-200">source</span>
-                  {% else %}
-                    <span class="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200">translated</span>
-                  {% endif %}
-                </td>
-              </tr>
-            {% endfor %}
-            <tr class="align-top bg-slate-50/40">
-              <td class="px-4 py-3">
-                <input type="text" name="keys[]" aria-label="New string key" placeholder="new.key" class="{{ input_soft }} font-mono text-xs">
-              </td>
-              <td class="px-4 py-3 text-xs text-slate-400">New custom string</td>
-              <td class="min-w-80 px-4 py-3">
-                <input type="text" name="values[]" aria-label="New string value" placeholder="New value" class="{{ input_soft }}">
-              </td>
-              <td class="px-4 py-3">
-                <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500 ring-1 ring-inset ring-slate-200">new</span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-    </div>
+    <p class="tr-none" data-tr-none hidden>No string matches.</p>
 
     {% embed '@admin/partials/action-bar.twig' %}
-      {% block leading %}      {% endblock %}
+      {% block leading %}
+        <a href="{{ url('admin/translations?lang=' ~ lang) }}" class="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50">Discard</a>
+        <span class="text-xs" data-tr-status></span>
+      {% endblock %}
       {% block actions %}
-        <button type="submit" class="{{ btn_primary }}">
+        <button type="submit" class="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700">
           <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
           Save translations
         </button>
       {% endblock %}
     {% endembed %}
   </form>
+  <script src="{{ asset('js/admin-translations.js') }}" defer></script>
 {% endblock %}

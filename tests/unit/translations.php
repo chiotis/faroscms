@@ -49,6 +49,32 @@ check('junk in the form is harmless', $strings->save('en', 'el', ['keys' => 'x',
 $blocked = new ThemeStrings(new Theme('/nonexistent/' . getmypid(), 'default'));
 check('a folder that cannot be written is reported', $blocked->save('en', 'el', ['keys' => ['a'], 'values' => ['b']])['ok'], false);
 
+// ---- the screen: areas, states, progress
+file_put_contents("$dir/themes/default/lang/el.php", "<?php return ['read_more' => 'Διαβάστε περισσότερα', 'nav.main.home' => 'Αρχική', 'footer.note' => 'Σημείωση', 'footer.legal' => 'Νομικά', 'form.error.required' => 'Υποχρεωτικό', 'longtext' => '" . str_repeat('α', 90) . "'];\n");
+file_put_contents("$dir/themes/default/lang/en.php", "<?php return ['read_more' => 'Read more', 'nav.main.home' => 'Home', 'footer.note' => 'Σημείωση', 'footer.legal' => 'Legal'];\n");
+$theme = new Theme($dir, 'default');
+$strings = new ThemeStrings($theme);
+$strings->save('en', 'el', ['keys' => ['brand', 'read_more'], 'values' => ['', ''], 'reset' => ['brand', 'read_more']]);
+$o = $strings->overview('en', 'el', ['el', 'en']);
+check('the strings are in areas, the ones without a dot first, then by key', array_map(fn($r) => $r['key'], $o['rows']), ['longtext', 'read_more', 'footer.legal', 'footer.note', 'form.error.required']);
+check('a key with no dot is in "general"', [ThemeStrings::group('read_more'), ThemeStrings::group('footer.note'), ThemeStrings::group('a.b.c'), ThemeStrings::groupLabel('general'), ThemeStrings::groupLabel('before_after')], ['general', 'footer', 'a', 'General', 'Before after']);
+check('the areas, with their counts', array_map(fn($g) => [$g['label'], $g['count']], $o['groups']), ['general' => ['General', 2], 'footer' => ['Footer', 2], 'form' => ['Form', 1]]);
+$by = array_column($o['rows'], null, 'key');
+check('a string is translated, still the source language text, or missing', [$by['read_more']['status'], $by['footer.note']['status'], $by['form.error.required']['status']], ['translated', 'source', 'source']);
+check('the source, the value, long ones', [$by['read_more']['source'], $by['read_more']['value'], $by['longtext']['long'], $by['read_more']['long']], ['Διαβάστε περισσότερα', 'Read more', true, false]);
+check('the counts of the filters', $o['stats'], ['total' => 5, 'translated' => 2, 'missing' => 0, 'source' => 3, 'custom' => 0]);
+check('how far each language is translated (the source language is whole)', $o['progress'], ['el' => 100, 'en' => 40]);
+$strings->save('en', 'el', ['keys' => ['footer.note', 'mine.custom'], 'values' => ['Note', 'Mine']]);
+$o = $strings->overview('en', 'el', ['el', 'en']);
+$by = array_column($o['rows'], null, 'key');
+check('a string the site changed is customized, one it added is its own', [$by['footer.note']['custom'], $by['footer.note']['status'], $by['mine.custom']['own'], $by['mine.custom']['custom'], $by['read_more']['own']], [true, 'translated', true, true, false]);
+check('and counted', [$o['stats']['custom'], $o['stats']['total'], $o['progress']['en']], [2, 6, 66]);
+$strings->save('en', 'el', ['keys' => ['footer.legal'], 'values' => ['']]);
+check('a string emptied is missing', array_column($strings->overview('en', 'el', ['el', 'en'])['rows'], 'status', 'key')['footer.legal'], 'missing');
+check('the default language is not "the same as the source"', array_unique(array_map(fn($r) => $r['status'], $strings->overview('el', 'el', ['el', 'en'])['rows'])), ['translated']);
+check('a language the site does not list is still measured', array_keys($strings->overview('en', 'el', ['el'])['progress']), ['el', 'en']);
+$strings->save('en', 'el', ['keys' => ['footer.note', 'mine.custom', 'footer.legal'], 'values' => ['Σημείωση', 'x', 'Legal'], 'reset' => ['mine.custom']]);
+
 // ---- entries in several languages
 $settings = ['title' => 'Site', 'base_url' => 'https://s.test', 'languages' => ['default' => 'el', 'available' => ['el', 'en', 'de']], 'home_page' => 'index'];
 $environment = new Environment([]);

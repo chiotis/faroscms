@@ -404,6 +404,8 @@ Strings resolve in this order, later wins:
 
 Admin > Translations saves only the strings that differ from what the theme provides. Resetting a string removes the override, so the theme text (and its future fixes) applies again.
 
+The screen is one language at a time (each language shows how far it is translated; the default language is the source). The strings are grouped by the word before the first dot of their key (`form.error.required` is in *Form*; a key with no dot is in *General*), each with its source text beside the box to type in. A search finds a key or a text, the filters show the strings that are missing, still say what the source language says, or are customized, and a string you add (*Add a string of your own*) is marked as yours and can be deleted. Name keys with an area first (`shop.buy_now`) and the screen keeps them together.
+
 ## Backups
 
 Full backups include `custom/`. The restore screen offers it as **Site customizations**.
