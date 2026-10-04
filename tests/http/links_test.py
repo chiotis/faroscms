@@ -63,7 +63,7 @@ st, _, html = root.get(f'/admin/links?ids=999999'); check('an unknown redirect s
 
 # ---- redirects screen shows the count
 st, _, html = root.get('/admin/redirects')
-check('redirects screen has a Links column with the count', '>Links<' in html and '4 links' in html and f'admin/links?ids={rid}' in html, re.findall(r'\d+ links?', html))
+check('the redirects screen says how many links still use the old address, with a way to update them', '4 links to update' in html and f'admin/links?ids={rid}' in html, re.findall(r'\d+ links?', html))
 
 # ---- who may update
 st, _, _ = usr.get(f'/admin/links?ids={rid}'); check('a basic user cannot open it', st in (302, 403), st)
