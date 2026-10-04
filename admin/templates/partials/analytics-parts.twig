@@ -1,0 +1,42 @@
+{#
+  The parts of the analytics reports that the Analytics screen and the dashboard share: the figures with their change against the
+  stretch before, and the chart of visitors and page views (an image, with the same numbers in a table for screen readers).
+  `report` is what AnalyticsReport::build() gives.
+#}
+{% macro kpis(report) %}
+  <div class="an-kpis">
+    {% for k in report.kpis %}
+      <div class="an-kpi" title="{{ k.help }}">
+        <span>{{ k.label }}</span>
+        <strong>{{ k.value }}</strong>
+        {% if k.change is not null %}<em class="{{ k.good ? 'is-good' : 'is-bad' }}"><span aria-hidden="true">{{ k.change >= 0 ? '▲' : '▼' }}</span> {{ k.change|abs }}%<span class="sr-only"> {{ k.change >= 0 ? 'more' : 'less' }} than before</span></em>{% else %}<em class="is-none">—</em>{% endif %}
+      </div>
+    {% endfor %}
+  </div>
+{% endmacro %}
+
+{% macro chart(report) %}
+  {% set c = report.chart %}
+  <svg class="an-chart" viewBox="0 0 {{ c.w }} {{ c.h }}" role="img" aria-label="Chart of visitors and page views by {{ c.unit }}, {{ report.span.label }}">
+    {% for t in c.ticks %}
+      <line x1="{{ c.left }}" x2="{{ c.right }}" y1="{{ t.y }}" y2="{{ t.y }}" class="an-grid"/>
+      <text x="{{ c.left - 6 }}" y="{{ t.y + 3 }}" text-anchor="end" class="an-axis">{{ t.value|number_format }}</text>
+    {% endfor %}
+    <path d="{{ c.views_area }}" class="an-area-views"/>
+    <path d="{{ c.views_line }}" class="an-line-views"/>
+    <path d="{{ c.visitors_area }}" class="an-area-visitors"/>
+    <path d="{{ c.visitors_line }}" class="an-line-visitors"/>
+    {% for l in c.labels %}<text x="{{ l.x }}" y="{{ c.h - 6 }}" text-anchor="middle" class="an-axis">{{ l.text }}</text>{% endfor %}
+    {% for p in c.hover %}
+      <g class="an-hit"><rect x="{{ p.x }}" y="0" width="{{ p.w }}" height="{{ c.base }}"/><circle cx="{{ p.cx }}" cy="{{ p.cy }}" r="3.5"/><title>{{ p.label }}: {{ p.visitors|number_format }} {{ p.visitors == 1 ? 'visitor' : 'visitors' }}, {{ p.views|number_format }} {{ p.views == 1 ? 'view' : 'views' }}</title></g>
+    {% endfor %}
+  </svg>
+  {# In a box that hides it: a table keeps its own height, so on its own it would make the whole window scroll. #}
+  <div class="sr-only">
+    <table>
+      <caption>Visitors and page views by {{ c.unit }}</caption>
+      <thead><tr><th scope="col">{{ c.unit|capitalize }}</th><th scope="col">Visitors</th><th scope="col">Page views</th></tr></thead>
+      <tbody>{% for p in c.hover %}<tr><th scope="row">{{ p.label }}</th><td>{{ p.visitors }}</td><td>{{ p.views }}</td></tr>{% endfor %}</tbody>
+    </table>
+  </div>
+{% endmacro %}

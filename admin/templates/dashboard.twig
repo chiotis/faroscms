@@ -1,221 +1,261 @@
 {% extends '@admin/base.twig' %}
 
+{#
+  Admin > Dashboard: what to do next (the shortcuts), the figures that matter, what needs attention (DashboardAttention), the
+  visitors of the last 90 days when the site's own analytics are on, then the recent content, drafts, activity and the health of
+  the system. Each part is for the people who may see it; an editor's dashboard is about content only.
+#}
 {% block content %}
-  {% set btn_primary = 'inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-blue-700' %}
-  {% set btn_secondary = 'inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50' %}
+  {% import '@admin/partials/analytics-parts.twig' as an %}
+  {% import '@admin/partials/dashboard-parts.twig' as dp %}
+
+  {% set card = 'lc-card rounded-xl border border-slate-200 bg-white' %}
+  {% set card_title = 'm-0 text-sm font-semibold text-slate-900' %}
+  {% set link = 'text-xs font-medium text-blue-700 hover:underline' %}
+  {% set btn = 'inline-flex shrink-0 items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50' %}
+  {% set btn_primary = 'inline-flex shrink-0 items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700' %}
   {% set status = dashboard.system_status.status %}
   {% set status_color = status == 'error' ? 'text-red-700' : (status == 'warning' ? 'text-amber-700' : 'text-emerald-700') %}
   {% set status_dot = status == 'error' ? 'bg-red-500' : (status == 'warning' ? 'bg-amber-500' : 'bg-emerald-500') %}
-  {% set default_lang = site.languages.default|default('en') %}
+  {% set hour = 'now'|date('G') %}
+  {% set who = (user.display_name|default(user.username|default('')))|split(' ')|first %}
+  {% set attention = dashboard.attention %}
+  {% set shown = 6 %}
 
-  <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
-    <div class="rounded-lg border border-slate-200 bg-white p-4">
-      <p class="text-xs font-medium uppercase tracking-wide text-slate-400">Content entries</p>
-      <div class="mt-1.5 flex items-end justify-between">
-        <span class="text-2xl font-semibold tracking-tight text-slate-900">{{ dashboard.content_total }}</span>
-        <span class="mb-0.5 text-xs font-medium text-slate-500">{{ dashboard.content_published }} published</span>
-      </div>
-      <p class="mt-1 text-xs text-slate-400">{{ dashboard.content_draft }} drafts</p>
+  <header class="db-bar">
+    <p class="db-hello"><strong>{{ hour < 12 ? 'Good morning' : (hour < 18 ? 'Good afternoon' : 'Good evening') }}{{ who ? ', ' ~ who : '' }}</strong><span>{{ 'now'|date('l j F') }}</span></p>
+    <div class="flex flex-wrap gap-2">
+      {% for c in create %}<a class="{{ loop.first ? btn_primary : btn }}" href="{{ url('admin/new?type=' ~ c.type) }}"><span aria-hidden="true">+</span> {{ c.label|title }}</a>{% endfor %}
     </div>
+  </header>
+
+  <div class="db-tiles">
+    <a class="db-tile" href="{{ url('admin/content') }}">
+      <span>Content entries</span>
+      <strong>{{ dashboard.content_total }}</strong>
+      <small>{{ dashboard.content_published }} published · {{ dashboard.content_draft }} {{ dashboard.content_draft == 1 ? 'draft' : 'drafts' }}</small>
+    </a>
+    {% if can('forms.manage') and dashboard.submissions_week is not null %}
+    <a class="db-tile" href="{{ url('admin/forms') }}">
+      <span>Form submissions</span>
+      <strong>{{ dashboard.submissions_week }}</strong>
+      <small>in the last 7 days</small>
+    </a>
+    {% endif %}
     {% if can('users.manage') %}
-    <div class="rounded-lg border border-slate-200 bg-white p-4">
-      <p class="text-xs font-medium uppercase tracking-wide text-slate-400">Users</p>
-      <div class="mt-1.5 flex items-end justify-between">
-        <span class="text-2xl font-semibold tracking-tight text-slate-900">{{ dashboard.users_total }}</span>
-        <span class="mb-0.5 text-xs font-medium text-emerald-600">{{ dashboard.users_active }} active</span>
-      </div>
-      <p class="mt-1 text-xs text-slate-400">SQLite user store</p>
-    </div>
+    <a class="db-tile" href="{{ url('admin/users') }}">
+      <span>Users</span>
+      <strong>{{ dashboard.users_total }}</strong>
+      <small>{{ dashboard.users_active }} active</small>
+    </a>
     {% endif %}
     {% if can('backups.manage') %}
-    <div class="rounded-lg border border-slate-200 bg-white p-4">
-      <p class="text-xs font-medium uppercase tracking-wide text-slate-400">Backups</p>
-      <div class="mt-1.5 flex items-end justify-between">
-        <span class="text-2xl font-semibold tracking-tight text-slate-900">{{ dashboard.backups_total }}</span>
-        <span class="mb-0.5 text-xs font-medium text-slate-500">local</span>
-      </div>
-      <p class="mt-1 truncate text-xs text-slate-400">{{ dashboard.last_backup ? dashboard.last_backup.created_at : 'Never created' }}</p>
-    </div>
+    <a class="db-tile" href="{{ url('admin/backups') }}">
+      <span>Backups</span>
+      <strong>{{ dashboard.backups_total }}</strong>
+      <small>{{ dashboard.last_backup ? 'Last ' ~ dashboard.last_backup.created_at : 'None yet' }}</small>
+    </a>
     {% endif %}
     {% if can('settings.manage') %}
-    <div class="rounded-lg border border-slate-200 bg-white p-4">
-      <p class="text-xs font-medium uppercase tracking-wide text-slate-400">System status</p>
-      <div class="mt-1.5 flex items-end justify-between">
-        <span class="truncate text-2xl font-semibold tracking-tight {{ status_color }}">{{ dashboard.system_status.label }}</span>
-        <span class="mb-2 h-2 w-2 rounded-full {{ status_dot }}"></span>
-      </div>
-      <p class="mt-1 text-xs text-slate-400">{{ dashboard.system_status.detail }}</p>
-    </div>
+    <a class="db-tile" href="{{ url('admin/system') }}">
+      <span>System status</span>
+      <strong class="{{ status_color }}">{{ dashboard.system_status.label }}</strong>
+      <small><i class="db-dot {{ status_dot }}" aria-hidden="true"></i>{{ dashboard.system_status.detail }}</small>
+    </a>
     {% endif %}
   </div>
 
-  {% if can('activity.manage') or can('email_logs.manage') or can('settings.manage') %}
-  <div class="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-3">
-    {% if can('activity.manage') %}
-    <div class="rounded-lg border border-slate-200 bg-white xl:col-span-2">
-      <div class="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-        <h2 class="text-sm font-semibold text-slate-900">Recent activity</h2>
-        <a href="{{ url('admin/activity-logs') }}" class="text-xs font-medium text-blue-600 hover:text-blue-700">View all</a>
+  <section class="{{ card }} db-attn" aria-labelledby="db-h-attn">
+    <div class="db-head">
+      <h2 id="db-h-attn" class="{{ card_title }}">Needs attention{% if attention %} <span class="db-count">{{ attention|length }}</span>{% endif %}</h2>
+    </div>
+    {% if attention is empty %}
+      <p class="db-clear"><svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg> Nothing needs your attention right now.</p>
+    {% else %}
+      <ul class="db-items">
+        {% for a in attention|slice(0, shown) %}{{ dp.item(a) }}{% endfor %}
+      </ul>
+      {% if attention|length > shown %}
+        <details class="db-more">
+          <summary>Show {{ attention|length - shown }} more</summary>
+          <ul class="db-items">{% for a in attention|slice(shown) %}{{ dp.item(a) }}{% endfor %}</ul>
+        </details>
+      {% endif %}
+    {% endif %}
+  </section>
+
+  {% if analytics %}
+    {% set report = analytics.report %}
+    <section class="{{ card }} db-an" aria-labelledby="db-h-an">
+      <div class="db-head">
+        <h2 id="db-h-an" class="{{ card_title }}">Visitors, last 90 days</h2>
+        <span class="db-head-side"><span class="an-pulse" aria-hidden="true"></span>{{ analytics.now.visitors }} on the site now · <a class="{{ link }}" href="{{ url('admin/analytics') }}">Open reports</a></span>
       </div>
-      {% if dashboard.recent_activity is empty %}
-        <div class="px-4 py-10 text-center text-sm text-slate-400">No activity yet.</div>
+      {% if report.empty %}
+        <p class="db-an-empty">No visits were counted in the last 90 days. The counting script is on every public page; visits of signed-in people, robots and visitors who ask not to be tracked are left out. <a class="{{ link }}" href="{{ url('admin/analytics') }}">Open the reports</a></p>
       {% else %}
-        <div class="overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="border-b border-slate-100 text-left text-xs font-medium text-slate-400">
-                <th class="px-4 py-2 font-medium">Event</th>
-                <th class="px-4 py-2 font-medium">Actor</th>
-                <th class="px-4 py-2 font-medium">Subject</th>
-                <th class="px-4 py-2 font-medium">Time</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-50">
-              {% for log in dashboard.recent_activity %}
-                <tr class="hover:bg-slate-50">
-                  <td class="px-4 py-2.5">
-                    <span class="font-mono text-xs text-slate-500">{{ log.action }}</span>
-                    <div class="truncate text-xs text-slate-400">{{ log.message ?: '—' }}</div>
-                  </td>
-                  <td class="px-4 py-2.5 text-slate-700">{{ log.actor_username ?: 'system' }}</td>
-                  <td class="px-4 py-2.5">
-                    <div class="text-slate-600">{{ log.subject_type ?: '—' }}</div>
-                    <div class="max-w-40 truncate text-xs text-slate-400">{{ log.subject_id ?: '' }}</div>
-                  </td>
-                  <td class="whitespace-nowrap px-4 py-2.5 text-slate-400">{{ log.created_at }}</td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+        <div class="db-an-body">
+          <div class="db-an-main">
+            {{ an.kpis(report) }}
+            <div class="db-an-legend an-legend"><i class="is-visitors"></i>Visitors <i class="is-views"></i>Page views <span>The change is against the 90 days before.</span></div>
+            {{ an.chart(report) }}
+          </div>
+          <div class="db-an-side">
+            {% for kind, name in {'page': 'Top pages', 'channel': 'Where they come from'} %}
+              {% set list = report.lists[kind] %}
+              <h3 class="db-sub">{{ name }}</h3>
+              {% if list.rows is empty %}
+                <p class="an-none">Nothing counted yet.</p>
+              {% else %}
+                <ul class="an-list">
+                  {% for row in list.rows|slice(0, 5) %}
+                    <li class="an-row"><span class="an-bar" style="width: {{ row.pct }}%"></span><span class="an-label" title="{{ row.label }}">{% if kind == 'page' and row.key != '(other)' %}<a href="{{ url(row.key|trim('/')) }}" target="_blank" rel="noopener">{{ row.label }}</a>{% else %}{{ row.label }}{% endif %}</span><span class="an-num">{{ row.visitors|number_format }}</span></li>
+                  {% endfor %}
+                </ul>
+              {% endif %}
+            {% endfor %}
+          </div>
         </div>
       {% endif %}
-    </div>
-    {% endif %}
+    </section>
+  {% endif %}
 
-    <div class="space-y-4">
-      {% if can('email_logs.manage') %}
-      <div class="rounded-lg border border-slate-200 bg-white">
-        <div class="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-          <h2 class="text-sm font-semibold text-slate-900">Recent emails</h2>
-          <a href="{{ url('admin/email-logs') }}" class="text-xs font-medium text-blue-600 hover:text-blue-700">All</a>
+  <div class="db-grid">
+    <div class="db-col">
+      <section class="{{ card }}" aria-labelledby="db-h-recent">
+        <div class="db-head">
+          <h2 id="db-h-recent" class="{{ card_title }}">Recent content</h2>
+          <a class="{{ link }}" href="{{ url('admin/content') }}">All content</a>
         </div>
-        {% if dashboard.recent_emails is empty %}
-          <div class="px-4 py-8 text-center text-sm text-slate-400">No email attempts yet.</div>
+        {% if dashboard.content_types|length > 1 %}
+          <p class="db-types">{% for row in dashboard.content_types %}<a class="ct-pill" href="{{ url('admin/content?type=' ~ row.type) }}">{{ row.type|title }} <b>{{ row.count }}</b>{% if row.draft %} <small>· {{ row.draft }} {{ row.draft == 1 ? 'draft' : 'drafts' }}</small>{% endif %}</a>{% endfor %}</p>
+        {% endif %}
+        {% if dashboard.recent_content is empty %}
+          <p class="db-none">No content yet.</p>
         {% else %}
-          <ul class="divide-y divide-slate-50">
-            {% for email in dashboard.recent_emails %}
-              {% set email_ok = email.status == 'sent' %}
-              <li class="flex items-center gap-3 px-4 py-2.5">
-                <span class="h-1.5 w-1.5 shrink-0 rounded-full {{ email_ok ? 'bg-emerald-500' : 'bg-red-500' }}"></span>
-                <div class="min-w-0 flex-1">
-                  <p class="truncate text-sm text-slate-700">{{ email.subject ?: 'No subject' }}</p>
-                  <p class="truncate text-xs text-slate-400">{{ email.recipient }}</p>
+          <ul class="db-list">
+            {% for item in dashboard.recent_content %}
+              <li>
+                <div class="min-w-0">
+                  <a class="db-title" href="{{ url('admin/edit?type=' ~ item.type ~ '&slug=' ~ item.slug ~ '&lang=' ~ item.lang) }}">{{ item.title }}</a>
+                  <p class="db-meta">{{ item.type }} · {{ item.lang|upper }} · {{ item.updated_at }}</p>
                 </div>
-                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset {{ email_ok ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' : 'bg-red-50 text-red-700 ring-red-200' }}">{{ email.status }}</span>
+                <span class="db-badge {{ item.status == 'draft' ? 'is-draft' : 'is-live' }}">{{ item.status }}</span>
               </li>
             {% endfor %}
           </ul>
         {% endif %}
-      </div>
-      {% endif %}
+      </section>
 
-      {% if can('settings.manage') %}
-      <div class="rounded-lg border border-slate-200 bg-white p-4">
-        <div class="flex items-center justify-between">
-          <h2 class="text-sm font-semibold text-slate-900">Storage</h2>
-          <span class="text-xs font-medium {{ dashboard.storage.level == 'danger' ? 'text-red-600' : (dashboard.storage.level == 'warn' ? 'text-orange-600' : 'text-slate-400') }}">{{ dashboard.storage.percent_of_limit ?? dashboard.storage.percent }}%</span>
+      {% if can('activity.manage') %}
+      <section class="{{ card }}" aria-labelledby="db-h-activity">
+        <div class="db-head">
+          <h2 id="db-h-activity" class="{{ card_title }}">Recent activity</h2>
+          <a class="{{ link }}" href="{{ url('admin/activity-logs') }}">View all</a>
         </div>
-        <div class="mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-200" role="progressbar" aria-label="Storage used" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ dashboard.storage.percent }}">
-          <div class="h-full rounded-full transition-all {{ dashboard.storage.level == 'danger' ? 'bg-red-500' : (dashboard.storage.level == 'warn' ? 'bg-orange-500' : 'bg-slate-900') }}" style="width: {{ dashboard.storage.percent }}%"></div>
-        </div>
-        <dl class="mt-3 space-y-2 text-sm">
-          <div class="flex justify-between"><dt class="text-slate-500">Used</dt><dd class="font-medium text-slate-900">{{ dashboard.storage.used_human }}</dd></div>
-          {% if dashboard.storage.limit %}
-            <div class="flex justify-between"><dt class="text-slate-500">Limit</dt><dd class="font-medium text-slate-900">{{ dashboard.storage.limit_human }}</dd></div>
-          {% else %}
-            <div class="flex justify-between"><dt class="text-slate-500">Free disk</dt><dd class="font-medium text-slate-900">{{ dashboard.storage.disk_free_human }}</dd></div>
-          {% endif %}
-        </dl>
-      </div>
-      {% endif %}
-    </div>
-  </div>
-  {% endif %}
-
-  <div class="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-3">
-    <div class="rounded-lg border border-slate-200 bg-white">
-      <div class="border-b border-slate-200 px-4 py-3">
-        <h2 class="text-sm font-semibold text-slate-900">Content by type</h2>
-      </div>
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-          <thead>
-            <tr class="border-b border-slate-100 text-left text-xs font-medium text-slate-400">
-              <th class="px-4 py-2 font-medium">Type</th>
-              <th class="px-4 py-2 text-right font-medium">Entries</th>
-              <th class="px-4 py-2 text-right font-medium">Drafts</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-50">
-            {% for row in dashboard.content_types %}
-              <tr class="hover:bg-slate-50">
-                <td class="px-4 py-2.5"><a class="font-medium text-slate-800 hover:text-blue-600" href="{{ url('admin/content?type=' ~ row.type) }}">{{ row.type|title }}</a></td>
-                <td class="px-4 py-2.5 text-right text-slate-700">{{ row.count }}</td>
-                <td class="px-4 py-2.5 text-right text-slate-500">{{ row.draft }}</td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <div class="rounded-lg border border-slate-200 bg-white">
-      <div class="border-b border-slate-200 px-4 py-3">
-        <h2 class="text-sm font-semibold text-slate-900">Recent content</h2>
-      </div>
-      {% if dashboard.recent_content is empty %}
-        <div class="px-4 py-8 text-center text-sm text-slate-400">No content yet.</div>
-      {% else %}
-        <ul class="divide-y divide-slate-50">
-          {% for item in dashboard.recent_content %}
-            <li class="px-4 py-2.5">
-              <div class="flex items-start justify-between gap-3">
+        {% if dashboard.recent_activity is empty %}
+          <p class="db-none">No activity yet.</p>
+        {% else %}
+          <ul class="db-list">
+            {% for log in dashboard.recent_activity %}
+              <li>
                 <div class="min-w-0">
-                  <a class="block truncate text-sm font-medium text-slate-800 hover:text-blue-600" href="{{ url('admin/edit?type=' ~ item.type ~ '&slug=' ~ item.slug ~ '&lang=' ~ item.lang) }}">{{ item.title }}</a>
-                  <p class="mt-0.5 text-xs text-slate-400">{{ item.type }} / {{ item.lang|upper }} / {{ item.updated_at }}</p>
+                  <p class="db-title is-plain">{{ log.message ?: log.action }}</p>
+                  <p class="db-meta"><code>{{ log.action }}</code> · {{ log.actor_username ?: 'system' }}{% if log.subject_id %} · {{ log.subject_id }}{% endif %}</p>
                 </div>
-                <span class="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset {{ item.status == 'draft' ? 'bg-slate-100 text-slate-600 ring-slate-200' : 'bg-emerald-50 text-emerald-700 ring-emerald-200' }}">{{ item.status }}</span>
+                <time class="db-time" datetime="{{ log.created_at }}">{{ log.created_at|date('j M, H:i') }}</time>
+              </li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      </section>
+      {% endif %}
+    </div>
+
+    <div class="db-col">
+      {% if dashboard.drafts %}
+      <section class="{{ card }}" aria-labelledby="db-h-drafts">
+        <div class="db-head">
+          <h2 id="db-h-drafts" class="{{ card_title }}">Drafts to finish <span class="db-count">{{ dashboard.drafts_total }}</span></h2>
+          {% if dashboard.drafts_total > dashboard.drafts|length %}<a class="{{ link }}" href="{{ url('admin/content?status=draft') }}">All drafts</a>{% endif %}
+        </div>
+        <ul class="db-list">
+          {% for item in dashboard.drafts %}
+            {% set age = (('now'|date('U')) - item.mtime) // 86400 %}
+            <li>
+              <div class="min-w-0">
+                <a class="db-title" href="{{ url('admin/edit?type=' ~ item.type ~ '&slug=' ~ item.slug ~ '&lang=' ~ item.lang) }}">{{ item.title }}</a>
+                <p class="db-meta">{{ item.type }} · {{ item.lang|upper }}</p>
               </div>
+              <span class="db-time{{ age >= 30 ? ' is-old' : '' }}">{{ age < 1 ? 'today' : (age == 1 ? '1 day' : age ~ ' days') }}</span>
             </li>
           {% endfor %}
         </ul>
+      </section>
+      {% endif %}
+
+      {% if can('email_logs.manage') %}
+      <section class="{{ card }}" aria-labelledby="db-h-mail">
+        <div class="db-head">
+          <h2 id="db-h-mail" class="{{ card_title }}">Recent emails</h2>
+          <a class="{{ link }}" href="{{ url('admin/email-logs') }}">All</a>
+        </div>
+        {% if dashboard.recent_emails is empty %}
+          <p class="db-none">No email attempts yet.</p>
+        {% else %}
+          <ul class="db-list">
+            {% for email in dashboard.recent_emails %}
+              {% set email_ok = email.status == 'sent' %}
+              <li>
+                <div class="min-w-0">
+                  <p class="db-title is-plain">{{ email.subject ?: 'No subject' }}</p>
+                  <p class="db-meta">{{ email.recipient }}</p>
+                </div>
+                <span class="db-badge {{ email_ok ? 'is-live' : 'is-bad' }}">{{ email.status }}</span>
+              </li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      </section>
+      {% endif %}
+
+      {% if can('settings.manage') %}
+      <section class="{{ card }}" aria-labelledby="db-h-system">
+        <div class="db-head">
+          <h2 id="db-h-system" class="{{ card_title }}">System checks</h2>
+          <a class="{{ link }}" href="{{ url('admin/system') }}">System</a>
+        </div>
+        <div class="db-storage">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-medium text-slate-600">Storage</span>
+            <span class="text-xs font-medium {{ dashboard.storage.level == 'danger' ? 'text-red-600' : (dashboard.storage.level == 'warn' ? 'text-orange-600' : 'text-slate-500') }}">{{ dashboard.storage.percent_of_limit ?? dashboard.storage.percent }}%</span>
+          </div>
+          <div class="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-200" role="progressbar" aria-label="Storage used" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ dashboard.storage.percent }}">
+            <div class="h-full rounded-full transition-all {{ dashboard.storage.level == 'danger' ? 'bg-red-500' : (dashboard.storage.level == 'warn' ? 'bg-orange-500' : 'bg-slate-900') }}" style="width: {{ dashboard.storage.percent }}%"></div>
+          </div>
+          <dl class="db-dl">
+            <div><dt>Used</dt><dd>{{ dashboard.storage.used_human }}</dd></div>
+            {% if dashboard.storage.limit %}
+              <div><dt>Limit</dt><dd>{{ dashboard.storage.limit_human }}</dd></div>
+            {% else %}
+              <div><dt>Free disk</dt><dd>{{ dashboard.storage.disk_free_human }}</dd></div>
+            {% endif %}
+          </dl>
+        </div>
+        <dl class="db-dl is-checks">
+          {% for check in dashboard.system_checks %}
+            {% set check_class = check.status == 'error' ? 'text-red-700' : (check.status == 'warning' ? 'text-amber-700' : 'text-emerald-700') %}
+            <div><dt>{{ check.label }}</dt><dd class="{{ check_class }}" title="{{ check.value }}">{{ check.value }}</dd></div>
+          {% endfor %}
+          {% if can('updates.manage') %}
+            <div>
+              <dt>FarosCMS</dt>
+              <dd class="{{ admin_update_available|default(false) ? 'text-blue-700' : 'text-emerald-700' }}"><a href="{{ url('admin/updates') }}" class="hover:underline">{{ admin_update_available|default(false) ? 'Update ' ~ admin_update_latest ~ ' available' : 'v' ~ admin_version|default('base') }}</a></dd>
+            </div>
+          {% endif %}
+        </dl>
+      </section>
       {% endif %}
     </div>
-
-    {% if can('settings.manage') %}
-    <div class="rounded-lg border border-slate-200 bg-white">
-      <div class="border-b border-slate-200 px-4 py-3">
-        <h2 class="text-sm font-semibold text-slate-900">System checks</h2>
-      </div>
-      <dl class="divide-y divide-slate-50">
-        {% for check in dashboard.system_checks %}
-          {% set check_class = check.status == 'error' ? 'text-red-700' : (check.status == 'warning' ? 'text-amber-700' : 'text-emerald-700') %}
-          <div class="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
-            <dt class="text-slate-500">{{ check.label }}</dt>
-            <dd class="max-w-48 truncate text-right font-medium {{ check_class }}">{{ check.value }}</dd>
-          </div>
-        {% endfor %}
-        {% if can('updates.manage') %}
-          {% set update_state = admin_update_available|default(false) ? 'Update ' ~ admin_update_latest ~ ' available' : 'v' ~ admin_version|default('base') %}
-          <div class="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
-            <dt class="text-slate-500">FarosCMS</dt>
-            <dd class="max-w-48 truncate text-right font-medium {{ admin_update_available|default(false) ? 'text-blue-700' : 'text-emerald-700' }}">
-              <a href="{{ url('admin/updates') }}" class="hover:underline">{{ update_state }}</a>
-            </dd>
-          </div>
-        {% endif %}
-      </dl>
-    </div>
-    {% endif %}
   </div>
 {% endblock %}

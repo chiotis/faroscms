@@ -326,6 +326,16 @@ final class RedirectRepository
         return $stmt->fetchAll() ?: [];
     }
 
+    /** The addresses of the permanent redirects that are on and stay on this site: the ones whose links in content can be updated. @return string[] */
+    public function permanentSources(int $limit = 500): array
+    {
+        if (!$this->isAvailable()) {
+            return [];
+        }
+        $rows = $this->pdo()->query('SELECT source FROM redirects WHERE enabled = 1 AND status_code = 301 ORDER BY id DESC LIMIT ' . max(1, min(2000, $limit)))->fetchAll() ?: [];
+        return array_values(array_map(static fn(array $row): string => (string)$row['source'], $rows));
+    }
+
     /**
      * @param array{q?: string, origin?: string, state?: string} $filters
      * @return array<int, array<string, mixed>>

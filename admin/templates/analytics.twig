@@ -9,6 +9,7 @@
 {% block content %}
   {% import '@admin/partials/ui.twig' as ui %}
   {% import '@admin/partials/form-rows.twig' as f %}
+  {% import '@admin/partials/analytics-parts.twig' as an %}
 
   {% set card = 'lc-card rounded-xl border border-slate-200 bg-white' %}
   {% set card_title = 'px-3 pt-3 text-sm font-semibold text-slate-900' %}
@@ -31,7 +32,6 @@
   {% if error == 'store' %}{{ ui.flash('The system database is not available, so nothing was saved.', 'error') }}{% endif %}
 
   {% if tab == 'reports' %}
-    {% set c = report.chart %}
     <div class="an-toolbar">
       <nav class="an-seg" aria-label="Period">
         {% for key, label in ranges %}<a href="{{ url('admin/analytics?range=' ~ key) }}"{% if report.span.key == key %} aria-current="true"{% endif %}>{{ label }}</a>{% endfor %}
@@ -61,15 +61,7 @@
       </section>
     {% endif %}
 
-    <div class="an-kpis">
-      {% for k in report.kpis %}
-        <div class="an-kpi" title="{{ k.help }}">
-          <span>{{ k.label }}</span>
-          <strong>{{ k.value }}</strong>
-          {% if k.change is not null %}<em class="{{ k.good ? 'is-good' : 'is-bad' }}"><span aria-hidden="true">{{ k.change >= 0 ? '▲' : '▼' }}</span> {{ k.change|abs }}%<span class="sr-only"> {{ k.change >= 0 ? 'more' : 'less' }} than before</span></em>{% else %}<em class="is-none">—</em>{% endif %}
-        </div>
-      {% endfor %}
-    </div>
+    {{ an.kpis(report) }}
     <p class="an-vs">{{ report.span.label }}{% if report.span.from != report.span.to %} · {{ report.span.from }} – {{ report.span.to }}{% endif %}; the change is against the {{ report.span.days }} {{ report.span.days == 1 ? 'day' : 'days' }} before ({{ report.previous.from }}{% if report.previous.from != report.previous.to %} – {{ report.previous.to }}{% endif %}).</p>
 
     <section class="{{ card }} an-chart-card" aria-labelledby="an-h-chart">
@@ -77,28 +69,7 @@
         <h2 id="an-h-chart" class="m-0 text-sm font-semibold text-slate-900">Visitors and page views</h2>
         <span class="an-legend"><i class="is-visitors"></i>Visitors <i class="is-views"></i>Page views</span>
       </div>
-      <svg class="an-chart" viewBox="0 0 {{ c.w }} {{ c.h }}" role="img" aria-label="Chart of visitors and page views by {{ c.unit }}, {{ report.span.label }}">
-        {% for t in c.ticks %}
-          <line x1="{{ c.left }}" x2="{{ c.right }}" y1="{{ t.y }}" y2="{{ t.y }}" class="an-grid"/>
-          <text x="{{ c.left - 6 }}" y="{{ t.y + 3 }}" text-anchor="end" class="an-axis">{{ t.value|number_format }}</text>
-        {% endfor %}
-        <path d="{{ c.views_area }}" class="an-area-views"/>
-        <path d="{{ c.views_line }}" class="an-line-views"/>
-        <path d="{{ c.visitors_area }}" class="an-area-visitors"/>
-        <path d="{{ c.visitors_line }}" class="an-line-visitors"/>
-        {% for l in c.labels %}<text x="{{ l.x }}" y="{{ c.h - 6 }}" text-anchor="middle" class="an-axis">{{ l.text }}</text>{% endfor %}
-        {% for p in c.hover %}
-          <g class="an-hit"><rect x="{{ p.x }}" y="0" width="{{ p.w }}" height="{{ c.base }}"/><circle cx="{{ p.cx }}" cy="{{ p.cy }}" r="3.5"/><title>{{ p.label }}: {{ p.visitors|number_format }} {{ p.visitors == 1 ? 'visitor' : 'visitors' }}, {{ p.views|number_format }} {{ p.views == 1 ? 'view' : 'views' }}</title></g>
-        {% endfor %}
-      </svg>
-      {# In a box that hides it: a table keeps its own height, so on its own it would make the whole window scroll. #}
-      <div class="sr-only">
-        <table>
-          <caption>Visitors and page views by {{ c.unit }}</caption>
-          <thead><tr><th scope="col">{{ c.unit|capitalize }}</th><th scope="col">Visitors</th><th scope="col">Page views</th></tr></thead>
-          <tbody>{% for p in c.hover %}<tr><th scope="row">{{ p.label }}</th><td>{{ p.visitors }}</td><td>{{ p.views }}</td></tr>{% endfor %}</tbody>
-        </table>
-      </div>
+      {{ an.chart(report) }}
     </section>
 
     <div class="an-cards">

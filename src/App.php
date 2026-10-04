@@ -1105,9 +1105,22 @@ final class App
             fn(string $capability): bool => $this->permissions->can($this->auth->user(), $capability),
             fn(string $type): bool => $this->canAccessContentType($type)
         );
+        $analytics = null;
+        $can = fn(string $capability): bool => $this->permissions->can($this->auth->user(), $capability);
+        if ($can('analytics.manage') && AnalyticsSettings::from($this->settings)['mode'] === 'platform' && $this->analyticsStore()->isAvailable()) {
+            $analytics = $this->analyticsAdmin()->reportsScreen(['range' => '90d']);
+        }
+        $create = [];
+        if ($can('content.manage')) {
+            foreach (array_slice(array_values(array_filter($this->content->getTypes(), fn(string $type): bool => $type !== 'forms' && $this->canAccessContentType($type))), 0, 3) as $type) {
+                $create[] = ['type' => $type, 'label' => 'New ' . $this->singularizeType($type)];
+            }
+        }
         $this->render('@admin/dashboard.twig', [
             'title' => 'Dashboard',
             'dashboard' => $dashboard,
+            'analytics' => $analytics,
+            'create' => $create,
             'types' => $this->content->getTypes(),
             'user' => $this->auth->user(),
             'admin_section' => 'dashboard',
@@ -3286,8 +3299,56 @@ final class App
             $this->emailLogs,
             fn(): array => $this->listBackupSnapshots(),
             $this->siteLimits(),
-            $this->systemStatus()
+            $this->systemStatus(),
+            fn(callable $can): array => $this->dashboardWatch($can)
         );
+    }
+
+    /**
+     * What only the running site knows and the dashboard shows as something to watch, worked out for what the person may see.
+     *
+     * @param callable(string): bool $can
+     * @return array<string, mixed>
+     */
+    private function dashboardWatch(callable $can): array
+    {
+        $facts = ['languages' => array_map('strval', $this->settings['languages']['available'] ?? [$this->defaultLanguage()])];
+        if ($can('backups.manage')) {
+            $facts['backup_schedule'] = $this->backupManager()->scheduleStatus();
+        }
+        if ($can('forms.manage')) {
+            $facts['submissions'] = $this->formSubmissions->recentCount(7);
+        }
+        if ($can('updates.manage')) {
+            $cached = $this->updates()->cachedStatus();
+            if ($cached !== null && $cached['has_update']) {
+                $facts['update'] = ['latest' => (string)($cached['latest_version'] ?? ''), 'current' => (string)($cached['current_version'] ?? '')];
+            }
+        }
+        if ($can('seo.manage')) {
+            $audit = (new SeoAudit($this->content, fn(): array => $this->settings))->run(0)['checks'];
+            $facts['seo'] = [
+                'discourage' => SeoSettings::from($this->settings)['discourage'],
+                'no_description' => $audit['no_description']['count'] ?? 0,
+                'duplicate_titles' => $audit['duplicate_title']['count'] ?? 0,
+            ];
+        }
+        if ($can('redirects.manage')) {
+            $facts['not_found'] = $this->redirects->isAvailable() ? $this->redirects->notFoundCount() : 0;
+            if ($can('content.manage')) {
+                $sources = $this->redirects->permanentSources();
+                $found = $sources !== [] ? $this->linkScanner()->countBySource($sources) : [];
+                $facts['links'] = array_sum($found ?? []);
+            }
+        }
+        if ($can('analytics.manage')) {
+            $a = AnalyticsSettings::from($this->settings);
+            $facts['analytics'] = ['mode' => $a['mode'], 'empty' => $a['tag_id'] === '' && trim($a['head_code']) === '' && trim($a['body_code']) === ''];
+        }
+        if ($can('settings.manage')) {
+            $facts['no_site_address'] = trim((string)($this->settings['base_url'] ?? '')) === '';
+        }
+        return $facts;
     }
 
     private function archiveBuilder(): ArchiveBuilder

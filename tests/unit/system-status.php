@@ -50,7 +50,8 @@ $deadChecks = $by($dead->checks($storage));
 check('a database that cannot open is an error with its reason', [$deadChecks['SQLite']['status'], $deadChecks['SQLite']['value'] !== 'available'], ['error', true]);
 
 // ---- the verdict
-check('an error needs attention', SystemStatus::summarize([['status' => 'ok'], ['status' => 'error'], ['status' => 'warning']]), ['label' => 'Needs attention', 'status' => 'error', 'detail' => '1 critical checks']);
+check('an error needs attention', SystemStatus::summarize([['status' => 'ok'], ['status' => 'error'], ['status' => 'warning']]), ['label' => 'Needs attention', 'status' => 'error', 'detail' => '1 critical check']);
+check('one warning is not plural', SystemStatus::summarize([['status' => 'warning'], ['status' => 'ok']])['detail'], '1 check to review');
 check('warnings are counted', SystemStatus::summarize([['status' => 'warning'], ['status' => 'warning'], ['status' => 'ok']]), ['label' => 'Warnings', 'status' => 'warning', 'detail' => '2 checks to review']);
 check('otherwise healthy', SystemStatus::summarize([['status' => 'ok']]), ['label' => 'Healthy', 'status' => 'ok', 'detail' => 'All checks passing']);
 check('nothing checked is healthy', SystemStatus::summarize([])['status'], 'ok');
@@ -101,6 +102,25 @@ check('recent content is newest first', array_column($d['recent_content'], 'titl
 check('with its language, status and time', [$d['recent_content'][1]['lang'], $d['recent_content'][1]['status'], $d['recent_content'][1]['updated_at']], ['el', 'draft', date('Y-m-d H:i', time() - 50)]);
 check('people, backups, logs and mail are shown', [$d['users_total'], $d['users_active'], $d['backups_total'], $d['last_backup'], $d['activity_total'], count($d['recent_activity']), $d['email_total'], $d['failed_emails']], [2, 1, 2, ['filename' => 'one.zip'], 1, 1, 2, 1]);
 check('the storage summary and system health are included', [$d['storage']['limit'], count($d['system_checks']) > 5, $d['system_status']['status'], $d['php_version']], [104857600, true, 'warning', PHP_VERSION]);
+
+// ---- what to watch, and the drafts
+$watching = new DashboardData($content, $users, $activity, $emails, fn() => $backups, $limits, $status, fn(callable $can) => ['languages' => ['el', 'en']] + ($can('seo.manage') ? ['seo' => ['discourage' => true, 'no_description' => 2, 'duplicate_titles' => 0], 'links' => 4] : []) + ($can('forms.manage') ? ['submissions' => 3] : []));
+$w = $watching->build($all, $all);
+check('the drafts are listed, newest first, and counted', [array_column($w['drafts'], 'title'), $w['drafts_total'], $w['drafts_stale']], [['Beta'], 1, 0]);
+touch("$dir/content/pages/b.md", time() - 40 * 86400);
+$later = new DashboardData(new ContentRepository("$dir/content", new MarkdownConverter($env2), $settings), $users, $activity, $emails, fn() => $backups, $limits, $status);
+$r = $later->build($all, $all);
+check('a draft left alone for a month is stale', [$r['drafts_stale'], $r['drafts'][0]['title']], [1, 'Beta']);
+touch("$dir/content/pages/b.md", time() - 50);
+check('submissions come from the site', $w['submissions_week'], 3);
+check('without the site, there is none', $d['submissions_week'], null);
+$titles = array_column($w['attention'], 'title');
+check('entries missing a language are counted (Beta and the post have no English)', in_array('2 entries are missing a language', $titles, true), true);
+check('what the site knows is turned into lines, the serious first', [$w['attention'][0]['title'], in_array('4 links in content still use an old address', $titles, true)], ['The site asks search engines to stay away', true]);
+check('the storage, the checks and the failed mail are part of it for the super admin', [in_array('Email provider: not configured', $titles, true), in_array('1 email could not be sent this week', $titles, true)], [true, true]);
+$ed = $watching->build(fn(string $c) => $c === 'content.manage', $all);
+check('an editor is told about drafts and languages only', array_column($ed['attention'], 'title'), ['2 entries are missing a language']);
+check('and has no figures of mail from this week', $ed['failed_emails_week'], 0);
 
 $editor = $dash->build(fn(string $c) => $c === 'content.manage', fn(string $t) => $t === 'posts');
 check('an editor sees only the types allowed', [$editor['content_total'], array_column($editor['content_types'], 'type')], [1, ['posts']]);

@@ -73,10 +73,10 @@ final class SystemStatus
         $errors = count(array_filter($checks, static fn(array $check): bool => (string)($check['status'] ?? '') === 'error'));
         $warnings = count(array_filter($checks, static fn(array $check): bool => (string)($check['status'] ?? '') === 'warning'));
         if ($errors > 0) {
-            return ['label' => 'Needs attention', 'status' => 'error', 'detail' => $errors . ' critical checks'];
+            return ['label' => 'Needs attention', 'status' => 'error', 'detail' => $errors . ($errors === 1 ? ' critical check' : ' critical checks')];
         }
         if ($warnings > 0) {
-            return ['label' => 'Warnings', 'status' => 'warning', 'detail' => $warnings . ' checks to review'];
+            return ['label' => 'Warnings', 'status' => 'warning', 'detail' => $warnings . ($warnings === 1 ? ' check to review' : ' checks to review')];
         }
         return ['label' => 'Healthy', 'status' => 'ok', 'detail' => 'All checks passing'];
     }
