@@ -8,6 +8,7 @@ use League\CommonMark\Environment\Environment;
 use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
 use League\CommonMark\Extension\CommonMark\Node\Block\HtmlBlock;
 use League\CommonMark\Extension\CommonMark\Node\Inline\HtmlInline;
+use League\CommonMark\Extension\Strikethrough\StrikethroughExtension;
 use League\CommonMark\Extension\Table\TableExtension;
 use League\CommonMark\Node\Block\AbstractBlock;
 use League\CommonMark\Parser\MarkdownParser;
@@ -455,6 +456,8 @@ final class App
         ]);
         $environment->addExtension(new CommonMarkCoreExtension());
         $environment->addExtension(new TableExtension());
+        // ~~struck~~ text, which the editor's Strike button writes.
+        $environment->addExtension(new StrikethroughExtension());
         return $environment;
     }
 
@@ -842,6 +845,7 @@ final class App
         'edit' => 'handleEdit',
         'save' => 'handleSave',
         'block-presets' => 'handleBlockPresets',
+        'markdown-visual' => 'handleMarkdownVisual',
         'media-picker' => 'handleMediaPicker',
         'delete' => 'handleDelete',
         'new' => 'handleNew',
@@ -1840,6 +1844,25 @@ final class App
         $this->media->ensureDirectories();
         $this->media->migrateLegacyItems();
         echo json_encode($this->mediaAdmin()->picker($_GET), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
+    }
+
+    /** The Markdown of the content editor as the visual editor draws it, block by block (JSON out); nothing is stored. */
+    private function handleMarkdownVisual(): void
+    {
+        header('Content-Type: application/json; charset=utf-8');
+        header('Cache-Control: no-store');
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+            http_response_code(405);
+            echo json_encode(['ok' => false, 'message' => 'POST only.']);
+            return;
+        }
+        $body = (string)($_POST['body'] ?? '');
+        if (strlen($body) > 2_000_000) {
+            http_response_code(413);
+            echo json_encode(['ok' => false, 'message' => 'The text is too long for the visual editor.']);
+            return;
+        }
+        echo json_encode(['ok' => true] + (new VisualMarkdown(fn(): Environment => $this->markdownEnvironment()))->render($body), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
     }
 
     /** Saves or deletes a site section from the block editor (JSON in, JSON out). */
