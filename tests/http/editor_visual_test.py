@@ -73,5 +73,16 @@ write('pages/struck.md', "---\ntitle: 'Struck'\nstatus: published\nvisible: true
 st, _, shown = anon.get('/struck')
 check('~~text~~ is struck on the page', '<del>100</del>' in shown and '~5 km' in shown, re.findall(r'<p>Price[^<]*<[^>]*>[^<]*', shown))
 
+# ---- a link that opens in a new tab: [text](address){target=_blank}
+write('pages/newtab.md', "---\ntitle: 'Newtab'\nstatus: published\nvisible: true\n---\n\nSee [elsewhere](https://example.org/x){target=_blank} and [here](/visual), use {name} as is, and {.big #id onclick=x} gets nothing.\n")
+st, _, shown = anon.get('/newtab')
+check('a link marked {target=_blank} opens in a new tab, with rel noopener', 'target="_blank"' in shown and 'rel="noopener noreferrer"' in shown and '>elsewhere</a>' in shown, re.findall(r'<a [^>]*example\.org[^>]*>', shown))
+check('an ordinary link does not', re.search(r'<a href="/visual"[^>]*>here</a>', shown) is not None and 'target="_blank"' not in re.search(r'<a href="/visual"[^>]*>', shown).group(0))
+check('plain braces stay as text, and no other attribute gets in', '{name}' in shown and 'onclick' not in shown)
+st, data = draw(root, 'A [new tab](https://x.test){target=_blank} link.')
+check('the visual editor draws it with its target', data and 'target="_blank"' in data['blocks'][0]['html'] and data['blocks'][0]['source'] == 'A [new tab](https://x.test){target=_blank} link.', data)
+st, _, html = root.get('/admin/edit?type=pages&slug=newtab&lang=el')
+check('and the Markdown of the entry is as written', '[elsewhere](https://example.org/x){target=_blank}' in html)
+
 print('\nALL PASSED' if not fails else '\n%d FAILED: %s' % (len(fails), fails))
 sys.exit(1 if fails else 0)

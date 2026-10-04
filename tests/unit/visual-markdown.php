@@ -7,6 +7,7 @@
 require dirname(__DIR__, 2) . '/vendor/autoload.php';
 use FarosCMS\VisualMarkdown;
 use League\CommonMark\Environment\Environment;
+use League\CommonMark\Extension\Attributes\AttributesExtension;
 use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
 use League\CommonMark\Extension\Strikethrough\StrikethroughExtension;
 use League\CommonMark\Extension\Table\TableExtension;
@@ -15,10 +16,11 @@ $fail = 0;
 function check(string $label, $actual, $expected): void { global $fail; $ok = $actual === $expected; if (!$ok) $fail++; echo ($ok ? 'ok   ' : 'FAIL ') . $label . ($ok ? '' : ' => ' . json_encode($actual, JSON_UNESCAPED_UNICODE) . ' expected ' . json_encode($expected, JSON_UNESCAPED_UNICODE)) . "\n"; }
 
 $vm = new VisualMarkdown(function (): Environment {
-    $e = new Environment(['renderer' => ['soft_break' => "<br />\n"], 'allow_unsafe_links' => false]);
+    $e = new Environment(['renderer' => ['soft_break' => "<br />\n"], 'allow_unsafe_links' => false, 'attributes' => ['allow' => ['target']]]);
     $e->addExtension(new CommonMarkCoreExtension());
     $e->addExtension(new TableExtension());
     $e->addExtension(new StrikethroughExtension());
+    $e->addExtension(new AttributesExtension());
     return $e;
 });
 
@@ -56,6 +58,10 @@ check('a table is drawn, with its alignment', [str_contains($r['blocks'][0]['htm
 check('strikethrough is drawn', str_contains($r['blocks'][1]['html'], '<del>gone</del>'), true);
 check('a shortcode is text', $r['blocks'][2]['html'], '<p>[form slug=&quot;contact&quot;]</p>');
 check('a link that would run script has lost its address', str_contains($vm->render('[x](javascript:alert(1))')['blocks'][0]['html'], 'javascript'), false);
+
+$r = $vm->render('A [new tab](https://x.test){target=_blank} and [same](/y), {name} and {.cls}.');
+check('a link marked {target=_blank} opens in a new tab, safely', [str_contains($r['blocks'][0]['html'], '<a target="_blank" href="https://x.test" rel="noopener noreferrer">new tab</a>'), str_contains($r['blocks'][0]['html'], '<a href="/y">same</a>')], [true, true]);
+check('no other attribute is accepted, and plain braces stay as text', [str_contains($r['blocks'][0]['html'], '{name}'), str_contains($vm->render('[a](/x){.big #id onclick=x}')['blocks'][0]['html'], 'onclick')], [true, false]);
 
 $r = $vm->render('');
 check('nothing is nothing', [$r['blocks'], $r['tail'], $r['verbatim']], [[], '', true]);
