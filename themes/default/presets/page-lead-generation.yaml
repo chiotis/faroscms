@@ -1,0 +1,23 @@
+kind: page
+template: landing
+label: { el: 'Landing για δυνητικούς πελάτες', en: 'Lead generation landing page' }
+description: { el: 'Hero με φόρμα στο τέλος: υπόσχεση, οφέλη, διαδικασία, νούμερα, σχόλιο, φόρμα και ερωτήσεις. Χρησιμοποιεί το template Landing.', en: 'A hero that leads to a form: a promise, benefits, process, numbers, a quote, the form, and questions. Uses the Landing template.' }
+blocks:
+  el:
+    - { type: hero, variant: split, eyebrow: 'Για μικρές επιχειρήσεις', heading: 'Μια σαφής υπόσχεση που απαντά στο «τι κερδίζω;»', text: 'Δύο προτάσεις: για ποιον είναι, τι αλλάζει και πόσο γρήγορα.', actions: [{ label: 'Ζητήστε προσφορά', url: '#form' }, { label: 'Δείτε πώς δουλεύουμε', url: '#how', style: secondary }], highlights: [{ text: 'Απάντηση σε 24 ώρες' }, { text: 'Χωρίς δέσμευση' }, { text: 'Σταθερή τιμή' }] }
+    - { type: marquee, variant: logos, heading: 'Μας εμπιστεύονται', items: [{ text: Acme }, { text: Globex }, { text: Initech }, { text: Umbrella }, { text: Hooli }, { text: Stark }] }
+    - { type: checklist, variant: split, columns: '1', heading: 'Τι παίρνετε', intro: 'Όλα όσα χρειάζεστε για να ξεκινήσετε, χωρίς κρυφά έξοδα.', items: [{ text: 'Πρώτο όφελος', note: 'Μία γραμμή που το εξηγεί.' }, { text: 'Δεύτερο όφελος', note: 'Μία γραμμή που το εξηγεί.' }, { text: 'Τρίτο όφελος', note: 'Μία γραμμή που το εξηγεί.' }, { text: 'Τέταρτο όφελος' }] }
+    - { type: features, variant: numbered, tone: muted, anchor: how, eyebrow: 'Πώς δουλεύουμε', heading: 'Τρία βήματα', columns: '3', items: [{ title: 'Μιλάμε', text: 'Ακούμε τι χρειάζεστε.' }, { title: 'Σχεδιάζουμε', text: 'Παίρνετε πρόταση και τιμή.' }, { title: 'Παραδίδουμε', text: 'Ξεκινάτε με ό,τι συμφωνήσαμε.' }] }
+    - { type: stats, variant: cards, items: [{ value: '120+', label: 'Ευχαριστημένοι πελάτες' }, { value: '4,9/5', label: 'Μέση βαθμολογία' }, { value: '24h', label: 'Χρόνος απάντησης' }] }
+    - { type: quote, quote: 'Ένα σύντομο, πειστικό σχόλιο πελάτη που απαντά στην πιο συχνή αντίρρηση.', name: 'Όνομα Επώνυμο', role: 'Ρόλος, Εταιρεία' }
+    - { type: form, variant: split, tone: muted, anchor: form, eyebrow: 'Ζητήστε προσφορά', heading: 'Πείτε μας τι χρειάζεστε', intro: 'Συμπληρώστε τη φόρμα και θα σας απαντήσουμε το πολύ σε μία εργάσιμη.', form: contact }
+    - { type: faq, variant: stacked, heading: 'Συχνές ερωτήσεις', items: [{ question: 'Πόσο κοστίζει;', answer: 'Εξηγήστε από τι εξαρτάται και δώστε μια ένδειξη.' }, { question: 'Πόσο γρήγορα ξεκινάμε;', answer: 'Δώστε ένα ρεαλιστικό χρονοδιάγραμμα.' }] }
+  en:
+    - { type: hero, variant: split, eyebrow: 'For small businesses', heading: 'A clear promise that answers “what do I get?”', text: 'Two sentences: who it is for, what changes, and how fast.', actions: [{ label: 'Get a quote', url: '#form' }, { label: 'See how we work', url: '#how', style: secondary }], highlights: [{ text: 'Reply within 24 hours' }, { text: 'No commitment' }, { text: 'Fixed price' }] }
+    - { type: marquee, variant: logos, heading: 'Trusted by', items: [{ text: Acme }, { text: Globex }, { text: Initech }, { text: Umbrella }, { text: Hooli }, { text: Stark }] }
+    - { type: checklist, variant: split, columns: '1', heading: 'What you get', intro: 'Everything you need to start, with no hidden costs.', items: [{ text: 'First benefit', note: 'One line that explains it.' }, { text: 'Second benefit', note: 'One line that explains it.' }, { text: 'Third benefit', note: 'One line that explains it.' }, { text: 'Fourth benefit' }] }
+    - { type: features, variant: numbered, tone: muted, anchor: how, eyebrow: 'How we work', heading: 'Three steps', columns: '3', items: [{ title: 'We talk', text: 'We listen to what you need.' }, { title: 'We plan', text: 'You get a proposal and a price.' }, { title: 'We deliver', text: 'You start with what we agreed.' }] }
+    - { type: stats, variant: cards, items: [{ value: '120+', label: 'Happy clients' }, { value: '4,9/5', label: 'Average rating' }, { value: '24h', label: 'Reply time' }] }
+    - { type: quote, quote: 'A short, convincing client quote that answers the most common objection.', name: 'First Last', role: 'Role, Company' }
+    - { type: form, variant: split, tone: muted, anchor: form, eyebrow: 'Get a quote', heading: 'Tell us what you need', intro: 'Fill in the form and we will reply within one working day.', form: contact }
+    - { type: faq, variant: stacked, heading: 'Common questions', items: [{ question: 'How much does it cost?', answer: 'Explain what it depends on and give an indication.' }, { question: 'How soon can we start?', answer: 'Give a realistic timeline.' }] }

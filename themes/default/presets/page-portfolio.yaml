@@ -1,0 +1,16 @@
+kind: page
+label: { el: 'Portfolio έργων', en: 'Work index (portfolio)' }
+description: { el: 'Πλέγμα έργων με φίλτρα κατηγοριών, νούμερα, σχόλιο και κάλεσμα. Γράψτε τα έργα στο block ή δείξτε τις εγγραφές ενός τύπου περιεχομένου.', en: 'A grid of work with category filters, numbers, a quote, and a call to action. Type the pieces into the block, or show the entries of a content type.' }
+blocks:
+  el:
+    - { type: hero, variant: minimal, eyebrow: 'Έργα', heading: 'Επιλεγμένα έργα', text: 'Μια ματιά σε ό,τι έχουμε φτιάξει. Φιλτράρετε ανά κατηγορία.' }
+    - { type: portfolio, variant: grid, columns: '3', all_label: 'Όλα', items: [{ title: 'Όνομα έργου', category: 'Ιστοσελίδες', text: 'Μία γραμμή για το έργο.', url: contact }, { title: 'Όνομα έργου', category: 'Ταυτότητα, Εκτυπώσεις', text: 'Μία γραμμή για το έργο.', url: contact }, { title: 'Όνομα έργου', category: 'Ιστοσελίδες, Ταυτότητα', text: 'Μία γραμμή για το έργο.', url: contact }, { title: 'Όνομα έργου', category: 'Εκτυπώσεις', text: 'Μία γραμμή για το έργο.', url: contact }, { title: 'Όνομα έργου', category: 'Ιστοσελίδες', text: 'Μία γραμμή για το έργο.', url: contact }, { title: 'Όνομα έργου', category: 'Ταυτότητα', text: 'Μία γραμμή για το έργο.', url: contact }] }
+    - { type: stats, variant: row, tone: muted, items: [{ value: '60+', label: 'Ολοκληρωμένα έργα' }, { value: '12', label: 'Χρόνια εμπειρίας' }, { value: '95%', label: 'Πελάτες που επιστρέφουν' }] }
+    - { type: testimonials, variant: featured, items: [{ quote: 'Σχόλιο πελάτη για τη συνεργασία.', name: 'Όνομα Επώνυμο', role: 'Ρόλος, Εταιρεία' }] }
+    - { type: cta, variant: band, heading: 'Έχετε ένα έργο στο μυαλό σας;', text: 'Πείτε μας γι’ αυτό και θα δούμε πώς μπορούμε να βοηθήσουμε.', actions: [{ label: 'Ξεκινήστε μια συζήτηση', url: contact }] }
+  en:
+    - { type: hero, variant: minimal, eyebrow: Work, heading: 'Selected work', text: 'A look at what we have made. Filter by category.' }
+    - { type: portfolio, variant: grid, columns: '3', all_label: All, items: [{ title: 'Project name', category: Web, text: 'One line about the project.', url: contact }, { title: 'Project name', category: 'Branding, Print', text: 'One line about the project.', url: contact }, { title: 'Project name', category: 'Web, Branding', text: 'One line about the project.', url: contact }, { title: 'Project name', category: Print, text: 'One line about the project.', url: contact }, { title: 'Project name', category: Web, text: 'One line about the project.', url: contact }, { title: 'Project name', category: Branding, text: 'One line about the project.', url: contact }] }
+    - { type: stats, variant: row, tone: muted, items: [{ value: '60+', label: 'Finished projects' }, { value: '12', label: 'Years of experience' }, { value: '95%', label: 'Returning clients' }] }
+    - { type: testimonials, variant: featured, items: [{ quote: 'A client comment on working together.', name: 'First Last', role: 'Role, Company' }] }
+    - { type: cta, variant: band, heading: 'Have a project in mind?', text: 'Tell us about it and we will see how we can help.', actions: [{ label: 'Start a conversation', url: contact }] }

@@ -4,7 +4,7 @@
 #   tests/run.sh            everything
 #   tests/run.sh unit       the PHP checks only (fast, no server)
 #   tests/run.sh http       the browser-level tests only
-#   tests/run.sh redirects  one HTTP test by name (editor, roles, import, redirects, save, history, taxonomies, links, delete, blocks, hero_layouts, mobile_menu, bottom_bar, logs, users_tabs, sidebar, sidebar_brand, theme_page, media_upload, upload_limits, notifications, bad_yaml, custom_roles, storage, storage_cache, line_endings, media_usage, media_picker, admin_a11y, seo_jsonld, robots, media_usage_cache, update_install, setup, fresh_install, catalogue, menu_editor, form_builder, layouts, header_footer, branding, custom_taxonomies, type_options, demo_content, hero_video, seo, analytics, translations, content_types, media, dashboard, editor_visual, youtube_playlist)
+#   tests/run.sh redirects  one HTTP test by name (editor, roles, import, redirects, save, history, taxonomies, links, delete, blocks, hero_layouts, mobile_menu, bottom_bar, logs, users_tabs, sidebar, sidebar_brand, theme_page, media_upload, upload_limits, notifications, bad_yaml, custom_roles, storage, storage_cache, line_endings, media_usage, media_picker, admin_a11y, seo_jsonld, robots, media_usage_cache, update_install, setup, fresh_install, catalogue, menu_editor, form_builder, layouts, header_footer, branding, custom_taxonomies, type_options, demo_content, hero_video, seo, analytics, translations, content_types, media, dashboard, editor_visual, youtube_playlist blocks_pack)
 #
 # The HTTP tests never touch your site: they run against a temporary copy of the code with the small
 # content set in tests/fixtures, on a free local port, and remove it afterwards. The server runs with the functions that
@@ -68,7 +68,7 @@ PYCOPY
   for _ in $(seq 1 50); do curl -s -o /dev/null "http://127.0.0.1:$port/" && break; sleep 0.1; done
 
   echo "HTTP tests (temporary copy on port $port)"
-  for name in editor roles import redirects save history taxonomies links delete blocks hero_layouts mobile_menu bottom_bar logs users_tabs sidebar sidebar_brand theme_page media_upload upload_limits notifications bad_yaml custom_roles storage storage_cache line_endings media_usage media_picker admin_a11y seo_jsonld robots media_usage_cache update_install setup fresh_install catalogue menu_editor form_builder layouts header_footer branding custom_taxonomies type_options demo_content hero_video seo analytics translations content_types media dashboard editor_visual youtube_playlist; do
+  for name in editor roles import redirects save history taxonomies links delete blocks hero_layouts mobile_menu bottom_bar logs users_tabs sidebar sidebar_brand theme_page media_upload upload_limits notifications bad_yaml custom_roles storage storage_cache line_endings media_usage media_picker admin_a11y seo_jsonld robots media_usage_cache update_install setup fresh_install catalogue menu_editor form_builder layouts header_footer branding custom_taxonomies type_options demo_content hero_video seo analytics translations content_types media dashboard editor_visual youtube_playlist blocks_pack; do
     [ -n "$only" ] && [ "$only" != "$name" ] && continue
     # Every test starts from the same clean site.
     rm -rf "$work/app/content" "$work/app/storage" "$work/app/custom" "$work/app/public/uploads"
@@ -88,7 +88,7 @@ case "$MODE" in
   all) run_unit; echo; run_http ;;
   unit) run_unit ;;
   http) run_http ;;
-  editor|roles|import|redirects|save|history|taxonomies|links|delete|blocks|hero_layouts|mobile_menu|bottom_bar|logs|users_tabs|sidebar|sidebar_brand|theme_page|media_upload|upload_limits|notifications|bad_yaml|custom_roles|storage|storage_cache|line_endings|media_usage|media_picker|admin_a11y|seo_jsonld|robots|media_usage_cache|update_install|setup|fresh_install|catalogue|menu_editor|form_builder|layouts|header_footer|branding|custom_taxonomies|type_options|demo_content|hero_video|seo|analytics|translations|content_types|media|dashboard|editor_visual|youtube_playlist) run_http "$MODE" ;;
+  editor|roles|import|redirects|save|history|taxonomies|links|delete|blocks|hero_layouts|mobile_menu|bottom_bar|logs|users_tabs|sidebar|sidebar_brand|theme_page|media_upload|upload_limits|notifications|bad_yaml|custom_roles|storage|storage_cache|line_endings|media_usage|media_picker|admin_a11y|seo_jsonld|robots|media_usage_cache|update_install|setup|fresh_install|catalogue|menu_editor|form_builder|layouts|header_footer|branding|custom_taxonomies|type_options|demo_content|hero_video|seo|analytics|translations|content_types|media|dashboard|editor_visual|youtube_playlist|blocks_pack) run_http "$MODE" ;;
   *) echo "Unknown option: $MODE"; exit 2 ;;
 esac
 

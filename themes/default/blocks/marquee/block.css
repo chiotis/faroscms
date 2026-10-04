@@ -1,0 +1,166 @@
+.marquee-heading {
+  margin: 0 0 var(--space-m);
+  color: var(--color-muted);
+  font-size: var(--step--1);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.marquee-wrap {
+  position: relative;
+}
+
+.marquee {
+  --marquee-time: 40s;
+  overflow: hidden;
+}
+
+.marquee.speed-slow { --marquee-time: 70s; }
+.marquee.speed-fast { --marquee-time: 22s; }
+
+.marquee-track {
+  display: flex;
+  width: max-content;
+}
+
+.marquee-group {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  animation: marquee-scroll var(--marquee-time) linear infinite;
+}
+
+.marquee.dir-right .marquee-group {
+  animation-direction: reverse;
+}
+
+.marquee:hover .marquee-group,
+.marquee:focus-within .marquee-group,
+.marquee.is-paused .marquee-group {
+  animation-play-state: paused;
+}
+
+@keyframes marquee-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-100%); }
+}
+
+.marquee-item {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+}
+
+.marquee-link {
+  display: grid;
+  place-items: center;
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Big words, divided by a dot */
+.block--text .marquee-item {
+  padding-inline: clamp(1.25rem, 1rem + 2vw, 2.5rem);
+}
+
+.block--text .marquee-item::after {
+  content: "";
+  width: 0.55rem;
+  height: 0.55rem;
+  margin-left: clamp(1.25rem, 1rem + 2vw, 2.5rem);
+  margin-right: calc(-1 * clamp(1.25rem, 1rem + 2vw, 2.5rem));
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.block--text .marquee-word {
+  font-family: var(--font-heading);
+  font-size: var(--step-4);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+/* Logos, like the Logos block */
+.block--logos .marquee-item {
+  padding-inline: clamp(1.5rem, 1rem + 3vw, 3.5rem);
+}
+
+.marquee-logo {
+  width: auto;
+  max-width: 10rem;
+  height: 2.5rem;
+  object-fit: contain;
+  filter: grayscale(1);
+  opacity: 0.7;
+  transition: opacity 0.2s var(--ease), filter 0.2s var(--ease);
+}
+
+.marquee-link:hover .marquee-logo {
+  filter: none;
+  opacity: 1;
+}
+
+.block--logos .marquee-word {
+  color: var(--color-muted);
+  font-family: var(--font-heading);
+  font-size: var(--step-1);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+.marquee-pause {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: var(--space-s) auto 0;
+  padding: 0.3rem 0.8rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-button);
+  background: transparent;
+  color: var(--color-muted);
+  font: inherit;
+  font-size: var(--step--1);
+  cursor: pointer;
+}
+
+.marquee-pause:hover {
+  border-color: var(--accent);
+  color: var(--color-text);
+}
+
+.marquee-pause svg {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+.marquee-controls {
+  display: flex;
+  justify-content: center;
+}
+
+/* People who ask for less motion get a still band: the words wrap, and the copy for the loop is not needed. */
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track {
+    width: auto;
+  }
+
+  .marquee-group {
+    flex-wrap: wrap;
+    justify-content: center;
+    padding-inline: var(--gutter);
+    animation: none;
+  }
+
+  .marquee-group[aria-hidden="true"],
+  .marquee-controls {
+    display: none;
+  }
+}

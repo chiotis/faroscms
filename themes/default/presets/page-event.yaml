@@ -1,0 +1,21 @@
+kind: page
+template: landing
+label: { el: 'Εκδήλωση / webinar', en: 'Event or webinar' }
+description: { el: 'Ημερομηνία και ώρα, θέμα, ομιλητές, πρόγραμμα, φόρμα εγγραφής και ερωτήσεις. Χρησιμοποιεί το template Landing.', en: 'Date and time, topic, speakers, agenda, a registration form, and questions. Uses the Landing template.' }
+blocks:
+  el:
+    - { type: hero, variant: split, eyebrow: 'Διαδικτυακό σεμινάριο', heading: 'Τίτλος εκδήλωσης που υπόσχεται κάτι συγκεκριμένο', text: 'Σε ποιον απευθύνεται και τι θα μάθουν οι συμμετέχοντες.', actions: [{ label: 'Κάντε εγγραφή', url: '#register' }], highlights: [{ text: 'Δωρεάν συμμετοχή' }, { text: 'Θα υπάρχει καταγραφή' }] }
+    - { type: stats, variant: cards, items: [{ value: '14 Νοε', label: 'Ημερομηνία' }, { value: '18:00', label: 'Ώρα' }, { value: Online, label: 'Πού', text: 'Ο σύνδεσμος στο email επιβεβαίωσης.' }] }
+    - { type: text-image, variant: image-right, eyebrow: 'Για την εκδήλωση', heading: 'Τι θα δούμε', body: "Περιγράψτε το θέμα σε λίγες γραμμές.\n\n- Πρώτο θέμα\n- Δεύτερο θέμα\n- Ερωτήσεις και απαντήσεις" }
+    - { type: team, variant: compact, tone: muted, heading: 'Οι ομιλητές', columns: '3', members: [{ name: 'Όνομα Επώνυμο', role: 'Ρόλος, Εταιρεία' }, { name: 'Όνομα Επώνυμο', role: 'Ρόλος, Εταιρεία' }, { name: 'Όνομα Επώνυμο', role: 'Ρόλος, Εταιρεία' }] }
+    - { type: timeline, variant: vertical, heading: 'Πρόγραμμα', items: [{ label: '18:00', title: 'Καλωσόρισμα' }, { label: '18:10', title: 'Κύρια παρουσίαση' }, { label: '18:50', title: 'Ερωτήσεις και απαντήσεις' }] }
+    - { type: form, variant: stacked, tone: muted, anchor: register, eyebrow: 'Εγγραφή', heading: 'Κρατήστε τη θέση σας', intro: 'Θα λάβετε email επιβεβαίωσης με τον σύνδεσμο.', form: contact }
+    - { type: faq, variant: stacked, heading: 'Ερωτήσεις', items: [{ question: 'Θα υπάρχει καταγραφή;', answer: 'Απαντήστε ναι ή όχι και πότε θα σταλεί.' }, { question: 'Χρειάζομαι κάποιο πρόγραμμα;', answer: 'Αναφέρετε την πλατφόρμα.' }] }
+  en:
+    - { type: hero, variant: split, eyebrow: Webinar, heading: 'An event title that promises something specific', text: 'Who it is for and what attendees will learn.', actions: [{ label: Register, url: '#register' }], highlights: [{ text: 'Free to attend' }, { text: 'Recording available' }] }
+    - { type: stats, variant: cards, items: [{ value: '14 Nov', label: Date }, { value: '18:00', label: Time }, { value: Online, label: Where, text: 'The link is in the confirmation email.' }] }
+    - { type: text-image, variant: image-right, eyebrow: 'About the event', heading: 'What we will cover', body: "Describe the topic in a few lines.\n\n- First topic\n- Second topic\n- Questions and answers" }
+    - { type: team, variant: compact, tone: muted, heading: 'The speakers', columns: '3', members: [{ name: 'First Last', role: 'Role, Company' }, { name: 'First Last', role: 'Role, Company' }, { name: 'First Last', role: 'Role, Company' }] }
+    - { type: timeline, variant: vertical, heading: Agenda, items: [{ label: '18:00', title: Welcome }, { label: '18:10', title: 'Main talk' }, { label: '18:50', title: 'Questions and answers' }] }
+    - { type: form, variant: stacked, tone: muted, anchor: register, eyebrow: Registration, heading: 'Save your seat', intro: 'You will receive a confirmation email with the link.', form: contact }
+    - { type: faq, variant: stacked, heading: Questions, items: [{ question: 'Will there be a recording?', answer: 'Say yes or no, and when it will be sent.' }, { question: 'Do I need any software?', answer: 'Name the platform.' }] }

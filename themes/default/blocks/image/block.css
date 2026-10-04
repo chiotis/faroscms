@@ -1,0 +1,65 @@
+.image-block {
+  margin: 0;
+}
+
+.image-block-frame,
+.image-block-link {
+  display: block;
+  overflow: hidden;
+}
+
+.image-block.is-rounded .image-block-frame,
+.image-block.is-rounded .image-block-link {
+  border-radius: var(--radius-l);
+}
+
+.image-block-img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.image-block.ratio-landscape .image-block-img { aspect-ratio: 16 / 9; }
+.image-block.ratio-classic .image-block-img { aspect-ratio: 4 / 3; }
+.image-block.ratio-square .image-block-img { aspect-ratio: 1; }
+.image-block.ratio-portrait .image-block-img { aspect-ratio: 4 / 5; }
+.image-block.ratio-panorama .image-block-img { aspect-ratio: 21 / 9; }
+
+.image-block:not(.ratio-original) .image-block-img {
+  height: 100%;
+  object-fit: cover;
+}
+
+.image-block-link:focus-visible {
+  outline-offset: 3px;
+}
+
+.image-block-link .image-block-img {
+  transition: transform 0.4s var(--ease);
+}
+
+.image-block-link:hover .image-block-img {
+  transform: scale(1.02);
+}
+
+.image-block-caption {
+  margin-top: var(--space-xs);
+  color: var(--color-muted);
+  font-size: var(--step--1);
+}
+
+.image-block-caption.is-center {
+  text-align: center;
+}
+
+/* Edge to edge: the caption keeps the page's margins. */
+.image-block-full .image-block-caption {
+  width: min(100% - 2 * var(--gutter), var(--container));
+  margin-inline: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .image-block-link:hover .image-block-img {
+    transform: none;
+  }
+}

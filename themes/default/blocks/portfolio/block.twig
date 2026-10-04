@@ -1,0 +1,48 @@
+{% import 'components/ui.twig' as ui %}
+{% set prefix = lang_prefix|default('') %}
+{% set sizes = block.columns == '2' ? '(min-width: 900px) 45vw, 92vw' : '(min-width: 1100px) 30vw, (min-width: 700px) 45vw, 92vw' %}
+<div class="container" data-portfolio>
+  {{ ui.section_header(block, heading_tag, block_uid, 'left') }}
+  {# The buttons are shown by the page's script; without it every piece simply shows. #}
+  {% if block.filters and block.cat_list|length > 1 %}
+    <div class="portfolio-filters" role="group" aria-label="{{ t('portfolio.filter', 'Filter by category') }}" data-portfolio-filters hidden>
+      <button type="button" class="portfolio-filter is-active" data-filter="" aria-pressed="true">{{ block.all_label ?: t('portfolio.all', 'All') }}</button>
+      {% for cat in block.cat_list %}
+        <button type="button" class="portfolio-filter" data-filter="{{ cat.slug }}" aria-pressed="false">{{ cat.label }}</button>
+      {% endfor %}
+    </div>
+    <p class="visually-hidden" role="status" aria-live="polite" data-portfolio-status></p>
+  {% endif %}
+  <ul class="portfolio-list cols-{{ block.columns }} ratio-{{ block.ratio }}" role="list">
+    {% for tile in block.tiles %}
+      <li class="portfolio-item" data-categories="{{ tile.cats|map(c => c.slug)|join(' ') }}">
+        {% if tile.entry %}
+          {% set entry = tile.entry %}
+          {% set title = entry.meta.title %}
+          {% set picture = entry.meta.main_image|default('') %}
+          {% set href = url(entry.type == 'pages' ? prefix ~ entry.slug : prefix ~ entry.type ~ '/' ~ entry.slug) %}
+          {% set text = entry.meta.excerpt is defined and entry.meta.excerpt is not null ? entry.meta.excerpt|striptags|trim : '' %}
+        {% else %}
+          {% set title = tile.title %}
+          {% set picture = tile.image %}
+          {% set href = link_url(tile.url, prefix) %}
+          {% set text = tile.text %}
+        {% endif %}
+        <article class="work">
+          <div class="work-media">
+            {% if picture %}{{ image(picture, {alt: '', sizes: sizes, max_width: 1280}) }}{% else %}<span class="work-placeholder" aria-hidden="true"></span>{% endif %}
+          </div>
+          <div class="work-body">
+            {% if tile.cats %}<p class="work-cats">{{ tile.cats|map(c => c.label)|join(' · ') }}</p>{% endif %}
+            {% if title %}
+              <{{ item_heading_tag }} class="work-title">
+                {% if href %}<a class="work-link" href="{{ href }}">{{ title }}</a>{% else %}{{ title }}{% endif %}
+              </{{ item_heading_tag }}>
+            {% endif %}
+            {% if text and block.variant == 'grid' %}<p class="work-text">{{ text|length > 140 ? text|slice(0, 140)|trim ~ '…' : text }}</p>{% endif %}
+          </div>
+        </article>
+      </li>
+    {% endfor %}
+  </ul>
+</div>

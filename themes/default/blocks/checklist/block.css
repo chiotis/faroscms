@@ -1,0 +1,104 @@
+.check-points {
+  display: grid;
+  gap: var(--space-s) var(--space-l);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.check-points.cols-2 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); }
+.check-points.cols-3 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); }
+
+.check-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.8rem;
+}
+
+.check-mark {
+  flex-shrink: 0;
+  box-sizing: content-box;
+  width: 0.85rem;
+  height: 0.85rem;
+  margin-top: 0.1rem;
+  padding: 0.3rem;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.check-body {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.check-text {
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.check-note {
+  color: var(--color-muted);
+  font-size: 0.95rem;
+}
+
+.check-item.is-excluded .check-text {
+  color: var(--color-muted);
+  font-weight: 500;
+  text-decoration: line-through;
+  text-decoration-color: var(--color-border-strong);
+}
+
+.check-item.is-excluded .check-mark {
+  background: var(--color-surface-2, var(--color-surface));
+  color: var(--color-muted);
+}
+
+.checklist-head .section-header:last-child {
+  margin-bottom: 0;
+}
+
+.block--plain .checklist-head .section-header {
+  margin-bottom: var(--space-l);
+}
+
+.block--cards .checklist-head .section-header {
+  margin-bottom: var(--space-l);
+}
+
+.block--cards .check-item {
+  padding: var(--space-s) var(--space-m);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-l);
+  background: var(--card-bg);
+}
+
+.block--split .checklist-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: clamp(2rem, 1rem + 5vw, 6rem);
+  align-items: start;
+}
+
+.block--split .checklist-head {
+  position: sticky;
+  top: calc(var(--header-height, 4.5rem) + 2rem);
+}
+
+.block--split .checklist-head .section-header {
+  margin-bottom: 0;
+}
+
+@media (max-width: 860px) {
+  .block--split .checklist-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .block--split .checklist-head {
+    position: static;
+  }
+
+  .block--split .checklist-head .section-header {
+    margin-bottom: var(--space-l);
+  }
+}

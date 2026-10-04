@@ -803,6 +803,8 @@ final class App
                     }
                     return $result;
                 },
+                'file' => fn(string $url): ?int => $this->images->fileSize($url),
+                'term' => fn(string $id, string $itemLang): string => $this->taxonomyTermLabel('categories', $id, $itemLang),
                 'admin' => fn(): bool => $this->auth->check(),
             ],
             rtrim((string)($this->settings['base_url'] ?? ''), '/')

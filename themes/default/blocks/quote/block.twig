@@ -1,0 +1,17 @@
+<div class="{{ block.variant == 'photo' ? 'container' : 'container-narrow' }}">
+  <figure class="quote-figure{% if block.mark %} has-mark{% endif %}">
+    {% if block.variant == 'photo' and block.image %}
+      <div class="quote-photo">{{ image(block.image, {alt: block.name ?: '', sizes: '(min-width: 800px) 28rem, 92vw', max_width: 900}) }}</div>
+    {% endif %}
+    <div class="quote-main">
+      {% if block.mark %}<span class="quote-mark" aria-hidden="true">&ldquo;</span>{% endif %}
+      <blockquote class="quote-text"><p>{{ block.quote|nl2br }}</p></blockquote>
+      {% if block.name or block.role %}
+        <figcaption class="quote-by">
+          {% if block.name %}<span class="quote-name">{{ block.name }}</span>{% endif %}
+          {% if block.role %}<span class="quote-role">{{ block.role }}</span>{% endif %}
+        </figcaption>
+      {% endif %}
+    </div>
+  </figure>
+</div>

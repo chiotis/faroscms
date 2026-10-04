@@ -1,7 +1,14 @@
 {% import 'components/ui.twig' as ui %}
 {% set prefix = lang_prefix|default('') %}
-<div class="container">
+<div class="container"{% if block.billing_switch %} data-pricing{% endif %}>
   {{ ui.section_header(block, heading_tag, block_uid, block.variant == 'cards' ? 'center' : 'left') }}
+  {# The switch is shown by the page's script; without it a plan shows both its monthly and its yearly price. #}
+  {% if block.billing_switch %}
+    <div class="pricing-switch{% if block.variant == 'cards' %} is-center{% endif %}" role="group" aria-label="{{ t('pricing.billing', 'Billing period') }}" data-pricing-switch hidden>
+      <button type="button" class="pricing-option is-active" data-billing="monthly" aria-pressed="true">{{ block.monthly_label ?: t('pricing.monthly', 'Monthly') }}</button>
+      <button type="button" class="pricing-option" data-billing="yearly" aria-pressed="false">{{ block.yearly_label ?: t('pricing.yearly', 'Yearly') }}{% if block.yearly_note %}<span class="pricing-save">{{ block.yearly_note }}</span>{% endif %}</button>
+    </div>
+  {% endif %}
   <ul class="pricing-list" role="list">
     {% for plan in block.items|filter(p => p.name or p.price) %}
       {% set href = link_url(plan.button_url, prefix) %}
@@ -14,7 +21,10 @@
             {% if plan.description %}<p class="plan-description">{{ plan.description|nl2br }}</p>{% endif %}
           </div>
           {% if plan.price %}
-            <p class="plan-price"><span class="plan-amount">{{ plan.price }}</span>{% if plan.period %} <span class="plan-period">{{ plan.period }}</span>{% endif %}</p>
+            <p class="plan-price"{% if block.billing_switch and plan.yearly_price %} data-billing-price="monthly"{% endif %}><span class="plan-amount">{{ plan.price }}</span>{% if plan.period %} <span class="plan-period">{{ plan.period }}</span>{% endif %}</p>
+            {% if block.billing_switch and plan.yearly_price %}
+              <p class="plan-price" data-billing-price="yearly"><span class="plan-amount">{{ plan.yearly_price }}</span> <span class="plan-period">{{ plan.yearly_period ?: t('pricing.per_year', 'per year') }}</span></p>
+            {% endif %}
           {% endif %}
           {% if features is not empty %}
             <ul class="plan-features" role="list">

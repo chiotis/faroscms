@@ -1,0 +1,11 @@
+{% if block.variant == 'space' %}
+  <div class="divider-space size-{{ block.height }}" aria-hidden="true"></div>
+{% else %}
+  <div class="{{ block.width == 'page' ? 'container' : 'container-narrow' }}">
+    {% if block.variant == 'label' and block.label %}
+      <p class="divider-label style-{{ block.style }} width-{{ block.width }}"><span class="divider-rule" aria-hidden="true"></span><span class="divider-text">{{ block.label }}</span><span class="divider-rule" aria-hidden="true"></span></p>
+    {% else %}
+      <hr class="divider-line style-{{ block.style }} width-{{ block.width }}">
+    {% endif %}
+  </div>
+{% endif %}
