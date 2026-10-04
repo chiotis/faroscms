@@ -71,6 +71,8 @@ final class App
     private array $menuStrings = [];
     private ?LogAdmin $logAdminService = null;
     private ?AdminNotices $adminNoticesService = null;
+    private ?YouTubePlaylist $youtubePlaylistService = null;
+    private ?YouTubeThumbs $youtubeThumbsService = null;
     private ?UpdateAdmin $updateAdminService = null;
     private ?RevisionAdmin $revisionAdminService = null;
     private ?ContentAdmin $contentAdminService = null;
@@ -173,6 +175,12 @@ final class App
         if (str_starts_with($path, 'admin')) {
             $this->sendSecurityHeaders(true);
             $this->handleAdmin($path);
+            return;
+        }
+
+        // A picture of a video of a playlist, kept on this site.
+        if (preg_match('#^_yt/[A-Za-z0-9_-]{11}\.jpg$#', $path) === 1) {
+            $this->handleYoutubeThumb($path);
             return;
         }
 
@@ -420,7 +428,11 @@ final class App
             },
             fn(string $to, string $subject, string $body, array $headers): bool => $this->sendEmailMessage($to, $subject, $body, $headers),
             fn(string $isoDate) => $this->updateBackupLastRun($isoDate),
-            fn(string $action, string $level, ?string $type, ?string $id, string $message, array $context) => $this->logActivity($action, $level, $type, $id, $message, $context)
+            fn(string $action, string $level, ?string $type, ?string $id, string $message, array $context) => $this->logActivity($action, $level, $type, $id, $message, $context),
+            function (): array {
+                $this->youtubePlaylistService = null;
+                return $this->youtubePlaylist()->test();
+            }
         );
     }
 
@@ -781,9 +793,57 @@ final class App
                     return array_slice($items, 0, max(1, min(24, $limit)));
                 },
                 'form' => fn(string $slug): string => $slug === '' ? '' : $this->renderFormEmbedBySlug($this->slugify($slug), $lang, $path),
+                'youtube' => function (string $playlistId, string $thumbs): array {
+                    $result = $this->youtubePlaylist()->fetch($playlistId);
+                    foreach ($result['items'] as $i => $video) {
+                        $result['items'][$i]['thumb'] = 'https://i.ytimg.com/vi/' . $video['id'] . '/hqdefault.jpg';
+                        if ($thumbs !== 'youtube') {
+                            $result['items'][$i]['thumb_path'] = $this->youtubeThumbs()->path($video['id']);
+                        }
+                    }
+                    return $result;
+                },
+                'admin' => fn(): bool => $this->auth->check(),
             ],
             rtrim((string)($this->settings['base_url'] ?? ''), '/')
         );
+    }
+
+    private function youtubePlaylist(): YouTubePlaylist
+    {
+        return $this->youtubePlaylistService ??= new YouTubePlaylist(
+            $this->systemMeta,
+            trim((string)($this->settings['apis']['youtube']['key'] ?? '')),
+            static fn(string $url): array => YouTubePlaylist::request($url),
+            SiteSettings::cacheHours($this->settings['apis']['youtube']['cache_hours'] ?? 6)
+        );
+    }
+
+    private function youtubeThumbs(): YouTubeThumbs
+    {
+        return $this->youtubeThumbsService ??= new YouTubeThumbs(
+            $this->basePath . '/storage/cache/youtube',
+            $this->systemMeta,
+            static fn(string $url): array => YouTubePlaylist::request($url, 4)
+        );
+    }
+
+    /** A picture of a playlist's video, kept on this site (see YouTubeThumbs). */
+    private function handleYoutubeThumb(string $path): void
+    {
+        $id = (string)preg_replace('/\.jpg$/', '', substr($path, 4));
+        $file = $this->youtubeThumbs()->isValid($id, (string)($_GET['s'] ?? '')) ? $this->youtubeThumbs()->file($id) : null;
+        if ($file === null) {
+            http_response_code(404);
+            header('Content-Type: text/plain; charset=utf-8');
+            echo 'Not found';
+            return;
+        }
+        header('Content-Type: image/jpeg');
+        header('Content-Length: ' . (string)filesize($file));
+        header('Cache-Control: public, max-age=86400');
+        header('X-Content-Type-Options: nosniff');
+        readfile($file);
     }
 
     private function blockRegistry(): BlockRegistry

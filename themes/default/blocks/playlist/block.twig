@@ -1,0 +1,72 @@
+{% import 'components/ui.twig' as ui %}
+{% set videos = block.videos %}
+{% set heading_text = block.heading ?: (block.use_title ? block.playlist_title : '') %}
+{% set header = block|merge({heading: heading_text}) %}
+{% set mode = block.variant == 'featured' ? 'inline' : block.play %}
+<div class="container pl pl-{{ block.variant }}"{% if block.variant == 'featured' %} data-playlist-featured{% endif %}>
+  {{ ui.section_header(header, heading_tag, block_uid, block.variant == 'featured' ? 'center' : 'left') }}
+  {% if block.admin and (block.error or block.note) %}
+    <p class="pl-note" role="status">{{ block.error ?: block.note }}</p>
+  {% endif %}
+  {% if videos %}
+    {% if block.variant == 'grid' %}
+      <ul class="video-list video-grid cols-{{ block.columns }}" role="list">
+        {% for video in videos %}<li>{% include 'blocks/playlist/tile.twig' with {video: video, block: block, mode: mode} only %}</li>{% endfor %}
+      </ul>
+    {% elseif block.variant == 'strip' %}
+      <ul class="video-list pl-strip-list" role="list" tabindex="0" aria-label="{{ heading_text ?: block.playlist_title }}">
+        {% for video in videos %}<li>{% include 'blocks/playlist/tile.twig' with {video: video, block: block, mode: mode} only %}</li>{% endfor %}
+      </ul>
+    {% elseif block.variant == 'featured' %}
+      <div class="pl-featured-layout">
+        <div class="pl-stage">
+          {% include 'blocks/playlist/tile.twig' with {video: videos[0], block: block, mode: 'inline'} only %}
+        </div>
+        <ol class="pl-side" role="list" aria-label="{{ heading_text ?: block.playlist_title }}">
+          {% for video in videos %}
+            {% set picture = video.thumb_path is defined and video.thumb_path ? url(video.thumb_path) : video.thumb %}
+            {% set meta_html %}{% include 'blocks/playlist/meta.twig' with {video: video, block: block} only %}{% endset %}
+            <li>
+              <a class="pl-item{{ loop.first ? ' is-current' : '' }}" href="{{ video.watch_url }}" target="_blank" rel="noopener" data-pl-item
+                 data-embed="{{ video.embed_url }}" data-title="{{ video.title }}" data-description="{{ block.show_description ? video.description : '' }}"
+                 data-meta="{{ meta_html|striptags|trim }}"{% if loop.first %} aria-current="true"{% endif %}>
+                {% if block.show_numbers %}<span class="pl-num" aria-hidden="true">{{ loop.index }}</span>{% endif %}
+                <span class="pl-thumb"><img src="{{ picture }}" alt="" loading="lazy" decoding="async" width="480" height="360"{% if video.thumb_path is defined and video.thumb_path %} onerror="this.remove()"{% endif %}>{% if block.show_duration and video.duration %}<span class="pl-length" aria-hidden="true">{{ video.duration }}</span>{% endif %}</span>
+                <span class="pl-text"><span class="pl-name">{{ video.title }}</span></span>
+              </a>
+            </li>
+          {% endfor %}
+        </ol>
+      </div>
+    {% else %}
+      <ol class="pl-rows" role="list">
+        {% for video in videos %}
+          {% set picture = video.thumb_path is defined and video.thumb_path ? url(video.thumb_path) : video.thumb %}
+          {% set title = video.title ?: t('video.default_title', 'Video') %}
+          <li class="pl-row">
+            {% if block.show_numbers %}<span class="pl-num" aria-hidden="true">{{ loop.index }}</span>{% endif %}
+            <div class="video-tile pl-tile ratio-wide">
+              <div class="video-media">
+                <a class="video-play" href="{{ video.watch_url }}" target="_blank" rel="noopener"
+                   {% if mode != 'youtube' %}data-video data-provider="youtube" data-embed="{{ video.embed_url }}" data-title="{{ title }}" data-mode="{{ mode }}" data-label-close="{{ t('video.close', 'Close video') }}"{% endif %}>
+                  <img src="{{ picture }}" alt="" loading="lazy" decoding="async" width="480" height="360"{% if video.thumb_path is defined and video.thumb_path %} onerror="this.remove()"{% endif %}>
+                  <span class="video-button" aria-hidden="true">{{ icon('play') }}</span>
+                  {% if block.show_duration and video.duration %}<span class="video-duration" aria-hidden="true">{{ video.duration }}</span>{% endif %}
+                  <span class="visually-hidden">{{ t('video.play', 'Play video') }}: {{ title }}</span>
+                </a>
+              </div>
+            </div>
+            <div class="pl-info">
+              <{{ item_heading_tag }} class="video-title">{{ title }}</{{ item_heading_tag }}>
+              {% include 'blocks/playlist/meta.twig' with {video: video, block: block} only %}
+              {% if block.show_description and video.description %}<p class="video-caption pl-clamp">{{ video.description }}</p>{% endif %}
+            </div>
+          </li>
+        {% endfor %}
+      </ol>
+    {% endif %}
+    {% if block.link_label %}
+      <p class="pl-more"><a class="btn btn-secondary" href="{{ block.playlist_url }}" target="_blank" rel="noopener">{{ block.link_label }}<span class="visually-hidden"> ({{ t('playlist.opens_youtube', 'opens YouTube') }})</span></a></p>
+    {% endif %}
+  {% endif %}
+</div>

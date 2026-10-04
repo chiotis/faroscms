@@ -110,6 +110,10 @@ final class SiteSettings
                     'path_style' => false,
                 ],
             ],
+            // Keys of services the site talks to (Admin > Settings > APIs).
+            'apis' => [
+                'youtube' => ['key' => '', 'cache_hours' => 6],
+            ],
             'updates' => [
                 'channel' => 'stable',
                 'repository' => 'chiotis/faroscms',
@@ -226,6 +230,7 @@ final class SiteSettings
             'google_enabled' => Format::isTruthy($merged['auth']['google']['enabled'] ?? false),
             'google_client_id' => (string)($merged['auth']['google']['client_id'] ?? ''),
             'google_allowed_domain' => (string)($merged['auth']['google']['allowed_domain'] ?? ''),
+            'youtube_cache_hours' => (string)self::cacheHours($merged['apis']['youtube']['cache_hours'] ?? 6),
             'update_repository' => (string)($merged['updates']['repository'] ?? 'chiotis/faroscms'),
             'update_branch' => (string)($merged['updates']['branch'] ?? 'main'),
             'update_version_url' => (string)($merged['updates']['version_url'] ?? ''),
@@ -292,6 +297,9 @@ final class SiteSettings
             'update_package_url' => (string)($post['update_package_url'] ?? ''),
             'update_release_url' => (string)($post['update_release_url'] ?? ''),
             'update_github_token' => (string)($post['update_github_token'] ?? ''),
+            'youtube_key' => (string)($post['youtube_key'] ?? ''),
+            // Null when the field was not on the form that was sent, so such a form leaves the choice as it is.
+            'youtube_cache_hours' => isset($post['youtube_cache_hours']) ? (string)$post['youtube_cache_hours'] : null,
             'clear_secrets' => is_array($post['clear_secret'] ?? null) ? array_map('strval', $post['clear_secret']) : [],
         ];
     }
@@ -320,7 +328,15 @@ final class SiteSettings
             'google_client_secret' => ['auth', 'google', 'client_secret'],
             'backup_remote_secret_key' => ['backup', 'remote', 'secret_key'],
             'update_github_token' => ['updates', 'github_token'],
+            'youtube_key' => ['apis', 'youtube', 'key'],
         ];
+    }
+
+    /** How many hours a fetched playlist is kept: one of 1, 6, 24 or 72. */
+    public static function cacheHours(mixed $value): int
+    {
+        $hours = (int)$value;
+        return in_array($hours, [1, 6, 24, 72], true) ? $hours : 6;
     }
 
     /**
@@ -406,6 +422,7 @@ final class SiteSettings
         // Kept apart: a box left out of the form (null) is not the same as a box that was emptied.
         $robotsSubmitted = array_key_exists('robots_disallow', $form) && $form['robots_disallow'] !== null;
         $robotsText = (string)($form['robots_disallow'] ?? '');
+        $hoursSubmitted = array_key_exists('youtube_cache_hours', $form) && $form['youtube_cache_hours'] !== null;
         foreach ($form as $key => $value) {
             if (is_array($value)) {
                 $form[$key] = array_map(fn($item) => trim((string)$item), $value);
@@ -579,6 +596,11 @@ final class SiteSettings
             }
             ArrayPath::set($data, $path, $value);
         }
+
+        // The key was set by the loop above; how long a playlist is kept is left as it is when the form did not carry it.
+        $data['apis']['youtube']['cache_hours'] = $hoursSubmitted
+            ? self::cacheHours($form['youtube_cache_hours'])
+            : self::cacheHours($data['apis']['youtube']['cache_hours'] ?? 6);
 
         $this->meta->set('site_settings', Yaml::dump($data, 4, 2));
         return true;

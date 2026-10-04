@@ -1,0 +1,5 @@
+{# The date, the views and the length of a video, as one quiet line. #}
+{% set bits = [] %}
+{% if block.show_date and video.published %}{% set bits = bits|merge([video.published|date(site.date_format|default('d/m/Y'))]) %}{% endif %}
+{% if block.show_views and video.views is not null %}{% set bits = bits|merge([video.views|number_format ~ ' ' ~ t('playlist.views', 'views')]) %}{% endif %}
+{% if bits %}<span class="pl-meta" data-pl-meta>{{ bits|join(' · ') }}</span>{% endif %}
