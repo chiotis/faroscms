@@ -1,5 +1,6 @@
 label: Pricing
 description: Plans or price lists, as cards side by side or as clean rows. One plan can be highlighted.
+category: Convert
 variants:
   cards: Plan cards
   list: Price list

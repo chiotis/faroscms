@@ -1,5 +1,6 @@
 label: Video
 description: One or several videos from YouTube, Vimeo, or an uploaded file. By default a video opens in a large viewer over the page.
+category: Media
 variants:
   featured: One large video
   grid: Grid of videos

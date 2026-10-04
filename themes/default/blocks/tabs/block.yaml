@@ -1,5 +1,6 @@
 label: Tabs
 description: Content in switchable panels, such as services, plans, or steps. Without JavaScript every panel is shown one after another.
+category: Content
 variants:
   horizontal: Tabs above the content
   vertical: Tabs beside the content

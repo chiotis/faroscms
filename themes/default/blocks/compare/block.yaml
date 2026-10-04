@@ -1,5 +1,6 @@
 label: Comparison table
 description: Compare plans, options, or approaches feature by feature. Type yes or no in a cell to show a check or a cross, or write any text.
+category: Convert
 variants:
   lines: Lines
   striped: Striped rows

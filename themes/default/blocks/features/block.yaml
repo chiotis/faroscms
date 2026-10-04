@@ -1,5 +1,6 @@
 label: Features
 description: A grid of features or services, each with an icon, a title, a short text, and an optional link.
+category: Showcase
 variants:
   cards: Cards
   plain: Plain, no cards

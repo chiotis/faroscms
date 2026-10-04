@@ -1,5 +1,6 @@
 label: Before and after
 description: Two pictures of the same subject. Visitors drag a handle to move between them, or see them side by side. Works with the keyboard.
+category: Media
 variants:
   slider: Slider
   side: Side by side

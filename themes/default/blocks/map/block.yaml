@@ -1,5 +1,6 @@
 label: Map
 description: An OpenStreetMap map with a marker. By default the map loads only after the visitor asks for it, so no third-party request is made on page load.
+category: Convert
 variants:
   contained: Inside the page width
   full: Full width

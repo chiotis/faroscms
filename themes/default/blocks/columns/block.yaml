@@ -1,5 +1,6 @@
 label: Columns
 description: Two or three columns side by side, each with an optional picture, a heading, text and a link. Stacks on a phone.
+category: Content
 variants:
   image-side: Picture beside the text
   image-top: Picture above the text

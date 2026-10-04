@@ -1,5 +1,6 @@
 label: Cards
 description: Latest posts, projects, or any content type, or hand-picked cards with an image, text, and link.
+category: Showcase
 variants:
   grid: Grid
   list: Compact list

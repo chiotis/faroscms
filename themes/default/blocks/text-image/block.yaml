@@ -1,5 +1,6 @@
 label: Text and image
 description: Text with an image beside it. Alternate left and right to give long pages a rhythm.
+category: Content
 variants:
   image-right: Image on the right
   image-left: Image on the left

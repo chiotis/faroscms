@@ -1,5 +1,6 @@
 label: Banner
 description: An announcement or highlight, as a slim strip or a boxed callout with an optional button. Visitors can dismiss it if you allow that.
+category: Openers
 variants:
   strip: Slim strip
   callout: Boxed callout

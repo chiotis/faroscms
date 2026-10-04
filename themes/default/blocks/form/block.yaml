@@ -1,5 +1,6 @@
 label: Form
 description: One of the site's forms (Admin > Forms) with a heading and introduction.
+category: Convert
 variants:
   split: Text beside the form
   stacked: Form below the text

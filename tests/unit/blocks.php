@@ -30,6 +30,11 @@ check('a colour other than the current one is dropped', BlockRegistry::previewMa
 check('a value with markup or a script address is dropped', BlockRegistry::previewMarkup($svg('<path d="M1 1" transform="javascript:x"/><rect width="&lt;b&gt;"/>')), '<path d="M1 1"/><rect/>');
 check('not an svg, broken, empty or too large gives nothing', [BlockRegistry::previewMarkup('<html/>'), BlockRegistry::previewMarkup('<svg><path'), BlockRegistry::previewMarkup(''), BlockRegistry::previewMarkup($svg(str_repeat('<path d="M0 0"/>', 600)))], ['', '', '', '']);
 check('a file that points at another file is not read', BlockRegistry::previewMarkup('<?xml version="1.0"?><!DOCTYPE svg [<!ENTITY x SYSTEM "file:///etc/hostname">]><svg xmlns="http://www.w3.org/2000/svg"><path d="M1 1" stroke-width="&x;"/></svg>'), '');
+// ---- the kind of each block (the picker's filter)
+$kinds = array_column($registry->editorDefinitions(), 'category', 'type');
+check('every block the theme ships says what kind it is', array_keys(array_filter($kinds, fn($k) => $k === '')), []);
+check('the kinds are the ones the picker orders', array_values(array_unique(array_filter($kinds, fn($k) => $k !== ''))) == ['Openers', 'Content', 'Media', 'Showcase', 'Convert'] || array_diff(array_unique($kinds), ['Openers', 'Content', 'Media', 'Showcase', 'Convert']) === [], true);
+check('some examples', [$kinds['hero'], $kinds['text'], $kinds['gallery'], $kinds['team'], $kinds['pricing']], ['Openers', 'Content', 'Media', 'Showcase', 'Convert']);
 check('the editor gets the wireframe with the definition', str_contains((string)array_column($registry->editorDefinitions(), 'preview', 'type')['hero'], '<rect'), true);
 
 check('slider is contained with its arrows below by default', [$registry->get('slider')['fields']['width']['default'], $registry->get('slider')['fields']['navigation']['default']], ['contained', 'below']);
