@@ -38,7 +38,7 @@ save_page(root, 'cache-page', f'![x](/uploads/{used})')
 
 # ---- the first look reads everything and keeps the result
 check('nothing is kept before the media screen is opened', kept() is None)
-html = root.get('/admin/media')[2]
+html = root.get('/admin/media?view=list')[2]
 k = kept()
 check('opening the media screen keeps the result', k is not None and k.get('format') == 1 and re.fullmatch(r'[0-9a-f]{64}', k.get('fingerprint', '')) is not None, k and list(k))
 check('with the place each file is used in', used in k['map'] and any('Cache-Page' in p['label'] for p in k['map'][used]) and other not in k['map'], k['map'])

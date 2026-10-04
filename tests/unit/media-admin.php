@@ -46,9 +46,9 @@ $s = $admin->state(['type' => 'IMAGE', 'tag' => 'Hero Shot', 'q' => ' logo ', 'u
 check('the list asked for is read and cleaned', [$s['type'], $s['q'], $s['usage'], $s['page'], $s['per_page'], $s['view'], $s['view_asked']], ['image', 'logo', 'unused', 3, 50, 'thumbs', true]);
 $s = $admin->state(['type' => 'nonsense', 'usage' => 'x', 'page' => '-4', 'per_page' => '7', 'view' => 'grid'], 'thumbs');
 check('nonsense falls back to the defaults, and the remembered view is used', [$s['type'], $s['usage'], $s['page'], $s['per_page'], $s['view'], $s['view_asked']], ['all', '', 1, 20, 'thumbs', false]);
-check('a remembered view that is not valid is the list', $admin->state([], 'weird')['view'], 'list');
+check('a remembered view that is not valid is the thumbnails', $admin->state([], 'weird')['view'], 'thumbs');
 $post = $admin->postState(['_state_type' => 'video', '_state_page' => '2', '_state_q' => ' x ', '_state_view' => 'bad'], $s);
-check('the form carries the list it was sent from, the rest comes from the address', [$post['type'], $post['page'], $post['q'], $post['view'], $post['per_page']], ['video', 2, 'x', 'list', 20]);
+check('the form carries the list it was sent from, the rest comes from the address', [$post['type'], $post['page'], $post['q'], $post['view'], $post['per_page']], ['video', 2, 'x', 'thumbs', 20]);
 check('a form that carries nothing returns to the list of the address', $admin->postState([], $admin->state(['type' => 'image', 'page' => '2'], 'list'))['type'], 'image');
 check('the way back names the list and what happened, empty values left out', $admin->returnQuery(['type' => 'image', 'view' => 'list', 'per_page' => 20, 'page' => 2, 'tag' => '', 'q' => 'logo', 'usage' => ''], ['success' => 'Saved.', 'error' => '', 'page' => 1]), ['type' => 'image', 'view' => 'list', 'per_page' => 20, 'page' => 1, 'q' => 'logo', 'success' => 'Saved.']);
 check('places are named, three at most', [MediaAdmin::placesSentence([['label' => 'A'], ['label' => 'A'], ['label' => 'B']]), MediaAdmin::placesSentence([['label' => 'A'], ['label' => 'B'], ['label' => 'C'], ['label' => 'D'], ['label' => 'E']])], ['A, B', 'A, B, C and 2 more']);

@@ -2321,7 +2321,7 @@ final class App
         $this->media->migrateLegacyItems();
 
         $admin = $this->mediaAdmin();
-        $state = $admin->state($_GET, (string)($_SESSION['admin_media_view'] ?? 'list'));
+        $state = $admin->state($_GET, (string)($_SESSION['admin_media_view'] ?? 'thumbs'));
         if ($state['view_asked']) {
             $_SESSION['admin_media_view'] = $state['view'];
         }
