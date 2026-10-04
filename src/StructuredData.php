@@ -188,6 +188,10 @@ final class StructuredData
                 $page['description'] = $description;
             }
             $graph[] = $page;
+            $place = $this->place($item, $title, $description, $canonical, $absolute);
+            if ($place !== null) {
+                $graph[] = $place;
+            }
         }
 
         if (!$siteSeo['schema']['breadcrumbs']) {
@@ -204,6 +208,53 @@ final class StructuredData
         }
         $graph[] = ['@type' => 'BreadcrumbList', 'itemListElement' => $list];
         return $graph;
+    }
+
+    /**
+     * A point of interest, a route or a business as a place search engines can put on a map: its name, position and, when
+     * it has them, address, phone, email and picture. Null for an entry with no position.
+     *
+     * @param \Closure(string): string $absolute
+     * @return array<string, mixed>|null
+     */
+    private function place(ContentItem $item, string $title, string $description, string $canonical, \Closure $absolute): ?array
+    {
+        $types = ['points' => 'TouristAttraction', 'routes' => 'TouristAttraction', 'businesses' => 'LocalBusiness'];
+        $fields = is_array($item->meta['custom_fields'] ?? null) ? $item->meta['custom_fields'] : [];
+        $position = Geo::parse($fields['location'] ?? null);
+        if (!isset($types[$item->type]) || $position === null) {
+            return null;
+        }
+        $place = [
+            '@type' => $types[$item->type],
+            '@id' => $canonical . '#place',
+            'name' => $title,
+            'url' => $canonical,
+            'geo' => ['@type' => 'GeoCoordinates', 'latitude' => $position['lat'], 'longitude' => $position['lng']],
+        ];
+        if ($description !== '') {
+            $place['description'] = $description;
+        }
+        $image = trim((string)($item->meta['main_image'] ?? ''));
+        if ($image !== '') {
+            $place['image'] = $absolute($image);
+        }
+        $address = array_filter(['@type' => 'PostalAddress', 'streetAddress' => trim((string)($fields['address'] ?? '')), 'addressLocality' => trim((string)($fields['area'] ?? ''))], static fn($v): bool => $v !== '');
+        if (count($address) > 1) {
+            $place['address'] = $address;
+        }
+        foreach (['phone' => 'telephone', 'email' => 'email'] as $field => $property) {
+            if (is_string($fields[$field] ?? null) && trim($fields[$field]) !== '') {
+                $place[$property] = trim($fields[$field]);
+            }
+        }
+        if ($item->type === 'businesses' && isset($fields['price_range']) && is_string($fields['price_range'])) {
+            $range = ['budget' => '€', 'moderate' => '€€', 'upscale' => '€€€'][$fields['price_range']] ?? '';
+            if ($range !== '') {
+                $place['priceRange'] = $range;
+            }
+        }
+        return $place;
     }
 
     /** A date from front matter as a Unix time: a `2026-03-04` string, a timestamp the YAML reader made of it, or nothing. */

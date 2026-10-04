@@ -46,7 +46,12 @@ final class ContentTypes
         'featured' => 'Featured story and a list',
         'magazine' => 'Magazine',
         'editorial' => 'Editorial',
+        'map' => 'Map with a list',
     ];
+
+    /** How tall the map of the map layout is, and where its list sits. */
+    public const MAP_HEIGHTS = ['small' => 'Small', 'medium' => 'Medium', 'large' => 'Large', 'tall' => 'Tall'];
+    public const MAP_LISTS = ['right' => 'Right', 'left' => 'Left', 'below' => 'Below', 'none' => 'No list'];
 
     public const ORDERS = [
         'date_desc' => 'Newest first',
@@ -58,7 +63,7 @@ final class ContentTypes
     /** Field types an archive can be ordered by. */
     public const SORTABLE_TYPES = ['date', 'number', 'decimal', 'text'];
 
-    public const FIELD_TYPES = ['text', 'textarea', 'markdown', 'email', 'url', 'link', 'image', 'color', 'number', 'decimal', 'date', 'select', 'toggle'];
+    public const FIELD_TYPES = ['text', 'textarea', 'markdown', 'email', 'url', 'link', 'image', 'file', 'location', 'color', 'number', 'decimal', 'date', 'select', 'toggle'];
 
     /** @var array<string, array<string, mixed>>|null */
     private ?array $raw = null;
@@ -421,6 +426,8 @@ final class ContentTypes
             'show_excerpt' => ['type' => 'toggle', 'label' => 'Show the excerpt', 'default' => true],
             'show_date' => ['type' => 'toggle', 'label' => 'Show the date', 'default' => true],
             'show_meta' => ['type' => 'toggle', 'label' => 'Show category and card fields', 'default' => true],
+            'map_height' => ['type' => 'select', 'label' => 'Map height', 'default' => 'large', 'options' => self::MAP_HEIGHTS],
+            'map_list' => ['type' => 'select', 'label' => 'List beside the map', 'default' => 'right', 'options' => self::MAP_LISTS],
         ]);
     }
 
@@ -460,7 +467,7 @@ final class ContentTypes
     {
         $schema = self::archiveSchema();
         $submitted = [];
-        foreach (['layout', 'columns'] as $key) {
+        foreach (['layout', 'columns', 'map_height', 'map_list'] as $key) {
             $submitted[$key] = FieldSchema::clean($schema[$key], $input[$key] ?? null);
         }
         $order = (string)($input['order'] ?? '');

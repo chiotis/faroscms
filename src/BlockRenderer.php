@@ -21,7 +21,7 @@ final class BlockRenderer
 {
     /**
      * @param \Closure(string): string $markdown
-     * @param array<string, \Closure> $providers dynamic data: 'items' (type, lang, limit), 'form' (slug), 'youtube' (playlist id, picture source), 'file' (a site file's size in bytes), 'term' (a category's name) and 'admin' (whether someone is signed in)
+     * @param array<string, \Closure> $providers dynamic data: 'items' (type, lang, limit), 'form' (slug), 'youtube' (playlist id, picture source), 'file' (a site file's size in bytes), 'term' (a category's name), 'geo' (entries as a map draws them), 'geo_load' (when maps load) and 'admin' (whether someone is signed in)
      */
     public function __construct(
         private BlockRegistry $registry,
@@ -318,7 +318,15 @@ final class BlockRenderer
             $values['form_html'] = ($this->providers['form'])((string)($values['form'] ?? ''));
         }
         if ($type === 'map') {
-            $values += self::mapUrls($values['lat'] ?? '', $values['lng'] ?? '', (int)($values['zoom'] ?? 15));
+            if (($values['source'] ?? 'manual') === 'manual' || !isset($this->providers['geo'])) {
+                $values['source'] = 'manual';
+                $values += self::mapUrls($values['lat'] ?? '', $values['lng'] ?? '', (int)($values['zoom'] ?? 15));
+            } else {
+                // The entries of a content type (or all with a place) as a map draws them, with filters and a list.
+                $values['geo'] = ($this->providers['geo'])((string)$values['source'], (string)($context['lang'] ?? ''), (int)$values['limit'], (string)$values['term']);
+                $values['_empty'] = $values['geo']['items'] === [];
+            }
+            $values['load_mode'] = ($values['load'] ?? 'site') === 'site' && isset($this->providers['geo_load']) ? ($this->providers['geo_load'])() : (($values['load'] ?? 'click') === 'auto' ? 'auto' : 'click');
         }
         return $values;
     }

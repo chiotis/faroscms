@@ -1,0 +1,53 @@
+{#
+  An interactive map of places, with a list of them beside it. Used by the Map block, by archives with the Map layout, and by the
+  pages of a point, a route and a business. The map is drawn by the page's script (blocks/map/block.js) from the data in the page;
+  without it there is still the list, as links.
+  Variables: geo (data from geo_dataset(), geo_single() or the Map block), height (small, medium, large, tall), list (right, left,
+  below, none), filters (a bar of kinds, categories and a search), cluster (group markers that are close), load (click or auto),
+  label (what the map is called), uid, item_tag (the heading level of the list's entries, default h3).
+#}
+{% set height = height|default('large') %}
+{% set list = list|default('right') %}
+{% set load = load|default(geo_load()) %}
+{% set tag = item_tag|default('h3') in ['h2', 'h3', 'h4', 'p'] ? item_tag|default('h3') : 'h3' %}
+{% set places = geo.items|default([]) %}
+<div class="geo geo-h-{{ height }}" data-geo data-geo-load-mode="{{ load }}"
+  data-leaflet-js="{{ theme_asset('vendor/leaflet/leaflet.js') }}" data-leaflet-css="{{ theme_asset('vendor/leaflet/leaflet.css') }}"
+  data-cluster-js="{{ theme_asset('vendor/leaflet/leaflet.markercluster.js') }}" data-cluster-css="{{ theme_asset('vendor/leaflet/MarkerCluster.css') }}"
+  data-label-all="{{ t('geo.all', 'All') }}" data-label-kinds="{{ t('geo.kinds', 'Kind of place') }}" data-label-category="{{ t('geo.category', 'Category') }}"
+  data-label-categories="{{ t('geo.categories', 'All categories') }}" data-label-search="{{ t('geo.search', 'Search places') }}"
+  data-label-error="{{ t('geo.error', 'The map could not be loaded.') }}">
+  {% if filters|default(false) and places|length > 1 %}<div class="geo-filters" data-geo-filters hidden></div>{% endif %}
+  <p class="visually-hidden" role="status" aria-live="polite" data-geo-status></p>
+  <div class="geo-layout has-list-{{ places and list != 'none' ? list : 'none' }}">
+    <div class="geo-canvas" data-geo-canvas role="region" aria-label="{{ label|default(t('map.title', 'Map')) }}">
+      <div class="geo-placeholder">
+        {{ icon('map-pin', 'geo-placeholder-icon') }}
+        {% if load != 'auto' %}
+          <button type="button" class="btn btn-primary" data-geo-load>{{ t('map.show', 'Show map') }}</button>
+          <p>{{ t('geo.consent', 'The map is drawn from OpenStreetMap tiles. Showing it tells the tile server your address.') }}</p>
+        {% else %}
+          <p>{{ t('geo.loading', 'Loading the map…') }}</p>
+        {% endif %}
+      </div>
+    </div>
+    {% if places and list != 'none' %}
+      <div class="geo-side">
+        <ul class="geo-list" role="list">
+          {% for place in places %}
+            <li class="geo-item" data-geo-item="{{ place.id }}">
+              <div class="geo-item-media">{% if place.img %}<img src="{{ place.img }}" alt="" loading="lazy" width="72" height="56">{% endif %}</div>
+              <div class="geo-item-body">
+                <p class="geo-item-kind">{{ place.kind }}{% if place.area %} · {{ place.area }}{% endif %}</p>
+                <{{ tag }} class="geo-item-title"><a href="{{ place.url }}">{{ place.title }}</a></{{ tag }}>
+                {% if place.facts %}<p class="geo-item-facts">{{ place.facts|join(' · ') }}</p>{% endif %}
+              </div>
+              <button type="button" class="geo-show" data-geo-show hidden aria-label="{{ t('geo.show_on_map', 'Show on the map') }}: {{ place.title }}">{{ icon('map-pin') }}</button>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+  </div>
+  <script type="application/json" data-geo-data>{{ geo_json(geo|merge({cluster: cluster|default(true)})) }}</script>
+</div>

@@ -113,6 +113,8 @@ final class SiteSettings
             // Keys of services the site talks to (Admin > Settings > APIs).
             'apis' => [
                 'youtube' => ['key' => '', 'cache_hours' => 6],
+                // The tiles of the maps ('' means OpenStreetMap's), their credit, and when a map loads: 'click' (the visitor asks) or 'auto'.
+                'maps' => ['tiles_url' => '', 'attribution' => '', 'load' => 'click'],
             ],
             'updates' => [
                 'channel' => 'stable',
@@ -231,6 +233,9 @@ final class SiteSettings
             'google_client_id' => (string)($merged['auth']['google']['client_id'] ?? ''),
             'google_allowed_domain' => (string)($merged['auth']['google']['allowed_domain'] ?? ''),
             'youtube_cache_hours' => (string)self::cacheHours($merged['apis']['youtube']['cache_hours'] ?? 6),
+            'maps_tiles_url' => (string)($merged['apis']['maps']['tiles_url'] ?? ''),
+            'maps_attribution' => (string)($merged['apis']['maps']['attribution'] ?? ''),
+            'maps_load' => ($merged['apis']['maps']['load'] ?? 'click') === 'auto' ? 'auto' : 'click',
             'update_repository' => (string)($merged['updates']['repository'] ?? 'chiotis/faroscms'),
             'update_branch' => (string)($merged['updates']['branch'] ?? 'main'),
             'update_version_url' => (string)($merged['updates']['version_url'] ?? ''),
@@ -300,6 +305,9 @@ final class SiteSettings
             'youtube_key' => (string)($post['youtube_key'] ?? ''),
             // Null when the field was not on the form that was sent, so such a form leaves the choice as it is.
             'youtube_cache_hours' => isset($post['youtube_cache_hours']) ? (string)$post['youtube_cache_hours'] : null,
+            'maps_tiles_url' => isset($post['maps_tiles_url']) ? (string)$post['maps_tiles_url'] : null,
+            'maps_attribution' => isset($post['maps_attribution']) ? (string)$post['maps_attribution'] : null,
+            'maps_load' => isset($post['maps_load']) ? (string)$post['maps_load'] : null,
             'clear_secrets' => is_array($post['clear_secret'] ?? null) ? array_map('strval', $post['clear_secret']) : [],
         ];
     }
@@ -423,6 +431,7 @@ final class SiteSettings
         $robotsSubmitted = array_key_exists('robots_disallow', $form) && $form['robots_disallow'] !== null;
         $robotsText = (string)($form['robots_disallow'] ?? '');
         $hoursSubmitted = array_key_exists('youtube_cache_hours', $form) && $form['youtube_cache_hours'] !== null;
+        $mapsSubmitted = array_key_exists('maps_load', $form) && $form['maps_load'] !== null;
         foreach ($form as $key => $value) {
             if (is_array($value)) {
                 $form[$key] = array_map(fn($item) => trim((string)$item), $value);
@@ -601,6 +610,17 @@ final class SiteSettings
         $data['apis']['youtube']['cache_hours'] = $hoursSubmitted
             ? self::cacheHours($form['youtube_cache_hours'])
             : self::cacheHours($data['apis']['youtube']['cache_hours'] ?? 6);
+
+        // The maps: only what the form carried. Tiles must be an https address with {z}, {x} and {y} in it, or the default is used.
+        if ($mapsSubmitted) {
+            $tiles = (string)($form['maps_tiles_url'] ?? '');
+            $valid = preg_match('#^https://[^\s"\'<>]+\{z\}[^\s"\'<>]*\{x\}[^\s"\'<>]*\{y\}[^\s"\'<>]*$#', $tiles) === 1;
+            $data['apis']['maps'] = [
+                'tiles_url' => $valid ? $tiles : '',
+                'attribution' => $valid ? GeoView::cleanAttribution((string)($form['maps_attribution'] ?? '')) : '',
+                'load' => ($form['maps_load'] ?? '') === 'auto' ? 'auto' : 'click',
+            ];
+        }
 
         $this->meta->set('site_settings', Yaml::dump($data, 4, 2));
         return true;

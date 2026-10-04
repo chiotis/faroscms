@@ -73,6 +73,7 @@ final class App
     private ?AdminNotices $adminNoticesService = null;
     private ?YouTubePlaylist $youtubePlaylistService = null;
     private ?YouTubeThumbs $youtubeThumbsService = null;
+    private ?GeoView $geoViewService = null;
     private ?UpdateAdmin $updateAdminService = null;
     private ?RevisionAdmin $revisionAdminService = null;
     private ?ContentAdmin $contentAdminService = null;
@@ -650,7 +651,8 @@ final class App
                     'type' => $type,
                     'alternate_urls' => $alternates['urls'],
                     'alternate_default' => $alternates['default'],
-                    'block_styles' => [$this->theme->blockStylesheetUrl(rtrim((string)($this->settings['base_url'] ?? ''), '/'), ['latest'])],
+                    'block_styles' => [$this->theme->blockStylesheetUrl(rtrim((string)($this->settings['base_url'] ?? ''), '/'), ($archive['settings']['layout'] ?? '') === 'map' ? ['latest', 'map'] : ['latest'])],
+                    'block_scripts' => ($archive['settings']['layout'] ?? '') === 'map' ? array_values(array_filter([$this->theme->blockScriptUrl(rtrim((string)($this->settings['base_url'] ?? ''), '/'), ['map'])])) : [],
                     'noindex_page' => $archive['filtered'],
                 ] + $viewDefaults);
                 return;
@@ -738,10 +740,19 @@ final class App
                 'body_html' => $bodyInTemplate ? '' : $item->html,
             ]);
         }
+        $styles = $pageBlocks['styles'] ?? [];
+        $scripts = $pageBlocks['scripts'] ?? [];
+        if ($this->hasPlaceField($item->type)) {
+            // The page of a point, a route or a business draws a map: it needs the map's style sheet and script, once.
+            $base = rtrim((string)($this->settings['base_url'] ?? ''), '/');
+            $types = array_values(array_unique(array_merge($pageBlocks['types'] ?? [], ['map'])));
+            $styles = array_values(array_filter([$this->theme->blockStylesheetUrl($base, $types)]));
+            $scripts = array_values(array_filter([$this->theme->blockScriptUrl($base, $types)]));
+        }
         return [
             'page_blocks' => $pageBlocks,
-            'block_styles' => $pageBlocks['styles'] ?? [],
-            'block_scripts' => $pageBlocks['scripts'] ?? [],
+            'block_styles' => $styles,
+            'block_scripts' => $scripts,
             'structured_data' => array_merge(
                 $this->structuredData()->forItem($item, $lang, (string)($viewDefaults['canonical_url'] ?? ''), $isHome, (string)($pageBlocks['image'] ?? '')),
                 $pageBlocks['structured_data'] ?? []
@@ -804,6 +815,13 @@ final class App
                     return $result;
                 },
                 'file' => fn(string $url): ?int => $this->images->fileSize($url),
+                // The Map block when it shows content: the entries to put on the map, as the data a map draws (type, language, limit, category).
+                'geo' => function (string $source, string $itemLang, int $limit, string $term) use ($includeHidden): array {
+                    $view = $this->geoView();
+                    $types = $source === 'all' ? $view->placeTypes() : (in_array($source, $view->placeTypes(), true) ? [$source] : []);
+                    return $view->dataset($view->gather($types, $itemLang, $this->slugify($term)), $itemLang, ['limit' => max(1, min(800, $limit))]);
+                },
+                'geo_load' => fn(): string => ($this->settings['apis']['maps']['load'] ?? 'click') === 'auto' ? 'auto' : 'click',
                 'term' => fn(string $id, string $itemLang): string => $this->taxonomyTermLabel('categories', $id, $itemLang),
                 'admin' => fn(): bool => $this->auth->check(),
             ],
@@ -818,6 +836,48 @@ final class App
             trim((string)($this->settings['apis']['youtube']['key'] ?? '')),
             static fn(string $url): array => YouTubePlaylist::request($url),
             SiteSettings::cacheHours($this->settings['apis']['youtube']['cache_hours'] ?? 6)
+        );
+    }
+
+    /** Whether entries of a content type can have a place (a field of the kind `location`). */
+    private function hasPlaceField(string $type): bool
+    {
+        foreach ($this->contentTypes()->definition($type, $this->currentLang, $this->defaultLanguage())['fields'] as $field) {
+            if ($field['type'] === 'location' && !$field['hidden']) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** The maps of content: places, routes and what is near what (see GeoView). */
+    private function geoView(): GeoView
+    {
+        return $this->geoViewService ??= new GeoView(
+            new GeoMap(new GeoLibrary($this->images, $this->basePath . '/storage/cache'), $this->images),
+            fn(string $type, string $lang): array => in_array($type, $this->content->getTypes(), true) ? $this->content->getItems($type, $lang, $this->auth->check(), false) : [],
+            fn(string $type, string $lang): string => $this->contentTypes()->definition($type, $lang, $this->defaultLanguage())['label'],
+            fn(string $slug, string $lang): string => $this->taxonomyTermLabel('categories', $slug, $lang),
+            fn(ContentItem $item, string $lang): string => $this->buildAbsoluteUrl($this->langPrefix($lang) . ($item->type === 'pages' ? '' : $item->type . '/') . $item->slug),
+            function (): array {
+                $types = [];
+                foreach ($this->content->getTypes() as $type) {
+                    if ($type === 'forms' || $type === 'pages') {
+                        continue;
+                    }
+                    foreach ($this->contentTypes()->definition($type, $this->currentLang, $this->defaultLanguage())['fields'] as $field) {
+                        if (in_array($field['type'], ['location'], true) && !$field['hidden']) {
+                            $types[] = $type;
+                            break;
+                        }
+                    }
+                }
+                return $types;
+            },
+            [
+                'tiles_url' => (string)($this->settings['apis']['maps']['tiles_url'] ?? ''),
+                'attribution' => (string)($this->settings['apis']['maps']['attribution'] ?? ''),
+            ]
         );
     }
 
@@ -859,6 +919,14 @@ final class App
                     }
                 }
                 return $options;
+            },
+            // The types whose entries can have a place, for the Map block: each type, and everything with a place.
+            'place_types' => function (): array {
+                $options = [];
+                foreach ($this->geoView()->placeTypes() as $type) {
+                    $options[$type] = $this->contentTypes()->definition($type, 'en', $this->defaultLanguage())['label'];
+                }
+                return count($options) > 1 ? ['all' => 'Everything with a place'] + $options : $options;
             },
             'forms' => function (): array {
                 $options = ['' => '—'];
@@ -2929,6 +2997,32 @@ final class App
             );
         }));
 
+        // Maps of content (see GeoView): the data of a set of entries, of the page of one, and what is near one.
+        $twig->addFunction(new TwigFunction('geo_dataset', function (array $items, array $options = []): array {
+            return $this->geoView()->dataset(array_values(array_filter($items, static fn($i): bool => $i instanceof ContentItem)), $this->currentLang, $options);
+        }));
+        $twig->addFunction(new TwigFunction('geo_single', function (ContentItem $item, array $options = []): array {
+            return $this->geoView()->single($item, $this->currentLang, $options);
+        }));
+        $twig->addFunction(new TwigFunction('geo_nearby', function (ContentItem $item, array $types, float $radius = 5.0, int $limit = 6): array {
+            return $this->geoView()->nearby($item, $types, $radius, $limit, $this->currentLang);
+        }));
+        $twig->addFunction(new TwigFunction('geo_json', function (array $data): string {
+            return (string)json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE);
+        }, ['is_safe' => ['html']]));
+        $twig->addFunction(new TwigFunction('geo_load', function (): string {
+            return ($this->settings['apis']['maps']['load'] ?? 'click') === 'auto' ? 'auto' : 'click';
+        }));
+        $twig->addFunction(new TwigFunction('geo_position', function (ContentItem $item): ?array {
+            return $this->geoView()->map()->position($item);
+        }));
+        $twig->addFunction(new TwigFunction('route_facts', function (ContentItem $item): ?array {
+            return $this->geoView()->map()->routeFacts($item);
+        }));
+        $twig->addFunction(new TwigFunction('elevation_profile', function (array $profile, string $label): string {
+            return GeoView::profileSvg($profile, $label);
+        }, ['is_safe' => ['html']]));
+
         // What the page of one entry of a type does (Theme > Single Layouts): title style, header, parts, sidebar.
         $twig->addFunction(new TwigFunction('single_layout', function (string $type): array {
             return $this->singleLayouts()->forType($type, $this->themeSettings);
@@ -3555,6 +3649,12 @@ final class App
             $this->render404();
             return;
         }
+        if (($page['data']['archive']['settings']['layout'] ?? '') === 'map') {
+            // A category or tag that lists its entries on a map needs the map's style sheet and script.
+            $base = rtrim((string)($this->settings['base_url'] ?? ''), '/');
+            $page['data']['block_styles'] = array_values(array_filter(array_merge((array)($page['data']['block_styles'] ?? []), [$this->theme->blockStylesheetUrl($base, ['latest', 'map'])])));
+            $page['data']['block_scripts'] = array_values(array_filter(array_merge((array)($page['data']['block_scripts'] ?? []), [$this->theme->blockScriptUrl($base, ['map'])])));
+        }
         $this->render($this->resolveTaxonomyTemplate($page['kind'], $page['slug']), $page['data']);
     }
 
@@ -3695,6 +3795,13 @@ final class App
 
     private function singularizeType(string $type): string
     {
+        // businesses → business, stories → story, routes → route
+        if (str_ends_with($type, 'sses')) {
+            return substr($type, 0, -2);
+        }
+        if (str_ends_with($type, 'ies') && strlen($type) > 4) {
+            return substr($type, 0, -3) . 'y';
+        }
         if (str_ends_with($type, 's') && strlen($type) > 1) {
             return substr($type, 0, -1);
         }

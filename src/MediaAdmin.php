@@ -229,7 +229,7 @@ final class MediaAdmin
     public function picker(array $get): array
     {
         $asked = (string)($get['kind'] ?? 'image');
-        $kind = in_array($asked, ['all', 'video'], true) ? $asked : 'image';
+        $kind = in_array($asked, ['all', 'video', 'track'], true) ? $asked : 'image';
         $perPage = max(6, min(48, (int)($get['per_page'] ?? 24)));
         $all = $this->media->list(['type' => $kind, 'tag' => $this->media->sanitizeTag((string)($get['tag'] ?? '')), 'q' => trim((string)($get['q'] ?? ''))]);
         $total = count($all);

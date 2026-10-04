@@ -1,0 +1,107 @@
+# Routes: a walk, a ride or a drive, drawn from a GPX, KML or GeoJSON file. Switch it on in Admin > Content types.
+# The length, the climb, the highest point and the profile of the height are worked out from the file; a field below overrides them.
+# Sites can add fields or change the list in custom/content-types/routes.yaml (kept across updates).
+# Never rename a field key: content refers to it by name. Retire a field with `hidden: true`.
+label: { el: Διαδρομές, en: Routes }
+singular: { el: Διαδρομή, en: Route }
+description: { el: 'Διαδρομές με αρχείο GPX, KML ή GeoJSON: μήκος, υψομετρικό προφίλ και χάρτης.', en: 'Routes with a GPX, KML or GeoJSON file: length, height profile and map.' }
+fields:
+  track:
+    type: file
+    kind: track
+    label: { el: 'Αρχείο διαδρομής', en: Route file }
+    help: { el: 'GPX, KML ή GeoJSON από τη βιβλιοθήκη πολυμέσων.', en: 'GPX, KML or GeoJSON from the media library.' }
+    show: false
+  location:
+    type: location
+    label: { el: 'Αφετηρία (προαιρετικά)', en: Start (optional) }
+    placeholder: '35.2012, 26.2744'
+    help: { el: 'Αν μείνει κενή, χρησιμοποιείται η αρχή της γραμμής.', en: 'When empty, the start of the line is used.' }
+    show: false
+  area:
+    type: text
+    label: { el: Περιοχή, en: Area }
+    card: true
+  activity:
+    type: select
+    label: { el: Δραστηριότητα, en: Activity }
+    filterable: true
+    options:
+      hiking: { el: Πεζοπορία, en: Hiking }
+      trail_running: { el: 'Ορεινό τρέξιμο', en: Trail running }
+      cycling: { el: Ποδήλατο, en: Cycling }
+      mountain_biking: { el: 'Ορεινή ποδηλασία', en: Mountain biking }
+      driving: { el: Οδήγηση, en: Driving }
+      walking: { el: Περίπατος, en: Walking }
+  difficulty:
+    type: select
+    label: { el: Δυσκολία, en: Difficulty }
+    filterable: true
+    card: true
+    options:
+      easy: { el: Εύκολη, en: Easy }
+      moderate: { el: Μέτρια, en: Moderate }
+      hard: { el: Δύσκολη, en: Hard }
+      expert: { el: Απαιτητική, en: Expert }
+  route_type:
+    type: select
+    label: { el: 'Τύπος διαδρομής', en: Route type }
+    options:
+      loop: { el: Κυκλική, en: Loop }
+      out_and_back: { el: 'Πηγαινέλα', en: Out and back }
+      one_way: { el: 'Από σημείο σε σημείο', en: One way }
+  duration:
+    type: text
+    label: { el: Διάρκεια, en: Duration }
+    placeholder: { el: '3 ώρες 30 λεπτά', en: '3 h 30 min' }
+    card: true
+  distance_km:
+    type: decimal
+    label: { el: 'Μήκος (χλμ.) — αντικαθιστά το αρχείο', en: "Length (km), replaces the file's" }
+    min: 0
+    max: 5000
+    show: false
+  ascent_m:
+    type: number
+    label: { el: 'Συνολική ανάβαση (μ.) — αντικαθιστά το αρχείο', en: "Total climb (m), replaces the file's" }
+    min: 0
+    max: 20000
+    show: false
+  descent_m:
+    type: number
+    label: { el: 'Συνολική κατάβαση (μ.) — αντικαθιστά το αρχείο', en: "Total descent (m), replaces the file's" }
+    min: 0
+    max: 20000
+    show: false
+  season:
+    type: text
+    label: { el: 'Καλύτερη περίοδος', en: Best season }
+  trailhead:
+    type: text
+    label: { el: Αφετηρία, en: Trailhead }
+single:
+  sidebar: false
+  header: true
+  options:
+    map_height:
+      type: select
+      label: { el: 'Ύψος χάρτη', en: Map height }
+      default: large
+      options:
+        medium: { el: Μεσαίο, en: Medium }
+        large: { el: Μεγάλο, en: Large }
+        tall: { el: Ψηλό, en: Tall }
+    show_profile: { type: toggle, label: { el: 'Υψομετρικό προφίλ', en: Height profile }, default: true }
+    show_download: { type: toggle, label: { el: 'Κουμπί λήψης του αρχείου', en: Download button }, default: true }
+    show_facts: { type: toggle, label: { el: Πληροφορίες, en: Information }, default: true }
+    show_nearby: { type: toggle, label: { el: 'Κοντινά σημεία και επιχειρήσεις', en: Nearby places and businesses }, default: true }
+    nearby_radius: { type: number, label: { el: 'Ακτίνα κοντινών (χλμ.)', en: Nearby radius (km) }, default: 2, min: 1, max: 50 }
+archive:
+  title: { el: Διαδρομές, en: Routes }
+  subtitle: { el: 'Διαδρομές στον χάρτη, με φίλτρα ανά δραστηριότητα και δυσκολία.', en: 'Routes on the map, with filters by activity and difficulty.' }
+  layout: map
+  per_page: 0
+  order: title_asc
+  show_excerpt: false
+  show_meta: true
+  taxonomies: [categories]

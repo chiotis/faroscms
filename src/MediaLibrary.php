@@ -21,6 +21,7 @@ final class MediaLibrary
         'svg' => ['label' => 'SVG drawings', 'help' => 'Checked for scripts and outside content before they are kept', 'extensions' => ['svg']],
         'documents' => ['label' => 'Documents', 'help' => 'PDF, Word, Excel, PowerPoint, OpenDocument, RTF, TXT, CSV, Markdown', 'extensions' => ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods', 'odp', 'rtf', 'txt', 'csv', 'md']],
         'archives' => ['label' => 'Archives', 'help' => 'ZIP', 'extensions' => ['zip']],
+        'maps' => ['label' => 'Route files', 'help' => 'GPX, KML and GeoJSON, read as a route before they are kept', 'extensions' => ['gpx', 'kml', 'geojson']],
         'audio' => ['label' => 'Audio', 'help' => 'MP3, WAV, OGG, M4A', 'extensions' => ['mp3', 'wav', 'ogg', 'm4a']],
         'video' => ['label' => 'Video', 'help' => 'MP4, WebM, MOV', 'extensions' => ['mp4', 'webm', 'mov']],
     ];
@@ -60,7 +61,7 @@ final class MediaLibrary
     /** @return string[] */
     public function typeOptions(): array
     {
-        return ['all', 'image', 'video', 'audio', 'document', 'archive', 'other'];
+        return ['all', 'image', 'video', 'audio', 'document', 'archive', 'track', 'other'];
     }
 
     private function metaDir(): string
@@ -434,6 +435,15 @@ final class MediaLibrary
         if ($extension === 'svg' && !$this->isSafeSvg($tmpName)) {
             throw new \RuntimeException('SVG files with scripts or external content are not allowed.');
         }
+        if (in_array($extension, GeoTrack::EXTENSIONS, true)) {
+            // A route file is kept only when it can be read as one.
+            if ($sizeBytes > GeoTrack::MAX_BYTES) {
+                throw new \RuntimeException('Route files can be up to ' . (int)(GeoTrack::MAX_BYTES / 1_000_000) . ' MB.');
+            }
+            if (GeoTrack::parse((string)file_get_contents($tmpName), $extension) === null) {
+                throw new \RuntimeException('This route file could not be read. It needs a line or a place, in GPX, KML or GeoJSON, without a DOCTYPE.');
+            }
+        }
 
         if ($fixedId !== '') {
             $id = $this->sanitizeId($fixedId);
@@ -695,6 +705,9 @@ final class MediaLibrary
     private function kindFor(string $mimeType, string $extension): string
     {
         $mime = strtolower($mimeType);
+        if (in_array($extension, GeoTrack::EXTENSIONS, true)) {
+            return 'track';
+        }
         if (str_starts_with($mime, 'image/')) {
             return 'image';
         }

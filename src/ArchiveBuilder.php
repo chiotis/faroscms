@@ -121,6 +121,12 @@ final class ArchiveBuilder
 
         $total = count($items);
         $perPage = (int)$settings['per_page'];
+        if (($settings['layout'] ?? '') === 'map') {
+            // A map shows every entry that has a place; the list beside it scrolls instead of paging. A very large site is capped.
+            $perPage = 0;
+            $items = array_slice($items, 0, 800);
+            $total = count($items);
+        }
         $pages = $perPage > 0 ? max(1, (int)ceil($total / $perPage)) : 1;
         $page = max(1, min($pages, (int)($query['page'] ?? 1)));
         if ($perPage > 0) {

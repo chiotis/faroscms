@@ -277,6 +277,14 @@
   }
 
   /* A list of items (people, plans, steps…): each is one compact line that opens to its fields. */
+  /** Whether a value is one a `when` lists: a plain value matches itself, and one that starts with ! matches anything but that. */
+  function whenMatches(wanted, have) {
+    var text = String(have);
+    return wanted.some(function (value) {
+      return value.charAt(0) === '!' ? text !== value.slice(1) : text === value;
+    });
+  }
+
   var rowOpen = new WeakMap();
 
   function repeaterControl(field, rows, onChange, id) {
@@ -365,7 +373,7 @@
             var shown = Object.keys(entry.when).every(function (key) {
               var other = (field.fields || []).filter(function (f) { return f.key === key; })[0];
               var have = row[key] == null ? (other && other.default != null ? other.default : '') : row[key];
-              return entry.when[key].indexOf(String(have)) !== -1;
+              return whenMatches(entry.when[key], have);
             });
             entry.node.hidden = !shown;
           });
@@ -464,7 +472,7 @@
           // The other field can be one of the block's own or a shared one (the layout), whose default counts while nothing is stored.
           var other = def.fields.concat(def.common || []).filter(function (f) { return f.key === key; })[0];
           var have = block[key] == null ? (other && other.default != null ? other.default : '') : block[key];
-          return entry.when[key].indexOf(String(have)) !== -1;
+          return whenMatches(entry.when[key], have);
         });
         entry.node.hidden = !shown;
       });

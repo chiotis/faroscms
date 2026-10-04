@@ -1,11 +1,18 @@
 label: Map
-description: An OpenStreetMap map with a marker. By default the map loads only after the visitor asks for it, so no third-party request is made on page load.
+description: An OpenStreetMap map with a marker, or a map of the points, routes and businesses of the site with filters and a list. By default a map loads only after the visitor asks for it, so no third-party request is made on page load.
 category: Convert
 variants:
   contained: Inside the page width
   full: Full width
   split: Details beside the map
 fields:
+  source:
+    type: select
+    label: Show
+    default: manual
+    options: { manual: 'One place, typed below' }
+    options_from: place_types
+    help: Points, routes, businesses, or everything with a place. They are put on the map, with a list beside it.
   eyebrow:
     type: text
     label: Eyebrow
@@ -22,32 +29,66 @@ fields:
     max: 85
     placeholder: '37.9838'
     help: 'Right-click the place on openstreetmap.org and choose "Show address" to copy the coordinates.'
+    when: { source: manual }
   lng:
     type: decimal
     label: Longitude
     min: -180
     max: 180
     placeholder: '23.7275'
+    when: { source: manual }
   zoom:
     type: number
     label: Zoom
     default: 15
     min: 3
     max: 19
+    when: { source: manual }
   address:
     type: textarea
     label: Address
+    when: { source: manual }
   place_name:
     type: text
     label: Place name
     help: Used in the map's title for screen readers, e.g. our office.
+    when: { source: manual }
   height:
     type: select
     label: Height
     default: medium
-    options: { small: Small, medium: Medium, large: Large }
+    options: { small: Small, medium: Medium, large: Large, tall: Tall }
   load:
     type: select
     label: Loading
-    default: click
-    options: { click: 'After the visitor clicks (privacy friendly)', auto: 'Immediately' }
+    default: site
+    options: { site: 'As the site says (Settings > APIs)', click: 'After the visitor clicks (privacy friendly)', auto: 'As soon as it comes into view' }
+  term:
+    type: text
+    label: Only this category
+    placeholder: hotels
+    help: The address of a category, to show only its entries.
+    when: { source: '!manual' }
+  limit:
+    type: number
+    label: Number of entries
+    default: 300
+    min: 1
+    max: 800
+    when: { source: '!manual' }
+  filters:
+    type: toggle
+    label: Filters and search
+    default: true
+    when: { source: '!manual' }
+  list:
+    type: select
+    label: List
+    default: right
+    options: { right: Right, left: Left, below: Below, none: None }
+    when: { source: '!manual' }
+  cluster:
+    type: toggle
+    label: Group markers that are close
+    default: true
+    when: { source: '!manual' }

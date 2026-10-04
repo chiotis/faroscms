@@ -508,6 +508,39 @@
             <p class="seo-help">The key is kept in the site's system database and is never sent to the browser. Only public and unlisted playlists can be shown.</p>
           </details>
         </section>
+        <section class="lc-card en-card" aria-labelledby="api-h-maps">
+          <div class="en-card-head">
+            <h2 id="api-h-maps" class="en-card-title">Maps</h2>
+            <span class="en-chip {{ settings_form.maps_tiles_url ? 'is-live' : 'is-draft' }}">{{ settings_form.maps_tiles_url ? 'Own tiles' : 'OpenStreetMap' }}</span>
+          </div>
+          <p class="en-help m-0">Used by the maps of the <strong>Map</strong> block, of archives with the Map layout, and of the pages of points, routes and businesses. The map itself is drawn by the visitor's browser, from the tiles below.</p>
+          <div class="en-rows">
+            <div class="seo-row">
+              <label class="seo-label" for="maps_load">Load a map</label>
+              <div>
+                <select id="maps_load" name="maps_load" class="lc-input lc-select">
+                  <option value="click"{% if settings_form.maps_load != 'auto' %} selected{% endif %}>When the visitor asks for it</option>
+                  <option value="auto"{% if settings_form.maps_load == 'auto' %} selected{% endif %}>As soon as it comes into view</option>
+                </select>
+                <p class="seo-help">Loading a map tells the tile server the visitor's address. "When the visitor asks" makes no request to anyone until then.</p>
+              </div>
+            </div>
+            <div class="seo-row">
+              <label class="seo-label" for="maps_tiles_url">Tile address</label>
+              <div>
+                <input type="text" id="maps_tiles_url" name="maps_tiles_url" value="{{ settings_form.maps_tiles_url }}" class="lc-input" placeholder="https://tile.openstreetmap.org/{z}/{x}/{y}.png" autocomplete="off">
+                <p class="seo-help">Leave empty for OpenStreetMap's own tiles, which are meant for light use. A busy site should use a provider (MapTiler, Thunderforest, Stadia…) or its own server: paste its address here, with <code>{z}</code>, <code>{x}</code> and <code>{y}</code> in it. It must start with https://.</p>
+              </div>
+            </div>
+            <div class="seo-row">
+              <label class="seo-label" for="maps_attribution">Credit</label>
+              <div>
+                <input type="text" id="maps_attribution" name="maps_attribution" value="{{ settings_form.maps_attribution }}" class="lc-input" placeholder="© MapTiler © OpenStreetMap contributors" autocomplete="off">
+                <p class="seo-help">Shown in the corner of every map. Your provider says what it must say; plain text and links only.</p>
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
 
     </div>

@@ -1,0 +1,10 @@
+{% extends 'layouts/base.twig' %}
+
+{#
+  A point: see components/place-single.twig. Theme > Single Layouts has a card for it (the map, what shows, what counts as near).
+#}
+{# The title band sits under a transparent header when the card (or the entry) asks for one. #}
+{% set opens_under_header = true %}
+{% block content %}
+  {% include 'components/place-single.twig' with {item: item, kind: 'point'} %}
+{% endblock %}

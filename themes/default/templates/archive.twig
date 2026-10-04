@@ -24,9 +24,11 @@
   </section>
 
   <section class="site-wrap section-stack single-body archive-body">
-    {% if archive is defined and archive.filters %}
+    {# On a map the categories are chosen in the map's own bar, instantly; the page's filters keep the rest (activity, difficulty…). #}
+    {% set page_filters = archive is defined ? archive.filters|filter(f => not (layout == 'map' and f.kind == 'taxonomy' and f.name == 'categories')) : [] %}
+    {% if archive is defined and page_filters %}
       <form class="archive-filters" method="get" aria-label="{{ t('filter.label', 'Filter') }}">
-        {% for filter in archive.filters %}
+        {% for filter in page_filters %}
           <label class="archive-filter">
             <span>{{ filter.kind == 'taxonomy' ? t('filter.' ~ filter.name, filter.label) : filter.label }}</span>
             <select name="filter[{{ filter.name }}]">
@@ -47,6 +49,9 @@
 
     {% if items is empty %}
       <p>{{ archive is defined and archive.filtered ? t('filter.none', 'Nothing matches these filters.') : (t(type_key ~ '.archive_empty', '') ?: t('archive.empty')) }}</p>
+    {% elseif layout == 'map' %}
+      {# Every entry that has a place, on one map with a list beside it (a route is drawn as a line); the filters above still apply. #}
+      {% include 'components/geo-map.twig' with {geo: geo_dataset(items, {lines: true}), height: config.map_height|default('large'), list: config.map_list|default('right'), filters: true, cluster: true, label: title_text, item_tag: 'h2'} only %}
     {% else %}
       {# The options a content type declares for its list become classes (opt-cover-shape-portrait, opt-some-toggle) the style sheet can use. #}
       {% set option_classes %}{% for key, value in config.options|default({}) %}{% if value is same as(true) %} opt-{{ key|replace({'_': '-'}) }}{% elseif value is not iterable and value is not same as(false) and value is not null and value != '' %} opt-{{ key|replace({'_': '-'}) }}-{{ value|lower|replace({'_': '-', ' ': '-'}) }}{% endif %}{% endfor %}{% endset %}
