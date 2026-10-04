@@ -467,7 +467,8 @@
   gap: 0.25rem;
 }
 
-.geo-popup p {
+/* Leaflet's own style sheet comes later and gives every paragraph in a popup a tall margin: this is more specific. */
+.leaflet-popup-content .geo-popup p {
   margin: 0;
 }
 
