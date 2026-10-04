@@ -1,7 +1,8 @@
 # Changelog
 
-## 0.1.60 — 2026-10-04 — Dashboard without shortcut buttons
+## 0.1.60 — 2026-10-04 — A calmer dashboard, and the pre-update backup in green
 - **The *+ New Page / Post / Project* buttons are gone from the top of the dashboard**: the sidebar already lists every content type, and a button for the first three was an arbitrary choice. The greeting stays.
+- **"Verified pre-update backup created" is green.** On the Updates screen the message after a successful backup before an update was drawn as an error (red) whatever happened; it is a success when the backup was made and verified, and an error only when it was not.
 
 ## 0.1.59 — 2026-10-04 — Points of interest, routes and businesses, with maps
 - **Three new ready-made content types** (switch them on in Admin > Content types): **Points of interest**, **Routes** and **Businesses**, each with the fields such a site needs and each with its own page. See `docs/places-and-routes.md`.
