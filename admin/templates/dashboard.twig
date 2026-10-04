@@ -12,8 +12,6 @@
   {% set card = 'lc-card rounded-xl border border-slate-200 bg-white' %}
   {% set card_title = 'm-0 text-sm font-semibold text-slate-900' %}
   {% set link = 'text-xs font-medium text-blue-700 hover:underline' %}
-  {% set btn = 'inline-flex shrink-0 items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50' %}
-  {% set btn_primary = 'inline-flex shrink-0 items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700' %}
   {% set status = dashboard.system_status.status %}
   {% set status_color = status == 'error' ? 'text-red-700' : (status == 'warning' ? 'text-amber-700' : 'text-emerald-700') %}
   {% set status_dot = status == 'error' ? 'bg-red-500' : (status == 'warning' ? 'bg-amber-500' : 'bg-emerald-500') %}
@@ -24,9 +22,6 @@
 
   <header class="db-bar">
     <p class="db-hello"><strong>{{ hour < 12 ? 'Good morning' : (hour < 18 ? 'Good afternoon' : 'Good evening') }}{{ who ? ', ' ~ who : '' }}</strong><span>{{ 'now'|date('l j F') }}</span></p>
-    <div class="flex flex-wrap gap-2">
-      {% for c in create %}<a class="{{ loop.first ? btn_primary : btn }}" href="{{ url('admin/new?type=' ~ c.type) }}"><span aria-hidden="true">+</span> {{ c.label|title }}</a>{% endfor %}
-    </div>
   </header>
 
   <div class="db-tiles">

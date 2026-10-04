@@ -2,7 +2,7 @@
 port, the install button, the check of the new version, the roll back, an automatic undo when the new version does not
 start, a package that is not the one published, and the maintenance page. Through all of it the site's own pages, media,
 custom files and settings are never touched."""
-import hashlib, http.server, json, os, shutil, subprocess, sys, tempfile, threading
+import hashlib, http.server, json, os, re, shutil, subprocess, sys, tempfile, threading
 sys.path.insert(0, '.')
 from client import Client, has_field
 
@@ -118,6 +118,8 @@ check('and an install forced past the screen is refused, nothing changes', (lamb
 # ---- the backup, then the install
 st, loc = post_action('pre_update_backup')
 check('the backup before the update is made', 'pre_backup=ok' in loc, loc)
+flash = root.get(loc)[2]
+check('and the message about it is a success, not an error', re.search(r'<template data-flash data-type="success">Verified pre-update backup created', flash) is not None, re.findall(r'<template data-flash[^>]*>[^<]{0,60}', flash))
 html = updates_page()
 check('then the install button is there', any(install_form(root)(f) for f in root.forms(html=html)) and ('Install ' + NEW) in html)
 sessions_before = md5('storage/db/app.sqlite')

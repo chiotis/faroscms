@@ -1248,17 +1248,10 @@ final class App
         if ($can('analytics.manage') && AnalyticsSettings::from($this->settings)['mode'] === 'platform' && $this->analyticsStore()->isAvailable()) {
             $analytics = $this->analyticsAdmin()->reportsScreen(['range' => '90d']);
         }
-        $create = [];
-        if ($can('content.manage')) {
-            foreach (array_slice(array_values(array_filter($this->content->getTypes(), fn(string $type): bool => $type !== 'forms' && $this->canAccessContentType($type))), 0, 3) as $type) {
-                $create[] = ['type' => $type, 'label' => 'New ' . $this->singularizeType($type)];
-            }
-        }
         $this->render('@admin/dashboard.twig', [
             'title' => 'Dashboard',
             'dashboard' => $dashboard,
             'analytics' => $analytics,
-            'create' => $create,
             'types' => $this->content->getTypes(),
             'user' => $this->auth->user(),
             'admin_section' => 'dashboard',
