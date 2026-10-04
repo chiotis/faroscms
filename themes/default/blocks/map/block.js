@@ -115,12 +115,41 @@
     var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     canvas.innerHTML = '';
     canvas.classList.add('is-live');
-    var map = L.map(canvas, { zoomControl: true, scrollWheelZoom: false, zoomAnimation: !reduce, fadeAnimation: !reduce, markerZoomAnimation: !reduce });
+    var side = data.overlay === 'left' || data.overlay === 'right' ? data.overlay : '';
+    var panel = side ? root.querySelector('.geo-side') : null;
+    var map = L.map(canvas, { zoomControl: !side, scrollWheelZoom: false, zoomAnimation: !reduce, fadeAnimation: !reduce, markerZoomAnimation: !reduce });
+    if (side) {
+      // The controls go to the side the list is not on.
+      L.control.zoom({ position: side === 'left' ? 'topright' : 'topleft' }).addTo(map);
+      map.attributionControl.setPosition(side === 'left' ? 'bottomright' : 'bottomleft');
+    }
+    // How much of the map the list covers (nothing when the page has put it below, on a narrow screen): what is shown is centred on the rest.
+    var covered = function () {
+      if (!panel || getComputedStyle(panel).position !== 'absolute') return 0;
+      var r = panel.getBoundingClientRect();
+      var c = canvas.getBoundingClientRect();
+      return side === 'left' ? Math.max(0, r.right - c.left) : Math.max(0, c.right - r.left);
+    };
+    var padding = function (base) {
+      var w = covered();
+      return side === 'left' ? { paddingTopLeft: [base + w, base], paddingBottomRight: [base, base] } : { paddingTopLeft: [base, base], paddingBottomRight: [base + w, base] };
+    };
+    var centre = function (latlng, zoom) {
+      map.setView(latlng, zoom, { animate: false });
+      var w = covered();
+      if (w) map.panBy([side === 'left' ? -w / 2 : w / 2, 0], { animate: false });
+    };
     var tiles = data.tiles || {};
     L.tileLayer(tiles.url || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: tiles.max_zoom || 19, attribution: tiles.attribution || '&copy; OpenStreetMap contributors' }).addTo(map);
     // The wheel scrolls the page until the map has been clicked, so a map never traps a visitor who is scrolling.
     map.on('focus click', function () { map.scrollWheelZoom.enable(); });
     map.on('blur', function () { map.scrollWheelZoom.disable(); });
+
+    // A popup opens clear of the list.
+    var popupPadding = function () {
+      var o = padding(10);
+      return side ? { autoPanPaddingTopLeft: o.paddingTopLeft, autoPanPaddingBottomRight: o.paddingBottomRight } : {};
+    };
 
     var typeIndex = {};
     (data.types || []).forEach(function (t, i) { typeIndex[t.id] = i; });
@@ -135,11 +164,11 @@
       var index = typeIndex[item.type] || 0;
       var current = data.current && item.id === data.current;
       shape.marker = L.marker([item.lat, item.lng], { icon: pin(L, index, current), title: item.title, alt: item.title, riseOnHover: true });
-      shape.marker.bindPopup(function () { return popup(item); }, { maxWidth: 260, minWidth: 200 });
+      shape.marker.bindPopup(function () { return popup(item); }, Object.assign({ maxWidth: 260, minWidth: 200 }, popupPadding()));
       (item.line || []).forEach(function (line) {
         if (line.length < 2) return;
         var p = L.polyline(line, { color: getComputedStyle(root).getPropertyValue('--geo-c' + (index % 4)).trim() || '#2563eb', weight: 4, opacity: 0.85, lineJoin: 'round' });
-        p.bindPopup(function () { return popup(item); }, { maxWidth: 260, minWidth: 200 });
+        p.bindPopup(function () { return popup(item); }, Object.assign({ maxWidth: 260, minWidth: 200 }, popupPadding()));
         p.on('mouseover', function () { p.setStyle({ weight: 6, opacity: 1 }); });
         p.on('mouseout', function () { p.setStyle({ weight: 4, opacity: 0.85 }); });
         shape.lines.push(p);
@@ -190,7 +219,7 @@
       // The page of one place: close on the place itself (the places near it are around, not what the map is fitted to).
       if (data.current && !data.route) {
         var here = items.filter(function (item) { return item.id === data.current; })[0];
-        if (here) { map.setView([here.lat, here.lng], data.zoom || 15); return; }
+        if (here) { centre([here.lat, here.lng], data.zoom || 15); return; }
       }
       var bounds = L.latLngBounds([]);
       if (focus && focus.getLayers().length) bounds.extend(focus.getBounds());
@@ -198,8 +227,8 @@
         if (data.route && item.id !== data.current && !data.fitAll) return;
         if (matches(item)) bounds.extend([item.lat, item.lng]);
       });
-      if (bounds.isValid()) map.fitBounds(bounds, { padding: [30, 30], maxZoom: data.route ? 16 : 14 });
-      else map.setView([data.center ? data.center[0] : 38, data.center ? data.center[1] : 24], data.zoom || 6);
+      if (bounds.isValid()) map.fitBounds(bounds, Object.assign(side ? padding(30) : { padding: [30, 30] }, { maxZoom: data.route ? 16 : 14 }));
+      else centre([data.center ? data.center[0] : 38, data.center ? data.center[1] : 24], data.zoom || 6);
     }
 
     function apply(refit) {
@@ -283,7 +312,7 @@
       if (show) {
         show.hidden = false;
         show.addEventListener('click', function () {
-          map.setView(shape.marker.getLatLng(), Math.max(map.getZoom(), 13));
+          centre(shape.marker.getLatLng(), Math.max(map.getZoom(), 13));
           if (layer.zoomToShowLayer) layer.zoomToShowLayer(shape.marker, function () { shape.marker.openPopup(); });
           else shape.marker.openPopup();
           canvas.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });

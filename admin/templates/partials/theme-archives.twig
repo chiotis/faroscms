@@ -65,7 +65,7 @@
           {{ c.seg(name ~ '[map_height]', {'small': 'Small', 'medium': 'Medium', 'large': 'Large', 'tall': 'Tall'}, a.map_height, 'Map height', 'map_height') }}
           <label class="flex items-center gap-1.5 text-xs text-slate-600">List
             <select name="{{ name }}[map_list]" class="{{ field_class }} sm:w-auto">
-              {% for value, label in {'right': 'Right', 'left': 'Left', 'below': 'Below', 'none': 'None'} %}<option value="{{ value }}"{% if a.map_list == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+              {% for value, label in {'right': 'Right', 'left': 'Left', 'below': 'Below', 'over_right': 'Over the map, right (full width)', 'over_left': 'Over the map, left (full width)', 'none': 'None'} %}<option value="{{ value }}"{% if a.map_list == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
             </select>
           </label>
         </dd>

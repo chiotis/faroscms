@@ -26,8 +26,8 @@
   <div class="container">
     {{ ui.section_header(block, heading_tag, block_uid, 'left') }}
   </div>
-  <div class="{{ block.variant == 'full' ? 'map-geo-full' : 'container' }}">
-    {% include 'components/geo-map.twig' with {geo: block.geo, height: block.height, list: block.list, filters: block.filters, cluster: block.cluster, load: block.load_mode, label: block.heading ?: t('map.title', 'Map'), item_tag: item_heading_tag} only %}
+  <div class="{{ block.variant in ['full', 'overlay'] ? 'map-geo-full' : 'container' }}">
+    {% include 'components/geo-map.twig' with {geo: block.geo, height: block.height, list: block.variant == 'overlay' and block.list == 'below' ? 'right' : block.list, overlay: block.variant == 'overlay' ? (block.list == 'left' ? 'left' : 'right') : '', filters: block.filters, cluster: block.cluster, load: block.load_mode, label: block.heading ?: t('map.title', 'Map'), item_tag: item_heading_tag} only %}
   </div>
 {% elseif block.variant == 'split' %}
   <div class="container map-split">

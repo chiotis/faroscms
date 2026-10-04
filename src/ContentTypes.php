@@ -51,7 +51,7 @@ final class ContentTypes
 
     /** How tall the map of the map layout is, and where its list sits. */
     public const MAP_HEIGHTS = ['small' => 'Small', 'medium' => 'Medium', 'large' => 'Large', 'tall' => 'Tall'];
-    public const MAP_LISTS = ['right' => 'Right', 'left' => 'Left', 'below' => 'Below', 'none' => 'No list'];
+    public const MAP_LISTS = ['right' => 'Right', 'left' => 'Left', 'below' => 'Below', 'over_right' => 'Over the map, right', 'over_left' => 'Over the map, left', 'none' => 'No list'];
 
     public const ORDERS = [
         'date_desc' => 'Newest first',
@@ -484,7 +484,7 @@ final class ContentTypes
             $submitted[$key] = trim((string)preg_replace('/\s+/', ' ', (string)($input[$key] ?? '')));
         }
         foreach ($submitted as $key => $value) {
-            if ($value === $defaults[$key]) {
+            if ($value === ($defaults[$key] ?? ($schema[$key]['default'] ?? null))) {
                 unset($current[$key]);
             } else {
                 $current[$key] = $value;

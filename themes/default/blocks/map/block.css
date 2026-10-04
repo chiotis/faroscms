@@ -509,6 +509,70 @@
   color: #1d4ed8;
 }
 
+/* The list over the map: the map is as wide as the screen and the list (with the filters) floats on one side of it. */
+.geo-layout.is-overlay {
+  position: relative;
+  display: block;
+}
+
+.geo-layout.is-overlay .geo-canvas {
+  border-radius: 0;
+  border-inline: 0;
+}
+
+.geo-layout.is-overlay .geo-side {
+  position: absolute;
+  z-index: 2;
+  top: 0.9rem;
+  bottom: 0.9rem;
+  display: flex;
+  width: min(23rem, 42%);
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-l);
+  background: var(--color-bg);
+  box-shadow: var(--shadow-m);
+}
+
+.geo-layout.is-overlay.over-right .geo-side { right: max(0.9rem, calc((100% - var(--container)) / 2)); }
+.geo-layout.is-overlay.over-left .geo-side { left: max(0.9rem, calc((100% - var(--container)) / 2)); }
+
+.geo-layout.is-overlay .geo-filters {
+  flex-shrink: 0;
+  gap: 0.4rem;
+}
+
+.geo-layout.is-overlay .geo-select,
+.geo-layout.is-overlay .geo-search {
+  width: 100%;
+}
+
+.geo-layout.is-overlay .geo-list {
+  flex: 1;
+  max-height: none;
+  min-height: 0;
+}
+
+.archive-map-full {
+  margin-top: var(--space-l);
+}
+
+@media (max-width: 900px) {
+  .geo-layout.is-overlay .geo-side {
+    position: static;
+    width: auto;
+    border-radius: 0;
+    border-inline: 0;
+    box-shadow: none;
+  }
+
+  .geo-layout.is-overlay .geo-list {
+    max-height: 22rem;
+  }
+}
+
 /* A map block that is the page's width, or as wide as the screen */
 .map-geo-full .geo-canvas {
   border-radius: 0;

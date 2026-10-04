@@ -49,6 +49,8 @@
 
     {% if items is empty %}
       <p>{{ archive is defined and archive.filtered ? t('filter.none', 'Nothing matches these filters.') : (t(type_key ~ '.archive_empty', '') ?: t('archive.empty')) }}</p>
+    {% elseif layout == 'map' and config.map_list|default('right') in ['over_right', 'over_left'] %}
+      {# The map as wide as the screen, with the list over it: drawn after this section, outside the page's margins. #}
     {% elseif layout == 'map' %}
       {# Every entry that has a place, on one map with a list beside it (a route is drawn as a line); the filters above still apply. #}
       {% include 'components/geo-map.twig' with {geo: geo_dataset(items, {lines: true}), height: config.map_height|default('large'), list: config.map_list|default('right'), filters: true, cluster: true, label: title_text, item_tag: 'h2'} only %}
@@ -84,4 +86,9 @@
       </nav>
     {% endif %}
   </section>
+  {% if layout == 'map' and items and config.map_list|default('right') in ['over_right', 'over_left'] %}
+    <section class="archive-map-full" aria-label="{{ title_text }}">
+      {% include 'components/geo-map.twig' with {geo: geo_dataset(items, {lines: true}), height: config.map_height|default('large'), list: 'right', overlay: config.map_list == 'over_left' ? 'left' : 'right', filters: true, cluster: true, label: title_text, item_tag: 'h2'} only %}
+    </section>
+  {% endif %}
 {% endblock %}

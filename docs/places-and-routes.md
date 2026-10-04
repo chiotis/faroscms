@@ -61,7 +61,7 @@ is loaded from anyone else except the **map tiles**. A page that has no map load
 ## Archive with a map
 
 *Admin > Theme > Archive Layouts* offers the layout **Map** for every type and every category or tag. An archive with that layout is
-one map with a list beside it (right, left, below, or no list), with the height you choose. It shows every entry that has a place (up
+one map with a list beside it (right, left, below, or no list), with the height you choose; or, as wide as the screen, with the list *over* the map on one side (see below). It shows every entry that has a place (up
 to 800; no paging); a route is drawn as a line. A bar over the map filters by kind (when the list has several), by category, and by a
 search. The filters of the type that are not categories (activity, difficulty, price range) stay as the page's own form. The three
 types here use this layout by default.
@@ -71,7 +71,9 @@ types here use this layout by default.
 The existing **Map** block has a new first choice, *Show*: *One place, typed below* (as before) or the entries of a content type, or
 *Everything with a place*. Then: an optional category, the number of entries, whether to show filters and search, the list (right,
 left, below, none), whether markers that are close are grouped, the height, and when the map loads (*as the site says*, on a click, or
-when in view). The block draws nothing for a visitor when there is nothing to show. The field `when` of the block editor can now say
+when in view). The block draws nothing for a visitor when there is nothing to show.
+
+**Layouts.** *Inside the page width* and *Full width* work for any map. *Details beside the map* (the text and address of one place beside its map) is offered only for a map of one place, and **Full width, list over the map** only for a map of content: the map runs edge to edge, and the list with its filters floats over it on the side chosen in *List* (right or left; *below* is read as right). The map is centred on the part the list leaves free, its zoom buttons and credit move to the other side, and a popup opens clear of the list. On a narrow screen the list goes under the map. An archive can do the same: *Theme > Archive Layouts > Map > List > Over the map*. The editor changes the layout by itself when the choice of *Show* makes the old one meaningless (`variant_when` in `block.yaml`). The field `when` of the block editor can now say
 "anything but": `when: {source: '!manual'}`.
 
 ## The page of one

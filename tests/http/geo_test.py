@@ -143,6 +143,23 @@ source = next(f for f in mp['fields'] if f['key'] == 'source')
 check('the editor offers the Map block what to show: one place, or everything, or each kind', [o[0] for o in source['options']] == ['manual', 'all', 'businesses', 'points', 'routes'], source['options'])
 check('and shows the fields that matter for each choice', next(f for f in mp['fields'] if f['key'] == 'lat')['when'] == {'source': ['manual']} and next(f for f in mp['fields'] if f['key'] == 'filters')['when'] == {'source': ['!manual']})
 
+# ---- the list over the map
+check('the editor knows which layouts fit which map: details beside one place, a list over many', mp['variant_when'] == {'split': {'source': ['manual']}, 'overlay': {'source': ['!manual']}} and [v[0] for v in next(f for f in mp['common'] if f['key'] == 'variant')['options']] == ['contained', 'full', 'split', 'overlay'], mp.get('variant_when'))
+st, _, html = page('over', {'type': 'map', 'source': 'all', 'variant': 'overlay', 'list': 'right', 'height': 'tall'})
+side = html.split('class="geo-side"')[1].split('</div>')[0] if 'class="geo-side"' in html else ''
+check('a map with the list over it is as wide as the screen, with the list floating on the side chosen', 'is-overlay over-right' in html and 'map-geo-full' in html and '"overlay":"right"' in html and 'has-list-' not in html, re.findall(r'geo-layout [^"]*', html))
+check('and the filters are in the list, not above the map', 'data-geo-filters' in html.split('class="geo-side"')[1].split('<ul class="geo-list"')[0], side[:200])
+st, _, html = page('over-left', {'type': 'map', 'source': 'all', 'variant': 'overlay', 'list': 'left'})
+check('on the left too', 'is-overlay over-left' in html and '"overlay":"left"' in html)
+st, _, html = page('over-below', {'type': 'map', 'source': 'all', 'variant': 'overlay', 'list': 'below'})
+check('"below" makes no sense over a map, so the list is on the right', 'is-overlay over-right' in html)
+st, _, html = page('over-none', {'type': 'map', 'source': 'all', 'variant': 'overlay', 'list': 'none'})
+check('with no list there is nothing to float over the map', 'is-overlay' not in html and 'geo-side' not in html and '"overlay":""' in html)
+st, _, html = page('split-many', {'type': 'map', 'source': 'routes', 'variant': 'split'})
+check('details beside the map is the plain layout for a map of many places', 'block--contained' in html and 'block--split' not in html)
+st, _, html = page('over-one', {'type': 'map', 'lat': 35.2, 'lng': 26.27, 'variant': 'overlay'})
+check('and a list over the map is the plain layout for one place', 'block--contained' in html and 'data-geo ' not in html)
+
 # ---- the maps' settings
 st, _, html = root.get('/admin/settings?tab=apis')
 check('Settings > APIs has the maps: when to load, the tiles and the credit', st == 200 and 'name="maps_load"' in html and 'name="maps_tiles_url"' in html and 'name="maps_attribution"' in html and 'OpenStreetMap' in html)
@@ -173,6 +190,9 @@ st, _, html = root.get('/admin/theme?tab=archive_layouts')
 check('the archive layout cards offer the Map layout, and its height and list', st == 200 and 'value="map"' in html and 'data-map-only' in html and 'name="archive_types[routes][map_height]"' in html and 'name="archive_types[routes][map_list]"' in html, st)
 def theme_form(f): return any(x[0] == 'active_tab' for x in f['fields'])
 fields = [tuple(x) for x in next(f for f in root.forms('/admin/theme?tab=archive_layouts') if theme_form(f))['fields'] if x[0] not in ('archive_types[routes][map_height]', 'archive_types[routes][map_list]', 'active_tab')]
+root.request('/admin/theme', data=fields + [('archive_types[routes][map_height]', 'large'), ('archive_types[routes][map_list]', 'over_left'), ('active_tab', 'archive_layouts')])
+html = anon.get('/en/routes')[2]
+check('an archive can have the list over the map: the map as wide as the screen, outside the page\'s margins', 'class="archive-map-full"' in html and 'is-overlay over-left' in html and html.index('archive-map-full') > html.index('archive-body') and 'class="site-wrap section-stack single-body archive-body"' in html and 'geo-layout' not in html.split('archive-map-full')[0], re.findall(r'geo-layout [^"]*|archive-map-full', html))
 root.request('/admin/theme', data=fields + [('archive_types[routes][map_height]', 'tall'), ('archive_types[routes][map_list]', 'left'), ('active_tab', 'archive_layouts')])
 html = anon.get('/en/routes')[2]
 check('what is chosen is what the archive does', 'geo-h-tall' in html and 'has-list-left' in html, re.findall(r'geo-h-\w+|has-list-\w+', html))

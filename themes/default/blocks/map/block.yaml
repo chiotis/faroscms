@@ -5,6 +5,11 @@ variants:
   contained: Inside the page width
   full: Full width
   split: Details beside the map
+  overlay: Full width, list over the map
+# Which layouts fit which kind of map: details beside a map of one place; a list over a map of many.
+variant_when:
+  split: { source: manual }
+  overlay: { source: '!manual' }
 fields:
   source:
     type: select

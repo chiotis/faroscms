@@ -285,6 +285,21 @@
     });
   }
 
+  /** The value a block has for a field, or the field's default while nothing is stored (the shared fields count too). */
+  function valueFor(def, block, key) {
+    var other = def.fields.concat(def.common || []).filter(function (f) { return f.key === key; })[0];
+    return block[key] == null ? (other && other.default != null ? other.default : '') : block[key];
+  }
+
+  /** The layouts a block can have now: some belong to one kind of content only (`variant_when`). */
+  function variantOptions(def, block, options) {
+    var when = def.variant_when || {};
+    return (options || []).filter(function (pair) {
+      var wanted = when[pair[0]];
+      return !wanted || Object.keys(wanted).every(function (key) { return whenMatches(wanted[key], valueFor(def, block, key)); });
+    });
+  }
+
   var rowOpen = new WeakMap();
 
   function repeaterControl(field, rows, onChange, id) {
@@ -431,6 +446,7 @@
       };
     };
     var variant = field('variant');
+    if (variant) variant = Object.assign({}, variant, { options: variantOptions(def, block, variant.options) });
     if (variant && variant.options.length > 1) {
       var layout = el('div', { class: 'bk-field is-wide' }, [el('span', { class: 'bk-label', text: variant.label })]);
       layout.appendChild(choiceButtons(variant, block.variant == null ? variant['default'] : block.variant, change('variant'), 'bk-choices'));
@@ -482,6 +498,14 @@
         block[field.key] = value;
         serialize();
         applyWhen();
+        // A field that decides which layouts fit (what a map shows): a layout that no longer fits gives way to the first, and the card is drawn again.
+        var decides = Object.keys(def.variant_when || {}).some(function (name) { return Object.keys(def.variant_when[name]).indexOf(field.key) !== -1; });
+        if (decides) {
+          var allowed = variantOptions(def, block, (def.common.filter(function (f) { return f.key === 'variant'; })[0] || {}).options).map(function (pair) { return pair[0]; });
+          if (allowed.indexOf(String(valueFor(def, block, 'variant'))) === -1) delete block.variant;
+          serialize();
+          render(block._id, 'keep');
+        }
       }, idBase);
       if (field.when) conditional.push({ node: node, when: field.when });
       fields.appendChild(node);

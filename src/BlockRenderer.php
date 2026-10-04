@@ -320,9 +320,12 @@ final class BlockRenderer
         if ($type === 'map') {
             if (($values['source'] ?? 'manual') === 'manual' || !isset($this->providers['geo'])) {
                 $values['source'] = 'manual';
+                // A layout of the other kind of map (the list over the map) is the plain one here.
+                $values['variant'] = $values['variant'] === 'overlay' ? 'contained' : $values['variant'];
                 $values += self::mapUrls($values['lat'] ?? '', $values['lng'] ?? '', (int)($values['zoom'] ?? 15));
             } else {
                 // The entries of a content type (or all with a place) as a map draws them, with filters and a list.
+                $values['variant'] = $values['variant'] === 'split' ? 'contained' : $values['variant'];
                 $values['geo'] = ($this->providers['geo'])((string)$values['source'], (string)($context['lang'] ?? ''), (int)$values['limit'], (string)$values['term']);
                 $values['_empty'] = $values['geo']['items'] === [];
             }
