@@ -1,0 +1,10 @@
+{#
+  One thing on the dashboard that needs attention (from DashboardAttention): how serious it is, what it is, and where to go.
+#}
+{% macro item(a) %}
+  <li class="db-item is-{{ a.level }}">
+    <i class="db-dot" aria-hidden="true"></i>
+    <div class="db-item-text"><strong>{{ a.title }}</strong><span>{{ a.note }}</span></div>
+    {% if a.href %}<a class="db-go" href="{{ url(a.href|trim('/')) }}">{{ a.action }}<span class="sr-only">: {{ a.title }}</span></a>{% endif %}
+  </li>
+{% endmacro %}

@@ -58,6 +58,7 @@ Before the application boots, `public/index.php` hands `/_themes/…` and `/_cus
 | `SiteLimits` | What the site uses against the storage limit (measured, kept for twelve hours, adjusted by uploads and deletions), whether a file fits, the size of one upload, and the readers of the limits on the settings form. |
 | `SystemStatus` | The health checks of the dashboard and the System screen, their one-line verdict, the PHP extensions, and the environment table. |
 | `DashboardData` | What the dashboard shows each role. |
+| `DashboardAttention` | Turns the facts the dashboard gathers into the short list of things that need attention (update, storage, system checks, backups, mail, SEO, links, drafts, languages, analytics), most serious first. |
 | `FormProcessor` | What happens to a form someone fills in on the site: the starting values, checking what was sent against the fields, the record kept, and the emails it causes (notification and automatic reply). Sending and storing are the caller's. |
 | `FormsAdmin` | The Forms screens: the list with submission counts, one form's submissions filtered and paged, deleting submissions, and the CSV export. |
 | `SignIn` | Password sign-in: a block after repeated failures, the log, and a flag when the password is the one shipped with the CMS. |

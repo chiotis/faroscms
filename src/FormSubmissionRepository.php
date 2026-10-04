@@ -52,6 +52,19 @@ final class FormSubmissionRepository
         return $entries;
     }
 
+    /** How many submissions of every form arrived in the last days, counted by the time of their files (nothing is opened). */
+    public function recentCount(int $days = 7): int
+    {
+        $since = time() - $days * 86400;
+        $count = 0;
+        foreach (glob($this->contentDir . '/forms-submissions/*/*.json') ?: [] as $path) {
+            if ((int)@filemtime($path) >= $since) {
+                $count++;
+            }
+        }
+        return $count;
+    }
+
     /** @return array{total: int, last_7_days: int, latest: string} */
     public function stats(string $slug): array
     {
