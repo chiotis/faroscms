@@ -108,7 +108,9 @@
     if (href === '') { return inner; }
     if (/[\s()<>]/.test(href)) { href = '<' + href.replace(/[<>]/g, encodeURIComponent) + '>'; }
     var title = node.getAttribute('title');
-    return '[' + inner + '](' + href + (title ? ' "' + title.replace(/"/g, '\\"') + '"' : '') + ')';
+    // A link that opens in a new tab is written with an attribute after it: [text](address){target=_blank}.
+    var blank = node.getAttribute('target') === '_blank' ? '{target=_blank}' : '';
+    return '[' + inner + '](' + href + (title ? ' "' + title.replace(/"/g, '\\"') + '"' : '') + ')' + blank;
   }
 
   function image(node) {
@@ -452,6 +454,10 @@
     closePop();
     var inputs = {};
     var rows = fields.map(function (f) {
+      if (f.type === 'checkbox') {
+        inputs[f.name] = el('input', { type: 'checkbox', checked: !!f.value });
+        return el('label', { class: 'ed-pop-check' }, [inputs[f.name], el('span', { text: f.label })]);
+      }
       inputs[f.name] = el('input', { type: 'text', value: f.value || '', placeholder: f.placeholder || '', class: 'lc-input', autocomplete: 'off', spellcheck: 'false' });
       return el('label', { class: 'ed-pop-row' }, [el('span', { text: f.label }), inputs[f.name]]);
     });
@@ -467,7 +473,7 @@
     pop.addEventListener('submit', function (event) {
       event.preventDefault();
       var values = {};
-      Object.keys(inputs).forEach(function (k) { values[k] = inputs[k].value.trim(); });
+      Object.keys(inputs).forEach(function (k) { values[k] = inputs[k].type === 'checkbox' ? inputs[k].checked : inputs[k].value.trim(); });
       closePop();
       restoreRange();
       done(values);
@@ -477,7 +483,7 @@
     var at = anchor.getBoundingClientRect(), host = box.getBoundingClientRect();
     pop.style.top = (at.bottom - host.top + 6) + 'px';
     pop.style.left = Math.max(0, Math.min(at.left - host.left, host.width - pop.offsetWidth - 8)) + 'px';
-    var first = pop.querySelector('input');
+    var first = pop.querySelector('input[type="text"]');
     if (first) { first.focus(); first.select(); }
   }
   document.addEventListener('mousedown', function (event) { if (pop && !pop.contains(event.target) && !event.target.closest('[data-ed-tools]')) { closePop(); } });
@@ -489,18 +495,34 @@
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) ? 'mailto:' + value : (/^[^\s/]+\.[a-z]{2,}/i.test(value) ? 'https://' + value : value);
   }
 
+  /** Makes a link open in a new tab (or not): the attribute the Markdown writes as {target=_blank}. */
+  function setBlank(link, blank) {
+    if (blank) { link.setAttribute('target', '_blank'); link.setAttribute('rel', 'noopener noreferrer'); }
+    else { link.removeAttribute('target'); link.removeAttribute('rel'); }
+  }
+
   function linkDialog(anchor) {
     rememberRange();
     var range = currentRange();
     var existing = range ? closest(range.commonAncestorContainer, 'a') : null;
-    ask(anchor, existing ? 'Edit link' : 'Add a link', [{ name: 'url', label: 'Address', value: existing ? existing.getAttribute('href') : '', placeholder: 'https://… or /page' }], function (v) {
+    ask(anchor, existing ? 'Edit link' : 'Add a link', [
+      { name: 'url', label: 'Address', value: existing ? existing.getAttribute('href') : '', placeholder: 'https://… or /page' },
+      { name: 'blank', type: 'checkbox', label: 'Open in a new tab', value: existing ? existing.getAttribute('target') === '_blank' : false }
+    ], function (v) {
       var url = safeUrl(v.url);
       if (url === '') { return; }
       var r = currentRange();
       var current = r ? closest(r.commonAncestorContainer, 'a') : null;
-      if (current) { current.setAttribute('href', url); changed(); return; }
-      if (r && r.collapsed) { document.execCommand('insertHTML', false, '<a href="' + url.replace(/"/g, '&quot;') + '">' + escapeHtml(v.url) + '</a>'); }
-      else { document.execCommand('createLink', false, url); }
+      if (current) { current.setAttribute('href', url); setBlank(current, v.blank); changed(); return; }
+      if (r && r.collapsed) {
+        document.execCommand('insertHTML', false, '<a href="' + url.replace(/"/g, '&quot;') + '"' + (v.blank ? ' target="_blank" rel="noopener noreferrer"' : '') + '>' + escapeHtml(v.url) + '</a>');
+      } else {
+        document.execCommand('createLink', false, url);
+        var after = currentRange();
+        if (after && v.blank) {
+          Array.prototype.forEach.call(surface.querySelectorAll('a'), function (a) { if (after.intersectsNode(a) && a.getAttribute('href') === url) { setBlank(a, true); } });
+        }
+      }
       changed();
     }, existing ? { remove: function () { var u = closest(currentRange().commonAncestorContainer, 'a'); if (u) { unwrap(u); changed(); } }, removeLabel: 'Remove link' } : {});
   }
@@ -907,7 +929,11 @@
         case 'code': wrapSelection('`', '`'); break;
         case 'link': {
           var url = window.prompt('Address of the link');
-          if (url) { var text = picked() || 'link text'; wrapSelection('[' + text + '](' + url + ')', ''); }
+          if (url) {
+            var text = picked() || 'link text';
+            var blank = window.confirm('Open this link in a new tab?') ? '{target=_blank}' : '';
+            wrapSelection('[' + text + '](' + url + ')' + blank, '');
+          }
           break;
         }
         case 'image': {

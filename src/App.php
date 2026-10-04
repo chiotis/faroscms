@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace FarosCMS;
 
 use League\CommonMark\Environment\Environment;
+use League\CommonMark\Extension\Attributes\AttributesExtension;
 use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
 use League\CommonMark\Extension\CommonMark\Node\Block\HtmlBlock;
 use League\CommonMark\Extension\CommonMark\Node\Inline\HtmlInline;
@@ -451,6 +452,8 @@ final class App
             'renderer' => ['soft_break' => "<br />\n"],
             // [text](javascript:…) and similar links lose their address instead of running script when clicked.
             'allow_unsafe_links' => false,
+            // [text](address){target=_blank} opens a link in a new tab (with rel noopener); no other attribute is accepted.
+            'attributes' => ['allow' => ['target']],
             // A wide table scrolls inside its own box; tabindex lets keyboard users scroll it.
             'table' => ['wrap' => ['enabled' => true, 'tag' => 'div', 'attributes' => ['class' => 'table-wrap', 'tabindex' => '0']]],
         ]);
@@ -458,6 +461,7 @@ final class App
         $environment->addExtension(new TableExtension());
         // ~~struck~~ text, which the editor's Strike button writes.
         $environment->addExtension(new StrikethroughExtension());
+        $environment->addExtension(new AttributesExtension());
         return $environment;
     }
 

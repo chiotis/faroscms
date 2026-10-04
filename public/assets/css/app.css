@@ -1488,3 +1488,5 @@ html.dark .bk-pills.is-light button[aria-pressed="true"] { border-color: #f1f5f9
 .bk-rep.is-empty { padding: .25rem .5rem; }
 .bk-rep.is-empty .bk-rep-head { margin-bottom: 0; }
 .bk-rep.is-empty .bk-btn { margin-left: auto; padding: 0 .5rem; }
+.ed-pop-check { display: flex; align-items: center; gap: .375rem; color: #334155; font-size: .75rem; cursor: pointer; }
+html.dark .ed-pop-check { color: #cbd5e1; }

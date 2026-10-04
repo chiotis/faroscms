@@ -20,6 +20,8 @@ The text of an entry is **Markdown, always**. The file on disk, the History, the
 - Raw HTML is kept verbatim, so the check that stops someone without the raw HTML capability from adding HTML (`HtmlGuard`) still recognises what was already in the file.
 - A new line in a paragraph is a line break, as everywhere on the site.
 
+**Links that open in a new tab.** The link box has *Open in a new tab*. In the Markdown it is written as an attribute after the link, `[text](https://example.org){target=_blank}`, and the site draws `target="_blank"` with `rel="noopener noreferrer"`. It is the only attribute the site accepts that way (no classes, ids or event handlers), and braces that are not an attribute, such as `{name}`, stay as text. A line that is only `{.class}` or `{key=value}` is read as an attribute and not shown.
+
 ~~Strikethrough~~ is part of the site's Markdown (the Strike button writes `~~text~~`).
 
 ## Files

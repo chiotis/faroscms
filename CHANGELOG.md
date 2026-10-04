@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.56 — 2026-10-04 — Links that open in a new tab
+- **The link box of the content editor has *Open in a new tab*.** It is ticked when you edit a link that already opens that way, and in Markdown mode the button asks the same. The Markdown stays Markdown: the link is written `[text](address){target=_blank}`, and the site draws `target="_blank"` with `rel="noopener noreferrer"` (also in the Markdown fields of blocks). Only `target` is accepted as an attribute that way, so no classes, ids or event handlers can be added to content. Braces that are not an attribute (`{name}`) stay as text; a line that is only `{.class}` or `{key=value}` is read as an attribute and is not shown
+- Tests: the drawing of such a link in the unit test of the visual Markdown, and the page, the other attributes and the braces in the editor HTTP test. The full suite and CI were not run
+
 ## 0.1.55 — 2026-10-04 — Block settings: compact, with Content and Design apart
 - **A block is one line that opens.** The line has its small wireframe, number and name, the layout it uses, a *Hidden* mark, and the start of its text; on the right a new eye button hides or shows the block at once, then move up and down, add below, duplicate and remove. Cards are tighter and smaller everywhere
 - **Content and Design are apart.** An open block shows its *Content* first, in compact fields two to a row. Its *Design* tab holds what every block shares: the layout (as buttons that show the choices), the background (as four colour swatches), spacing, the anchor and hiding the block. Choices of a few short words (columns, alignment, spacing) are a row of buttons instead of a menu
