@@ -46,11 +46,12 @@ def save_page(c, slug, body='x', extra=None):
 root = Client(); root.login()
 root.submit('/admin/users-edit', has_field('username'), {'username': 'ed1', 'email': 'ed1@example.test', 'display_name': 'ed1', 'role': 'admin', 'status': 'active', 'password': 'Sturdy-pass-99', 'password_confirm': 'Sturdy-pass-99'})
 
-# ---- a file nobody uses
+# ---- a file nobody uses (the list view shows a row for each file; thumbnails are the usual view)
+root.get('/admin/media?view=list')
 lone, lone_path = upload(root, 'lone-file.png')
 html = root.get('/admin/media')[2]
 check('a new file that nothing points at is shown as Unused', 'Unused' in row(html, 'lone-file.png'), row(html, 'lone-file.png')[-400:])
-check('the toolbar counts the unused files and links to them', re.search(r'\d+ unused</a>', html) is not None and 'usage=unused' in html)
+check('the toolbar counts the unused files and links to them', re.search(r'Unused <em>\d+</em>', html) is not None and 'usage=unused' in html)
 
 # ---- used in a page body, and in a block
 used, used_path = upload(root, 'used-file.png')
@@ -76,8 +77,8 @@ check('the Unused filter shows only unused files', 'lone-file.png' in html and '
 html = root.get('/admin/media?usage=used')[2]
 check('the In use filter shows only files in use', 'used-file.png' in html and 'lone-file.png' not in html)
 html = root.get('/admin/media?usage=unused')[2]
-check('the filter is kept in the links of the page', 'usage=unused' in html.split('mediaFilter')[0] and 'Unused only' in html)
-check('and offered in the filter panel', re.search(r'<option value="unused"\s+selected', html) is not None)
+check('the filter is kept in the links of the page', html.count('usage=unused') >= 3 and 'Clear filters' in html)
+check('and shown as the one that is chosen', re.search(r'<a href="[^"]*usage=unused[^"]*"[^>]*aria-current="true"', html) is not None)
 
 # ---- deleting one that is in use
 st, h = delete(root, used)

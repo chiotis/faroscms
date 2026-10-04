@@ -63,7 +63,7 @@ final class MediaAdmin
             'usage' => in_array($usage, self::USAGE_FILTERS, true) ? $usage : '',
             'page' => max(1, (int)($get['page'] ?? 1)),
             'per_page' => in_array($perPage, self::PER_PAGE_OPTIONS, true) ? $perPage : 20,
-            'view' => in_array($asked, self::VIEWS, true) ? $asked : (in_array($stored, self::VIEWS, true) ? $stored : 'list'),
+            'view' => in_array($asked, self::VIEWS, true) ? $asked : (in_array($stored, self::VIEWS, true) ? $stored : 'thumbs'),
             'view_asked' => in_array($asked, self::VIEWS, true),
         ];
     }
@@ -86,7 +86,7 @@ final class MediaAdmin
             'type' => in_array($type, $this->media->typeOptions(), true) ? $type : 'all',
             'tag' => $this->media->sanitizeTag((string)($post['_state_tag'] ?? $current['tag'])),
             'q' => trim((string)($post['_state_q'] ?? $current['q'])),
-            'view' => in_array($view, self::VIEWS, true) ? $view : 'list',
+            'view' => in_array($view, self::VIEWS, true) ? $view : 'thumbs',
             'per_page' => in_array($perPage, self::PER_PAGE_OPTIONS, true) ? $perPage : 20,
             'page' => max(1, (int)($post['_state_page'] ?? $current['page'])),
         ];
