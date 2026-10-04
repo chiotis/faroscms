@@ -1,0 +1,27 @@
+{% set prefix = lang_prefix|default('') %}
+{% macro group(block, prefix, hidden) %}
+  <ul class="marquee-group" role="list"{% if hidden %} aria-hidden="true"{% endif %}>
+    {% for item in block.items %}
+      {% set href = link_url(item.url, prefix) %}
+      {% set mark %}
+        {% if block.variant == 'logos' and item.image %}
+          {{ image(item.image, {alt: hidden ? '' : item.text, sizes: '10rem', max_width: 540, class: 'marquee-logo'}) }}
+        {% else %}
+          <span class="marquee-word">{{ item.text }}</span>
+        {% endif %}
+      {% endset %}
+      <li class="marquee-item">
+        {% if href %}<a class="marquee-link" href="{{ href }}"{% if hidden %} tabindex="-1"{% endif %}>{{ mark }}</a>{% else %}{{ mark }}{% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+{% endmacro %}
+{% if block.heading %}<div class="container"><p class="marquee-heading" id="{{ block_uid }}-title">{{ block.heading }}</p></div>{% endif %}
+<div class="marquee-wrap">
+  <div class="marquee speed-{{ block.speed }} dir-{{ block.direction }}" data-marquee data-label-pause="{{ t('marquee.pause', 'Pause the scrolling band') }}" data-label-play="{{ t('marquee.play', 'Play the scrolling band') }}">
+    <div class="marquee-track">
+      {{ _self.group(block, prefix, false) }}
+      {{ _self.group(block, prefix, true) }}
+    </div>
+  </div>
+</div>

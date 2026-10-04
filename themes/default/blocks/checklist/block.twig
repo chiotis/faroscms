@@ -1,0 +1,19 @@
+{% import 'components/ui.twig' as ui %}
+{% set columns = block.variant == 'split' ? '1' : block.columns %}
+<div class="container checklist-layout">
+  <div class="checklist-head">
+    {{ ui.section_header(block, heading_tag, block_uid, 'left') }}
+  </div>
+  <ul class="check-points cols-{{ columns }}" role="list">
+    {% for point in block.items %}
+      <li class="check-item{% if point.excluded %} is-excluded{% endif %}">
+        {{ icon(point.excluded ? 'x' : (point.icon ?: block.icon ?: 'check'), 'check-mark') }}
+        <span class="check-body">
+          <span class="check-text">{{ point.text }}</span>
+          {% if point.note %}<span class="check-note">{{ point.note }}</span>{% endif %}
+          {% if point.excluded %}<span class="visually-hidden"> ({{ t('checklist.excluded', 'not included') }})</span>{% endif %}
+        </span>
+      </li>
+    {% endfor %}
+  </ul>
+</div>

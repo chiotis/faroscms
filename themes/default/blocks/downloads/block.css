@@ -1,0 +1,131 @@
+.downloads-narrow {
+  max-width: 52rem;
+}
+
+.downloads-list {
+  display: grid;
+  gap: var(--space-s);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.downloads-list.cols-2 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); }
+.downloads-list.cols-3 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr)); }
+
+.download-link {
+  display: flex;
+  height: 100%;
+  align-items: center;
+  gap: var(--space-s);
+  padding: var(--space-s) var(--space-m) var(--space-s) var(--space-s);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-l);
+  background: var(--card-bg);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.2s var(--ease), transform 0.2s var(--ease);
+}
+
+.download-link:hover {
+  border-color: var(--accent);
+}
+
+.download-type {
+  display: grid;
+  flex-shrink: 0;
+  width: 3.25rem;
+  height: 3.25rem;
+  place-items: center;
+  border-radius: var(--radius-m);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: var(--step--2);
+  font-weight: 750;
+  letter-spacing: 0.04em;
+}
+
+.download-type svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.download-body {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 0.15rem;
+}
+
+.download-title {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: var(--step-0);
+  font-weight: 650;
+  letter-spacing: 0;
+  line-height: 1.35;
+}
+
+.download-text {
+  color: var(--color-muted);
+  font-size: 0.95rem;
+}
+
+.download-meta {
+  color: var(--color-muted);
+  font-size: var(--step--1);
+}
+
+.download-action {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--accent);
+  font-size: var(--step--1);
+  font-weight: 650;
+}
+
+.download-icon {
+  width: 1.1rem;
+  height: 1.1rem;
+  transition: transform 0.2s var(--ease);
+}
+
+.download-link:hover .download-icon {
+  transform: translateY(2px);
+}
+
+/* A row that has no file yet, seen only by someone who is signed in. */
+.download.is-missing .download-link {
+  border-style: dashed;
+  opacity: 0.7;
+}
+
+/* Cards: the kind of file on top, the action under the text. */
+.block--cards .download-link {
+  flex-direction: column;
+  align-items: flex-start;
+  padding: var(--space-m);
+}
+
+.block--cards .download-body {
+  flex: 1;
+  width: 100%;
+}
+
+@media (max-width: 560px) {
+  .block--list .download-label {
+    display: none;
+  }
+
+  .block--list .download-link {
+    padding-right: var(--space-s);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .download-link:hover .download-icon {
+    transform: none;
+  }
+}

@@ -92,6 +92,8 @@
       var button = el('button', { type: 'button', class: 'overflow-hidden rounded-md border border-slate-200 bg-white text-left transition hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40' }, [
         item.kind === 'video' || !(item.thumb || item.url)
           ? el('span', { class: 'flex h-24 w-full items-center justify-center bg-slate-100 text-slate-500', 'aria-hidden': 'true', html: '<svg viewBox="0 0 24 24" class="h-8 w-8" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>' })
+          : item.kind !== 'image'
+          ? el('span', { class: 'flex h-24 w-full items-center justify-center bg-slate-100 text-xs font-semibold uppercase tracking-wide text-slate-500', 'aria-hidden': 'true', text: (String(item.url).split('?')[0].split('.').pop() || 'file').slice(0, 5) })
           : el('img', { src: item.thumb || item.url, alt: '', class: 'h-24 w-full object-cover', loading: 'lazy' }),
         el('span', { class: 'block truncate px-2 py-1 text-[11px] text-slate-600', text: item.name })
       ]);
@@ -111,7 +113,7 @@
     ui.prev.classList.toggle('opacity-50', ui.prev.disabled);
     ui.next.classList.toggle('opacity-50', ui.next.disabled);
     ui.status.textContent = payload.total === 0
-      ? (state.q || state.tag ? 'Nothing matches.' : (state.kind === 'video' ? 'The media library has no videos yet. Upload them in Media.' : 'The media library has no images yet. Upload them in Media.'))
+      ? (state.q || state.tag ? 'Nothing matches.' : (state.kind === 'video' ? 'The media library has no videos yet. Upload them in Media.' : state.kind === 'all' ? 'The media library has no files yet. Upload them in Media.' : 'The media library has no images yet. Upload them in Media.'))
       : '';
   }
 
@@ -139,8 +141,8 @@
   function open(onPick, kind) {
     if (!dialog) build();
     callback = onPick;
-    state = { q: '', tag: '', page: 1, kind: kind === 'video' ? 'video' : 'image' };
-    var noun = state.kind === 'video' ? 'video' : 'image';
+    state = { q: '', tag: '', page: 1, kind: kind === 'video' || kind === 'all' ? kind : 'image' };
+    var noun = state.kind === 'video' ? 'video' : (state.kind === 'all' ? 'file' : 'image');
     dialog.setAttribute('aria-label', 'Choose a ' + noun);
     dialog.querySelector('h2').textContent = 'Choose a ' + noun;
     ui.search.setAttribute('aria-label', 'Search ' + noun + 's');

@@ -1,0 +1,54 @@
+/* A divider is its own spacing: an empty space is as tall as it says, a line sits in the section's gap. */
+.block-divider.block--space {
+  padding-block: 0;
+}
+
+.divider-space.size-s { height: clamp(1.5rem, 1rem + 1.5vw, 2.5rem); }
+.divider-space.size-m { height: clamp(3rem, 2rem + 3vw, 5rem); }
+.divider-space.size-l { height: clamp(5rem, 3rem + 6vw, 8rem); }
+.divider-space.size-xl { height: clamp(7rem, 4rem + 10vw, 12rem); }
+
+.divider-line {
+  margin: 0;
+  border: 0;
+  border-top: 1px solid var(--color-border-strong);
+}
+
+.divider-line.style-dashed { border-top-style: dashed; }
+.divider-line.style-dotted { border-top-style: dotted; border-top-width: 2px; }
+
+.divider-line.width-short {
+  width: 4rem;
+  margin-inline: auto;
+  border-top: 3px solid var(--accent);
+  border-radius: 3px;
+}
+
+.divider-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-s);
+  margin: 0;
+}
+
+.divider-rule {
+  flex: 1;
+  border-top: 1px solid var(--color-border-strong);
+}
+
+.divider-label.style-dashed .divider-rule { border-top-style: dashed; }
+.divider-label.style-dotted .divider-rule { border-top-style: dotted; border-top-width: 2px; }
+
+.divider-label.width-short {
+  width: min(100%, 22rem);
+  margin-inline: auto;
+}
+
+.divider-text {
+  color: var(--color-muted);
+  font-size: var(--step--1);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-transform: uppercase;
+}

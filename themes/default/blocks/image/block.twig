@@ -1,0 +1,17 @@
+{% set prefix = lang_prefix|default('') %}
+{% set href = link_url(block.link, prefix) %}
+{% set sizes = block.variant == 'full' ? '100vw' : (block.variant == 'narrow' ? '(min-width: 800px) 46rem, 94vw' : '(min-width: 1200px) 1200px, 94vw') %}
+{% set picture %}{{ image(block.image, {alt: block.alt ?: null, sizes: sizes, max_width: block.variant == 'full' ? 2400 : 1800, class: 'image-block-img'}) }}{% endset %}
+<div class="{{ block.variant == 'full' ? 'image-block-full' : (block.variant == 'narrow' ? 'container-narrow' : 'container') }}">
+  <figure class="image-block ratio-{{ block.ratio }}{% if block.rounded and block.variant != 'full' %} is-rounded{% endif %}">
+    {% if href %}
+      <a class="image-block-link" href="{{ href }}"{% if block.new_tab %} target="_blank" rel="noopener noreferrer"{% endif %}>
+        {{ picture }}
+        {% if block.new_tab %}<span class="visually-hidden">{{ t('link.new_tab', '(opens in a new tab)') }}</span>{% endif %}
+      </a>
+    {% else %}
+      <div class="image-block-frame">{{ picture }}</div>
+    {% endif %}
+    {% if block.caption %}<figcaption class="image-block-caption{% if block.caption_align == 'center' %} is-center{% endif %}">{{ block.caption }}</figcaption>{% endif %}
+  </figure>
+</div>

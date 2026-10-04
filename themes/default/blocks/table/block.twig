@@ -1,0 +1,31 @@
+{% import 'components/ui.twig' as ui %}
+{% set label = block.heading ?: t('table.label', 'Data table') %}
+<div class="container">
+  {{ ui.section_header(block, heading_tag, block_uid, 'left') }}
+  {# Wide tables scroll sideways inside their own frame, which can be reached with the keyboard. #}
+  <div class="table-frame" role="region" aria-label="{{ label }}" tabindex="0">
+    <table class="data-table">
+      {% if block.header is not empty %}
+        <thead>
+          <tr>
+            {% for cell in block.header %}<th scope="col"{% if block.align[loop.index0] == 'right' %} class="is-num"{% endif %}>{{ cell|raw }}</th>{% endfor %}
+          </tr>
+        </thead>
+      {% endif %}
+      <tbody>
+        {% for row in block.body %}
+          <tr>
+            {% for cell in row %}
+              {% if loop.first and block.first_column %}
+                <th scope="row"{% if block.align[loop.index0] == 'right' %} class="is-num"{% endif %}>{{ cell|raw }}</th>
+              {% else %}
+                <td{% if block.align[loop.index0] == 'right' %} class="is-num"{% endif %}>{{ cell|raw }}</td>
+              {% endif %}
+            {% endfor %}
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if block.caption %}<p class="table-note">{{ block.caption }}</p>{% endif %}
+</div>

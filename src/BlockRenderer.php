@@ -21,7 +21,7 @@ final class BlockRenderer
 {
     /**
      * @param \Closure(string): string $markdown
-     * @param array<string, \Closure> $providers dynamic data: 'items' (type, lang, limit), 'form' (slug), 'youtube' (playlist id, picture source) and 'admin' (whether someone is signed in)
+     * @param array<string, \Closure> $providers dynamic data: 'items' (type, lang, limit), 'form' (slug), 'youtube' (playlist id, picture source), 'file' (a site file's size in bytes), 'term' (a category's name) and 'admin' (whether someone is signed in)
      */
     public function __construct(
         private BlockRegistry $registry,
@@ -276,6 +276,32 @@ final class BlockRenderer
         if ($type === 'playlist') {
             $values += $this->playlist($values);
         }
+        if ($type === 'image') {
+            $values['_empty'] = $values['image'] === '';
+        }
+        if ($type === 'quote') {
+            $values['_empty'] = $values['quote'] === '';
+        }
+        if ($type === 'checklist') {
+            $values['items'] = array_values(array_filter($values['items'], static fn(array $row): bool => $row['text'] !== ''));
+            $values['_empty'] = $values['items'] === [];
+        }
+        if ($type === 'marquee') {
+            $values['items'] = array_values(array_filter($values['items'], static fn(array $row): bool => $row['text'] !== '' || $row['image'] !== ''));
+            $values['_empty'] = $values['items'] === [];
+        }
+        if ($type === 'downloads') {
+            $values['items'] = $this->downloads($values['items']);
+            $values['_empty'] = $values['items'] === [];
+        }
+        if ($type === 'table') {
+            $values += self::tableData((string)$values['head'], (string)$values['rows'], (bool)$values['align_numbers']);
+            $values['_empty'] = $values['body'] === [];
+        }
+        if ($type === 'portfolio') {
+            $values += $this->portfolio($values, (string)($context['lang'] ?? ''));
+            $values['_empty'] = $values['tiles'] === [];
+        }
         if ($type === 'hero') {
             // A video behind the text, when the Picture is a video the site can play; otherwise the image is the picture.
             $values['_video'] = ($values['background'] ?? 'image') === 'video' ? self::backgroundVideo((string)($values['video'] ?? '')) : null;
@@ -295,6 +321,143 @@ final class BlockRenderer
             $values += self::mapUrls($values['lat'] ?? '', $values['lng'] ?? '', (int)($values['zoom'] ?? 15));
         }
         return $values;
+    }
+
+    /**
+     * The files of a Downloads block: the kind of file (its extension), its size (typed by the editor, or read from the file
+     * when it is one of the site's uploads), and a title (the file's name when the editor gave none). A row without a file is
+     * dropped for visitors, so they never see a download that goes nowhere.
+     *
+     * @param array<int, array<string, mixed>> $rows
+     * @return array<int, array<string, mixed>>
+     */
+    private function downloads(array $rows): array
+    {
+        $items = [];
+        $admin = isset($this->providers['admin']) && ($this->providers['admin'])() === true;
+        foreach ($rows as $row) {
+            $file = (string)$row['file'];
+            if ($file === '') {
+                // Someone who is signed in sees the row that still waits for its file (a ready-made page has them), a visitor does not.
+                if ($admin && ($row['title'] !== '' || $row['description'] !== '')) {
+                    $items[] = ['title' => (string)$row['title'], 'description' => (string)$row['description'], 'file' => '', 'ext' => '', 'size' => (string)$row['size'], 'external' => false, 'missing' => true];
+                }
+                continue;
+            }
+            $path = (string)(parse_url($file, PHP_URL_PATH) ?? '');
+            $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+            $extension = preg_match('/^[a-z0-9]{1,5}$/', $extension) ? $extension : '';
+            $title = trim((string)$row['title']);
+            if ($title === '') {
+                $title = trim((string)preg_replace('/[\s_-]+/u', ' ', rawurldecode(pathinfo($path, PATHINFO_FILENAME))));
+            }
+            $size = trim((string)$row['size']);
+            if ($size === '' && isset($this->providers['file'])) {
+                $bytes = ($this->providers['file'])($file);
+                $size = $bytes === null ? '' : Format::bytes($bytes);
+            }
+            $items[] = [
+                'title' => $title !== '' ? $title : $file,
+                'description' => (string)$row['description'],
+                'file' => $file,
+                'ext' => strtoupper($extension),
+                'size' => $size,
+                'external' => (bool)preg_match('#^https?://#i', $file),
+            ];
+        }
+        return $items;
+    }
+
+    /**
+     * What the Portfolio block draws: a tile for each piece of work (typed into the block, or the entries of a content type)
+     * and the categories to filter by, in the order they first appear. A manual tile can have several categories, separated
+     * by commas; an entry's are the categories it is filed under.
+     *
+     * @param array<string, mixed> $values
+     * @return array{tiles: array<int, array<string, mixed>>, cat_list: array<int, array{slug: string, label: string}>}
+     */
+    private function portfolio(array $values, string $lang): array
+    {
+        $tiles = [];
+        if ($values['source'] !== 'manual' && isset($this->providers['items'])) {
+            foreach (($this->providers['items'])((string)$values['source'], $lang, (int)$values['limit']) as $entry) {
+                $cats = [];
+                foreach (Format::list($entry->meta['categories'] ?? null) as $slug) {
+                    $label = isset($this->providers['term']) ? (string)($this->providers['term'])((string)$slug, $lang) : '';
+                    $cats[] = ['slug' => Slug::plain((string)$slug), 'label' => $label !== '' ? $label : (string)$slug];
+                }
+                $tiles[] = ['entry' => $entry, 'cats' => $cats];
+            }
+        } else {
+            foreach ($values['items'] as $row) {
+                if ($row['title'] === '' && $row['image'] === '') {
+                    continue;
+                }
+                $cats = [];
+                foreach (explode(',', (string)$row['category']) as $label) {
+                    $label = trim($label);
+                    if ($label !== '' && Slug::plain($label) !== '') {
+                        $cats[] = ['slug' => Slug::plain($label), 'label' => $label];
+                    }
+                }
+                $tiles[] = ['entry' => null, 'title' => $row['title'], 'text' => $row['text'], 'image' => $row['image'], 'url' => $row['url'], 'cats' => $cats];
+            }
+        }
+        $filters = [];
+        foreach ($tiles as $tile) {
+            foreach ($tile['cats'] as $cat) {
+                $filters[$cat['slug']] ??= $cat;
+            }
+        }
+        return ['tiles' => $tiles, 'cat_list' => array_values($filters)];
+    }
+
+    /**
+     * The cells of a Table block. The editor types or pastes one row to a line, cells divided by `|` or by a tab (a copy from a
+     * spreadsheet); the first line of `head` holds the column titles. A line of dashes (the rule under the titles of a Markdown
+     * table) is skipped. Every row has as many cells as the widest, a column of figures is marked to be aligned to the right,
+     * and each cell is safe HTML: its text escaped, with **bold** and [links](address) the only marks it can carry.
+     *
+     * @return array{columns: int, header: array<int, string>, body: array<int, array<int, string>>, align: array<int, string>}
+     */
+    public static function tableData(string $head, string $rows, bool $alignNumbers = true): array
+    {
+        $cells = static fn(string $line): array => array_map('trim', preg_split('/\t|\|/', trim($line, " \t|")) ?: []);
+        $header = trim($head) === '' ? [] : $cells(strtok(str_replace("\r", '', trim($head)), "\n") ?: '');
+        $body = [];
+        foreach (explode("\n", str_replace("\r", '', $rows)) as $line) {
+            if (trim($line) === '' || preg_match('/^[\s|:\t-]+$/', $line)) {
+                continue;
+            }
+            $body[] = $cells($line);
+            if (count($body) >= 100) {
+                break;
+            }
+        }
+        $columns = min(12, max(count($header), ...array_map('count', $body ?: [[]])));
+        $pad = static fn(array $row): array => array_slice(array_pad($row, $columns, ''), 0, $columns);
+        $header = $header === [] ? [] : $pad($header);
+        $body = array_map($pad, $body);
+        $align = [];
+        for ($c = 0; $c < $columns; $c++) {
+            $filled = array_values(array_filter(array_column($body, $c), static fn(string $cell): bool => $cell !== ''));
+            $numeric = $alignNumbers && $filled !== [] && count(array_filter($filled, static fn(string $cell): bool => (bool)preg_match('/^[-+−]?\s?[€$£]?\s?\d[\d.,\s]*\s?(%|€|\$|£|[kKmM])?$/u', $cell))) === count($filled);
+            $align[] = $numeric ? 'right' : 'left';
+        }
+        $html = static function (string $cell): string {
+            $safe = htmlspecialchars($cell, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+            $safe = (string)preg_replace_callback('/\[([^\]]{1,120})\]\(([^)\s]{1,300})\)/u', static function (array $m): string {
+                $href = html_entity_decode($m[2], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                return FieldSchema::isSafeLink($href) ? '<a href="' . htmlspecialchars($href, ENT_QUOTES, 'UTF-8') . '">' . $m[1] . '</a>' : $m[0];
+            }, $safe);
+            return (string)preg_replace('/\*\*([^*]{1,200})\*\*/u', '<strong>$1</strong>', $safe);
+        };
+        return [
+            'columns' => $columns,
+            'header' => array_map($html, $header),
+            'body' => array_map(static fn(array $row): array => array_map($html, $row), $body),
+            'align' => $align,
+        ];
     }
 
     /**

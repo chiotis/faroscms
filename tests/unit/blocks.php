@@ -63,6 +63,70 @@ check('video vimeo hash', str_contains(BlockRenderer::videoInfo('https://vimeo.c
 check('video file relative', BlockRenderer::videoInfo('/uploads/media/a.mp4')['provider'], 'file');
 check('video non-video file', BlockRenderer::videoInfo('/uploads/media/a.docx'), null);
 
+// ---- the blocks of the second family: image, divider, quote, downloads, checklist, portfolio, table, marquee
+foreach (['image', 'divider', 'quote', 'downloads', 'checklist', 'portfolio', 'table', 'marquee'] as $t) check("$t registered", $registry->get($t) !== null, true);
+check('image variants and shape default', [array_keys($registry->get('image')['variants']), $registry->get('image')['fields']['ratio']['default']], [['wide', 'narrow', 'full'], 'original']);
+check('divider variants', array_keys($registry->get('divider')['variants']), ['space', 'line', 'label']);
+check('quote variants', array_keys($registry->get('quote')['variants']), ['centered', 'bar', 'photo']);
+check('downloads variants, and a field that is a file', [array_keys($registry->get('downloads')['variants']), $registry->get('downloads')['fields']['items']['fields']['file']['type']], [['list', 'cards'], 'file']);
+check('a file is kept as a safe address, empty or not', [FieldSchema::clean($registry->get('downloads')['fields']['items']['fields']['file'], ' /uploads/media/a.pdf '), FieldSchema::clean($registry->get('downloads')['fields']['items']['fields']['file'], 'javascript:alert(1)'), FieldSchema::clean($registry->get('downloads')['fields']['items']['fields']['file'], 'https://x.test/a b.pdf')], ['/uploads/media/a.pdf', '', '']);
+check('checklist variants, and its mark', [array_keys($registry->get('checklist')['variants']), $registry->get('checklist')['fields']['icon']['default']], [['plain', 'cards', 'split'], 'check']);
+check('portfolio variants, and its source takes the content types', [array_keys($registry->get('portfolio')['variants']), array_keys($registry->get('portfolio')['fields']['source']['options'])], [['grid', 'overlay'], ['manual', 'posts', 'projects']]);
+check('portfolio has at most 24 entries from a content type', $registry->get('portfolio')['fields']['limit']['max'], 24);
+check('table variants', array_keys($registry->get('table')['variants']), ['lines', 'striped', 'boxed']);
+check('marquee variants, speed and direction', [array_keys($registry->get('marquee')['variants']), $registry->get('marquee')['fields']['speed']['default'], $registry->get('marquee')['fields']['direction']['default']], [['text', 'logos'], 'normal', 'left']);
+check('pricing has a switch that is off, and a yearly price for each plan', [$registry->get('pricing')['fields']['billing_switch']['default'], isset($registry->get('pricing')['fields']['items']['fields']['yearly_price'])], [false, true]);
+check('a field that matters for a layout is shown by the layout', [$registry->get('divider')['fields']['label']['when'], $registry->get('downloads')['fields']['columns']['when']], [['variant' => ['label']], ['variant' => ['cards']]]);
+check('text has a layout with a contents list', array_keys($registry->get('text')['variants']), ['default', 'split', 'lead', 'contents']);
+check('their kinds', [$kinds['image'], $kinds['divider'], $kinds['downloads'], $kinds['portfolio'], $kinds['marquee']], ['Media', 'Content', 'Content', 'Showcase', 'Showcase']);
+
+// A table: one row to a line, cells divided by | or a tab; escaped; a few marks only.
+$t = BlockRenderer::tableData("Plan | Users | Price", "Starter | 3 | €9\nTeam | 20 | €29\n");
+check('table: header, rows, and a column of figures aligned to the right', [$t['header'], $t['body'], $t['align'], $t['columns']], [['Plan', 'Users', 'Price'], [['Starter', '3', '€9'], ['Team', '20', '€29']], ['left', 'right', 'right'], 3]);
+$t = BlockRenderer::tableData('', "| a | b |\n|---|:--:|\n| c | d |\n");
+check('table: the rule of a Markdown table is skipped, and the outer bars with it', [$t['header'], $t['body']], [[], [['a', 'b'], ['c', 'd']]]);
+$t = BlockRenderer::tableData('A | B', "x\ty\tz\n1");
+check('table: tabs divide cells, short rows are filled, the header grows to the widest row', [$t['columns'], $t['header'], $t['body']], [3, ['A', 'B', ''], [['x', 'y', 'z'], ['1', '', '']]]);
+$t = BlockRenderer::tableData('', "<b>x</b> | **bold** | [go](/contact) | [bad](javascript:alert(1)) | a & b");
+check('table: text is escaped, bold and safe links are the only marks', $t['body'][0], ['&lt;b&gt;x&lt;/b&gt;', '<strong>bold</strong>', '<a href="/contact">go</a>', '[bad](javascript:alert(1))', 'a &amp; b']);
+$t = BlockRenderer::tableData('', "a | 10\nb | 20.5\nc | text", true);
+check('table: a column is aligned only when every cell is a figure', $t['align'], ['left', 'left']);
+$t = BlockRenderer::tableData('', "a | €1.200\nb | 15%\nc | −3", true);
+check('table: money, percentages and signs are figures', $t['align'], ['left', 'right']);
+check('table: alignment can be switched off', BlockRenderer::tableData('', "a | 1", false)['align'], ['left', 'left']);
+$t = BlockRenderer::tableData('', implode("\n", array_fill(0, 150, 'a | b')));
+check('table: at most 100 rows', count($t['body']), 100);
+$t = BlockRenderer::tableData(implode('|', range(1, 20)), '');
+check('table: at most 12 columns', [$t['columns'], count($t['header'])], [12, 12]);
+check('table: nothing typed is an empty table', BlockRenderer::tableData('', '')['body'], []);
+
+// The page layouts: every block is one the theme has, in both languages, and no value is lost when the editor stores it.
+$formStub = ['content_types' => fn() => ['posts' => 'Posts', 'projects' => 'Projects'], 'forms' => fn() => ['' => '—', 'contact' => 'Contact']];
+$withForms = new BlockRegistry($theme, $formStub);
+$layouts = glob($root . '/themes/default/presets/page-*.yaml');
+check('at least 18 page layouts', count($layouts) >= 18, true);
+foreach ($layouts as $file) {
+    $preset = Yaml::parseFile($file);
+    $name = basename($file, '.yaml');
+    check("$name: kind, a label and a description in both languages", [$preset['kind'], array_keys($preset['label']), array_keys($preset['description'])], ['page', ['el', 'en'], ['el', 'en']]);
+    check("$name: the same blocks in both languages", array_column($preset['blocks']['el'], 'type'), array_column($preset['blocks']['en'], 'type'));
+    foreach (['el', 'en'] as $lang) {
+        $stored = $withForms->sanitizeForStorage($preset['blocks'][$lang]);
+        $lost = [];
+        foreach ($preset['blocks'][$lang] as $i => $block) {
+            $definition = $withForms->get($block['type']);
+            if ($definition === null) { $lost[] = $block['type'] . ' unknown'; continue; }
+            foreach ($block as $key => $value) {
+                $field = $definition['fields'][$key] ?? $definition['common'][$key] ?? null;
+                if ($key !== 'type' && (!isset($stored[$i]) || (!array_key_exists($key, $stored[$i]) && ($field === null || $field['default'] !== $value)))) {
+                    $lost[] = $block['type'] . '.' . $key;
+                }
+            }
+        }
+        check("$name ($lang): every block and value is kept when stored", $lost, []);
+    }
+}
+
 // Round trip of the showcase page
 $showcase = $root . '/tests/fixtures/content/pages/blocks.md';
 if (!is_file($showcase)) { echo "skip showcase round trip (no fixture)\n"; // ---- a video behind the hero

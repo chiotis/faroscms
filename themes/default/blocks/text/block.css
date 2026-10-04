@@ -54,3 +54,35 @@
     position: static;
   }
 }
+
+/* Text with a contents list */
+.text-contents {
+  display: grid;
+  grid-template-columns: minmax(12rem, 16rem) minmax(0, 46rem);
+  gap: clamp(2rem, 1rem + 5vw, 5rem);
+  align-items: start;
+}
+
+.text-contents.has-no-list {
+  grid-template-columns: minmax(0, 46rem);
+}
+
+.text-contents-list {
+  position: sticky;
+  top: calc(var(--header-height, 4.5rem) + 2rem);
+}
+
+.text-contents-body :is(h2, h3) {
+  scroll-margin-top: calc(var(--header-height, 4.5rem) + 1.5rem);
+}
+
+@media (max-width: 860px) {
+  .text-contents,
+  .text-contents.has-no-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .text-contents-list {
+    position: static;
+  }
+}

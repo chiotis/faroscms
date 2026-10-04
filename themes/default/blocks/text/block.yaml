@@ -5,6 +5,7 @@ variants:
   default: Single column
   split: Heading beside the text
   lead: Large introduction
+  contents: Text with a contents list
 fields:
   eyebrow:
     type: text

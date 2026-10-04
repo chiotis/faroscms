@@ -13,7 +13,7 @@ namespace FarosCMS;
  */
 final class FieldSchema
 {
-    public const TYPES = ['text', 'textarea', 'markdown', 'email', 'url', 'link', 'image', 'video', 'color', 'number', 'decimal', 'date', 'select', 'icon', 'toggle', 'repeater'];
+    public const TYPES = ['text', 'textarea', 'markdown', 'email', 'url', 'link', 'image', 'video', 'file', 'color', 'number', 'decimal', 'date', 'select', 'icon', 'toggle', 'repeater'];
 
     /**
      * @param array<string, mixed> $definitions raw map of key => definition
@@ -261,6 +261,7 @@ final class FieldSchema
 
             case 'image':
             case 'video':
+            case 'file':
             case 'url':
                 $value = is_scalar($value) ? trim((string)$value) : '';
                 return $value === '' || self::isSafeUrl($value) ? $value : $fallback;

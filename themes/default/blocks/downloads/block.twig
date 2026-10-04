@@ -1,0 +1,40 @@
+{% import 'components/ui.twig' as ui %}
+{% set prefix = lang_prefix|default('') %}
+<div class="container{% if block.variant == 'list' %} downloads-narrow{% endif %}">
+  {{ ui.section_header(block, heading_tag, block_uid, 'left') }}
+  <ul class="downloads-list cols-{{ block.variant == 'cards' ? block.columns : '1' }}" role="list">
+    {% for file in block.items %}
+      {% set href = link_url(file.file, prefix) %}
+      {% if file.missing|default(false) %}
+        {# Seen only by someone who is signed in: the row has no file yet. #}
+        <li class="download is-missing">
+          <span class="download-link">
+            <span class="download-type" aria-hidden="true">{{ icon('download')|raw }}</span>
+            <span class="download-body">
+              <{{ item_heading_tag }} class="download-title">{{ file.title }}</{{ item_heading_tag }}>
+              {% if file.description %}<span class="download-text">{{ file.description }}</span>{% endif %}
+              <span class="download-meta">{{ t('downloads.missing', 'No file chosen yet. Only you can see this row.') }}</span>
+            </span>
+          </span>
+        </li>
+      {% elseif href %}
+        <li class="download">
+          <a class="download-link" href="{{ href }}"{% if file.external %} target="_blank" rel="noopener noreferrer"{% else %} download{% endif %}>
+            <span class="download-type" aria-hidden="true">{{ file.ext ?: icon('download')|raw }}</span>
+            <span class="download-body">
+              <{{ item_heading_tag }} class="download-title">{{ file.title }}</{{ item_heading_tag }}>
+              {% if file.description %}<span class="download-text">{{ file.description }}</span>{% endif %}
+              {% if file.ext or file.size %}
+                <span class="download-meta">{{ file.ext }}{% if file.ext and file.size %} · {% endif %}{{ file.size }}</span>
+              {% endif %}
+            </span>
+            <span class="download-action">
+              <span class="download-label">{{ block.button_label ?: t('downloads.download', 'Download') }}</span>
+              {{ icon('download', 'download-icon') }}
+            </span>
+          </a>
+        </li>
+      {% endif %}
+    {% endfor %}
+  </ul>
+</div>

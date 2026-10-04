@@ -132,7 +132,7 @@
   /* Fields ------------------------------------------------------------------ */
 
   // A field a person fills in is a small label over a compact control; short fields sit two to a row.
-  var WIDE = { textarea: 1, markdown: 1, image: 1, video: 1, repeater: 1 };
+  var WIDE = { textarea: 1, markdown: 1, image: 1, video: 1, file: 1, repeater: 1 };
 
   /** A choice of a few short words is a row of buttons; a longer list is a menu. */
   function isShortChoice(field) {
@@ -241,6 +241,17 @@
         openMediaPicker(function (url) { control.value = url; onChange(url); }, 'video');
       });
       wrapper.appendChild(el('div', { class: 'bk-image' }, [control, chooseVideo]));
+    } else if (type === 'file') {
+      // A file to download: its address with a Library button for every kind of file.
+      control = el('input', { id: id, type: 'text', placeholder: field.placeholder || '/uploads/…', class: 'lc-input' });
+      control.value = value == null ? '' : String(value);
+      control.addEventListener('input', function () { onChange(control.value); });
+      var chooseFile = el('button', { type: 'button', class: CLS.btn, html: svg('image') + '<span>Library</span>' });
+      chooseFile.setAttribute('aria-label', 'Choose a file from the media library');
+      chooseFile.addEventListener('click', function () {
+        openMediaPicker(function (url) { control.value = url; onChange(url); }, 'all');
+      });
+      wrapper.appendChild(el('div', { class: 'bk-image' }, [control, chooseFile]));
     } else {
       var inputType = type === 'number' ? 'number' : (type === 'email' ? 'email' : 'text');
       control = el('input', {
@@ -298,13 +309,18 @@
       var rowId = id + '-' + index;
       var texts = [];
       var picture = '';
+      var fileName = '';
       (field.fields || []).forEach(function (sub) {
         var v = row[sub.key];
         if (typeof v !== 'string' || v.trim() === '') return;
         if (sub.type === 'image') { if (!picture) picture = v; return; }
+        // A file is named by its file name when the row has no title of its own.
+        if (sub.type === 'file') { if (!fileName) fileName = decodeURIComponent(v.split('?')[0].split('/').pop() || v); return; }
         if (sub.type === 'select' || sub.type === 'icon' || sub.type === 'link' || sub.type === 'video') return;
         texts.push(v.trim().replace(/\s+/g, ' '));
       });
+      var first = (field.fields || [])[0];
+      if (fileName && first && (typeof row[first.key] !== 'string' || row[first.key].trim() === '')) texts.unshift(fileName);
 
       var head = el('button', { type: 'button', class: 'bk-row-toggle', 'aria-expanded': open ? 'true' : 'false', 'aria-controls': rowId + '-body' }, [
         el('span', { class: 'bk-chev' + (open ? ' is-open' : ''), html: svg('chevron', 'h-3.5 w-3.5') }),
@@ -445,7 +461,8 @@
     var applyWhen = function () {
       conditional.forEach(function (entry) {
         var shown = Object.keys(entry.when).every(function (key) {
-          var other = def.fields.filter(function (f) { return f.key === key; })[0];
+          // The other field can be one of the block's own or a shared one (the layout), whose default counts while nothing is stored.
+          var other = def.fields.concat(def.common || []).filter(function (f) { return f.key === key; })[0];
           var have = block[key] == null ? (other && other.default != null ? other.default : '') : block[key];
           return entry.when[key].indexOf(String(have)) !== -1;
         });

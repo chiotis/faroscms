@@ -336,6 +336,21 @@ final class Images
         return memory_get_usage(true) + $bytes < $value;
     }
 
+    /**
+     * Size in bytes of a file of any type under /uploads (a download), or null when the address is not one of this site's uploads
+     * or the file is not there.
+     */
+    public function fileSize(string $src): ?int
+    {
+        $src = trim($src);
+        $path = (string)(parse_url($src, PHP_URL_PATH) ?? '');
+        if ($src === '' || preg_match('#^[a-z][a-z0-9+.-]*:#i', $src) || !str_starts_with($path, '/uploads/')) {
+            return null;
+        }
+        $file = self::sourceFile($this->publicDir . '/uploads', rawurldecode(substr($path, strlen('/uploads/'))));
+        return $file === null ? null : (int)(filesize($file) ?: 0);
+    }
+
     private static function sourceFile(string $uploadsDir, string $relative): ?string
     {
         if (!Theme::isSafeRelativePath($relative) || str_starts_with($relative, self::VARIANT_DIR . '/')) {
