@@ -91,11 +91,14 @@
           <g class="an-hit"><rect x="{{ p.x }}" y="0" width="{{ p.w }}" height="{{ c.base }}"/><circle cx="{{ p.cx }}" cy="{{ p.cy }}" r="3.5"/><title>{{ p.label }}: {{ p.visitors|number_format }} {{ p.visitors == 1 ? 'visitor' : 'visitors' }}, {{ p.views|number_format }} {{ p.views == 1 ? 'view' : 'views' }}</title></g>
         {% endfor %}
       </svg>
-      <table class="sr-only">
-        <caption>Visitors and page views by {{ c.unit }}</caption>
-        <thead><tr><th scope="col">{{ c.unit|capitalize }}</th><th scope="col">Visitors</th><th scope="col">Page views</th></tr></thead>
-        <tbody>{% for p in c.hover %}<tr><th scope="row">{{ p.label }}</th><td>{{ p.visitors }}</td><td>{{ p.views }}</td></tr>{% endfor %}</tbody>
-      </table>
+      {# In a box that hides it: a table keeps its own height, so on its own it would make the whole window scroll. #}
+      <div class="sr-only">
+        <table>
+          <caption>Visitors and page views by {{ c.unit }}</caption>
+          <thead><tr><th scope="col">{{ c.unit|capitalize }}</th><th scope="col">Visitors</th><th scope="col">Page views</th></tr></thead>
+          <tbody>{% for p in c.hover %}<tr><th scope="row">{{ p.label }}</th><td>{{ p.visitors }}</td><td>{{ p.views }}</td></tr>{% endfor %}</tbody>
+        </table>
+      </div>
     </section>
 
     <div class="an-cards">
