@@ -1,5 +1,6 @@
 label: Contact
 description: Contact details (phone, email, address, hours) with an optional form beside them.
+category: Convert
 variants:
   split: Details beside the form
   cards: Details as cards

@@ -71,4 +71,14 @@ st, _, ed = root.get('/admin/edit?type=pages&slug=blocks&lang=el')
 check('the block editor knows both', '"compare"' in ed and '"before-after"' in ed, st)
 check('column and row repeaters are offered', 'Highlight this column' in ed and 'This row is a heading for the rows below' in ed)
 
+# ---- what the editor is given to draw the settings of each block
+import json
+data = json.loads(re.search(r'id="block-editor-data"[^>]*>(.*?)</script>', ed, re.S).group(1))
+defs = {d['type']: d for d in data['definitions']}
+check('each block says what kind it is, for the picker', all(d.get('category') for d in data['definitions']) and defs['hero']['category'] == 'Openers' and defs['pricing']['category'] == 'Convert', {t: d.get('category') for t, d in defs.items()})
+check('and its layout, background and spacing are the settings every block has', [f['key'] for f in defs['hero']['common']] == ['variant', 'tone', 'spacing', 'anchor', 'hidden'])
+js = root.get('/assets/js/admin-blocks.js')[2]
+check('the editor script draws a block as a line that opens to Content and Design', 'bk-card' in js and "['content', 'Content'], ['design', 'Design']" in js)
+check('the script keeps what it needs for drawing out of the saved blocks', "'_tab'" in js and 'WeakMap' in js)
+
 print('\nALL PASSED' if not fails else '\n%d FAILED: %s' % (len(fails), fails))

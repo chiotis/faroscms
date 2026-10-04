@@ -1,5 +1,6 @@
 label: Timeline
 description: Milestones or process steps in order, each with a date or label, a title, and text.
+category: Content
 variants:
   vertical: Vertical line
   alternating: Alternating sides

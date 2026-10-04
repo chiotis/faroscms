@@ -1,5 +1,6 @@
 label: Team
 description: People with photo, role, a short bio, and contact links. Initials are shown when there is no photo.
+category: Showcase
 variants:
   grid: Photo cards
   compact: Compact list

@@ -1,5 +1,6 @@
 label: Slider
 description: Slides you scroll through, with previous and next buttons. Works by swiping, with the keyboard, and without JavaScript. Never moves by itself unless you turn that on.
+category: Media
 variants:
   full: One large slide at a time
   banner: Wide banner, a text panel over the picture

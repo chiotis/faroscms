@@ -1,5 +1,6 @@
 label: Latest content
 description: The newest posts, projects, or any content type, shown from a quiet text list to a magazine layout. Updates by itself when you publish.
+category: Showcase
 variants:
   cards: Cards
   list: Minimal list

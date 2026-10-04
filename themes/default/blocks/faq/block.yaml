@@ -1,5 +1,6 @@
 label: FAQ
 description: Questions and answers that open one at a time. Adds FAQ structured data for search engines.
+category: Content
 variants:
   stacked: Single column
   split: Heading beside the questions

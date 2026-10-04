@@ -1,5 +1,6 @@
 label: Stats
 description: Key numbers with a short label, e.g. years of experience or completed projects.
+category: Showcase
 variants:
   row: In a row
   cards: Cards

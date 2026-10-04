@@ -1,5 +1,6 @@
 label: Call to action
 description: A short, focused invitation with one or two buttons.
+category: Convert
 variants:
   band: Full-width band
   card: Contained card

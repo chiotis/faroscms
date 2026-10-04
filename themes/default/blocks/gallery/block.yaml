@@ -1,5 +1,6 @@
 label: Gallery
 description: A set of images in a grid, a masonry layout, or a scrolling strip. Images open larger in a viewer.
+category: Media
 variants:
   grid: Even grid
   masonry: Masonry

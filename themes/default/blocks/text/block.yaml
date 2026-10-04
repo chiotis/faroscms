@@ -1,5 +1,6 @@
 label: Text
 description: A heading with rich text. Use it for introductions, statements, and longer copy.
+category: Content
 variants:
   default: Single column
   split: Heading beside the text

@@ -1,5 +1,6 @@
 label: Testimonials
 description: Quotes from clients or partners, with name, role, and an optional photo.
+category: Showcase
 variants:
   grid: Grid of quotes
   featured: One large quote
