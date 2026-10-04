@@ -3,9 +3,8 @@
 
 {% block content %}
   {% set singular = type ends with 's' ? type|slice(0, -1) : type %}
-  {% set section_class = 'rounded-lg border border-slate-200 bg-white p-4' %}
-  {% set section_header_class = 'mb-3 border-b border-slate-100 pb-3' %}
-  {% set tab_class = 'tab-button shrink-0 border-b-2 border-transparent px-3 py-2.5 text-sm font-medium text-slate-500 transition hover:text-slate-800' %}
+  {% set card = 'lc-card en-card' %}
+  {% set tab_class = 'tab-button shrink-0 border-b-2 border-transparent px-3 py-2 text-sm font-medium text-slate-500 transition hover:text-slate-800' %}
   {% set primary_button_class = 'inline-flex shrink-0 items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700' %}
   {% set secondary_button_class = 'inline-flex shrink-0 items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50' %}
   {% set danger_button_class = 'inline-flex shrink-0 items-center gap-1.5 rounded-md border border-red-200 bg-white px-3 py-1.5 text-sm font-medium text-red-600 shadow-sm transition hover:bg-red-50' %}
@@ -47,217 +46,201 @@
     <template data-flash data-type="warning">Saved. Raw HTML is only available to administrators, so the HTML you typed is shown as plain text. Use Markdown for formatting.</template>
   {% endif %}
 
-  <form method="post" action="{{ url('admin/save') }}" class="editor space-y-4" enctype="multipart/form-data">
+  <form method="post" action="{{ url('admin/save') }}" class="editor space-y-3" enctype="multipart/form-data">
     {{ csrf_field() }}
     <input type="hidden" name="type" value="{{ type }}">
     <input type="hidden" name="translation_id" value="{{ meta_form.translation_id }}">
     <input type="hidden" name="original_slug" value="{{ slug }}">
     <input type="hidden" name="original_lang" value="{{ lang }}">
 
-    <div class="flex flex-col gap-3 border-b border-slate-200 pb-4 lg:flex-row lg:items-center lg:justify-between">
-      <div class="min-w-0">
-        <div class="mt-1 flex flex-wrap items-center gap-2">
-          <span class="truncate text-sm font-medium text-slate-700">{{ meta_form.title ?: title_from_slug }}</span>
-          <span class="inline-flex items-center rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-slate-500">{{ lang }}</span>
-          <span data-nonindex-pill class="{% if not meta_form.seo_noindex %}hidden {% endif %}inline-flex items-center rounded-full bg-pink-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-pink-700">Non-indexed</span>
-        </div>
-      </div>
+    <header class="en-head">
+      <p class="en-crumb">
+        <a href="{{ url('admin/content?type=' ~ type) }}">{{ type_definition.label|default(type|title) }}</a>
+        <span aria-hidden="true">/</span>
+        <strong>{{ meta_form.title ?: title_from_slug }}</strong>
+        <span class="en-chip">{{ lang }}</span>
+        <span class="en-chip {{ meta_form.status == 'draft' ? 'is-draft' : 'is-live' }}" data-status-pill>{{ meta_form.status == 'draft' ? 'Draft' : 'Published' }}</span>
+        <span data-nonindex-pill class="en-chip is-noindex{% if not meta_form.seo_noindex %} hidden{% endif %}">Non-indexed</span>
+      </p>
+    </header>
+
+    <div class="en-tabs" role="tablist">
+      <button type="button" class="{{ tab_class }} active" role="tab" data-tab="basics">Content</button>
+      {% if type_fields is not empty %}
+        <button type="button" class="{{ tab_class }}" role="tab" data-tab="details">{{ type_definition.singular }} details</button>
+      {% endif %}
+      {% if block_editor_json %}
+        <button type="button" class="{{ tab_class }}" role="tab" data-tab="blocks">Blocks <span data-block-count class="tab-count"></span></button>
+      {% endif %}
+      <button type="button" class="{{ tab_class }}" role="tab" data-tab="media">Media</button>
+      {% if type != 'pages' %}
+        <button type="button" class="{{ tab_class }}" role="tab" data-tab="taxonomies">Taxonomies</button>
+        <button type="button" class="{{ tab_class }}" role="tab" data-tab="custom">Custom Fields</button>
+      {% endif %}
+      <button type="button" class="{{ tab_class }}" role="tab" data-tab="seo">SEO</button>
+      <button type="button" class="{{ tab_class }}" role="tab" data-tab="translations">Translations</button>
+      {% if address.exists %}
+        <button type="button" class="{{ tab_class }}" role="tab" data-tab="history">History{% if history_total %} <span class="tab-count">{{ history_total }}</span>{% endif %}</button>
+      {% endif %}
+      <button type="button" class="{{ tab_class }}" role="tab" data-tab="advanced">Advanced</button>
     </div>
 
-    <div class="overflow-x-auto border-b border-slate-200">
-      <div class="flex min-w-max gap-1" role="tablist">
-        <button type="button" class="{{ tab_class }} active" data-tab="basics">Basics</button>
-        {% if type_fields is not empty %}
-          <button type="button" class="{{ tab_class }}" data-tab="details">{{ type_definition.singular }} details</button>
-        {% endif %}
-        {% if block_editor_json %}
-          <button type="button" class="{{ tab_class }}" data-tab="blocks">Blocks <span data-block-count class="tab-count"></span></button>
-        {% endif %}
-          <button type="button" class="{{ tab_class }}" data-tab="media">Media</button>
-          {% if type != 'pages' %}
-            <button type="button" class="{{ tab_class }}" data-tab="taxonomies">Taxonomies</button>
-            <button type="button" class="{{ tab_class }}" data-tab="custom">Custom Fields</button>
-        {% endif %}
-        <button type="button" class="{{ tab_class }}" data-tab="seo">SEO</button>
-        <button type="button" class="{{ tab_class }}" data-tab="translations">Translations</button>
-        {% if address.exists %}
-          <button type="button" class="{{ tab_class }}" data-tab="history">History{% if history_total %} <span class="tab-count">{{ history_total }}</span>{% endif %}</button>
-        {% endif %}
-        <button type="button" class="{{ tab_class }}" data-tab="advanced">Advanced</button>
-      </div>
-    </div>
-
-    <div class="tab-panel active grid grid-cols-1 gap-4 xl:grid-cols-3" data-panel="basics">
-      <div class="space-y-4 xl:col-span-2">
-        <div class="{{ section_class }}">
-          <div class="{{ section_header_class }}">
-            <h2 class="text-sm font-semibold text-slate-900">Content</h2>
-            <p class="mt-0.5 text-xs text-slate-400">Core title, slug, summary and Markdown body.</p>
-          </div>
-          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <label class="block sm:col-span-2">
-              <span class="mb-1 block text-sm font-medium text-slate-700">Title</span>
-              <input type="text" name="title" value="{{ meta_form.title }}" placeholder="Title" class="{{ input_class }}">
-            </label>
-            <div class="block sm:col-span-2" data-address>
-              <span class="mb-1 block text-sm font-medium text-slate-700" id="addressLabel">Web address</span>
-              {% if not address.exists %}
-                {# New content: the address is made from the title. A new translation keeps the address it inherits. #}
-                <input type="hidden" name="slug" value="{{ slug }}" data-address-value>
-                <p class="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600" aria-labelledby="addressLabel">
-                  <span class="text-slate-400">{{ address.prefix }}</span><span class="font-medium text-slate-900" data-address-preview data-fixed="{{ slug ? '1' : '0' }}">{{ slug ?: '…' }}</span>
-                </p>
-                <p class="mt-1 text-xs text-slate-400">{% if slug %}Same address as the other languages.{% else %}Made from the title when you save, with Greek letters converted to Latin. You can change it afterwards.{% endif %}</p>
-              {% elseif address.locked %}
-                <input type="hidden" name="slug" value="{{ slug }}">
-                <p class="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600" aria-labelledby="addressLabel"><span class="text-slate-400">{{ address.prefix }}</span><span class="font-medium text-slate-900">{{ slug }}</span></p>
-                <p class="mt-1 text-xs text-slate-400">The home page keeps its address. Choose another home page in Settings if you want a different one.</p>
-              {% else %}
-                <div class="flex items-center gap-2">
-                  <p class="min-w-0 flex-1 truncate rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600" aria-labelledby="addressLabel"><span class="text-slate-400">{{ address.prefix }}</span><span class="font-medium text-slate-900" data-address-current>{{ slug }}</span></p>
-                  <button type="button" class="{{ secondary_button_class }}" data-address-edit aria-expanded="false" aria-controls="addressPanel">Change</button>
-                </div>
-                <div id="addressPanel" class="mt-2 hidden rounded-md border border-amber-200 bg-amber-50 p-3" data-address-panel>
-                  <label class="block">
-                    <span class="mb-1 block text-sm font-medium text-slate-700">New address</span>
-                    <input type="text" name="slug" value="{{ slug }}" class="{{ input_class }}" data-address-value data-original="{{ slug }}" autocomplete="off" spellcheck="false">
-                  </label>
-                  <p class="mt-1 text-xs text-slate-600">Letters, numbers, and dashes. Greek letters are converted to Latin. The old address keeps working: visitors and search engines are sent to the new one automatically (permanent redirect), and menu links are updated.</p>
-                  {% if address.siblings %}
-                    <label class="mt-2 flex items-start gap-2 text-sm text-slate-700">
-                      <input type="checkbox" name="rename_translations" value="1" checked class="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600">
-                      <span>Change the address of the other languages too ({{ address.siblings|join(', ')|upper }}). Recommended: translations, menus, and language links expect the same address.</span>
-                    </label>
-                  {% endif %}
-                </div>
-                {% if address.old_addresses %}
-                  <p class="mt-2 text-xs text-slate-500">
-                    Old addresses that lead here:
-                    {% for r in address.old_addresses %}<code class="mx-0.5 rounded bg-slate-100 px-1 py-0.5">/{{ r.source }}</code>{% if r.hits > 0 %}<span class="text-slate-400">({{ r.hits }} visits)</span>{% endif %}{% endfor %}
-                    <a class="ml-1 font-medium text-blue-600 hover:text-blue-700" href="{{ url('admin/redirects') }}">Manage redirects</a>
-                  </p>
-                {% endif %}
-              {% endif %}
-            </div>
-            <label class="block">
-              <span class="mb-1 block text-sm font-medium text-slate-700">Language</span>
-              <select name="lang" class="{{ select_class }}">
-                {% for l in languages %}
-                  <option value="{{ l }}" {% if l == lang %}selected{% endif %}>{{ l }}</option>
-                {% endfor %}
-              </select>
-            </label>
-            <label class="block sm:col-span-2">
-              <span class="mb-1 block text-sm font-medium text-slate-700">Excerpt</span>
-              <textarea name="excerpt" rows="3" class="{{ textarea_class }}">{{ meta_form.excerpt }}</textarea>
-            </label>
-          </div>
-        </div>
-
-        <div class="{{ section_class }}">
-          <div class="{{ section_header_class }}">
-            <h2 class="text-sm font-semibold text-slate-900">Main Content</h2>
-            <p class="mt-0.5 text-xs text-slate-400">Markdown body used by the public template.</p>
-          </div>
-          <div class="mb-0 flex flex-wrap items-center gap-1.5 rounded-t-md border border-b-0 border-slate-300 bg-slate-50 px-2 py-2 text-slate-500" data-md-toolbar>
-            <button type="button" class="{{ icon_button_class }}" title="Heading 2" data-action="h2">H2</button>
-            <button type="button" class="{{ icon_button_class }}" title="Heading 3" data-action="h3">H3</button>
-            <button type="button" class="{{ icon_button_class }}" title="Bold" data-action="bold"><strong>B</strong></button>
-            <button type="button" class="{{ icon_button_class }}" title="Italic" data-action="italic"><em>I</em></button>
-            <button type="button" class="{{ icon_button_class }}" title="Underline" data-action="underline"><u>U</u></button>
-            <button type="button" class="{{ icon_button_class }}" title="Strike" data-action="strike"><s>S</s></button>
-            <button type="button" class="{{ icon_button_class }}" title="Link" data-action="link">Link</button>
-            <button type="button" class="{{ icon_button_class }}" title="List" data-action="ul">List</button>
-            <button type="button" class="{{ icon_button_class }}" title="Ordered list" data-action="ol">Ordered</button>
-            <button type="button" class="{{ icon_button_class }}" title="Quote" data-action="quote">Quote</button>
-            <button type="button" class="{{ icon_button_class }}" title="Code" data-action="code">Code</button>
-            <button type="button" class="{{ icon_button_class }}" title="Image" data-action="image">Image</button>
-            <select class="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-600" data-action="snippet" aria-label="Insert a snippet">
-              <option value="">Snippet</option>
-              <option value="iframe">Embed iframe</option>
-              <option value="button">Button</option>
-            </select>
-          </div>
-          <textarea name="body" rows="18" data-md-body aria-label="Body" class="{{ textarea_class }} rounded-t-none font-mono text-[13px] leading-6">{{ body }}</textarea>
-        </div>
-      </div>
-
-      <div class="space-y-4">
-        <div class="sticky top-4 space-y-4 lg:top-6">
-          <div class="{{ section_class }}">
-            <h2 class="mb-3 text-sm font-semibold text-slate-900">Publish</h2>
-            <div class="grid gap-3">
-              <label class="block">
-                <span class="mb-1 block text-sm font-medium text-slate-700">Status</span>
-                <select name="status" class="{{ select_class }}">
-                  <option value="published" {% if meta_form.status == 'published' %}selected{% endif %}>Published</option>
-                  <option value="draft" {% if meta_form.status == 'draft' %}selected{% endif %}>Draft</option>
-                </select>
-              </label>
-              {% if page_templates is not empty and page_templates|length > 1 %}
-                {% set current_template = meta_form.template|default('') ?: 'default' %}
+    <div class="tab-panel active en-grid" data-panel="basics">
+      <div class="en-main">
+        <section class="{{ card }}">
+          <label class="sr-only" for="en-title">Title</label>
+          <input id="en-title" type="text" name="title" value="{{ meta_form.title }}" placeholder="Title" class="en-title" autocomplete="off">
+          <div class="en-address" data-address>
+            <span class="en-address-label" id="addressLabel">Web address</span>
+            {% if not address.exists %}
+              {# New content: the address is made from the title. A new translation keeps the address it inherits. #}
+              <input type="hidden" name="slug" value="{{ slug }}" data-address-value>
+              <p class="en-address-line" aria-labelledby="addressLabel"><span class="text-slate-400">{{ address.prefix }}</span><strong data-address-preview data-fixed="{{ slug ? '1' : '0' }}">{{ slug ?: '…' }}</strong></p>
+              <p class="en-help">{% if slug %}Same address as the other languages.{% else %}Made from the title when you save, with Greek letters converted to Latin. You can change it afterwards.{% endif %}</p>
+            {% elseif address.locked %}
+              <input type="hidden" name="slug" value="{{ slug }}">
+              <p class="en-address-line" aria-labelledby="addressLabel"><span class="text-slate-400">{{ address.prefix }}</span><strong>{{ slug }}</strong></p>
+              <p class="en-help">The home page keeps its address. Choose another home page in Settings if you want a different one.</p>
+            {% else %}
+              <div class="en-address-row">
+                <p class="en-address-line" aria-labelledby="addressLabel"><span class="text-slate-400">{{ address.prefix }}</span><strong data-address-current>{{ slug }}</strong></p>
+                <button type="button" class="en-link" data-address-edit aria-expanded="false" aria-controls="addressPanel">Change</button>
+              </div>
+              <div id="addressPanel" class="en-address-panel hidden" data-address-panel>
                 <label class="block">
-                  <span class="mb-1 block text-sm font-medium text-slate-700">Template</span>
-                  <select name="template" class="{{ select_class }}" data-template-select>
-                    {% for key, template in page_templates %}
-                      <option value="{{ key }}" data-description="{{ template.description }}" {% if current_template == key %}selected{% endif %}>{{ template.label }}</option>
-                    {% endfor %}
-                    {% if current_template not in page_templates|keys %}
-                      <option value="{{ current_template }}" selected>{{ current_template }} (not available)</option>
-                    {% endif %}
-                  </select>
-                  <span class="mt-1 block text-xs text-slate-400" data-template-description>{{ page_templates[current_template].description ?? '' }}</span>
+                  <span class="en-address-label">New address</span>
+                  <input type="text" name="slug" value="{{ slug }}" class="lc-input" data-address-value data-original="{{ slug }}" autocomplete="off" spellcheck="false">
                 </label>
-              {% endif %}
-              <label class="block">
-                <span class="mb-1 block text-sm font-medium text-slate-700">Date</span>
-                <input type="text" name="date" value="{{ meta_form.date }}" placeholder="{{ site.date_format|default('d/m/Y') }}" class="{{ input_class }}">
-              </label>
-              <label class="block">
-                <span class="mb-1 block text-sm font-medium text-slate-700">Author</span>
-                <input type="text" name="author" value="{{ meta_form.author }}" placeholder="Author" class="{{ input_class }}">
-              </label>
-              <label class="flex items-start justify-between gap-4 rounded-md border border-slate-200 bg-slate-50 px-3 py-2.5">
-                <span>
-                  <span class="block text-sm font-medium text-slate-800">Visible</span>
-                  <span class="block text-xs text-slate-400">Show this entry in listings and navigation-aware views.</span>
-                </span>
-                <input type="checkbox" name="visible" value="1" {% if meta_form.visible %}checked{% endif %} class="{{ checkbox_class }} mt-0.5">
-              </label>
-            </div>
-          </div>
-          {% if opening.layouts|default([]) is not empty or opening.transparent|default([]) is not empty %}
-            <div class="{{ section_class }}" data-opening>
-              <h2 class="text-sm font-semibold text-slate-900">Title area</h2>
-              <p class="mb-3 mt-0.5 text-xs text-slate-400">For this entry only. Leave both on “Follow settings” to use what Theme settings > Single Layouts say for its content type. A page that starts with a Hero block uses that block as its opening.</p>
-              <div class="grid gap-3">
-                {% if opening.layouts is not empty %}
-                  <label class="block">
-                    <span class="mb-1 block text-sm font-medium text-slate-700">Title area</span>
-                    <select name="hero_layout" class="{{ select_class }}">
-                      <option value="">Follow settings ({{ opening.layouts[opening.type_layout]|default(opening.type_layout) }})</option>
-                      {% for key, label in opening.layouts %}
-                        <option value="{{ key }}" {% if meta_form.hero_layout|default('') == key %}selected{% endif %}>{{ label }}</option>
-                      {% endfor %}
-                    </select>
-                  </label>
-                {% endif %}
-                {% if opening.transparent is not empty %}
-                  <label class="block">
-                    <span class="mb-1 block text-sm font-medium text-slate-700">Transparent over an opening hero</span>
-                    <select name="header_transparent" class="{{ select_class }}">
-                      <option value="">Follow settings ({{ opening.transparent[opening.type_transparent]|default(opening.type_transparent) }})</option>
-                      {% for key, label in opening.transparent %}
-                        <option value="{{ key }}" {% if meta_form.header_transparent|default('') == key %}selected{% endif %}>{{ label }}</option>
-                      {% endfor %}
-                    </select>
+                <p class="en-help">Letters, numbers, and dashes. Greek letters are converted to Latin. The old address keeps working: visitors and search engines are sent to the new one automatically (permanent redirect), and menu links are updated.</p>
+                {% if address.siblings %}
+                  <label class="en-check">
+                    <input type="checkbox" name="rename_translations" value="1" checked class="{{ checkbox_class }}">
+                    <span>Change the address of the other languages too ({{ address.siblings|join(', ')|upper }}). Recommended: translations, menus, and language links expect the same address.</span>
                   </label>
                 {% endif %}
               </div>
+              {% if address.old_addresses %}
+                <p class="en-help">
+                  Old addresses that lead here:
+                  {% for r in address.old_addresses %}<code>/{{ r.source }}</code>{% if r.hits > 0 %} <span>({{ r.hits }} visits)</span>{% endif %} {% endfor %}
+                  <a class="en-link" href="{{ url('admin/redirects') }}">Manage redirects</a>
+                </p>
+              {% endif %}
+            {% endif %}
+          </div>
+        </section>
+
+        <section class="{{ card }} ed-card" aria-labelledby="ed-h-body">
+          <div class="en-card-head">
+            <h2 id="ed-h-body" class="en-card-title">Main content</h2>
+            <span class="ed-modes" role="group" aria-label="How to edit">
+              <button type="button" data-ed-mode="visual" aria-pressed="false" hidden>Visual</button>
+              <button type="button" data-ed-mode="markdown" aria-pressed="true">Markdown</button>
+            </span>
+          </div>
+          <div class="ed" data-editor data-mode="markdown" data-endpoint="{{ url('admin/markdown-visual') }}" data-raw-html="{{ can('content.raw_html') ? '1' : '0' }}">
+            <div class="ed-tools" data-ed-tools hidden></div>
+            <div class="ed-tools ed-md-tools" data-md-toolbar>
+              <button type="button" class="ed-text" title="Heading 2" data-action="h2">H2</button>
+              <button type="button" class="ed-text" title="Heading 3" data-action="h3">H3</button>
+              <button type="button" class="ed-text" title="Bold" data-action="bold"><strong>B</strong></button>
+              <button type="button" class="ed-text" title="Italic" data-action="italic"><em>I</em></button>
+              {% if can('content.raw_html') %}<button type="button" class="ed-text" title="Underline (written as HTML)" data-action="underline"><u>U</u></button>{% endif %}
+              <button type="button" class="ed-text" title="Strikethrough" data-action="strike"><s>S</s></button>
+              <button type="button" class="ed-text" title="Link" data-action="link">Link</button>
+              <button type="button" class="ed-text" title="Bulleted list" data-action="ul">List</button>
+              <button type="button" class="ed-text" title="Numbered list" data-action="ol">Ordered</button>
+              <button type="button" class="ed-text" title="Quote" data-action="quote">Quote</button>
+              <button type="button" class="ed-text" title="Code" data-action="code">Code</button>
+              <button type="button" class="ed-text" title="Image" data-action="image">Image</button>
+              {% if can('content.raw_html') %}
+                <select class="ed-format" data-action="snippet" aria-label="Insert a snippet">
+                  <option value="">Snippet</option>
+                  <option value="iframe">Embed iframe</option>
+                  <option value="button">Button</option>
+                </select>
+              {% endif %}
             </div>
-          {% endif %}
-        </div>
+            <div class="ed-surface" data-ed-surface contenteditable="true" role="textbox" aria-multiline="true" aria-label="Main content" hidden></div>
+            <textarea name="body" rows="18" data-md-body aria-label="Main content (Markdown)" class="ed-source">{{ body }}</textarea>
+            <p class="ed-foot"><span data-ed-words></span><span class="ed-note" data-ed-note role="status"></span><span>Saved as Markdown</span></p>
+          </div>
+        </section>
+
+        <section class="{{ card }}">
+          <label class="en-card-title" for="en-excerpt">Excerpt</label>
+          <p class="en-help m-0">A short summary for lists and, when there is no SEO description, for search.</p>
+          <textarea id="en-excerpt" name="excerpt" rows="2" class="lc-input mt-1.5">{{ meta_form.excerpt }}</textarea>
+        </section>
       </div>
+
+      <aside class="en-side">
+        <section class="{{ card }} en-publish" aria-labelledby="en-h-publish">
+          <h2 id="en-h-publish" class="en-card-title">Publish</h2>
+          <div class="en-fields">
+            <label class="en-field"><span>Status</span>
+              <select name="status" class="lc-input lc-select" data-status-select>
+                <option value="published" {% if meta_form.status == 'published' %}selected{% endif %}>Published</option>
+                <option value="draft" {% if meta_form.status == 'draft' %}selected{% endif %}>Draft</option>
+              </select>
+            </label>
+            <label class="en-field"><span>Language</span>
+              <select name="lang" class="lc-input lc-select">
+                {% for l in languages %}<option value="{{ l }}" {% if l == lang %}selected{% endif %}>{{ l }}</option>{% endfor %}
+              </select>
+            </label>
+            {% if page_templates is not empty and page_templates|length > 1 %}
+              {% set current_template = meta_form.template|default('') ?: 'default' %}
+              <label class="en-field is-wide"><span>Template</span>
+                <select name="template" class="lc-input lc-select" data-template-select>
+                  {% for key, template in page_templates %}
+                    <option value="{{ key }}" data-description="{{ template.description }}" {% if current_template == key %}selected{% endif %}>{{ template.label }}</option>
+                  {% endfor %}
+                  {% if current_template not in page_templates|keys %}
+                    <option value="{{ current_template }}" selected>{{ current_template }} (not available)</option>
+                  {% endif %}
+                </select>
+                <small data-template-description>{{ page_templates[current_template].description ?? '' }}</small>
+              </label>
+            {% endif %}
+            <label class="en-field"><span>Date</span>
+              <input type="text" name="date" value="{{ meta_form.date }}" placeholder="{{ site.date_format|default('d/m/Y') }}" class="lc-input">
+            </label>
+            <label class="en-field"><span>Author</span>
+              <input type="text" name="author" value="{{ meta_form.author }}" placeholder="Author" class="lc-input">
+            </label>
+            <label class="lc-chip en-visible" title="Show this entry in listings and navigation-aware views"><input type="checkbox" name="visible" value="1" {% if meta_form.visible %}checked{% endif %}><span>Visible in lists and menus</span></label>
+          </div>
+        </section>
+        {% if opening.layouts|default([]) is not empty or opening.transparent|default([]) is not empty %}
+          <section class="{{ card }}" data-opening aria-labelledby="en-h-opening">
+            <h2 id="en-h-opening" class="en-card-title">Title area</h2>
+            <p class="en-help m-0">For this entry only. Leave both on “Follow settings” to use what Theme settings > Single Layouts say for its content type. A page that starts with a Hero block uses that block as its opening.</p>
+            <div class="en-fields">
+              {% if opening.layouts is not empty %}
+                <label class="en-field is-wide"><span>Title area</span>
+                  <select name="hero_layout" class="lc-input lc-select">
+                    <option value="">Follow settings ({{ opening.layouts[opening.type_layout]|default(opening.type_layout) }})</option>
+                    {% for key, label in opening.layouts %}
+                      <option value="{{ key }}" {% if meta_form.hero_layout|default('') == key %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+              {% endif %}
+              {% if opening.transparent is not empty %}
+                <label class="en-field is-wide"><span>Transparent over an opening hero</span>
+                  <select name="header_transparent" class="lc-input lc-select">
+                    <option value="">Follow settings ({{ opening.transparent[opening.type_transparent]|default(opening.type_transparent) }})</option>
+                    {% for key, label in opening.transparent %}
+                      <option value="{{ key }}" {% if meta_form.header_transparent|default('') == key %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+              {% endif %}
+            </div>
+          </section>
+        {% endif %}
+      </aside>
     </div>
 
     {% if block_editor_json %}
@@ -271,234 +254,189 @@
       </div>
     {% endif %}
 
-      <div class="tab-panel hidden space-y-4" data-panel="media">
-        <div class="{{ section_class }}">
-          <div class="{{ section_header_class }}">
-            <h2 class="text-sm font-semibold text-slate-900">Main Image</h2>
-            <p class="mt-0.5 text-xs text-slate-400">Pick from the media library or upload a new image.</p>
+    <div class="tab-panel hidden" data-panel="media">
+      <section class="{{ card }}" aria-labelledby="en-h-image">
+        <h2 id="en-h-image" class="en-card-title">Main image</h2>
+        <p class="en-help m-0">Pick from the media library or upload a new image.</p>
+        <div class="en-image">
+          <div id="main-image-preview" class="en-image-preview {{ main_image ? '' : 'hidden' }}">
+            <img id="main-image-preview-img" src="{{ main_image }}" alt="Main image preview">
           </div>
-          <div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px]">
-            <div class="grid gap-3">
-              <label class="block">
-                <span class="mb-1 block text-sm font-medium text-slate-700">Image URL</span>
-                <input id="main-image-input" type="text" name="main_image" value="{{ main_image }}" placeholder="/uploads/your-image.jpg" class="{{ input_class }}">
+          <div class="en-image-fields">
+            <label class="en-field is-wide"><span>Image address</span>
+              <input id="main-image-input" type="text" name="main_image" value="{{ main_image }}" placeholder="/uploads/your-image.jpg" class="lc-input">
+            </label>
+            <div class="en-actions">
+              <button type="button" data-media-picker-toggle class="{{ secondary_button_class }}">Media Library</button>
+              <label class="{{ secondary_button_class }} cursor-pointer">
+                Upload image
+                <input id="main-image-upload" type="file" name="main_image_upload" accept="image/*" class="hidden">
               </label>
-              <div class="flex flex-wrap items-center gap-2">
-                <button type="button" data-media-picker-toggle class="{{ secondary_button_class }}">Media Library</button>
-                <label class="{{ secondary_button_class }} cursor-pointer">
-                  Upload image
-                  <input id="main-image-upload" type="file" name="main_image_upload" accept="image/*" class="hidden">
-                </label>
-                <button type="button" data-main-image-clear class="{{ secondary_button_class }}">Clear</button>
-              </div>
-            </div>
-            <div id="main-image-preview" class="{{ main_image ? '' : 'hidden' }} overflow-hidden rounded-md border border-slate-200 bg-slate-50">
-              <img id="main-image-preview-img" src="{{ main_image }}" alt="Main image preview" class="h-40 w-full object-cover">
+              <button type="button" data-main-image-clear class="{{ secondary_button_class }}">Clear</button>
             </div>
           </div>
         </div>
-      </div>
-
-      {% if type_fields is not empty %}
-        {% import '@admin/partials/fields.twig' as content_fields %}
-        <div class="tab-panel hidden space-y-4" data-panel="details">
-          <input type="hidden" name="details_present" value="1">
-          <div class="{{ section_class }}">
-            <div class="{{ section_header_class }}">
-              <h2 class="text-sm font-semibold text-slate-900">{{ type_definition.singular }} details</h2>
-              <p class="mt-0.5 text-xs text-slate-400">{{ type_definition.description ?: 'Fields defined for this content type. They are shown on the page and can be used to filter the archive.' }}</p>
-            </div>
-            <div class="grid gap-3 md:grid-cols-2">
-              {% for key, field in type_fields %}
-                {{ content_fields.field(field, 'details[' ~ key ~ ']', type_values[key]|default(field.type == 'toggle' ? false : '')) }}
-              {% endfor %}
-            </div>
-          </div>
-        </div>
-      {% endif %}
-
-      {% if type != 'pages' %}
-        <div class="tab-panel hidden space-y-4" data-panel="taxonomies">
-          {% for taxonomy in taxonomies %}
-            {% set selected_terms = meta_form.taxonomy_terms[taxonomy.name]|default([]) %}
-            <div class="{{ section_class }}">
-              <div class="{{ section_header_class }}">
-                <h2 class="text-sm font-semibold text-slate-900">{{ taxonomy.title }}</h2>
-                <p class="mt-0.5 text-xs text-slate-400">Assign taxonomy terms for this entry.</p>
-              </div>
-              {% if taxonomy.terms is empty %}
-                <p class="text-sm text-slate-500">No terms defined yet. Add terms in <a class="text-blue-600 hover:text-blue-700" href="{{ url('admin/taxonomies?taxonomy=' ~ taxonomy.name) }}">Taxonomies</a>.</p>
-              {% else %}
-                <div class="grid gap-2">
-                  {% for term in taxonomy.terms %}
-                    {% set label = term.labels[lang]|default('') %}
-                    {% if label == '' %}
-                      {% set label = taxonomy_label(taxonomy.name, term.id, null) %}
-                    {% endif %}
-                    <label class="flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
-                      <input type="checkbox" name="taxonomy_terms[{{ taxonomy.name }}][]" value="{{ term.id }}" {% if term.id in selected_terms %}checked{% endif %} class="{{ checkbox_class }}">
-                      <span>{{ label }}</span>
-                    </label>
-                  {% endfor %}
-                </div>
-              {% endif %}
-            </div>
-          {% endfor %}
-        </div>
-      {% endif %}
-
-      <div class="tab-panel hidden space-y-4" data-panel="custom">
-        <div class="{{ section_class }}">
-          <div class="{{ section_header_class }}">
-            <h2 class="text-sm font-semibold text-slate-900">Custom Fields</h2>
-            <p class="mt-0.5 text-xs text-slate-400">Extra front matter saved under custom_fields.</p>
-          </div>
-          <div class="grid gap-3" data-custom-fields>
-            {% if meta_form.custom_fields is not empty %}
-              {% for field in meta_form.custom_fields %}
-                <div class="custom-field-row grid grid-cols-1 items-start gap-2 md:grid-cols-[1fr_2fr_auto]">
-                  <input type="text" name="custom_keys[]" aria-label="Field name" placeholder="field_name" value="{{ field.key }}" class="{{ input_class }}">
-                  <textarea name="custom_values[]" rows="2" aria-label="Field value" placeholder="Value" class="{{ textarea_class }}">{{ field.value }}</textarea>
-                  <button type="button" class="{{ danger_button_class }} js-remove-field">Remove</button>
-                </div>
-              {% endfor %}
-            {% else %}
-              <div class="custom-field-row grid grid-cols-1 items-start gap-2 md:grid-cols-[1fr_2fr_auto]">
-                <input type="text" name="custom_keys[]" aria-label="Field name" placeholder="field_name" class="{{ input_class }}">
-                <textarea name="custom_values[]" rows="2" aria-label="Field value" placeholder="Value" class="{{ textarea_class }}"></textarea>
-                <button type="button" class="{{ danger_button_class }} js-remove-field">Remove</button>
-              </div>
-            {% endif %}
-          </div>
-          <button type="button" class="{{ secondary_button_class }} js-add-field mt-3">
-            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
-            Add field
-          </button>
-        </div>
-      </div>
-    
-
-    <div class="tab-panel hidden space-y-4" data-panel="seo">
-      <div class="{{ section_class }}">
-        <div class="{{ section_header_class }}">
-          <h2 class="text-sm font-semibold text-slate-900">Search Metadata</h2>
-          <p class="mt-0.5 text-xs text-slate-400">Title, description and canonical URL for search engines.</p>
-        </div>
-        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <label class="block">
-            <span class="mb-1 block text-sm font-medium text-slate-700">SEO title</span>
-            <input type="text" name="seo_title" value="{{ meta_form.seo_title }}" placeholder="SEO title" class="{{ input_class }}">
-          </label>
-          <label class="block">
-            <span class="mb-1 block text-sm font-medium text-slate-700">Canonical URL</span>
-            <input type="text" name="seo_canonical" value="{{ meta_form.seo_canonical }}" placeholder="https://example.com/path" class="{{ input_class }}">
-          </label>
-          <label class="block sm:col-span-2">
-            <span class="mb-1 block text-sm font-medium text-slate-700">SEO description</span>
-            <textarea name="seo_description" rows="4" class="{{ textarea_class }}">{{ meta_form.seo_description }}</textarea>
-          </label>
-          <label class="flex items-start gap-2.5 rounded-md border border-slate-200 bg-slate-50 px-3 py-2.5 sm:col-span-2">
-            <input type="checkbox" name="seo_noindex" value="1" {% if meta_form.seo_noindex %}checked{% endif %} class="{{ checkbox_class }} mt-0.5">
-            <span>
-              <span class="block text-sm font-medium text-slate-800">Discourage search engines</span>
-              <span class="block text-xs text-slate-400">Adds noindex metadata for this entry.</span>
-            </span>
-          </label>
-        </div>
-      </div>
-
-      <div class="{{ section_class }}">
-        <div class="{{ section_header_class }}">
-          <h2 class="text-sm font-semibold text-slate-900">Open Graph</h2>
-          <p class="mt-0.5 text-xs text-slate-400">Social sharing metadata.</p>
-        </div>
-        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <label class="block">
-            <span class="mb-1 block text-sm font-medium text-slate-700">OG title</span>
-            <input type="text" name="seo_og_title" value="{{ meta_form.seo_og_title }}" placeholder="Defaults to SEO title" class="{{ input_class }}">
-          </label>
-          <label class="block">
-            <span class="mb-1 block text-sm font-medium text-slate-700">OG image</span>
-            <input type="text" name="seo_og_image" value="{{ meta_form.seo_og_image }}" placeholder="{{ main_image ?: '/uploads/your-image.jpg' }}" class="{{ input_class }}">
-          </label>
-          <label class="block sm:col-span-2">
-            <span class="mb-1 block text-sm font-medium text-slate-700">OG description</span>
-            <textarea name="seo_og_description" rows="4" class="{{ textarea_class }}">{{ meta_form.seo_og_description }}</textarea>
-          </label>
-        </div>
-      </div>
+      </section>
     </div>
 
-    <div class="tab-panel hidden space-y-4" data-panel="translations">
-      <div class="{{ section_class }}">
-        <div class="{{ section_header_class }}">
-          <h2 class="text-sm font-semibold text-slate-900">Translations</h2>
-          <p class="mt-0.5 text-xs text-slate-400">Linked content entries by language.</p>
-        </div>
-        <div class="grid gap-3">
-          {% for t in translations %}
-            <div class="grid gap-3 rounded-md border border-slate-200 bg-slate-50 p-3 md:grid-cols-[auto_1fr_auto] md:items-center">
-              <div class="font-semibold uppercase text-slate-900">{{ t.lang }}</div>
-              <div class="min-w-0">
-                {% if t.exists %}
-                  <div class="truncate font-medium text-slate-900">{{ t.title }}</div>
-                  <div class="truncate text-sm text-slate-500">/{{ t.slug }}</div>
-                {% else %}
-                  <div class="text-sm text-slate-500">Not created yet.</div>
-                  <div class="truncate text-sm text-slate-500">/{{ t.slug }}</div>
-                {% endif %}
+    {% if type_fields is not empty %}
+      {% import '@admin/partials/fields.twig' as content_fields %}
+      <div class="tab-panel hidden" data-panel="details">
+        <input type="hidden" name="details_present" value="1">
+        <section class="{{ card }}" aria-labelledby="en-h-details">
+          <h2 id="en-h-details" class="en-card-title">{{ type_definition.singular }} details</h2>
+          <p class="en-help m-0">{{ type_definition.description ?: 'Fields defined for this content type. They are shown on the page and can be used to filter the archive.' }}</p>
+          <div class="en-details">
+            {% for key, field in type_fields %}
+              {{ content_fields.field(field, 'details[' ~ key ~ ']', type_values[key]|default(field.type == 'toggle' ? false : '')) }}
+            {% endfor %}
+          </div>
+        </section>
+      </div>
+    {% endif %}
+
+    {% if type != 'pages' %}
+      <div class="tab-panel hidden space-y-3" data-panel="taxonomies">
+        {% for taxonomy in taxonomies %}
+          {% set selected_terms = meta_form.taxonomy_terms[taxonomy.name]|default([]) %}
+          <section class="{{ card }}" aria-labelledby="en-h-tax-{{ taxonomy.name }}">
+            <h2 id="en-h-tax-{{ taxonomy.name }}" class="en-card-title">{{ taxonomy.title }}</h2>
+            {% if taxonomy.terms is empty %}
+              <p class="en-help m-0">No terms defined yet. Add terms in <a class="en-link" href="{{ url('admin/taxonomies?taxonomy=' ~ taxonomy.name) }}">Taxonomies</a>.</p>
+            {% else %}
+              <div class="en-chips">
+                {% for term in taxonomy.terms %}
+                  {% set label = term.labels[lang]|default('') %}
+                  {% if label == '' %}
+                    {% set label = taxonomy_label(taxonomy.name, term.id, null) %}
+                  {% endif %}
+                  <label class="lc-chip"><input type="checkbox" name="taxonomy_terms[{{ taxonomy.name }}][]" value="{{ term.id }}" {% if term.id in selected_terms %}checked{% endif %}><span>{{ label }}</span></label>
+                {% endfor %}
               </div>
-              <div class="flex justify-end">
-                {% if t.exists %}
-                  <a class="{{ secondary_button_class }}" href="{{ url(t.edit_url) }}">Edit</a>
-                {% else %}
-                  <a class="{{ primary_button_class }}" href="{{ url(t.create_url) }}">Create</a>
-                {% endif %}
-              </div>
+            {% endif %}
+          </section>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    {# Shown for every type (a page has no tab for it, but keeps the custom fields it was saved with). #}
+    <div class="tab-panel hidden" data-panel="custom">
+      <section class="{{ card }}" aria-labelledby="en-h-custom">
+        <h2 id="en-h-custom" class="en-card-title">Custom fields</h2>
+        <p class="en-help m-0">Extra front matter saved under <code>custom_fields</code>.</p>
+        <div class="en-custom" data-custom-fields>
+          {% for field in meta_form.custom_fields|default([{'key': '', 'value': ''}]) %}
+            <div class="custom-field-row en-custom-row">
+              <input type="text" name="custom_keys[]" aria-label="Field name" placeholder="field_name" value="{{ field.key }}" class="lc-input">
+              <textarea name="custom_values[]" rows="1" aria-label="Field value" placeholder="Value" class="lc-input">{{ field.value }}</textarea>
+              <button type="button" class="en-remove js-remove-field" aria-label="Remove field">Remove</button>
             </div>
           {% endfor %}
         </div>
-      </div>
+        <button type="button" class="{{ secondary_button_class }} js-add-field mt-2">
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
+          Add field
+        </button>
+        <template data-custom-template>
+          <div class="custom-field-row en-custom-row">
+            <input type="text" name="custom_keys[]" aria-label="Field name" placeholder="field_name" class="lc-input">
+            <textarea name="custom_values[]" rows="1" aria-label="Field value" placeholder="Value" class="lc-input"></textarea>
+            <button type="button" class="en-remove js-remove-field" aria-label="Remove field">Remove</button>
+          </div>
+        </template>
+      </section>
+    </div>
+
+    <div class="tab-panel hidden space-y-3" data-panel="seo">
+      <section class="{{ card }}" aria-labelledby="en-h-seo">
+        <h2 id="en-h-seo" class="en-card-title">Search results</h2>
+        <p class="en-help m-0">How this entry looks in search, and what search engines may do with it. Site-wide rules are in <a class="en-link" href="{{ url('admin/seo') }}">SEO</a>.</p>
+        <div class="en-serp" data-serp aria-hidden="true">
+          <span class="en-serp-url" data-serp-url>{{ site.base_url|default('')|replace({'https://': '', 'http://': ''})|trim('/') }}/{{ slug }}</span>
+          <strong data-serp-title>{{ meta_form.seo_title ?: meta_form.title }}</strong>
+          <span data-serp-description>{{ meta_form.seo_description ?: meta_form.excerpt }}</span>
+        </div>
+        <div class="en-rows">
+          <div class="seo-row"><label class="seo-label" for="en-seo-title">SEO title</label><input id="en-seo-title" type="text" name="seo_title" value="{{ meta_form.seo_title }}" placeholder="{{ meta_form.title ?: 'SEO title' }}" class="lc-input" data-serp-source="title"></div>
+          <div class="seo-row"><label class="seo-label" for="en-seo-description">Description</label><textarea id="en-seo-description" name="seo_description" rows="2" class="lc-input" data-serp-source="description">{{ meta_form.seo_description }}</textarea></div>
+          <div class="seo-row"><label class="seo-label" for="en-seo-canonical">Canonical URL</label><input id="en-seo-canonical" type="text" name="seo_canonical" value="{{ meta_form.seo_canonical }}" placeholder="https://example.com/path" class="lc-input"></div>
+          <label class="lc-chip en-noindex"><input type="checkbox" name="seo_noindex" value="1" {% if meta_form.seo_noindex %}checked{% endif %}><span>Keep out of search (adds noindex)</span></label>
+        </div>
+      </section>
+
+      <section class="{{ card }}" aria-labelledby="en-h-og">
+        <h2 id="en-h-og" class="en-card-title">When the link is shared</h2>
+        <p class="en-help m-0">What shows on social networks and in messages. Each left empty follows the search title, description and the main image.</p>
+        <div class="en-rows">
+          <div class="seo-row"><label class="seo-label" for="en-og-title">Title</label><input id="en-og-title" type="text" name="seo_og_title" value="{{ meta_form.seo_og_title }}" placeholder="Defaults to SEO title" class="lc-input"></div>
+          <div class="seo-row"><label class="seo-label" for="en-og-image">Image</label><input id="en-og-image" type="text" name="seo_og_image" value="{{ meta_form.seo_og_image }}" placeholder="{{ main_image ?: '/uploads/your-image.jpg' }}" class="lc-input"></div>
+          <div class="seo-row"><label class="seo-label" for="en-og-description">Description</label><textarea id="en-og-description" name="seo_og_description" rows="2" class="lc-input">{{ meta_form.seo_og_description }}</textarea></div>
+        </div>
+      </section>
+    </div>
+
+    <div class="tab-panel hidden" data-panel="translations">
+      <section class="{{ card }}" aria-labelledby="en-h-trans">
+        <h2 id="en-h-trans" class="en-card-title">Translations</h2>
+        <p class="en-help m-0">The same entry in the other languages.</p>
+        <ul class="en-list">
+          {% for t in translations %}
+            <li>
+              <span class="en-chip">{{ t.lang }}</span>
+              <div class="min-w-0">
+                {% if t.exists %}
+                  <strong>{{ t.title }}</strong>
+                  <small>/{{ t.slug }}</small>
+                {% else %}
+                  <strong class="is-muted">Not created yet</strong>
+                  <small>/{{ t.slug }}</small>
+                {% endif %}
+              </div>
+              {% if t.exists %}
+                <a class="{{ secondary_button_class }}" href="{{ url(t.edit_url) }}">Edit</a>
+              {% else %}
+                <a class="{{ primary_button_class }}" href="{{ url(t.create_url) }}">Create</a>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      </section>
     </div>
 
     {% if address.exists %}
-      <div class="tab-panel hidden space-y-4" data-panel="history">
-        <div class="{{ section_class }}">
-          <div class="{{ section_header_class }}">
-            <h2 class="text-sm font-semibold text-slate-900">History</h2>
-            <p class="mt-0.5 text-xs text-slate-400">Earlier versions of this item. Open one to see what changed and to restore it.</p>
-          </div>
+      <div class="tab-panel hidden" data-panel="history">
+        <section class="{{ card }}" aria-labelledby="en-h-history">
+          <h2 id="en-h-history" class="en-card-title">History</h2>
+          <p class="en-help m-0">Earlier versions of this item. Open one to see what changed and to restore it.</p>
           {% if history %}
-            <ul class="divide-y divide-slate-100">
+            <ul class="en-list">
               {% for h in history %}
-                <li class="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
+                <li>
                   <div class="min-w-0">
-                    <span class="font-medium text-slate-900">{{ h.action_label }}</span>
-                    <span class="text-slate-500">{{ h.when }}{% if h.actor %} · {{ h.actor }}{% endif %}</span>
+                    <strong>{{ h.action_label }}</strong>
+                    <small>{{ h.when }}{% if h.actor %} · {{ h.actor }}{% endif %}</small>
                   </div>
-                  <a class="font-medium text-blue-600 hover:text-blue-700" href="{{ url('admin/revisions?id=' ~ h.id) }}">View changes</a>
+                  <a class="en-link" href="{{ url('admin/revisions?id=' ~ h.id) }}">View changes</a>
                 </li>
               {% endfor %}
             </ul>
             {% if history_total > history|length %}
-              <p class="mt-2 text-xs text-slate-400">Showing the latest {{ history|length }} of {{ history_total }}.</p>
+              <p class="en-help">Showing the latest {{ history|length }} of {{ history_total }}.</p>
             {% endif %}
-            <a class="mt-3 inline-block text-sm font-medium text-blue-600 hover:text-blue-700" href="{{ url('admin/revisions?type=' ~ type ~ '&slug=' ~ slug ~ '&lang=' ~ lang) }}">All versions</a>
+            <a class="en-link" href="{{ url('admin/revisions?type=' ~ type ~ '&slug=' ~ slug ~ '&lang=' ~ lang) }}">All versions</a>
           {% else %}
-            <p class="text-sm text-slate-500">No versions are kept yet. The first one is recorded when you save.</p>
+            <p class="en-help">No versions are kept yet. The first one is recorded when you save.</p>
           {% endif %}
-        </div>
+        </section>
       </div>
     {% endif %}
 
-    <div class="tab-panel hidden space-y-4" data-panel="advanced">
-      <div class="{{ section_class }}">
-        <div class="{{ section_header_class }}">
-          <h2 class="text-sm font-semibold text-slate-900">Front Matter</h2>
-          <p class="mt-0.5 text-xs text-slate-400">Advanced YAML merged with the standard fields above.{% if block_editor_json %} Blocks are edited in the Blocks tab.{% endif %}</p>
-        </div>
-        <textarea name="frontmatter" rows="16" aria-label="Front matter (YAML)" class="{{ textarea_class }} font-mono text-[13px] leading-6">{{ frontmatter }}</textarea>
-      </div>
+    <div class="tab-panel hidden" data-panel="advanced">
+      <section class="{{ card }}" aria-labelledby="en-h-front">
+        <h2 id="en-h-front" class="en-card-title">Front matter</h2>
+        <p class="en-help m-0">Advanced YAML merged with the standard fields.{% if block_editor_json %} Blocks are edited in the Blocks tab.{% endif %}</p>
+        <textarea name="frontmatter" rows="16" aria-label="Front matter (YAML)" class="lc-input mt-1.5 font-mono text-[13px] leading-6">{{ frontmatter }}</textarea>
+      </section>
     </div>
 
     {% embed '@admin/partials/action-bar.twig' %}
@@ -527,206 +465,8 @@
     {% endembed %}
   </form>
 
-  <script>
-    (function () {
-      const buttons = document.querySelectorAll('.tab-button');
-      const panels = document.querySelectorAll('.tab-panel');
-      const noindexToggle = document.querySelector('input[name="seo_noindex"]');
-      const noindexPill = document.querySelector('[data-nonindex-pill]');
-      const addFieldButton = document.querySelector('.js-add-field');
-      const fieldsContainer = document.querySelector('[data-custom-fields]');
-      const mdToolbar = document.querySelector('[data-md-toolbar]');
-      const mdBody = document.querySelector('[data-md-body]');
-
-      buttons.forEach((button) => {
-        button.addEventListener('click', () => {
-          const target = button.getAttribute('data-tab');
-          buttons.forEach((btn) => btn.classList.toggle('active', btn === button));
-          panels.forEach((panel) => {
-            const on = panel.getAttribute('data-panel') === target;
-            panel.classList.toggle('active', on);
-            panel.classList.toggle('hidden', !on);
-          });
-        });
-      });
-
-      const insertAtSelection = (before, after = '') => {
-        if (!mdBody) return;
-        const start = mdBody.selectionStart || 0;
-        const end = mdBody.selectionEnd || 0;
-        const value = mdBody.value || '';
-        const selected = value.slice(start, end);
-        const replacement = before + selected + after;
-        mdBody.value = value.slice(0, start) + replacement + value.slice(end);
-        const cursor = start + before.length;
-        mdBody.focus();
-        if (selected.length) {
-          mdBody.selectionStart = cursor;
-          mdBody.selectionEnd = cursor + selected.length;
-        } else {
-          mdBody.selectionStart = mdBody.selectionEnd = cursor;
-        }
-      };
-
-      const prefixLines = (prefix, numbered = false) => {
-        if (!mdBody) return;
-        const start = mdBody.selectionStart || 0;
-        const end = mdBody.selectionEnd || 0;
-        const value = mdBody.value || '';
-        const selection = value.slice(start, end);
-        if (selection === '') {
-          const lineStart = value.lastIndexOf('\n', start - 1) + 1;
-          mdBody.value = value.slice(0, lineStart) + prefix + value.slice(lineStart);
-          const newPos = start + prefix.length;
-          mdBody.focus();
-          mdBody.selectionStart = mdBody.selectionEnd = newPos;
-          return;
-        }
-        const lines = selection.split('\n');
-        const updated = lines.map((line, idx) => numbered ? `${idx + 1}. ${line}` : prefix + line).join('\n');
-        mdBody.value = value.slice(0, start) + updated + value.slice(end);
-        mdBody.focus();
-        mdBody.selectionStart = start;
-        mdBody.selectionEnd = start + updated.length;
-      };
-
-      const insertSnippet = (type) => {
-        if (!mdBody) return;
-        if (type === 'iframe') {
-          insertAtSelection('<iframe src="PASTE_URL_HERE" width="100%" height="800" frameborder="0"></iframe>');
-        }
-        if (type === 'button') {
-          insertAtSelection('<a class="btn" href="#">Button</a>');
-        }
-      };
-
-      if (mdToolbar && mdBody) {
-        mdToolbar.addEventListener('click', (event) => {
-          const target = event.target.closest('[data-action]');
-          if (!target) return;
-          const action = target.getAttribute('data-action');
-          switch (action) {
-            case 'h2': prefixLines('## '); break;
-            case 'h3': prefixLines('### '); break;
-            case 'bold': insertAtSelection('**', '**'); break;
-            case 'italic': insertAtSelection('*', '*'); break;
-            case 'underline': insertAtSelection('<u>', '</u>'); break;
-            case 'strike': insertAtSelection('~~', '~~'); break;
-            case 'ul': prefixLines('- '); break;
-            case 'ol': prefixLines('', true); break;
-            case 'quote': prefixLines('> '); break;
-            case 'code': insertAtSelection('`', '`'); break;
-            case 'link': {
-              const url = prompt('Enter URL');
-              if (url !== null) {
-                const start = mdBody.selectionStart || 0;
-                const end = mdBody.selectionEnd || 0;
-                const text = mdBody.value.slice(start, end) || 'link text';
-                insertAtSelection(`[${text}](${url})`);
-              }
-              break;
-            }
-            case 'image': {
-              const url = prompt('Enter image URL');
-              if (url !== null) {
-                const alt = prompt('Enter alt text') || 'image';
-                insertAtSelection(`![${alt}](${url})`);
-              }
-              break;
-            }
-          }
-        });
-        const snippetSelect = mdToolbar.querySelector('[data-action="snippet"]');
-        if (snippetSelect) {
-          snippetSelect.addEventListener('change', (event) => {
-            const value = event.target.value;
-            if (value) {
-              insertSnippet(value);
-              event.target.value = '';
-            }
-          });
-        }
-      }
-
-      const bindRemoveButton = (button) => {
-        if (!button) return;
-        button.addEventListener('click', () => {
-          const row = button.closest('.custom-field-row');
-          if (row) row.remove();
-        });
-      };
-
-      if (addFieldButton && fieldsContainer) {
-        addFieldButton.addEventListener('click', () => {
-          const row = document.createElement('div');
-          row.className = 'custom-field-row grid grid-cols-1 items-start gap-2 md:grid-cols-[1fr_2fr_auto]';
-          row.innerHTML = `
-            <input type="text" name="custom_keys[]" aria-label="Field name" placeholder="field_name" class="{{ input_class }}">
-            <textarea name="custom_values[]" rows="2" aria-label="Field value" placeholder="Value" class="{{ textarea_class }}"></textarea>
-            <button type="button" class="{{ danger_button_class }} js-remove-field">Remove</button>
-          `;
-          fieldsContainer.appendChild(row);
-          bindRemoveButton(row.querySelector('.js-remove-field'));
-        });
-      }
-
-      const syncNoindexPill = () => {
-        if (!noindexPill) return;
-        const enabled = !!(noindexToggle && noindexToggle.checked);
-        noindexPill.classList.toggle('hidden', !enabled);
-      };
-      if (noindexToggle) noindexToggle.addEventListener('change', syncNoindexPill);
-      syncNoindexPill();
-
-      const mainImageInput = document.getElementById('main-image-input');
-      const mainImagePreview = document.getElementById('main-image-preview');
-      const mainImagePreviewImg = document.getElementById('main-image-preview-img');
-      const mediaPickerToggle = document.querySelector('[data-media-picker-toggle]');
-      const clearMainImageButton = document.querySelector('[data-main-image-clear]');
-      const mainImageUploadInput = document.getElementById('main-image-upload');
-
-      const syncMainImagePreview = () => {
-        if (!mainImageInput || !mainImagePreview || !mainImagePreviewImg) return;
-        const value = (mainImageInput.value || '').trim();
-        if (value === '') {
-          mainImagePreview.classList.add('hidden');
-          mainImagePreviewImg.setAttribute('src', '');
-          return;
-        }
-        mainImagePreviewImg.setAttribute('src', value);
-        mainImagePreview.classList.remove('hidden');
-      };
-
-      if (mediaPickerToggle) {
-        mediaPickerToggle.addEventListener('click', () => {
-          if (!window.FarosMediaPicker || !mainImageInput) return;
-          window.FarosMediaPicker.open((url) => {
-            mainImageInput.value = url;
-            syncMainImagePreview();
-          });
-        });
-      }
-      if (mainImageInput) mainImageInput.addEventListener('input', syncMainImagePreview);
-      if (clearMainImageButton && mainImageInput) {
-        clearMainImageButton.addEventListener('click', () => {
-          mainImageInput.value = '';
-          syncMainImagePreview();
-        });
-      }
-      if (mainImageUploadInput && mainImagePreviewImg && mainImagePreview) {
-        mainImageUploadInput.addEventListener('change', () => {
-          const file = mainImageUploadInput.files && mainImageUploadInput.files[0];
-          if (!file) return;
-          mainImageInput.value = '';
-          mainImagePreviewImg.setAttribute('src', URL.createObjectURL(file));
-          mainImagePreview.classList.remove('hidden');
-        });
-      }
-      syncMainImagePreview();
-
-      document.querySelectorAll('.js-remove-field').forEach(bindRemoveButton);
-    })();
-  </script>
+  <script src="{{ asset('js/admin-entry.js') }}" defer></script>
+  <script src="{{ asset('js/admin-editor.js') }}" defer></script>
   {% if block_editor_json %}
     {% include '@admin/partials/icon-library.twig' %}
     <script src="{{ asset('js/admin-blocks.js') }}"></script>
