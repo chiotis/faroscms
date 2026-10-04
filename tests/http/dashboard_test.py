@@ -26,13 +26,14 @@ def collect(payload):
 # ---- the page for the super admin
 st, _, html = root.get('/admin')
 check('the dashboard opens, with a greeting and a shortcut to a new page', st == 200 and re.search(r'Good (morning|afternoon|evening)', html) and 'href="/admin/new?type=pages"' in html and '+</span> New Page' in html, st)
-check('the figures are tiles that lead somewhere', all(w in html for w in ('Content entries', 'Form submissions', '>Users<', '>Backups<', 'System status')) and 'class="db-tile" href="/admin/system"' in html)
+check('the figures are tiles that lead somewhere', all(w in html for w in ('Content entries', 'Form submissions', '>Storage<', '>Backups<', 'System status')) and 'class="db-tile" href="/admin/system"' in html)
 check('the part for what needs attention is there', 'Needs attention' in html)
 items = attention(html)
 check('a new site has no backup, and is told', 'There is no backup yet' in items, items)
 check('and that visits are not counted', 'Visits are not being counted' in items, items)
 check('each line leads to where it is dealt with', 'href="/admin/backups"' in html and 'href="/admin/analytics?tab=settings"' in html)
 check('without the site\'s own analytics there is no chart of visitors', 'Visitors, last 90 days' not in html)
+check('storage is a tile with a bar, where Users used to be', 'role="progressbar" aria-label="Storage used"' in html and '>Users<' not in html.split('db-h-attn')[0])
 check('the recent content, activity and system checks are there', all(w in html for w in ('Recent content', 'Recent activity', 'System checks', 'Storage')))
 
 # ---- drafts that are left

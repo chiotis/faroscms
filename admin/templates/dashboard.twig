@@ -42,11 +42,16 @@
       <small>in the last 7 days</small>
     </a>
     {% endif %}
-    {% if can('users.manage') %}
-    <a class="db-tile" href="{{ url('admin/users') }}">
-      <span>Users</span>
-      <strong>{{ dashboard.users_total }}</strong>
-      <small>{{ dashboard.users_active }} active</small>
+    {% if can('settings.manage') %}
+    {% set st = dashboard.storage %}
+    {% set st_text = st.level == 'danger' ? 'text-red-600' : (st.level == 'warn' ? 'text-orange-600' : 'text-slate-900') %}
+    <a class="db-tile" href="{{ url('admin/system') }}">
+      <span>Storage</span>
+      <strong class="{{ st_text }}">{{ st.percent_of_limit ?? st.percent }}%</strong>
+      <div class="db-bar-track" role="progressbar" aria-label="Storage used" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ st.percent }}">
+        <div class="h-full rounded-full transition-all {{ st.level == 'danger' ? 'bg-red-500' : (st.level == 'warn' ? 'bg-orange-500' : 'bg-slate-900') }}" style="width: {{ st.percent }}%"></div>
+      </div>
+      <small>{{ st.used_human }} used · {% if st.limit %}Limit {{ st.limit_human }}{% else %}{{ st.disk_free_human }} free disk{% endif %}</small>
     </a>
     {% endif %}
     {% if can('backups.manage') %}
@@ -224,23 +229,6 @@
         <div class="db-head">
           <h2 id="db-h-system" class="{{ card_title }}">System checks</h2>
           <a class="{{ link }}" href="{{ url('admin/system') }}">System</a>
-        </div>
-        <div class="db-storage">
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-medium text-slate-600">Storage</span>
-            <span class="text-xs font-medium {{ dashboard.storage.level == 'danger' ? 'text-red-600' : (dashboard.storage.level == 'warn' ? 'text-orange-600' : 'text-slate-500') }}">{{ dashboard.storage.percent_of_limit ?? dashboard.storage.percent }}%</span>
-          </div>
-          <div class="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-200" role="progressbar" aria-label="Storage used" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ dashboard.storage.percent }}">
-            <div class="h-full rounded-full transition-all {{ dashboard.storage.level == 'danger' ? 'bg-red-500' : (dashboard.storage.level == 'warn' ? 'bg-orange-500' : 'bg-slate-900') }}" style="width: {{ dashboard.storage.percent }}%"></div>
-          </div>
-          <dl class="db-dl">
-            <div><dt>Used</dt><dd>{{ dashboard.storage.used_human }}</dd></div>
-            {% if dashboard.storage.limit %}
-              <div><dt>Limit</dt><dd>{{ dashboard.storage.limit_human }}</dd></div>
-            {% else %}
-              <div><dt>Free disk</dt><dd>{{ dashboard.storage.disk_free_human }}</dd></div>
-            {% endif %}
-          </dl>
         </div>
         <dl class="db-dl is-checks">
           {% for check in dashboard.system_checks %}
