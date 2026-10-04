@@ -11,7 +11,7 @@
   {% set danger_button_class = 'inline-flex shrink-0 items-center gap-1.5 rounded-md border border-red-200 bg-white px-3 py-1.5 text-sm font-medium text-red-600 shadow-sm transition hover:bg-red-50' %}
 
   {% macro secret_input(name, is_set, input_class, empty_placeholder) %}
-    <input type="password" name="{{ name }}" value="" autocomplete="new-password" placeholder="{{ is_set ? 'Saved. Leave blank to keep it.' : empty_placeholder }}" class="{{ input_class }}">
+    <input type="password" id="{{ name }}" name="{{ name }}" value="" autocomplete="new-password" placeholder="{{ is_set ? 'Saved. Leave blank to keep it.' : empty_placeholder }}" class="{{ input_class }}">
     {% if is_set %}
       <span class="mt-1 flex items-center gap-1.5 text-xs text-slate-400">
         <input type="checkbox" name="clear_secret[]" value="{{ name }}" class="h-3.5 w-3.5 rounded border-slate-300">
@@ -466,13 +466,48 @@
       </div>
 
       <div class="{{ panel_class }}{% if active_tab != 'apis' %} hidden{% else %} active{% endif %}" data-panel="apis">
-        <div class="{{ section_class }}">
-          <div class="{{ section_header_class }}">
-            <h2 class="text-sm font-semibold text-slate-900">API Settings</h2>
-            <p class="mt-0.5 text-xs text-slate-400">Reserved for future integrations.</p>
+        {% if youtube_status == 'ok' %}
+          {{ ui.flash(youtube_message ?: 'The key works.', 'success') }}
+        {% elseif youtube_status == 'fail' %}
+          {{ ui.flash(youtube_message ?: 'The key did not work.', 'error') }}
+        {% endif %}
+        <section class="lc-card en-card" aria-labelledby="api-h-youtube">
+          <div class="en-card-head">
+            <h2 id="api-h-youtube" class="en-card-title">YouTube</h2>
+            <span class="en-chip {{ settings_form.youtube_key_set ? 'is-live' : 'is-draft' }}">{{ settings_form.youtube_key_set ? 'Key saved' : 'No key' }}</span>
           </div>
-          <p class="text-sm text-slate-500">API settings will appear here.</p>
-        </div>
+          <p class="en-help m-0">Used by the <strong>YouTube playlist</strong> block. Without a key a playlist shows its 15 newest videos, from YouTube's public feed. With a key it shows up to 50, with their lengths.</p>
+          <div class="en-rows">
+            <div class="seo-row">
+              <label class="seo-label" for="youtube_key">API key</label>
+              <div>{{ local.secret_input('youtube_key', settings_form.youtube_key_set, 'lc-input', 'AIza…') }}</div>
+            </div>
+            <div class="seo-row">
+              <label class="seo-label" for="youtube_cache_hours">Keep a playlist for</label>
+              <div>
+                <select id="youtube_cache_hours" name="youtube_cache_hours" class="lc-input lc-select">
+                  {% for hours, label in {'1': '1 hour', '6': '6 hours', '24': '1 day', '72': '3 days'} %}
+                    <option value="{{ hours }}"{% if settings_form.youtube_cache_hours == hours %} selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+                <p class="seo-help">A playlist is fetched again after this long. A page never waits for YouTube, and if YouTube cannot be asked the last copy is shown.</p>
+              </div>
+            </div>
+          </div>
+          <div class="en-actions mt-2">
+            <button type="submit" name="youtube_test" value="1" class="{{ secondary_button_class }}"{% if not settings_form.youtube_key_set %} title="Save a key first, or type one and press this button"{% endif %}>Save and test the key</button>
+          </div>
+          <details class="en-details-note">
+            <summary>How to get a key</summary>
+            <ol>
+              <li>In the <a class="en-link" href="https://console.cloud.google.com/" target="_blank" rel="noopener">Google Cloud console</a>, make a project (or use one you have).</li>
+              <li>Under <em>APIs &amp; Services &gt; Library</em>, switch on <em>YouTube Data API v3</em>.</li>
+              <li>Under <em>Credentials</em>, make an <em>API key</em> and, to be safe, limit it to that API (and to this server's address if it has a fixed one). Keys limited to websites do not work here: the site asks YouTube from the server.</li>
+              <li>Paste it above and press <em>Save and test the key</em>. A key has a daily quota of 10,000 units; a playlist costs about 3, once for as long as it is kept.</li>
+            </ol>
+            <p class="seo-help">The key is kept in the site's system database and is never sent to the browser. Only public and unlisted playlists can be shown.</p>
+          </details>
+        </section>
       </div>
 
     </div>

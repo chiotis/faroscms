@@ -21,7 +21,7 @@ final class BlockRenderer
 {
     /**
      * @param \Closure(string): string $markdown
-     * @param array<string, \Closure> $providers dynamic data: 'items' (type, lang, limit) and 'form' (slug)
+     * @param array<string, \Closure> $providers dynamic data: 'items' (type, lang, limit), 'form' (slug), 'youtube' (playlist id, picture source) and 'admin' (whether someone is signed in)
      */
     public function __construct(
         private BlockRegistry $registry,
@@ -104,9 +104,14 @@ final class BlockRenderer
             }
         }
 
-        $stylesheet = $this->theme->blockStylesheetUrl($this->baseUrl, array_keys($types));
+        // The playlist block draws its videos with the picture, the play button and the viewer of the video block.
+        $assetTypes = array_keys($types);
+        if (isset($types['playlist']) && !isset($types['video'])) {
+            array_unshift($assetTypes, 'video');
+        }
+        $stylesheet = $this->theme->blockStylesheetUrl($this->baseUrl, $assetTypes);
         $styles = $stylesheet !== '' ? [$stylesheet] : [];
-        $script = $this->theme->blockScriptUrl($this->baseUrl, array_keys($types));
+        $script = $this->theme->blockScriptUrl($this->baseUrl, $assetTypes);
         $structuredData = [];
         if ($faq !== []) {
             $structuredData[] = ['@type' => 'FAQPage', 'mainEntity' => $faq];
@@ -123,6 +128,50 @@ final class BlockRenderer
             'lead' => $lead,
             'count' => count($blocks),
             'image' => $firstImage,
+        ];
+    }
+
+    /**
+     * What the Playlist block shows: the videos of its playlist in the order and number it asks for, how long each plays when
+     * YouTube says so, and (for people who are signed in) why nothing is shown. A playlist with nothing to show leaves no
+     * section behind for visitors.
+     *
+     * @param array<string, mixed> $values
+     * @return array<string, mixed>
+     */
+    private function playlist(array $values): array
+    {
+        // Someone who is signed in sees a block that has nothing to show, with the reason; a visitor sees no section.
+        $admin = isset($this->providers['admin']) && ($this->providers['admin'])() === true;
+        $none = ['videos' => [], 'playlist_title' => '', 'channel' => '', 'playlist_url' => '', 'note' => '', 'error' => '', 'source' => '', 'admin' => $admin, '_empty' => !$admin];
+        $id = YouTubePlaylist::parseId((string)$values['playlist']);
+        if ($id === '' || !isset($this->providers['youtube'])) {
+            return ['error' => $id === '' ? 'There is no playlist address yet, or it is not a YouTube playlist.' : ''] + $none;
+        }
+        $result = ($this->providers['youtube'])($id, (string)$values['thumbs']);
+        $videos = $result['items'];
+        $order = (string)$values['order'];
+        if ($order === 'newest') {
+            usort($videos, static fn(array $a, array $b): int => $b['published'] <=> $a['published']);
+        } elseif ($order === 'oldest') {
+            usort($videos, static fn(array $a, array $b): int => $a['published'] <=> $b['published']);
+        } elseif ($order === 'views') {
+            usort($videos, static fn(array $a, array $b): int => ((int)$b['views']) <=> ((int)$a['views']));
+        }
+        $videos = array_slice($videos, 0, max(1, min(YouTubePlaylist::MAX, (int)$values['limit'])));
+        foreach ($videos as $i => $video) {
+            $videos[$i] += ['embed_url' => 'https://www.youtube-nocookie.com/embed/' . $video['id'] . '?rel=0&playsinline=1', 'provider' => 'youtube'];
+        }
+        return [
+            'videos' => $videos,
+            'playlist_title' => (string)$result['title'],
+            'channel' => (string)$result['channel'],
+            'playlist_url' => 'https://www.youtube.com/playlist?list=' . $id,
+            'note' => (string)($result['note'] ?: ($result['stale'] && $result['error'] !== '' ? 'YouTube could not be asked just now, so the playlist is shown as it was last fetched (' . $result['error'] . ')' : '')),
+            'error' => $videos === [] ? (string)$result['error'] : '',
+            'source' => (string)$result['source'],
+            'admin' => $admin,
+            '_empty' => $videos === [] && !$admin,
         ];
     }
 
@@ -223,6 +272,9 @@ final class BlockRenderer
             }
             $values['videos'] = $videos;
             $values['_empty'] = $videos === [];
+        }
+        if ($type === 'playlist') {
+            $values += $this->playlist($values);
         }
         if ($type === 'hero') {
             // A video behind the text, when the Picture is a video the site can play; otherwise the image is the picture.

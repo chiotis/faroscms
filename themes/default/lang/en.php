@@ -97,6 +97,8 @@ return [
     'hero.play_video' => 'Play the background video',
     'video.play' => 'Play video',
     'video.close' => 'Close video',
+    'playlist.views' => 'views',
+    'playlist.opens_youtube' => 'opens YouTube',
     'video.default_title' => 'Video',
     'slider.label' => 'Slides',
     'slider.carousel' => 'carousel',

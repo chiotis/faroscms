@@ -97,6 +97,8 @@ return [
     'hero.play_video' => 'Αναπαραγωγή του βίντεο φόντου',
     'video.play' => 'Αναπαραγωγή βίντεο',
     'video.close' => 'Κλείσιμο βίντεο',
+    'playlist.views' => 'προβολές',
+    'playlist.opens_youtube' => 'ανοίγει το YouTube',
     'video.default_title' => 'Βίντεο',
     'slider.label' => 'Διαφάνειες',
     'slider.carousel' => 'καρουζέλ',

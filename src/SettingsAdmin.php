@@ -24,6 +24,7 @@ final class SettingsAdmin
      * @param \Closure(string, string, string, array<string, string>): bool $sendMail sends one email: to, subject, body, headers
      * @param \Closure(string): void $markBackupRun stores the time of the last backup
      * @param \Closure(string, string, ?string, ?string, string, array<string, mixed>): void $log records an activity: action, level, subject type, subject id, message, context
+     * @param (\Closure(): array{ok: bool, message: string})|null $testYouTube asks YouTube whether the saved key works
      */
     public function __construct(
         private SiteSettings $store,
@@ -35,7 +36,8 @@ final class SettingsAdmin
         private \Closure $saveTheme,
         private \Closure $sendMail,
         private \Closure $markBackupRun,
-        private \Closure $log
+        private \Closure $log,
+        private ?\Closure $testYouTube = null
     ) {
     }
 
@@ -97,6 +99,11 @@ final class SettingsAdmin
         if (isset($post['send_test'])) {
             return $this->testEmail(trim((string)($post['test_email_to'] ?? '')), $settings);
         }
+        if (isset($post['youtube_test']) && $this->testYouTube !== null) {
+            $result = ($this->testYouTube)();
+            ($this->log)($result['ok'] ? 'apis.youtube_test_success' : 'apis.youtube_test_failure', $result['ok'] ? 'info' : 'warning', 'settings', 'youtube', 'YouTube key tested: ' . $result['message'], []);
+            return '/admin/settings?' . http_build_query(['saved' => '1', 'tab' => 'apis', 'youtube' => $result['ok'] ? 'ok' : 'fail', 'youtube_msg' => $result['message']]);
+        }
         if (isset($post['test_remote_backup'])) {
             return $this->testRemoteBackup($settings);
         }
@@ -129,6 +136,8 @@ final class SettingsAdmin
             'backup_snapshots' => $snapshots,
             'backup_status' => (string)($get['backup'] ?? ''),
             'backup_message' => trim((string)($get['backup_msg'] ?? '')),
+            'youtube_status' => in_array((string)($get['youtube'] ?? ''), ['ok', 'fail'], true) ? (string)$get['youtube'] : '',
+            'youtube_message' => trim((string)($get['youtube_msg'] ?? '')),
             'settings_error' => trim((string)($get['settings_error'] ?? '')),
             'active_tab' => self::tab((string)($get['tab'] ?? 'basics')),
         ];

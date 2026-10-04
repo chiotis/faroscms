@@ -1,0 +1,19 @@
+{# One video as a picture with a play button. Without JavaScript the link opens the video on YouTube. #}
+{% set title = video.title ?: t('video.default_title', 'Video') %}
+{% set picture = video.thumb_path is defined and video.thumb_path ? url(video.thumb_path) : video.thumb %}
+<figure class="video-tile pl-tile ratio-{{ block.ratio }}">
+  <div class="video-media">
+    <a class="video-play" href="{{ video.watch_url }}" target="_blank" rel="noopener"
+       {% if mode != 'youtube' %}data-video data-provider="youtube" data-embed="{{ video.embed_url }}" data-title="{{ title }}" data-mode="{{ mode }}" data-label-close="{{ t('video.close', 'Close video') }}"{% endif %}>
+      <img src="{{ picture }}" alt="" loading="lazy" decoding="async" width="480" height="360"{% if video.thumb_path is defined and video.thumb_path %} onerror="this.remove()"{% endif %}>
+      <span class="video-button" aria-hidden="true">{{ icon('play') }}</span>
+      {% if block.show_duration and video.duration %}<span class="video-duration" aria-hidden="true">{{ video.duration }}</span>{% endif %}
+      <span class="visually-hidden">{{ t('video.play', 'Play video') }}: {{ title }}{% if block.show_duration and video.duration %} ({{ video.duration }}){% endif %}</span>
+    </a>
+  </div>
+  <figcaption data-pl-caption>
+    <span class="video-title" data-pl-title>{{ title }}</span>
+    {% include 'blocks/playlist/meta.twig' with {video: video, block: block} only %}
+    {% if block.show_description and video.description %}<span class="video-caption pl-clamp" data-pl-description>{{ video.description }}</span>{% endif %}
+  </figcaption>
+</figure>
