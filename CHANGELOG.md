@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.49 — 2026-10-04 — A calmer, quicker Translations screen
+- **Admin > Translations is rebuilt around how people translate.** The language is picked from buttons that show how far each is translated (instead of a list and an Apply button); a search finds a key or a text as you type; filters show only what is *Missing*, still *the same as the source language* or *Customized* (each with its count) and an area list narrows it to one part of the site. The strings are grouped by area (*Archive*, *Footer*, *Form*…, which can be folded), and each row has the source text under its key with the box to type in beside it, so a long page of keys and badges becomes a compact list. A missing string has a *Use Greek text* link that puts the source in the box; a customized one has *Back to the theme text* (or *Delete this string* for one you added). What you changed is marked in the row and counted in the bar below, and leaving with changes that are not saved asks first. A string of your own is added from a box at the top, in its own area. Long texts get a box that grows. The strings and the way they are saved are unchanged (`custom/lang/<lang>.yaml`)
+- Tests: `tests/unit/translations.php` (areas, states, counts, progress of each language, customized and own strings) and a new `tests/http/translations_test.py` (the screen, the language, who may, a change that the site shows and its way back, missing strings, a string of your own, the log). The full suite and CI were not run
+
 ## 0.1.48 — 2026-10-04 — Analytics: no more gap when the reports are scrolled
 - **The reports no longer make the whole window scroll.** The table that repeats the chart for screen readers was hidden by a class that does not clip a table, so its rows (a few hundred pixels of them) stretched the page below the admin and left an empty band when the window was scrolled. It is now inside a box that hides it. A test checks it
 

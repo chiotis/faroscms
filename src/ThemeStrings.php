@@ -56,6 +56,71 @@ final class ThemeStrings
     }
 
     /**
+     * What the Translations screen draws: every string with the words it is shown with (the key, the source, the value, its state and
+     * the area of the site it belongs to), the areas, the counts for the filters, and how far each language of the site is translated.
+     * A string is `missing` with no text, `source` when it still says what the source language says, and `translated` otherwise; it is
+     * `custom` when the site overrides the theme's text, and `own` when the theme has no such string (the site added it).
+     *
+     * @param string[] $languages every language of the site
+     * @return array{rows: array<int, array{key: string, group: string, source: string, value: string, status: string, custom: bool, own: bool, long: bool}>, groups: array<string, array{label: string, count: int}>, stats: array{total: int, translated: int, missing: int, source: int, custom: int}, progress: array<string, int>, custom_file: string}
+     */
+    public function overview(string $lang, string $defaultLang, array $languages): array
+    {
+        $rows = $this->rows($lang, $defaultLang);
+        $stats = ['total' => count($rows), 'translated' => 0, 'missing' => 0, 'source' => 0, 'custom' => 0];
+        $groups = [];
+        foreach ($rows as $row) {
+            $stats[$row['status']]++;
+            $stats['custom'] += $row['custom'] ? 1 : 0;
+            $groups[$row['group']] ??= ['label' => self::groupLabel($row['group']), 'count' => 0];
+            $groups[$row['group']]['count']++;
+        }
+        uksort($groups, static fn(string $a, string $b): int => $a === 'general' ? -1 : ($b === 'general' ? 1 : strcmp($a, $b)));
+        $progress = [];
+        foreach (array_unique(array_merge($languages, [$lang])) as $code) {
+            $all = $code === $lang ? $rows : $this->rows($code, $defaultLang);
+            $done = count(array_filter($all, static fn(array $r): bool => $r['status'] === 'translated'));
+            $progress[$code] = $all === [] ? 100 : (int)floor($done / count($all) * 100);
+        }
+        return ['rows' => $rows, 'groups' => $groups, 'stats' => $stats, 'progress' => $progress, 'custom_file' => 'custom/lang/' . $lang . '.yaml'];
+    }
+
+    /** The area of the site a key belongs to: the word before its first dot ("form.error.required" is "form"). */
+    public static function group(string $key): string
+    {
+        return str_contains($key, '.') ? (string)strstr($key, '.', true) : 'general';
+    }
+
+    public static function groupLabel(string $group): string
+    {
+        return ucfirst(str_replace(['_', '-'], ' ', $group));
+    }
+
+    /** @return array<int, array{key: string, group: string, source: string, value: string, status: string, custom: bool, own: bool, long: bool}> */
+    private function rows(string $lang, string $defaultLang): array
+    {
+        $screen = $this->screen($lang, $defaultLang);
+        $rows = [];
+        foreach ($screen['translations'] as $key => $value) {
+            $source = $screen['defaults'][$key] ?? '';
+            $status = $value === '' ? 'missing' : ($lang !== $defaultLang && $value === $source ? 'source' : 'translated');
+            $rows[] = [
+                'key' => (string)$key,
+                'group' => self::group((string)$key),
+                'source' => $source,
+                'value' => $value,
+                'status' => $status,
+                'custom' => in_array($key, $screen['customized'], true),
+                'own' => !array_key_exists($key, $screen['defaults']),
+                'long' => mb_strlen($value) > 80 || mb_strlen($source) > 80 || str_contains($value, "\n") || str_contains($source, "\n"),
+            ];
+        }
+        // By area, then by key: the strings of one part of the site are together.
+        usort($rows, static fn(array $a, array $b): int => [$a['group'] === 'general' ? '' : $a['group'], $a['key']] <=> [$b['group'] === 'general' ? '' : $b['group'], $b['key']]);
+        return $rows;
+    }
+
+    /**
      * Saves a submitted form for a language. A string set back to what the theme says, or ticked for reset, stops
      * being an override; a key the form does not mention keeps its override.
      *

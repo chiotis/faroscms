@@ -2758,20 +2758,27 @@ final class App
             return;
         }
 
-        $screen = $strings->screen($lang, $defaultLang);
+        $screen = $strings->overview($lang, $defaultLang, $available);
+        $names = [];
+        foreach ($available as $code) {
+            $name = class_exists(\Locale::class) ? \Locale::getDisplayLanguage((string)$code, 'en') : '';
+            $names[$code] = $name !== '' && $name !== $code ? ucfirst($name) : strtoupper((string)$code);
+        }
 
         $this->render('@admin/translations.twig', [
             'lang' => $lang,
             'languages' => $available,
-            'translations' => $screen['translations'],
-            'defaults' => $screen['defaults'],
-            'customized' => $screen['customized'],
+            'language_names' => $names,
+            'default_lang' => $defaultLang,
+            'rows' => $screen['rows'],
+            'groups' => $screen['groups'],
+            'stats' => $screen['stats'],
+            'progress' => $screen['progress'],
             'custom_file' => $screen['custom_file'],
             'saved' => isset($_GET['saved']),
             'write_error' => ($_GET['error'] ?? '') === 'write',
             'user' => $this->auth->user(),
             'types' => $this->content->getTypes(),
-            'default_lang' => $defaultLang,
             'admin_section' => 'translations',
         ]);
     }
