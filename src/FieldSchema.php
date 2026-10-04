@@ -13,7 +13,7 @@ namespace FarosCMS;
  */
 final class FieldSchema
 {
-    public const TYPES = ['text', 'textarea', 'markdown', 'email', 'url', 'link', 'image', 'video', 'file', 'color', 'number', 'decimal', 'date', 'select', 'icon', 'toggle', 'repeater'];
+    public const TYPES = ['text', 'textarea', 'markdown', 'email', 'url', 'link', 'image', 'video', 'file', 'location', 'color', 'number', 'decimal', 'date', 'select', 'icon', 'toggle', 'repeater'];
 
     /**
      * @param array<string, mixed> $definitions raw map of key => definition
@@ -55,6 +55,10 @@ final class FieldSchema
             // An icon is a choice from the theme's icon set; the set itself is filled in where the theme is known.
             if ($type === 'select' || $type === 'icon') {
                 $field['options'] = self::normalizeOptions($definition['options'] ?? []);
+            }
+            if ($type === 'file') {
+                // Which files the Library offers for it: all of them, or only route files (GPX, KML, GeoJSON).
+                $field['kind'] = ($definition['kind'] ?? '') === 'track' ? 'track' : 'all';
             }
             if ($type === 'decimal') {
                 $field['min'] = isset($definition['min']) && is_numeric($definition['min']) ? (float)$definition['min'] : null;
@@ -269,6 +273,12 @@ final class FieldSchema
             case 'link':
                 $value = is_scalar($value) ? trim((string)$value) : '';
                 return $value === '' || self::isSafeLink($value) ? $value : $fallback;
+
+            case 'location':
+                // A position, always stored the same way ("35.2012, 26.2744"); anything else is not kept.
+                $value = is_scalar($value) ? trim((string)$value) : '';
+                $position = Geo::parse($value);
+                return $value === '' ? '' : ($position === null ? $fallback : Geo::format($position['lat'], $position['lng']));
 
             case 'repeater':
                 // A form that lists no rows at all sends an empty marker, which means "none".

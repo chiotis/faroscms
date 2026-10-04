@@ -93,6 +93,7 @@ final class BlockRegistry
                 'category' => $definition['category'] ?? '',
                 'origin' => $definition['origin'],
                 'preview' => $definition['preview'] ?? '',
+                'variant_when' => $definition['variant_when'] === [] ? new \stdClass() : $definition['variant_when'],
                 'common' => $prepare($definition['common']),
                 'fields' => $prepare($definition['fields']),
             ];
@@ -172,6 +173,14 @@ final class BlockRegistry
         if ($variants === []) {
             $variants = ['default' => 'Default'];
         }
+        // A layout that only makes sense while another field has a value (`variant_when: {split: {source: manual}}`), read like a field's `when`.
+        $variantWhen = [];
+        foreach (is_array($raw['variant_when'] ?? null) ? $raw['variant_when'] : [] as $variant => $when) {
+            $checked = isset($variants[(string)$variant]) && is_array($when) ? (FieldSchema::normalize(['x' => ['type' => 'text', 'when' => $when]])['x']['when'] ?? null) : null;
+            if ($checked !== null) {
+                $variantWhen[(string)$variant] = $checked;
+            }
+        }
         $tone = (string)($raw['tone'] ?? 'default');
         $spacing = (string)($raw['spacing'] ?? 'default');
 
@@ -183,6 +192,7 @@ final class BlockRegistry
             'category' => trim((string)($raw['category'] ?? '')),
             'preview' => self::previewMarkup((string)@file_get_contents(dirname($file) . '/preview.svg')),
             'variants' => $variants,
+            'variant_when' => $variantWhen,
             'fields' => FieldSchema::withIcons(FieldSchema::normalize($this->expandFields(is_array($raw['fields'] ?? null) ? $raw['fields'] : [])), $this->theme->iconNames()),
             // Every block shares these presentation fields.
             'common' => FieldSchema::normalize([

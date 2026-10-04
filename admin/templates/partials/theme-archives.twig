@@ -8,7 +8,7 @@
 #}
 {% import '@admin/partials/layout-controls.twig' as c %}
 {% import _self as m %}
-{% set short = {cards: 'Cards', list: 'List', compact: 'Compact', overlay: 'Tiles', featured: 'Featured', magazine: 'Magazine', editorial: 'Editorial'} %}
+{% set short = {cards: 'Cards', list: 'List', compact: 'Compact', overlay: 'Tiles', featured: 'Featured', magazine: 'Magazine', editorial: 'Editorial', map: 'Map'} %}
 
 {% macro card(item, name, kind, archive_layouts, short, labels) %}
   {% import '@admin/partials/layout-controls.twig' as c %}
@@ -57,6 +57,17 @@
           {{ c.chip(name ~ '[show_excerpt]', 'Excerpt', a.show_excerpt) }}
           {{ c.chip(name ~ '[show_date]', 'Date', a.show_date) }}
           {{ c.chip(name ~ '[show_meta]', 'Category and card fields', a.show_meta) }}
+        </dd>
+      </div>
+      <div class="lc-row" data-map-only>
+        <dt>Map</dt>
+        <dd class="m-0 flex flex-wrap items-center gap-x-4 gap-y-2">
+          {{ c.seg(name ~ '[map_height]', {'small': 'Small', 'medium': 'Medium', 'large': 'Large', 'tall': 'Tall'}, a.map_height, 'Map height', 'map_height') }}
+          <label class="flex items-center gap-1.5 text-xs text-slate-600">List
+            <select name="{{ name }}[map_list]" class="{{ field_class }} sm:w-auto">
+              {% for value, label in {'right': 'Right', 'left': 'Left', 'below': 'Below', 'over_right': 'Over the map, right (full width)', 'over_left': 'Over the map, left (full width)', 'none': 'None'} %}<option value="{{ value }}"{% if a.map_list == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+          </label>
         </dd>
       </div>
       {% if item.options %}{{ c.options(item.options, name ~ '[options]', a.options|default({})) }}{% endif %}

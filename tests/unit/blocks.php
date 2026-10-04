@@ -77,6 +77,8 @@ check('table variants', array_keys($registry->get('table')['variants']), ['lines
 check('marquee variants, speed and direction', [array_keys($registry->get('marquee')['variants']), $registry->get('marquee')['fields']['speed']['default'], $registry->get('marquee')['fields']['direction']['default']], [['text', 'logos'], 'normal', 'left']);
 check('pricing has a switch that is off, and a yearly price for each plan', [$registry->get('pricing')['fields']['billing_switch']['default'], isset($registry->get('pricing')['fields']['items']['fields']['yearly_price'])], [false, true]);
 check('a field that matters for a layout is shown by the layout', [$registry->get('divider')['fields']['label']['when'], $registry->get('downloads')['fields']['columns']['when']], [['variant' => ['label']], ['variant' => ['cards']]]);
+check('the Map block: a layout for a map of many places, and which layouts fit which map', [array_keys($registry->get('map')['variants']), $registry->get('map')['variant_when']], [['contained', 'full', 'split', 'overlay'], ['split' => ['source' => ['manual']], 'overlay' => ['source' => ['!manual']]]]);
+check('a block with no such rule has none', $registry->get('text')['variant_when'], []);
 check('text has a layout with a contents list', array_keys($registry->get('text')['variants']), ['default', 'split', 'lead', 'contents']);
 check('their kinds', [$kinds['image'], $kinds['divider'], $kinds['downloads'], $kinds['portfolio'], $kinds['marquee']], ['Media', 'Content', 'Content', 'Showcase', 'Showcase']);
 

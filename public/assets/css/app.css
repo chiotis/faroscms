@@ -1497,3 +1497,11 @@ html.dark .ed-pop-check { color: #cbd5e1; }
 .en-details-note ol { margin: .375rem 0 0; padding-left: 1.25rem; list-style: decimal; line-height: 1.125rem; }
 .en-details-note li + li { margin-top: .25rem; }
 html.dark .en-details-note { color: #94a3b8; }
+
+/* Archive Layouts: the rows of the map layout show only while that layout is chosen. */
+[data-layout-card]:not(:has(input[data-lc="archive"][value="map"]:checked)) [data-map-only] { display: none; }
+
+/* The map that picks a place for a location field (admin-geo.js). */
+.geo-picker { width: min(52rem, 94vw); }
+.geo-picker::backdrop { background: rgb(15 23 42 / .4); }
+.geo-picker-map { width: 100%; height: 24rem; }

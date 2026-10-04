@@ -1,0 +1,83 @@
+# Businesses: a place to stay, eat, buy or do something, with its position and how to reach it. Switch it on in Admin > Content types.
+# Sites can add fields or change the list in custom/content-types/businesses.yaml (kept across updates).
+# Never rename a field key: content refers to it by name. Retire a field with `hidden: true`.
+label: { el: Επιχειρήσεις, en: Businesses }
+singular: { el: Επιχείρηση, en: Business }
+description: { el: 'Επιχειρήσεις με θέση στον χάρτη και στοιχεία επικοινωνίας: διαμονή, εστίαση, προϊόντα, δραστηριότητες.', en: 'Businesses with their position on the map and how to reach them: stays, food, products, activities.' }
+fields:
+  location:
+    type: location
+    label: { el: Θέση, en: Location }
+    placeholder: '35.2012, 26.2744'
+    help: { el: 'Γεωγραφικό πλάτος και μήκος, όπως τα αντιγράφει το Google Maps ή το OpenStreetMap.', en: 'Latitude and longitude, as Google Maps or OpenStreetMap copy them.' }
+    show: false
+  area:
+    type: text
+    label: { el: Περιοχή, en: Area }
+    placeholder: { el: 'Δήμος ή χωριό', en: 'Municipality or village' }
+    card: true
+  address:
+    type: text
+    label: { el: Διεύθυνση, en: Address }
+  phone:
+    type: text
+    label: { el: Τηλέφωνο, en: Phone }
+  email:
+    type: email
+    label: Email
+  website:
+    type: url
+    label: { el: Ιστότοπος, en: Website }
+  booking_url:
+    type: link
+    label: { el: 'Σύνδεσμος κράτησης', en: Booking link }
+    show: false
+  booking_label:
+    type: text
+    label: { el: 'Κείμενο συνδέσμου κράτησης', en: Booking link text }
+    placeholder: Book now
+    show: false
+  price_range:
+    type: select
+    label: { el: 'Εύρος τιμών', en: Price range }
+    filterable: true
+    options:
+      budget: { el: '€', en: '€' }
+      moderate: { el: '€€', en: '€€' }
+      upscale: { el: '€€€', en: '€€€' }
+  opening_hours:
+    type: text
+    label: { el: Ωράριο, en: Opening hours }
+  facebook:
+    type: url
+    label: Facebook
+    show: false
+  instagram:
+    type: url
+    label: Instagram
+    show: false
+single:
+  sidebar: false
+  header: true
+  options:
+    show_map: { type: toggle, label: { el: Χάρτης, en: Map }, default: true }
+    map_height:
+      type: select
+      label: { el: 'Ύψος χάρτη', en: Map height }
+      default: medium
+      options:
+        small: { el: Μικρό, en: Small }
+        medium: { el: Μεσαίο, en: Medium }
+        large: { el: Μεγάλο, en: Large }
+    show_facts: { type: toggle, label: { el: 'Πληροφορίες επιχείρησης', en: Business information }, default: true }
+    show_nearby: { type: toggle, label: { el: 'Σχετικές διαδρομές και σημεία', en: Related routes and places }, default: true }
+    nearby_radius: { type: number, label: { el: 'Ακτίνα κοντινών (χλμ.)', en: Nearby radius (km) }, default: 5, min: 1, max: 50 }
+archive:
+  title: { el: Επιχειρήσεις, en: Businesses }
+  subtitle: { el: 'Επιχειρήσεις στον χάρτη και σε λίστα, με φίλτρα ανά κατηγορία.', en: 'Businesses on the map and in a list, with filters by category.' }
+  layout: map
+  per_page: 0
+  order: title_asc
+  show_excerpt: false
+  show_meta: true
+  taxonomies: [categories]

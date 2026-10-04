@@ -4,7 +4,7 @@
 {% set map %}
   {% if has_map %}
     <div class="map-frame map-{{ block.height }}" data-map data-map-src="{{ block.embed_url }}" data-map-title="{{ title }}">
-      {% if block.load == 'auto' %}
+      {% if block.load_mode == 'auto' %}
         <iframe src="{{ block.embed_url }}" title="{{ title }}" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
       {% else %}
         <div class="map-placeholder">
@@ -21,7 +21,15 @@
     </p>
   {% endif %}
 {% endset %}
-{% if block.variant == 'split' %}
+{% if block.source != 'manual' %}
+  {# The entries of a content type (or everything with a place) on a map of their own, with filters and a list. #}
+  <div class="container">
+    {{ ui.section_header(block, heading_tag, block_uid, 'left') }}
+  </div>
+  <div class="{{ block.variant in ['full', 'overlay'] ? 'map-geo-full' : 'container' }}">
+    {% include 'components/geo-map.twig' with {geo: block.geo, height: block.height, list: block.variant == 'overlay' and block.list == 'below' ? 'right' : block.list, overlay: block.variant == 'overlay' ? (block.list == 'left' ? 'left' : 'right') : '', filters: block.filters, cluster: block.cluster, load: block.load_mode, label: block.heading ?: t('map.title', 'Map'), item_tag: item_heading_tag} only %}
+  </div>
+{% elseif block.variant == 'split' %}
   <div class="container map-split">
     <div class="map-details">
       {{ ui.section_header(block, heading_tag, block_uid, 'left') }}

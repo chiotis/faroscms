@@ -337,18 +337,45 @@ final class Images
     }
 
     /**
-     * Size in bytes of a file of any type under /uploads (a download), or null when the address is not one of this site's uploads
-     * or the file is not there.
+     * The file behind an address under /uploads, of any type (a download, a route file), or null when the address is not one of
+     * this site's uploads or the file is not there. Never a path outside the uploads folder.
      */
-    public function fileSize(string $src): ?int
+    public function uploadFile(string $src): ?string
     {
         $src = trim($src);
         $path = (string)(parse_url($src, PHP_URL_PATH) ?? '');
         if ($src === '' || preg_match('#^[a-z][a-z0-9+.-]*:#i', $src) || !str_starts_with($path, '/uploads/')) {
             return null;
         }
-        $file = self::sourceFile($this->publicDir . '/uploads', rawurldecode(substr($path, strlen('/uploads/'))));
+        return self::sourceFile($this->publicDir . '/uploads', rawurldecode(substr($path, strlen('/uploads/'))));
+    }
+
+    /** Size in bytes of a file of any type under /uploads (a download), or null when it is not one of this site's uploads. */
+    public function fileSize(string $src): ?int
+    {
+        $file = $this->uploadFile($src);
         return $file === null ? null : (int)(filesize($file) ?: 0);
+    }
+
+    /**
+     * The address of a small version of a picture (for a map's popup or a card in a list): the variant closest to the width
+     * asked, or the address itself when it is not a picture of this site.
+     */
+    public function thumbUrl(string $src, int $width = 480): string
+    {
+        $info = $this->info($src);
+        if ($info === null) {
+            return $src;
+        }
+        $widths = self::widthsFor($info['width']);
+        $pick = $widths[count($widths) - 1];
+        foreach ($widths as $candidate) {
+            if ($candidate >= $width) {
+                $pick = $candidate;
+                break;
+            }
+        }
+        return $this->variantUrl($info, $pick);
     }
 
     private static function sourceFile(string $uploadsDir, string $relative): ?string

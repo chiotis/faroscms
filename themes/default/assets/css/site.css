@@ -3415,3 +3415,314 @@ p.form-error {
 .pagination-step {
   border-color: var(--color-border-strong) !important;
 }
+
+/* Points, routes and businesses: the page of one (components/place-single.twig) ----------------------------------------- */
+.place-hero {
+  position: relative;
+  overflow: hidden;
+  padding-block: clamp(2.5rem, 1.5rem + 5vw, 5.5rem);
+  background: var(--color-surface);
+}
+
+.place-hero.has-cover {
+  min-height: clamp(18rem, 36vw, 30rem);
+  display: grid;
+  align-items: end;
+  background: #0f172a;
+  color: #fff;
+}
+
+.place-hero-media {
+  position: absolute;
+  inset: 0;
+}
+
+.place-hero-media img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.place-hero-media::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgb(8 15 30 / 0.55);
+}
+
+.place-hero-inner {
+  position: relative;
+  display: grid;
+  gap: var(--space-xs);
+}
+
+.place-kicker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+  margin: 0;
+  font-size: var(--step--1);
+  font-weight: 600;
+}
+
+.place-area {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.place-kicker-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.place-term {
+  padding: 0.15rem 0.65rem;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-button);
+  color: inherit;
+  font-size: var(--step--2);
+  text-decoration: none;
+  opacity: 0.9;
+}
+
+.place-term:hover {
+  background: color-mix(in srgb, currentColor 14%, transparent);
+}
+
+.place-title {
+  margin: 0;
+  font-size: var(--step-5);
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  text-wrap: balance;
+}
+
+.place-lead {
+  max-width: 46rem;
+  margin: 0;
+  font-size: var(--step-1);
+  opacity: 0.92;
+}
+
+.place-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin: var(--space-xs) 0 0;
+}
+
+.place-hero.has-cover .btn-secondary {
+  --btn-text: #fff;
+  --btn-border: rgb(255 255 255 / 0.7);
+}
+
+.has-header-overlay .main-shell > .place-hero:first-child {
+  padding-top: calc(var(--header-height, 4.5rem) + clamp(2.5rem, 1.5rem + 5vw, 5.5rem));
+}
+
+.route-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: 0;
+  margin: var(--space-m) 0 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-l);
+  background: var(--card-bg, var(--color-bg));
+}
+
+.route-stat {
+  display: grid;
+  gap: 0.15rem;
+  padding: var(--space-s) var(--space-m);
+  border-right: 1px solid var(--color-border);
+}
+
+.route-stat:last-child {
+  border-right: 0;
+}
+
+.route-stat dt {
+  color: var(--color-muted);
+  font-size: var(--step--2);
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.route-stat dd {
+  margin: 0;
+  font-size: var(--step-1);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.place-map-wide {
+  margin-top: var(--space-m);
+}
+
+.route-profile-figure {
+  margin: var(--space-s) 0 0;
+}
+
+.route-profile-figure figcaption {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+  color: var(--color-muted);
+  font-size: var(--step--1);
+  font-weight: 650;
+}
+
+.route-profile {
+  display: block;
+  width: 100%;
+  height: 8.5rem;
+  border-bottom: 1px solid var(--color-border-strong);
+}
+
+.route-profile-area {
+  fill: var(--accent-soft);
+}
+
+.route-profile-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+
+.route-profile-scale {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.2rem;
+  color: var(--color-muted);
+  font-size: var(--step--2);
+}
+
+.place-layout {
+  display: grid;
+  gap: var(--space-l) clamp(2rem, 1rem + 4vw, 4.5rem);
+  padding-block: var(--space-l) var(--space-2xl);
+  align-items: start;
+}
+
+@media (min-width: 960px) {
+  .place-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(18rem, 24rem);
+  }
+}
+
+.place-aside {
+  display: grid;
+  gap: var(--space-m);
+}
+
+.place-card {
+  padding: var(--space-m);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-l);
+  background: var(--card-bg, var(--color-bg));
+}
+
+.place-map-card {
+  padding: var(--space-xs);
+}
+
+.place-map-card .geo-canvas {
+  min-height: 15rem;
+}
+
+.place-map-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  margin: var(--space-xs) var(--space-2xs) var(--space-2xs);
+  font-size: 0.9rem;
+}
+
+.place-card-title {
+  margin: 0 0 var(--space-s);
+  font-family: var(--font-body);
+  font-size: var(--step-1);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.place-facts {
+  display: grid;
+  gap: 0.7rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.place-facts li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  overflow-wrap: anywhere;
+}
+
+.place-fact-icon {
+  flex-shrink: 0;
+  width: 1.2rem;
+  height: 1.2rem;
+  margin-top: 0.15rem;
+  color: var(--accent);
+}
+
+.place-near-list {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.place-near-item {
+  display: grid;
+  grid-template-columns: 4.5rem minmax(0, 1fr);
+  align-items: center;
+  gap: 0.75rem;
+  color: inherit;
+  text-decoration: none;
+}
+
+.place-near-media {
+  width: 4.5rem;
+  height: 3.5rem;
+  overflow: hidden;
+  border-radius: var(--radius-s);
+  background: var(--color-surface);
+}
+
+.place-near-media img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.place-near-body {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.place-near-title {
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.place-near-item:hover .place-near-title {
+  color: var(--accent);
+}
+
+.place-near-meta {
+  color: var(--color-muted);
+  font-size: var(--step--1);
+}

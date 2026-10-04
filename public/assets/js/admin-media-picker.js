@@ -113,7 +113,7 @@
     ui.prev.classList.toggle('opacity-50', ui.prev.disabled);
     ui.next.classList.toggle('opacity-50', ui.next.disabled);
     ui.status.textContent = payload.total === 0
-      ? (state.q || state.tag ? 'Nothing matches.' : (state.kind === 'video' ? 'The media library has no videos yet. Upload them in Media.' : state.kind === 'all' ? 'The media library has no files yet. Upload them in Media.' : 'The media library has no images yet. Upload them in Media.'))
+      ? (state.q || state.tag ? 'Nothing matches.' : (state.kind === 'video' ? 'The media library has no videos yet. Upload them in Media.' : state.kind === 'all' ? 'The media library has no files yet. Upload them in Media.' : state.kind === 'track' ? 'The media library has no route files yet. Upload a GPX, KML or GeoJSON file in Media.' : 'The media library has no images yet. Upload them in Media.'))
       : '';
   }
 
@@ -141,8 +141,8 @@
   function open(onPick, kind) {
     if (!dialog) build();
     callback = onPick;
-    state = { q: '', tag: '', page: 1, kind: kind === 'video' || kind === 'all' ? kind : 'image' };
-    var noun = state.kind === 'video' ? 'video' : (state.kind === 'all' ? 'file' : 'image');
+    state = { q: '', tag: '', page: 1, kind: kind === 'video' || kind === 'all' || kind === 'track' ? kind : 'image' };
+    var noun = state.kind === 'video' ? 'video' : (state.kind === 'all' ? 'file' : (state.kind === 'track' ? 'route file' : 'image'));
     dialog.setAttribute('aria-label', 'Choose a ' + noun);
     dialog.querySelector('h2').textContent = 'Choose a ' + noun;
     ui.search.setAttribute('aria-label', 'Search ' + noun + 's');
@@ -159,10 +159,12 @@
     if (input.dataset.imageReady === '1') return;
     input.dataset.imageReady = '1';
     var wrap = el('span', { class: 'flex items-center gap-2' });
-    var video = input.getAttribute('data-media-kind') === 'video';
+    var kind = input.getAttribute('data-media-kind') || 'image';
+    // Only a picture has a thumbnail to show; a video, a route or any other file is named by its address.
+    var video = kind !== 'image';
     var thumb = el('img', { alt: '', class: 'h-9 w-9 shrink-0 rounded border border-slate-200 bg-slate-50 object-cover' });
     var choose = el('button', { type: 'button', class: CLS.btn + ' shrink-0', text: 'Library' });
-    choose.setAttribute('aria-label', video ? 'Choose a video from the media library' : 'Choose from the media library');
+    choose.setAttribute('aria-label', kind === 'video' ? 'Choose a video from the media library' : (kind === 'image' ? 'Choose from the media library' : 'Choose a file from the media library'));
     input.parentNode.insertBefore(wrap, input);
     wrap.appendChild(thumb);
     wrap.appendChild(input);
@@ -181,7 +183,7 @@
         input.dispatchEvent(new Event('input', { bubbles: true }));
         input.dispatchEvent(new Event('change', { bubbles: true }));
         input.focus();
-      }, video ? 'video' : 'image');
+      }, kind);
     });
     sync();
   }

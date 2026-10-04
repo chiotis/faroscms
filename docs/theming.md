@@ -18,6 +18,7 @@ Two rules follow from that:
 | Content blocks per page or post | `themes/default/blocks/<block>/` + `blocks:` in front matter | 23 blocks in three families; admin block editor |
 | Site-level component variants (header, footer) | `components/`, Theme settings | Header: 7 layouts, floating or full width, height, edge, background, menu link style, transparent (per content type and per entry), sticky modes (including smart), top bar, CTA, search, phone bottom bar with its own list of icon links, 5 phone menu styles. Footer: 5 layouts, 4 backgrounds, a call to action band, bottom links, language switcher. Both are cards with a picture of the result in Theme |
 | Page templates (standard, landing, with sidebar) | `templates/`, `page_templates` in the manifest | Done |
+| Points, routes, businesses and maps | `content-types/`, `blocks/map/`, `components/place-single.twig`, `assets/vendor/leaflet/` | Done (docs/places-and-routes.md) |
 | Ready-made sections and page layouts | `presets/`, `custom/presets/` | Done |
 | Field definitions and archive settings per content type | `themes/default/content-types/`, `custom/content-types/`, Admin > Content types | Done |
 
@@ -143,7 +144,7 @@ First block family:
 | `team` | grid, compact | Photo or initials, role, bio, email and LinkedIn links. |
 | `timeline` | vertical, alternating, steps | Ordered list of dated entries. |
 | `contact` | split, cards | Contact details with icons and links, optionally beside a form. |
-| `map` | contained, full, split | OpenStreetMap embed with marker, no API key. By default it loads only after the visitor clicks "Show map" (no third-party request on page load); links to OpenStreetMap and directions always work. |
+| `map` | contained, full, split | OpenStreetMap embed with marker, no API key. By default it loads only after the visitor clicks "Show map" (no third-party request on page load); links to OpenStreetMap and directions always work. With **Show** set to a content type (or everything with a place) it is a map of those entries with filters, search, a list and optional grouping of close markers (see `docs/places-and-routes.md`). |
 
 Third block family (dynamic and interactive):
 
@@ -187,7 +188,9 @@ Admin > Edit > **Blocks** lists the page's blocks: add (from a picker with each 
 
 A content type is a folder in `content/` (`posts`, `projects`, or one you create). A **definition** adds two things: the fields an editor fills in, and how the type's archive page looks. Definitions are optional; a type without one behaves as before.
 
-**The catalogue.** Every definition the theme ships is a ready-made type a site can have (today: posts, projects, books). **Admin → Content types** shows every type as a card (its fields, entries and list layout, who defines it) with a switch for each ready-made type; pages (and forms, which belong to the CMS) are always on. A type that is off is hidden from the admin, the site, the sitemap and search, and its files are kept; switching it on again brings it back. A type counts as on when it is listed in the site settings (`content_types`) or already has files in its folder, unless it was switched off (`content_types_off`); an empty folder does not switch a prebuilt type on. To add a type to the catalogue, add `themes/<theme>/content-types/<type>.yaml` (and `templates/single-<singular>.twig` if its pages need their own layout). Types a site creates itself are not in the catalogue and are always on.
+**The catalogue.** Every definition the theme ships is a ready-made type a site can have (today: posts, projects, books, points, routes, businesses). **Admin → Content types** shows every type as a card (its fields, entries and list layout, who defines it) with a switch for each ready-made type; pages (and forms, which belong to the CMS) are always on. A type that is off is hidden from the admin, the site, the sitemap and search, and its files are kept; switching it on again brings it back. A type counts as on when it is listed in the site settings (`content_types`) or already has files in its folder, unless it was switched off (`content_types_off`); an empty folder does not switch a prebuilt type on. To add a type to the catalogue, add `themes/<theme>/content-types/<type>.yaml` (and `templates/single-<singular>.twig` if its pages need their own layout). Types a site creates itself are not in the catalogue and are always on.
+
+**Points of interest, Routes and Businesses** are ready-made too, for sites about places and tourist routes: a position on every entry, route files (GPX, KML, GeoJSON) with their length, climb and profile of the height, an archive layout that is a **map**, a **Map block** that shows them, and a page for each with a map and what is near. See `docs/places-and-routes.md`.
 
 The **Books** type has the fields author, publisher, year, ISBN, language and a buy link, an archive of cards (A to Z, filtered by category), and its own page layout (`templates/single-book.twig`): the cover beside the title, author, summary (the excerpt), facts and buy button, then the text and blocks (Tabs suit reviews and editions).
 
