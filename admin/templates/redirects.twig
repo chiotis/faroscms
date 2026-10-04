@@ -1,11 +1,15 @@
 {% extends '@admin/base.twig' %}
 {% set page_heading = 'Redirects' %}
 
+{#
+  Admin > Redirects: old addresses that lead to new ones, and the addresses visitors asked for that were not found. A quick form to add
+  one (or to change the one being edited), a way to add many, the figures, filters, and a compact row for each redirect: the old
+  address, an arrow, the new one, what is notable about it, how often it was used, and the switch, Edit and Delete. A plain form (the
+  rows carry their own small forms for the switch and Delete, and one bulk form); admin-redirects.js only selects all and counts.
+#}
 {% block content %}
-  {% set btn_primary = 'inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700' %}
-  {% set btn_secondary = 'inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50' %}
-  {% set btn_small = 'rounded px-1.5 py-1 text-xs font-medium' %}
-  {% set input_soft = 'w-full rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20' %}
+  {% import '@admin/partials/ui.twig' as ui %}
+
   {% set messages = {
     'source_empty': 'Enter the old address.',
     'source_admin': 'The admin area cannot be redirected.',
@@ -21,249 +25,210 @@
     'source_has_page': 'A page already exists at the old address, so the redirect would never be used. Rename or delete that page first.',
     'store': 'The system database is not available, so nothing was saved.'
   } %}
+  {% set link = 'font-medium text-blue-700 hover:underline' %}
+  {% set off_count = stats.total - stats.active %}
 
-  <header class="mb-4 flex flex-col gap-3 border-b border-slate-200 pb-4">
-    <div class="min-w-0">
-      <p class="text-xs text-slate-400">Old addresses that lead to new ones. They are created automatically when you change a page's address, and you can add your own. Visitors and search engines follow them without noticing.</p>
-    </div>
+  <header class="mb-3 flex flex-col gap-2">
+    <p class="m-0 text-xs text-slate-500">Old addresses that lead to new ones. They are made for you when you change the address of a page, and you can add your own. Visitors and search engines follow them without noticing.</p>
     <nav class="flex gap-1 border-b border-slate-200" aria-label="Redirect sections">
       <a href="{{ url('admin/redirects') }}" class="border-b-2 px-3 py-2 text-sm font-medium {{ tab == 'redirects' ? 'border-blue-600 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800' }}" {% if tab == 'redirects' %}aria-current="page"{% endif %}>Redirects <span class="ml-1 rounded bg-slate-100 px-1.5 text-xs text-slate-500">{{ stats.total }}</span></a>
       <a href="{{ url('admin/redirects?tab=missing') }}" class="border-b-2 px-3 py-2 text-sm font-medium {{ tab == 'missing' ? 'border-blue-600 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800' }}" {% if tab == 'missing' %}aria-current="page"{% endif %}>Not found <span class="ml-1 rounded {{ missing_total > 0 ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-500' }} px-1.5 text-xs">{{ missing_total }}</span></a>
     </nav>
   </header>
 
-  {% if done == 'added' %}<template data-flash data-type="success">Redirect added.</template>{% endif %}
-  {% if done == 'updated' %}<template data-flash data-type="success">Saved.</template>{% endif %}
-  {% if done == 'deleted' %}<template data-flash data-type="success">{{ done_count }} {{ done_count == 1 ? 'redirect' : 'redirects' }} deleted.</template>{% endif %}
-  {% if done == 'ignored' %}<template data-flash data-type="success">Removed from the list.</template>{% endif %}
-  {% if done == 'cleared' %}<template data-flash data-type="success">List cleared.</template>{% endif %}
-  {% if error and messages[error] is defined %}<template data-flash data-type="error">{{ messages[error] }}</template>{% endif %}
+  {% if done == 'added' %}{{ ui.flash('Redirect added.', 'success') }}{% endif %}
+  {% if done == 'updated' %}{{ ui.flash('Saved.', 'success') }}{% endif %}
+  {% if done == 'deleted' %}{{ ui.flash(done_count ~ ' ' ~ (done_count == 1 ? 'redirect' : 'redirects') ~ ' deleted.', 'success') }}{% endif %}
+  {% if done == 'ignored' %}{{ ui.flash('Removed from the list.', 'success') }}{% endif %}
+  {% if done == 'cleared' %}{{ ui.flash('List cleared.', 'success') }}{% endif %}
+  {% if error and messages[error] is defined %}{{ ui.flash(messages[error], 'error') }}{% endif %}
 
   {% if tab == 'redirects' %}
-    <div class="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <div class="an-kpis rd-kpis">
       {% for card in [['Redirects', stats.total], ['Turned on', stats.active], ['Visits followed', stats.hits], ['Never used', stats.unused]] %}
-        <div class="rounded-lg border border-slate-200 bg-white px-4 py-3">
-          <div class="text-xs text-slate-400">{{ card[0] }}</div>
-          <div class="text-xl font-semibold text-slate-900">{{ card[1] }}</div>
-        </div>
+        <div class="an-kpi"><span>{{ card[0] }}</span><strong>{{ card[1]|number_format }}</strong></div>
       {% endfor %}
     </div>
 
-    <section id="add" class="mb-4 rounded-lg border border-slate-200 bg-white p-4" aria-labelledby="addTitle">
-      <h2 id="addTitle" class="text-sm font-semibold text-slate-900">{{ form.id ? 'Edit redirect' : 'Add a redirect' }}</h2>
-      <form method="post" action="{{ url('admin/redirects') }}#add" class="mt-3 grid gap-3 md:grid-cols-2">
+    <section id="add" class="rd-add lc-card rounded-xl border border-slate-200 bg-white" aria-labelledby="rd-h-add">
+      <h2 id="rd-h-add" class="rd-title">{{ form.id ? 'Edit redirect' : 'Add a redirect' }}</h2>
+      <form method="post" action="{{ url('admin/redirects') }}#add" autocomplete="off">
         {{ csrf_field() }}
         <input type="hidden" name="do" value="{{ form.id ? 'update' : 'add' }}">
         {% if form.id %}<input type="hidden" name="id" value="{{ form.id }}">{% endif %}
-        <label class="block">
-          <span class="mb-1 block text-sm font-medium text-slate-700">Old address</span>
-          <input type="text" name="source" value="{{ form.source }}" placeholder="/old-page" class="{{ input_soft }}" required autocomplete="off" spellcheck="false">
-          <span class="mt-1 block text-xs text-slate-400">The part after your domain, for example <code>/en/services</code>. A pasted full address of this site is fine too.</span>
-        </label>
-        <label class="block">
-          <span class="mb-1 block text-sm font-medium text-slate-700">Send visitors to</span>
-          <input type="text" name="target" value="{{ form.target }}" list="knownPaths" placeholder="/new-page or https://example.com" class="{{ input_soft }}" required autocomplete="off" spellcheck="false">
-          <datalist id="knownPaths">
-            {% for path, title in known_paths %}<option value="/{{ path }}">{{ title }}</option>{% endfor %}
-          </datalist>
-          <span class="mt-1 block text-xs text-slate-400">Start typing to pick one of your pages, or enter a full address of another website.</span>
-        </label>
-        <label class="block">
-          <span class="mb-1 block text-sm font-medium text-slate-700">Type</span>
-          <select name="code" class="{{ input_soft }}">
-            <option value="301" {{ form.code == 301 ? 'selected' : '' }}>Permanent (301)</option>
-            <option value="302" {{ form.code == 302 ? 'selected' : '' }}>Temporary (302)</option>
-          </select>
-          <span class="mt-1 block text-xs text-slate-400">Permanent: the page moved for good and search engines switch to the new address. Temporary: the old address will be used again.</span>
-        </label>
-        <label class="block">
-          <span class="mb-1 block text-sm font-medium text-slate-700">Note (optional)</span>
-          <input type="text" name="note" value="{{ form.note }}" maxlength="300" placeholder="Why this exists" class="{{ input_soft }}">
-        </label>
-        {% if form.id %}
-          <label class="flex items-center gap-2 text-sm text-slate-700 md:col-span-2">
-            <input type="checkbox" name="enabled" value="1" {{ form.enabled ? 'checked' : '' }} class="h-4 w-4 rounded border-slate-300 text-blue-600">
-            Turned on
+        <div class="rd-line">
+          <label class="rd-from"><span class="sr-only">Old address</span>
+            <input type="text" name="source" value="{{ form.source }}" placeholder="/old-page" class="lc-input font-mono" required spellcheck="false">
           </label>
-        {% endif %}
-        <div class="flex gap-2 md:col-span-2">
-          <button type="submit" class="{{ btn_primary }}">{{ form.id ? 'Save changes' : 'Add redirect' }}</button>
-          {% if form.id %}<a class="{{ btn_secondary }}" href="{{ url('admin/redirects') }}">Cancel</a>{% endif %}
+          <span class="rd-arrow" aria-hidden="true">→</span>
+          <label class="rd-to"><span class="sr-only">Send visitors to</span>
+            <input type="text" name="target" value="{{ form.target }}" list="knownPaths" placeholder="/new-page or https://example.com" class="lc-input font-mono" required spellcheck="false">
+            <datalist id="knownPaths">{% for path, title in known_paths %}<option value="/{{ path }}">{{ title }}</option>{% endfor %}</datalist>
+          </label>
+          <label class="rd-code"><span class="sr-only">Type</span>
+            <select name="code" class="lc-input lc-select" title="Permanent: the page moved for good and search engines switch to the new address. Temporary: the old address will be used again.">
+              <option value="301" {{ form.code == 301 ? 'selected' : '' }}>Permanent (301)</option>
+              <option value="302" {{ form.code == 302 ? 'selected' : '' }}>Temporary (302)</option>
+            </select>
+          </label>
+          <label class="rd-note"><span class="sr-only">Note</span>
+            <input type="text" name="note" value="{{ form.note }}" maxlength="300" placeholder="Note (optional)" class="lc-input">
+          </label>
+          {% if form.id %}
+            <label class="seo-flag rd-on"><input type="checkbox" name="enabled" value="1" {{ form.enabled ? 'checked' : '' }}><span><strong>Turned on</strong></span></label>
+          {% endif %}
+          <button type="submit" class="ct-create">{{ form.id ? 'Save' : 'Add' }}</button>
+          {% if form.id %}<a class="ct-pill" href="{{ url('admin/redirects') }}">Cancel</a>{% endif %}
         </div>
+        <p class="seo-help rd-help">The old address is the part after your domain (a pasted full address of this site is fine). Start typing the new one to pick a page, or enter a full address of another website. <strong class="font-medium text-slate-700">Permanent</strong> tells search engines the page moved for good.</p>
       </form>
     </section>
 
-    <details class="mb-4 rounded-lg border border-slate-200 bg-white p-4" {% if import_report %}open{% endif %}>
-      <summary class="cursor-pointer text-sm font-semibold text-slate-900">Add many at once</summary>
-      <form method="post" action="{{ url('admin/redirects') }}" class="mt-3">
+    <details class="tr-add mb-3" {% if import_report %}open{% endif %}>
+      <summary>Add many at once</summary>
+      <form method="post" action="{{ url('admin/redirects') }}" class="rd-many">
         {{ csrf_field() }}
         <input type="hidden" name="do" value="import">
-        <label class="block">
-          <span class="mb-1 block text-sm font-medium text-slate-700">One redirect per line: old address, then new address</span>
-          <textarea name="lines" rows="6" class="{{ input_soft }} font-mono" placeholder="/old-services /en/services&#10;/blog/2019/hello https://example.com/hello 302" spellcheck="false"></textarea>
-          <span class="mt-1 block text-xs text-slate-400">Separate with a space, a comma, a tab, or <code>-&gt;</code>. Add 301 or 302 at the end to choose the type (default 301). Up to 500 lines. Lines starting with # are ignored.</span>
+        <label><span class="rd-many-label">One redirect per line: old address, then new address</span>
+          <textarea name="lines" rows="5" class="lc-input font-mono" placeholder="/old-services /en/services&#10;/blog/2019/hello https://example.com/hello 302" spellcheck="false"></textarea>
         </label>
-        <button type="submit" class="{{ btn_secondary }} mt-2">Add these</button>
+        <p class="tr-note m-0">Separate with a space, a comma, a tab, or <code>-&gt;</code>. Add 301 or 302 at the end to choose the type (default 301). Up to 500 lines. Lines starting with # are ignored.</p>
+        <div><button type="submit" class="ct-create">Add these</button></div>
+        {% if import_report %}
+          <div class="rd-report" role="status">
+            <p class="m-0 font-medium text-slate-900">{{ import_report.added }} added{% if import_report.skipped %}, {{ import_report.skipped|length }} skipped{% endif %}.</p>
+            {% if import_report.skipped %}
+              <ul class="m-0 mt-1 list-none space-y-0.5 p-0 text-xs text-slate-600">
+                {% for s in import_report.skipped|slice(0, 20) %}<li>Line {{ s.line }}: <code>{{ s.text }}</code> — {{ messages[s.reason]|default(s.reason) }}</li>{% endfor %}
+              </ul>
+            {% endif %}
+          </div>
+        {% endif %}
       </form>
-      {% if import_report %}
-        <div class="mt-3 rounded-md bg-slate-50 p-3 text-sm" role="status">
-          <p class="font-medium text-slate-900">{{ import_report.added }} added{% if import_report.skipped %}, {{ import_report.skipped|length }} skipped{% endif %}.</p>
-          {% if import_report.skipped %}
-            <ul class="mt-1 space-y-0.5 text-xs text-slate-600">
-              {% for s in import_report.skipped|slice(0, 20) %}<li>Line {{ s.line }}: <code>{{ s.text }}</code> — {{ messages[s.reason]|default(s.reason) }}</li>{% endfor %}
-            </ul>
-          {% endif %}
-        </div>
-      {% endif %}
     </details>
 
-    <form method="get" action="{{ url('admin/redirects') }}" class="mb-3 flex flex-wrap items-end gap-3" role="search">
-      <label class="block min-w-[12rem] flex-1">
-        <span class="mb-1 block text-xs font-medium text-slate-500">Search</span>
-        <input type="search" name="q" value="{{ filters.q }}" placeholder="Address or note" class="{{ input_soft }}">
-      </label>
-      <label class="block">
-        <span class="mb-1 block text-xs font-medium text-slate-500">Made by</span>
-        <select name="origin" class="{{ input_soft }}">
-          <option value="">Anyone</option>
-          <option value="auto" {{ filters.origin == 'auto' ? 'selected' : '' }}>Automatically (address changes)</option>
-          <option value="manual" {{ filters.origin == 'manual' ? 'selected' : '' }}>By hand</option>
-        </select>
-      </label>
-      <label class="block">
-        <span class="mb-1 block text-xs font-medium text-slate-500">Show</span>
-        <select name="state" class="{{ input_soft }}">
-          <option value="">All</option>
-          <option value="unused" {{ filters.state == 'unused' ? 'selected' : '' }}>Never used</option>
-          <option value="off" {{ filters.state == 'off' ? 'selected' : '' }}>Turned off</option>
-        </select>
-      </label>
-      <button type="submit" class="{{ btn_secondary }}">Filter</button>
-    </form>
+    <div class="rd-tools">
+      <form method="get" action="{{ url('admin/redirects') }}" role="search" class="tr-search">
+        <span class="sr-only">Search the redirects</span>
+        <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.3-4.3M10.5 18a7.5 7.5 0 100-15 7.5 7.5 0 000 15z"/></svg>
+        <input type="search" name="q" value="{{ filters.q }}" placeholder="Search by address or note" class="lc-input" aria-label="Search by address or note">
+        {% if filters.origin %}<input type="hidden" name="origin" value="{{ filters.origin }}">{% endif %}
+        {% if filters.state %}<input type="hidden" name="state" value="{{ filters.state }}">{% endif %}
+      </form>
+      <nav class="an-seg" aria-label="Show">
+        {% for key, label in {'': 'All', 'unused': 'Never used', 'off': 'Turned off'} %}
+          <a href="{{ url('admin/redirects?' ~ {q: filters.q, origin: filters.origin, state: key}|url_encode) }}"{% if filters.state == key %} aria-current="true"{% endif %}>{{ label }}{% if key == 'unused' %} <em>{{ stats.unused }}</em>{% elseif key == 'off' %} <em>{{ off_count }}</em>{% endif %}</a>
+        {% endfor %}
+      </nav>
+      <nav class="an-seg" aria-label="Made by">
+        {% for key, label in {'': 'Anyone', 'auto': 'Automatic', 'manual': 'By hand'} %}
+          <a href="{{ url('admin/redirects?' ~ {q: filters.q, origin: key, state: filters.state}|url_encode) }}"{% if filters.origin == key %} aria-current="true"{% endif %}>{{ label }}</a>
+        {% endfor %}
+      </nav>
+    </div>
 
     {% if rows %}
-      <form method="post" action="{{ url('admin/redirects') }}" id="bulkForm">
+      <form method="post" action="{{ url('admin/redirects') }}" id="bulkForm" data-rd-bulk>
         {{ csrf_field() }}
         <input type="hidden" name="do" value="bulk_delete">
-        <div class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-          <table class="w-full min-w-[760px] text-sm">
-            <thead>
-              <tr class="border-b border-slate-100 bg-slate-50/50 text-left text-xs font-medium text-slate-500">
-                <th scope="col" class="w-8 px-3 py-2"><span class="sr-only">Select</span></th>
-                <th scope="col" class="px-3 py-2 font-medium">Old address</th>
-                <th scope="col" class="px-3 py-2 font-medium">Goes to</th>
-                <th scope="col" class="px-3 py-2 font-medium">Type</th>
-                <th scope="col" class="px-3 py-2 font-medium">Visits</th>
-                {% if rows and rows[0].links is not null %}<th scope="col" class="px-3 py-2 font-medium" title="Links inside content that still use the old address">Links</th>{% endif %}
-                <th scope="col" class="px-3 py-2 text-right font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-50">
-              {% for r in rows %}
-                <tr class="{{ r.enabled ? '' : 'opacity-60' }} hover:bg-slate-50/60">
-                  <td class="px-3 py-2.5"><input type="checkbox" name="ids[]" value="{{ r.id }}" class="h-4 w-4 rounded border-slate-300" aria-label="Select /{{ r.source }}"></td>
-                  <td class="px-3 py-2.5 align-top">
-                    <code class="break-all text-slate-900">/{{ r.source }}</code>
-                    <div class="mt-0.5 flex flex-wrap gap-1">
-                      <span class="rounded px-1.5 py-0.5 text-[10px] font-semibold {{ r.origin == 'auto' ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-600' }}">{{ r.origin == 'auto' ? 'Automatic' : 'By hand' }}</span>
-                      {% if not r.enabled %}<span class="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">Off</span>{% endif %}
-                      {% if r.shadowed %}<span class="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800" title="A page exists at this address, so visitors see the page and this redirect is not used.">Not used: a page exists here</span>{% endif %}
-                    </div>
-                    {% if r.note %}<div class="mt-0.5 text-xs text-slate-400">{{ r.note }}</div>{% endif %}
-                  </td>
-                  <td class="px-3 py-2.5 align-top">
-                    <code class="break-all text-slate-700">{{ r.target }}</code>
-                    <div class="mt-0.5">
-                      {% if r.target_state == 'missing' %}<span class="rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold text-red-700">Nothing at the new address</span>{% endif %}
-                      {% if r.target_state == 'loop' %}<span class="rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold text-red-700">Loop</span>{% endif %}
-                      {% if r.target_state == 'chain' %}<span class="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800">Continues through another redirect</span>{% endif %}
-                      {% if r.target_state == 'external' %}<span class="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">Another website</span>{% endif %}
-                    </div>
-                  </td>
-                  <td class="px-3 py-2.5 align-top text-slate-600">{{ r.status_code == 301 ? 'Permanent' : 'Temporary' }}</td>
-                  <td class="px-3 py-2.5 align-top text-slate-600">{{ r.hits }}{% if r.last_hit_at %}<div class="text-xs text-slate-400">last {{ r.last_hit_at|slice(0, 10) }}</div>{% endif %}</td>
-                  {% if rows[0].links is not null %}
-                    <td class="px-3 py-2.5 align-top text-slate-600">
-                      {% if r.links %}<a class="font-medium text-amber-700 hover:underline" href="{{ url('admin/links?ids=' ~ r.id) }}" title="Review and update the links that still use this address">{{ r.links }} {{ r.links == 1 ? 'link' : 'links' }}</a>{% elseif r.enabled and r.status_code == 301 %}<span class="text-slate-300">none</span>{% endif %}
-                    </td>
-                  {% endif %}
-                  <td class="whitespace-nowrap px-3 py-2.5 text-right align-top">
-                    <a class="{{ btn_small }} text-blue-600 hover:bg-blue-50" href="{{ url('admin/redirects?edit=' ~ r.id) }}#add">Edit</a>
-                    <button type="submit" form="rf{{ r.id }}" name="do" value="toggle" class="{{ btn_small }} text-slate-600 hover:bg-slate-100">{{ r.enabled ? 'Turn off' : 'Turn on' }}</button>
-                    <button type="submit" form="rf{{ r.id }}" name="do" value="delete" class="{{ btn_small }} text-red-600 hover:bg-red-50" data-confirm="Delete the redirect from /{{ r.source }}? Visitors using that address will see a Not found page.">Delete</button>
-                  </td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-        <div class="mt-3 flex flex-wrap items-center justify-between gap-2">
-          <button type="submit" class="{{ btn_secondary }}" data-confirm="Delete the selected redirects?">Delete selected</button>
-          <p class="text-xs text-slate-400">{{ total }} {{ total == 1 ? 'redirect' : 'redirects' }}{% if pages > 1 %} · page {{ page }} of {{ pages }}{% endif %}</p>
-        </div>
+        <section class="lc-card rounded-xl border border-slate-200 bg-white" aria-label="Redirects">
+          <div class="rd-head">
+            <label class="rd-check"><input type="checkbox" data-rd-all aria-label="Select all on this page"></label>
+            <span>{{ total }} {{ total == 1 ? 'redirect' : 'redirects' }}{% if pages > 1 %} · page {{ page }} of {{ pages }}{% endif %}</span>
+            <span class="rd-selected" data-rd-selected hidden></span>
+            <button type="submit" class="rd-bulk" data-rd-bulk-button data-confirm="Delete the selected redirects?" data-confirm-button="Delete" hidden>Delete selected</button>
+          </div>
+          <ul class="rd-list">
+            {% for r in rows %}
+              <li class="rd-row{{ r.enabled ? '' : ' is-off' }}">
+                <label class="rd-check"><input type="checkbox" name="ids[]" value="{{ r.id }}" aria-label="Select /{{ r.source }}"></label>
+                <div class="rd-paths">
+                  <div class="rd-pair">
+                    <code class="rd-old">/{{ r.source }}</code>
+                    <span class="rd-arrow" aria-hidden="true">→</span>
+                    <code class="rd-new">{{ r.target }}</code>
+                  </div>
+                  <div class="rd-chips">
+                    <span class="rd-chip {{ r.status_code == 301 ? 'is-perm' : 'is-temp' }}" title="{{ r.status_code == 301 ? 'The page moved for good' : 'The old address will be used again' }}">{{ r.status_code == 301 ? 'Permanent' : 'Temporary' }}</span>
+                    <span class="rd-chip {{ r.origin == 'auto' ? 'is-auto' : '' }}">{{ r.origin == 'auto' ? 'Automatic' : 'By hand' }}</span>
+                    {% if not r.enabled %}<span class="rd-chip is-off">Off</span>{% endif %}
+                    {% if r.shadowed %}<span class="rd-chip is-warn" title="A page exists at this address, so visitors see the page and this redirect is not used.">Not used: a page exists here</span>{% endif %}
+                    {% if r.target_state == 'missing' %}<span class="rd-chip is-bad">Nothing at the new address</span>{% endif %}
+                    {% if r.target_state == 'loop' %}<span class="rd-chip is-bad">Loop</span>{% endif %}
+                    {% if r.target_state == 'chain' %}<span class="rd-chip is-warn">Continues through another redirect</span>{% endif %}
+                    {% if r.target_state == 'external' %}<span class="rd-chip">Another website</span>{% endif %}
+                    {% if rows[0].links is not null and r.links %}<a class="rd-chip is-warn" href="{{ url('admin/links?ids=' ~ r.id) }}" title="Review and update the links that still use this address">{{ r.links }} {{ r.links == 1 ? 'link' : 'links' }} to update</a>{% endif %}
+                    {% if r.note %}<span class="rd-note-text">{{ r.note }}</span>{% endif %}
+                  </div>
+                </div>
+                <div class="rd-use" title="{{ r.last_hit_at ? 'Last used ' ~ r.last_hit_at|slice(0, 10) : 'Never used' }}"><b>{{ r.hits|number_format }}</b><small>{{ r.hits == 1 ? 'visit' : 'visits' }}{% if r.last_hit_at %} · {{ r.last_hit_at|slice(0, 10) }}{% endif %}</small></div>
+                <div class="rd-actions">
+                  <a class="ct-pill" href="{{ url('admin/redirects?edit=' ~ r.id) }}#add">Edit<span class="sr-only"> /{{ r.source }}</span></a>
+                  <button type="submit" form="rf{{ r.id }}" name="do" value="toggle" class="ct-switch" role="switch" aria-checked="{{ r.enabled ? 'true' : 'false' }}"><i aria-hidden="true"></i><span class="sr-only">{{ r.enabled ? 'Turn off' : 'Turn on' }}<span> /{{ r.source }}</span></span></button>
+                  <button type="submit" form="rf{{ r.id }}" name="do" value="delete" class="rd-delete" data-confirm="Delete the redirect from /{{ r.source }}? Visitors using that address will see a Not found page." data-confirm-button="Delete" title="Delete"><svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M10 11v6M14 11v6M6 7l1 12a1 1 0 001 1h8a1 1 0 001-1l1-12M9 7V4h6v3"/></svg><span class="sr-only">Delete /{{ r.source }}</span></button>
+                </div>
+              </li>
+            {% endfor %}
+          </ul>
+        </section>
       </form>
       {% for r in rows %}
         <form id="rf{{ r.id }}" method="post" action="{{ url('admin/redirects') }}" class="hidden">{{ csrf_field() }}<input type="hidden" name="id" value="{{ r.id }}"></form>
       {% endfor %}
       {% if pages > 1 %}
         <nav class="mt-3 flex gap-2" aria-label="Pages">
-          {% if page > 1 %}<a class="{{ btn_secondary }}" href="{{ url('admin/redirects?' ~ {q: filters.q, origin: filters.origin, state: filters.state, page: page - 1}|url_encode) }}">Previous</a>{% endif %}
-          {% if page < pages %}<a class="{{ btn_secondary }}" href="{{ url('admin/redirects?' ~ {q: filters.q, origin: filters.origin, state: filters.state, page: page + 1}|url_encode) }}">Next</a>{% endif %}
+          {% if page > 1 %}<a class="ct-pill" href="{{ url('admin/redirects?' ~ {q: filters.q, origin: filters.origin, state: filters.state, page: page - 1}|url_encode) }}">Previous</a>{% endif %}
+          {% if page < pages %}<a class="ct-pill" href="{{ url('admin/redirects?' ~ {q: filters.q, origin: filters.origin, state: filters.state, page: page + 1}|url_encode) }}">Next</a>{% endif %}
         </nav>
       {% endif %}
     {% else %}
-      <div class="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
+      <div class="rd-empty">
         {% if filters.q or filters.origin or filters.state %}No redirects match these filters.{% else %}No redirects yet. They appear here when you change a page's address, or you can add one above.{% endif %}
       </div>
     {% endif %}
   {% else %}
-    <p class="mb-3 text-sm text-slate-600">Addresses visitors asked for that do not exist, most asked first. Broken links from other websites or old bookmarks show up here. Add a redirect to send them somewhere useful, or remove the ones that are only noise (bots probing for files, for example).</p>
-    <div class="mb-3 flex flex-wrap items-end justify-between gap-3">
-      <form method="get" action="{{ url('admin/redirects') }}" class="flex items-end gap-2" role="search">
+    <p class="mb-3 text-xs text-slate-500">Addresses visitors asked for that do not exist, most asked first. Broken links from other websites or old bookmarks show up here. Add a redirect to send them somewhere useful, or remove the ones that are only noise (bots probing for files, for example).</p>
+    <div class="rd-tools">
+      <form method="get" action="{{ url('admin/redirects') }}" role="search" class="tr-search">
+        <span class="sr-only">Search the addresses</span>
+        <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.3-4.3M10.5 18a7.5 7.5 0 100-15 7.5 7.5 0 000 15z"/></svg>
         <input type="hidden" name="tab" value="missing">
-        <label class="block"><span class="mb-1 block text-xs font-medium text-slate-500">Search</span><input type="search" name="q" value="{{ filters.q }}" placeholder="Address" class="{{ input_soft }}"></label>
-        <button type="submit" class="{{ btn_secondary }}">Filter</button>
+        <input type="search" name="q" value="{{ filters.q }}" placeholder="Search by address" class="lc-input" aria-label="Search by address">
       </form>
       {% if missing_total > 0 %}
-        <form method="post" action="{{ url('admin/redirects?tab=missing') }}">
+        <form method="post" action="{{ url('admin/redirects?tab=missing') }}" class="ml-auto">
           {{ csrf_field() }}<input type="hidden" name="do" value="missing_clear">
-          <button type="submit" class="{{ btn_secondary }}" data-confirm="Clear the whole list? It fills up again as visitors hit missing addresses.">Clear the list</button>
+          <button type="submit" class="rd-bulk is-visible" data-confirm="Clear the whole list? It fills up again as visitors hit missing addresses." data-confirm-button="Clear">Clear the list</button>
         </form>
       {% endif %}
     </div>
     {% if missing %}
-      <div class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-        <table class="w-full min-w-[680px] text-sm">
-          <thead>
-            <tr class="border-b border-slate-100 bg-slate-50/50 text-left text-xs font-medium text-slate-500">
-              <th scope="col" class="px-3 py-2 font-medium">Address asked for</th>
-              <th scope="col" class="px-3 py-2 font-medium">Times</th>
-              <th scope="col" class="px-3 py-2 font-medium">Last seen</th>
-              <th scope="col" class="px-3 py-2 font-medium">Came from</th>
-              <th scope="col" class="px-3 py-2 text-right font-medium">Actions</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-50">
-            {% for m in missing %}
-              <tr class="hover:bg-slate-50/60">
-                <td class="px-3 py-2.5 align-top"><code class="break-all text-slate-900">/{{ m.path }}</code>{% if m.suggestion %}<div class="mt-0.5 text-xs text-slate-500">Looks like <code>{{ m.suggestion }}</code>?</div>{% endif %}</td>
-                <td class="px-3 py-2.5 align-top text-slate-700">{{ m.hits }}</td>
-                <td class="px-3 py-2.5 align-top text-slate-500">{{ m.last_seen_at|slice(0, 10) }}</td>
-                <td class="px-3 py-2.5 align-top text-xs text-slate-500 break-all">{{ m.last_referrer ?: '—' }}</td>
-                <td class="whitespace-nowrap px-3 py-2.5 text-right align-top">
-                  <a class="{{ btn_small }} text-blue-600 hover:bg-blue-50" href="{{ url('admin/redirects?' ~ {source: m.path, target: m.suggestion}|url_encode) }}#add">Create redirect</a>
-                  <form method="post" action="{{ url('admin/redirects?tab=missing') }}" class="inline">
-                    {{ csrf_field() }}<input type="hidden" name="do" value="missing_delete"><input type="hidden" name="path" value="{{ m.path }}">
-                    <button type="submit" class="{{ btn_small }} text-slate-600 hover:bg-slate-100">Ignore</button>
-                  </form>
-                </td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
+      <section class="lc-card rounded-xl border border-slate-200 bg-white" aria-label="Addresses not found">
+        <ul class="rd-list">
+          {% for m in missing %}
+            <li class="rd-row is-missing">
+              <div class="rd-paths">
+                <div class="rd-pair"><code class="rd-old">/{{ m.path }}</code></div>
+                <div class="rd-chips">
+                  {% if m.suggestion %}<span class="rd-note-text">Looks like <code>{{ m.suggestion }}</code>?</span>{% endif %}
+                  <span class="rd-note-text">{% if m.last_referrer %}Came from {{ m.last_referrer }}{% else %}No page sent them{% endif %}</span>
+                </div>
+              </div>
+              <div class="rd-use"><b>{{ m.hits|number_format }}</b><small>{{ m.hits == 1 ? 'time' : 'times' }} · {{ m.last_seen_at|slice(0, 10) }}</small></div>
+              <div class="rd-actions">
+                <a class="ct-pill rd-create" href="{{ url('admin/redirects?' ~ {source: m.path, target: m.suggestion}|url_encode) }}#add">Create redirect<span class="sr-only"> from /{{ m.path }}</span></a>
+                <form method="post" action="{{ url('admin/redirects?tab=missing') }}" class="m-0">
+                  {{ csrf_field() }}<input type="hidden" name="do" value="missing_delete"><input type="hidden" name="path" value="{{ m.path }}">
+                  <button type="submit" class="ct-pill cursor-pointer">Ignore<span class="sr-only"> /{{ m.path }}</span></button>
+                </form>
+              </div>
+            </li>
+          {% endfor %}
+        </ul>
+      </section>
     {% else %}
-      <div class="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">Nothing here. Addresses that visitors could not find will be listed as they happen.</div>
+      <div class="rd-empty">Nothing here. Addresses that visitors could not find will be listed as they happen.</div>
     {% endif %}
   {% endif %}
+  <script src="{{ asset('js/admin-redirects.js') }}" defer></script>
 {% endblock %}

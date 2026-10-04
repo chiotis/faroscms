@@ -215,6 +215,22 @@ check('lists automatic origin badge', 'Automatic' in html)
 st, _, html = root.get('/admin/redirects?origin=auto'); check('origin filter', 'to-nowhere' not in html and 'kalimera-kosme' in html)
 st, _, html = root.get('/admin/redirects?q=WHO'); check('search filter', '/who-we-are' in html and 'to-nowhere' not in html)
 
+# ---- the screen: figures, the form, the rows, the filters
+st, _, html = root.get('/admin/redirects')
+check('the figures are four small tiles', all(('<span>%s</span>' % w) in html for w in ('Redirects', 'Turned on', 'Visits followed', 'Never used')) and html.count('class="an-kpi"') == 4)
+check('the form to add one is a single line: the old address, an arrow, the new one, the type, a note', all(k in html for k in ('name="source"', 'name="target"', 'name="code"', 'name="note"', 'class="rd-arrow"', 'list="knownPaths"')) and 'Add a redirect' in html)
+check('adding many at once is a fold', 'Add many at once' in html and 'name="lines"' in html)
+check('each redirect is a row: old address, arrow, new address, what it is, its visits, a switch, Edit and Delete', 'class="rd-row' in html and '<code class="rd-old">/' in html and 'role="switch"' in html and 'aria-checked="true"' in html and 'name="do" value="toggle"' in html and 'value="delete"' in html and 'Permanent' in html)
+check('with one box to select all and a button for the selected', 'data-rd-all' in html and 'data-rd-bulk-button' in html and 'Delete selected' in html)
+check('the filters are links that keep the search', 'admin/redirects?q=&amp;origin=&amp;state=unused' in html and 'origin=auto' in html and 'origin=manual' in html and 'aria-current="true"' in html)
+st, _, html = root.get('/admin/redirects?state=off')
+check('a filter with nothing in it says so', 'No redirects match these filters.' in html)
+rid = re.search(r'name="ids\[\]" value="(\d+)"', root.get('/admin/redirects')[2]).group(1)
+st, _, html = root.get('/admin/redirects?edit=' + rid)
+check('editing puts the redirect in the same form, with Turned on and Cancel', 'Edit redirect' in html and 'name="enabled"' in html and 'name="do" value="update"' in html and '>Cancel<' in html)
+st, _, html = root.get('/admin/redirects?tab=missing')
+check('the Not found tab is rows too, with a way to make a redirect or ignore it', st == 200 and ('class="rd-row is-missing"' in html or 'Nothing here.' in html) and 'Search by address' in html)
+
 # ---- permissions
 check('editor cannot open redirects', code_ed := ed.get('/admin/redirects')[0] == 403, code_ed)
 tok = re.search(r'name="_csrf" value="([0-9a-f]+)"', ed.get('/admin/content')[2]).group(1)
