@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.60 — 2026-10-04 — Dashboard without shortcut buttons
+- **The *+ New Page / Post / Project* buttons are gone from the top of the dashboard**: the sidebar already lists every content type, and a button for the first three was an arbitrary choice. The greeting stays.
+
 ## 0.1.59 — 2026-10-04 — Points of interest, routes and businesses, with maps
 - **Three new ready-made content types** (switch them on in Admin > Content types): **Points of interest**, **Routes** and **Businesses**, each with the fields such a site needs and each with its own page. See `docs/places-and-routes.md`.
 - **Routes from a GPX, KML or GeoJSON file.** Upload the file in Media (a new group of allowed files, *Route files*; one that cannot be read as a route, or has a DOCTYPE or markup a browser could run, is refused) and choose it in the route. The page works out the length, the climb and descent, the highest point and a profile of the height, draws the line, its ends and the places the file marks, and offers the file as a download. What the editor types (length, climb, descent) wins over the file. A file is read once and kept in `storage/cache/geo`.

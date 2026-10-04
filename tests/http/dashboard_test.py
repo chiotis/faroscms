@@ -25,7 +25,7 @@ def collect(payload):
 
 # ---- the page for the super admin
 st, _, html = root.get('/admin')
-check('the dashboard opens, with a greeting and a shortcut to a new page', st == 200 and re.search(r'Good (morning|afternoon|evening)', html) and 'href="/admin/new?type=pages"' in html and '+</span> New Page' in html, st)
+check('the dashboard opens, with a greeting and no shortcut buttons (the sidebar has the content types)', st == 200 and re.search(r'Good (morning|afternoon|evening)', html) and 'New Page' not in html and '+</span>' not in html, st)
 check('the figures are tiles that lead somewhere', all(w in html for w in ('Content entries', 'Form submissions', '>Storage<', '>Backups<', 'System status')) and 'class="db-tile" href="/admin/system"' in html)
 check('the part for what needs attention is there', 'Needs attention' in html)
 items = attention(html)
@@ -50,7 +50,7 @@ check('an editor sees the drafts and is told about the forgotten one', 'Drafts t
 
 # ---- what an editor must not see
 check('an editor gets nothing about backups, analytics, the system or people', not any(w in ed_html for w in ('There is no backup yet', 'Visits are not being counted', 'System checks', 'Recent activity', 'Visitors, last 90 days', 'Form submissions', 'The site address is not set')) and attention(ed_html) == [t for t in attention(ed_html) if 'draft' in t or 'language' in t], attention(ed_html))
-check('an editor has a shortcut to write', 'href="/admin/new?type=pages"' in ed_html)
+check('an editor sees the dashboard without those buttons too', 'New Page' not in ed_html and 'Good ' in ed_html)
 
 # ---- search, links and addresses
 root.submit('/admin/seo?tab=crawling', lambda f: any(x[0] == 'robots_disallow' for x in f['fields']), {'discourage': '1'})
