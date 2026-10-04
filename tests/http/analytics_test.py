@@ -109,6 +109,7 @@ check('with what: the device, the browser, the system', 'Computer' in html and '
 check('and the goals', 'Download: brochure.pdf' in html)
 check('the chart is drawn, and is a table for those who cannot see it', '<svg class="an-chart"' in html and 'Visitors and page views by day' in html)
 st, _, html = root.get('/admin/analytics?range=today')
+check('the table of the chart is in a box that hides it (a table on its own would make the window scroll)', re.search(r'<div class="sr-only">\s*<table>', root.get('/admin/analytics')[2]) is not None and '<table class="sr-only"' not in root.last_html)
 check('a day is drawn an hour at a time', 'by hour' in html and '<title>' in html)
 today = __import__('datetime').date.today().isoformat()
 st, _, html = root.get('/admin/analytics?range=custom&from=%s&to=%s' % (today, today))
