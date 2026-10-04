@@ -1,85 +1,90 @@
 {% extends '@admin/base.twig' %}
 {% set page_heading = 'Content types' %}
 
+{#
+  Admin > Content types: every kind of content the site can have (pages and posts, the ready-made ones the theme ships, the ones the site
+  made) as a card: its name, how many fields and entries it has, how its list looks, who defines it, and a switch to turn it on or off.
+  A type that is on opens its editor; a new one is made from a small form at the top.
+#}
 {% block content %}
-  {% set btn_primary = 'inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700' %}
-  {% set input_soft = 'w-full rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20' %}
+  {% import '@admin/partials/ui.twig' as ui %}
 
-  <header class="mb-4 flex flex-col gap-3 border-b border-slate-200 pb-4">
-    <div class="min-w-0">
-      <p class="text-xs text-slate-400">The fields each type's editor form has, and how its archive page looks. Your changes are saved in <code>{{ custom_file }}</code> and survive updates.</p>
-    </div>
+  {% set icons = {
+    'pages': '<path stroke-linecap="round" stroke-linejoin="round" d="M7 3h7l5 5v12a1 1 0 01-1 1H7a1 1 0 01-1-1V4a1 1 0 011-1zM14 3v5h5M9 13h6M9 17h6"/>',
+    'posts': '<path stroke-linecap="round" stroke-linejoin="round" d="M4 5h12a1 1 0 011 1v12a2 2 0 002 2H6a2 2 0 01-2-2V5zM17 9h3v9a2 2 0 01-2 2M8 9h5M8 13h5M8 17h3"/>',
+    'projects': '<path stroke-linecap="round" stroke-linejoin="round" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>',
+    'books': '<path stroke-linecap="round" stroke-linejoin="round" d="M5 4h10a3 3 0 013 3v13H8a3 3 0 01-3-3V4zM5 17a3 3 0 013-3h10M9 8h5"/>'
+  } %}
+  {% set fallback_icon = '<path stroke-linecap="round" stroke-linejoin="round" d="M12 3 3 8l9 5 9-5-9-5zM3 13l9 5 9-5"/>' %}
+  {% set on_count = types_list|filter(r => r.enabled)|length %}
+
+  <header class="mb-3 flex flex-wrap items-start justify-between gap-3">
+    <p class="m-0 max-w-3xl text-xs text-slate-500">The kinds of content the site has: the fields of each one's editor form and how its list page looks. A type that is off is hidden from the admin and the site (its files are kept). What you change is saved in <code class="rounded bg-slate-100 px-1 py-0.5">{{ custom_file }}</code> and survives updates.</p>
   </header>
 
-  {% if saved %}<template data-flash data-type="success">Saved.</template>{% endif %}
-  {% if error == 'name' %}<template data-flash data-type="error">Use a new name made of letters, numbers, and dashes. Some names are reserved.</template>{% endif %}
-  {% if toggled == 'on' %}<template data-flash data-type="success">{{ toggled_type|title }} is enabled: it has its own list in the admin and its pages on the site.</template>{% endif %}
-  {% if toggled == 'off' %}<template data-flash data-type="success">{{ toggled_type|title }} is disabled: it is hidden from the admin and the site. Its files are kept, and enabling it again brings it back.</template>{% endif %}
-  {% if error == 'type' %}<template data-flash data-type="error">That type cannot be switched.</template>{% endif %}
-  {% if error == 'settings' %}<template data-flash data-type="error">Could not save the setting. Check that the system database is writable.</template>{% endif %}
-  {% if error == 'write' %}<template data-flash data-type="error">Could not write to the custom/ folder. Check that it is writable.</template>{% endif %}
+  {{ ui.flash(saved ? 'Saved.' : '', 'success') }}
+  {% if error == 'name' %}{{ ui.flash('Use a new name made of letters, numbers, and dashes. Some names are reserved.', 'error') }}{% endif %}
+  {% if toggled == 'on' %}{{ ui.flash(toggled_type|title ~ ' is enabled: it has its own list in the admin and its pages on the site.', 'success') }}{% endif %}
+  {% if toggled == 'off' %}{{ ui.flash(toggled_type|title ~ ' is disabled: it is hidden from the admin and the site. Its files are kept, and enabling it again brings it back.', 'success') }}{% endif %}
+  {% if error == 'type' %}{{ ui.flash('That type cannot be switched.', 'error') }}{% endif %}
+  {% if error == 'settings' %}{{ ui.flash('Could not save the setting. Check that the system database is writable.', 'error') }}{% endif %}
+  {% if error == 'write' %}{{ ui.flash('Could not write to the custom/ folder. Check that it is writable.', 'error') }}{% endif %}
 
-  <div class="mb-4 overflow-x-auto rounded-lg border border-slate-200 bg-white">
-    <table class="w-full text-sm">
-      <caption class="sr-only">Content types</caption>
-      <thead>
-        <tr class="border-b border-slate-100 bg-slate-50/50 text-left text-xs font-medium text-slate-400">
-          <th scope="col" class="px-4 py-2 font-medium">Type</th>
-          <th scope="col" class="px-4 py-2 font-medium">Fields</th>
-          <th scope="col" class="px-4 py-2 font-medium">Files</th>
-          <th scope="col" class="px-4 py-2 font-medium">Archive layout</th>
-          <th scope="col" class="px-4 py-2 font-medium">Defined by</th>
-          <th scope="col" class="px-4 py-2 text-right font-medium">Actions</th>
-        </tr>
-      </thead>
-      <tbody class="divide-y divide-slate-50">
-        {% for row in types_list %}
-          <tr class="hover:bg-slate-50 {{ row.enabled ? '' : 'bg-slate-50/40' }}">
-            <th scope="row" class="px-4 py-2.5 text-left font-normal">
-              <span class="font-medium {{ row.enabled ? 'text-slate-900' : 'text-slate-500' }}">{{ row.label }}</span> <code class="ml-1 text-xs text-slate-400">{{ row.type }}</code>
-              {% if not row.enabled %}<span class="ml-1 rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-medium text-slate-500">Off</span>{% endif %}
-              {% if row.description %}<span class="mt-0.5 block text-xs font-normal text-slate-400">{{ row.description }}</span>{% endif %}
-            </th>
-            <td class="px-4 py-2.5 text-slate-600">{{ row.fields }}</td>
-            <td class="px-4 py-2.5 text-slate-600">{{ row.items }}</td>
-            <td class="px-4 py-2.5 text-slate-600">{{ row.layout|replace({'_': ' '})|capitalize }}</td>
-            <td class="px-4 py-2.5 text-xs text-slate-500">{{ row.origin ? row.origin|replace({'+': ' + '}) : 'Not defined yet' }}</td>
-            <td class="px-4 py-2.5">
-              <div class="flex items-center justify-end gap-3">
-                {% if row.enabled %}<a class="font-medium text-blue-600 hover:text-blue-700" href="{{ url('admin/content-types?type=' ~ row.type) }}">Edit<span class="sr-only"> {{ row.label }}</span></a>{% endif %}
-                {% if row.switchable %}
-                  <form method="post" class="inline">
-                    {{ csrf_field() }}
-                    <input type="hidden" name="action" value="toggle">
-                    <input type="hidden" name="type" value="{{ row.type }}">
-                    <input type="hidden" name="enabled" value="{{ row.enabled ? '0' : '1' }}">
-                    <button type="submit" class="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold {{ row.enabled ? 'text-slate-700' : 'text-blue-700' }} hover:bg-slate-50">{{ row.enabled ? 'Disable' : 'Enable' }}<span class="sr-only"> {{ row.label }}</span></button>
-                  </form>
-                {% else %}
-                  <span class="w-[4.6rem] text-right text-xs text-slate-400">Always on</span>
-                {% endif %}
-              </div>
-            </td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  <p class="-mt-2 mb-4 text-xs text-slate-400">Disable a type to hide it from the admin and the site; its files are kept, and enabling it again brings it back.</p>
+  <details class="tr-add mb-3" {% if error == 'name' %}open{% endif %}>
+    <summary>New content type</summary>
+    <form method="post" class="ct-new">
+      {{ csrf_field() }}
+      <input type="hidden" name="action" value="create">
+      <label>Name (in the address)
+        <input type="text" name="name" required pattern="[a-z][a-z0-9-]*" placeholder="events" class="lc-input font-mono" autocomplete="off" spellcheck="false">
+      </label>
+      <label>Title
+        <input type="text" name="label" placeholder="Events" class="lc-input" autocomplete="off">
+      </label>
+      <button type="submit" class="ct-create">Create</button>
+      <p class="tr-note">For example “events” or “team”. It gets its own list in the admin, an archive page at <code>/name</code>, and pages at <code>/name/slug</code>.</p>
+    </form>
+  </details>
 
-  <form method="post" class="rounded-lg border border-slate-200 bg-white p-4">
-    {{ csrf_field() }}
-    <input type="hidden" name="action" value="create">
-    <h2 class="text-sm font-semibold text-slate-900">New content type</h2>
-    <p class="mt-0.5 mb-3 text-xs text-slate-400">For example "events" or "team". It gets its own list in the admin, an archive page at <code>/name</code>, and pages at <code>/name/slug</code>.</p>
-    <div class="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-      <label class="grid gap-1 text-sm font-medium text-slate-700">Name (in the address)
-        <input type="text" name="name" required pattern="[a-z][a-z0-9-]*" placeholder="events" class="{{ input_soft }}">
-      </label>
-      <label class="grid gap-1 text-sm font-medium text-slate-700">Title
-        <input type="text" name="label" placeholder="Events" class="{{ input_soft }}">
-      </label>
-      <button type="submit" class="{{ btn_primary }}">Create</button>
-    </div>
-  </form>
+  <p class="tr-count">{{ on_count }} of {{ types_list|length }} {{ types_list|length == 1 ? 'type' : 'types' }} in use</p>
+
+  <ul class="ct-grid" aria-label="Content types">
+    {% for row in types_list %}
+      <li class="ct-card{{ row.enabled ? '' : ' is-off' }}">
+        <div class="ct-top">
+          <span class="ct-icon" aria-hidden="true"><svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">{{ (icons[row.type] ?? fallback_icon)|raw }}</svg></span>
+          <div class="min-w-0 flex-1">
+            <h2 class="ct-name">{{ row.label }}</h2>
+            <p class="ct-key"><code>/{{ row.type }}</code>{% if not row.enabled %} <span class="ct-chip">Off</span>{% endif %}</p>
+          </div>
+          {% if row.switchable %}
+            <form method="post" class="ct-switch-form">
+              {{ csrf_field() }}
+              <input type="hidden" name="action" value="toggle">
+              <input type="hidden" name="type" value="{{ row.type }}">
+              <input type="hidden" name="enabled" value="{{ row.enabled ? '0' : '1' }}">
+              <button type="submit" class="ct-switch" role="switch" aria-checked="{{ row.enabled ? 'true' : 'false' }}"><i aria-hidden="true"></i><span class="sr-only">{{ row.enabled ? 'Disable' : 'Enable' }}<span> {{ row.label }}</span></span></button>
+            </form>
+          {% else %}
+            <span class="ct-always">Always on</span>
+          {% endif %}
+        </div>
+        {% if row.description %}<p class="ct-desc">{{ row.description }}</p>{% endif %}
+        <p class="ct-facts">
+          <span><b>{{ row.fields }}</b> {{ row.fields == 1 ? 'field' : 'fields' }}</span>
+          <span><b>{{ row.items }}</b> {{ row.items == 1 ? 'entry' : 'entries' }}</span>
+          <span>{{ row.layout|replace({'_': ' '})|capitalize }} list</span>
+        </p>
+        <div class="ct-foot">
+          <span class="ct-origin">{{ row.origin ? row.origin|replace({'+': ' + '})|capitalize : (row.type == 'pages' ? 'Built in' : 'Default settings') }}</span>
+          {% if row.enabled %}
+            <span class="ct-links">
+              <a href="{{ url('admin/content?type=' ~ row.type) }}">Entries<span class="sr-only"> of {{ row.label }}</span></a>
+              <a href="{{ url('admin/content-types?type=' ~ row.type) }}" class="is-main">Edit<span class="sr-only"> {{ row.label }}</span></a>
+            </span>
+          {% endif %}
+        </div>
+      </li>
+    {% endfor %}
+  </ul>
 {% endblock %}
