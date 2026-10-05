@@ -2062,6 +2062,16 @@ body.has-transparent-header:not(.header-solid) .site-header.is-on-dark[data-stic
   background-size: cover;
 }
 
+/* Parallax: the picture of the title area moves slower than the page. site.js sets --parallax-y while the area is on screen and marks
+   it .is-parallax; without the script, or for people who ask for less motion, the picture stays where it is. The picture is made
+   taller than the area (15% more above and below) so it can move without showing an edge. */
+.single-hero.is-parallax.has-image::before,
+.single-hero-cover.is-parallax .single-hero-cover-media {
+  inset: -15% 0;
+  transform: translate3d(0, var(--parallax-y, 0px), 0);
+  will-change: transform;
+}
+
 .single-hero-inner {
   position: relative;
   z-index: 1;

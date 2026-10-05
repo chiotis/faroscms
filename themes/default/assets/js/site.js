@@ -50,6 +50,48 @@
     });
   });
 
+  /* Parallax in the title area ---------------------------------------------- */
+
+  const parallaxAreas = Array.from(document.querySelectorAll('[data-parallax]'));
+  if (parallaxAreas.length) {
+    const calm = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let waiting = false;
+
+    const place = () => {
+      waiting = false;
+      parallaxAreas.forEach((area) => {
+        const box = area.getBoundingClientRect();
+        if (box.bottom < 0 || box.top > window.innerHeight) return;
+        // The picture follows the page at a third of its speed, never further than the room it was given.
+        const room = box.height * 0.15;
+        const shift = Math.max(-room, Math.min(room, -box.top * 0.3));
+        area.style.setProperty('--parallax-y', shift.toFixed(1) + 'px');
+      });
+    };
+    const ask = () => {
+      if (!waiting) {
+        waiting = true;
+        window.requestAnimationFrame(place);
+      }
+    };
+    const start = () => {
+      parallaxAreas.forEach((area) => area.classList.add('is-parallax'));
+      place();
+      window.addEventListener('scroll', ask, { passive: true });
+      window.addEventListener('resize', ask);
+    };
+    const stop = () => {
+      window.removeEventListener('scroll', ask);
+      window.removeEventListener('resize', ask);
+      parallaxAreas.forEach((area) => {
+        area.classList.remove('is-parallax');
+        area.style.removeProperty('--parallax-y');
+      });
+    };
+    if (!calm.matches) start();
+    calm.addEventListener('change', (event) => (event.matches ? stop() : start()));
+  }
+
   /* Desktop dropdowns ----------------------------------------------------- */
 
   const menuItems = document.querySelectorAll('.site-nav .nav-item.has-children');

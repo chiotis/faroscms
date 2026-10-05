@@ -162,6 +162,8 @@ final class EntryForm
             $metaForm['author'] = (string)($meta['author'] ?? '');
             $metaForm['template'] = (string)($meta['template'] ?? '');
             $metaForm['hero_layout'] = (string)($meta['hero_layout'] ?? '');
+            $heroParallax = $meta['hero_parallax'] ?? '';
+            $metaForm['hero_parallax'] = is_bool($heroParallax) ? ($heroParallax ? 'on' : 'off') : (string)$heroParallax;
             $headerTransparent = $meta['header_transparent'] ?? '';
             $metaForm['header_transparent'] = is_bool($headerTransparent) ? ($headerTransparent ? 'on' : 'off') : (string)$headerTransparent;
             foreach (($this->taxonomies)()->names() as $taxonomyName) {
@@ -319,7 +321,7 @@ final class EntryForm
      * What the editor may choose about how an entry opens (title layout, transparent header), with what its
      * content type does today so "follow the settings" can say what that is. Empty when the theme offers neither.
      *
-     * @return array{layouts: array<string, string>, transparent: array<string, string>, type_layout: string, type_transparent: string}
+     * @return array{layouts: array<string, string>, transparent: array<string, string>, parallax: array<string, string>, type_layout: string, type_transparent: string, type_parallax: string}
      */
     private function openingChoices(string $type): array
     {
@@ -333,8 +335,10 @@ final class EntryForm
         return [
             'layouts' => $single->titleChoices(),
             'transparent' => $single->headerChoices(),
+            'parallax' => $single->parallaxChoices(),
             'type_layout' => (string)$values['title'],
             'type_transparent' => $typeTransparent,
+            'type_parallax' => Format::isTruthy($values['parallax'] ?? false) ? 'on' : 'off',
         ];
     }
 

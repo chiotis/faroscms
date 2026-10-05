@@ -212,10 +212,10 @@
             <label class="lc-chip en-visible" title="Show this entry in listings and navigation-aware views"><input type="checkbox" name="visible" value="1" {% if meta_form.visible %}checked{% endif %}><span>Visible in lists and menus</span></label>
           </div>
         </section>
-        {% if opening.layouts|default([]) is not empty or opening.transparent|default([]) is not empty %}
+        {% if opening.layouts|default([]) is not empty or opening.transparent|default([]) is not empty or opening.parallax|default([]) is not empty %}
           <section class="{{ card }}" data-opening aria-labelledby="en-h-opening">
             <h2 id="en-h-opening" class="en-card-title">Title area</h2>
-            <p class="en-help m-0">For this entry only. Leave both on “Follow settings” to use what Theme settings > Single Layouts say for its content type. A page that starts with a Hero block uses that block as its opening.</p>
+            <p class="en-help m-0">For this entry only. Leave them on “Follow settings” to use what Theme settings > Single Layouts say for its content type. A page that starts with a Hero block uses that block as its opening.</p>
             <div class="en-fields">
               {% if opening.layouts is not empty %}
                 <label class="en-field is-wide"><span>Title area</span>
@@ -235,6 +235,17 @@
                       <option value="{{ key }}" {% if meta_form.header_transparent|default('') == key %}selected{% endif %}>{{ label }}</option>
                     {% endfor %}
                   </select>
+                </label>
+              {% endif %}
+              {% if opening.parallax|default([]) is not empty %}
+                <label class="en-field is-wide"><span>Parallax picture</span>
+                  <select name="hero_parallax" class="lc-input lc-select">
+                    <option value="">Follow settings ({{ opening.parallax[opening.type_parallax]|default(opening.type_parallax) }})</option>
+                    {% for key, label in opening.parallax %}
+                      <option value="{{ key }}" {% if meta_form.hero_parallax|default('') == key %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                  <small>The picture of a Default or Cover title area moves slower than the page.</small>
                 </label>
               {% endif %}
             </div>

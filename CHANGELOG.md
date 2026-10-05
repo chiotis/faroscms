@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.80 — 2026-10-06 — Parallax for the title area
+- **The picture of the title area can move slower than the page (parallax).** For a content type: Theme > Single Layouts, *Effect > Parallax* on its card (off by default). For one entry: *Parallax picture* in the Title area card of its editor (*Follow settings*, *On* or *Off*; `hero_parallax` in the front matter; a form has it too). It applies to the **Default** and **Cover** title areas, the two that use the main picture as the background; Centered and Split show it as a picture and Minimal has none.
+- **How it behaves:** while the area is on screen the picture follows the page at about a third of its speed, within room made for it (the picture is 15% taller above and below, so no edge shows and nothing is scaled or blurred). It does nothing when scripts do not run or the visitor asks for less motion (it starts and stops with that setting), and the picture is not moved while the area is out of view.
+- Tests: the setting for a type and for an entry, which layouts have it, a page with no picture, the editor and the front matter (`tests/http/hero_layouts_test.py`). Looked at in Chromium: a Cover and a Default title area, the picture moved as the page scrolled and stopped at its room.
+
 ## 0.1.79 — 2026-10-06 — Updates: release notes in Markdown, and a button that stands out
 - **The release notes and the safe update guide of Admin > Updates are shown as Markdown.** The marks typed in the changelog (`code`, **bold**, *italic*, [links](https://…)) were shown as they are; they are now formatted (`Format::inlineMarkdown`: everything else is escaped, so no HTML gets in, and a link out opens in a new tab, as in the footer's credits line).
 - **Create verified backup is yellow**, the step to take before installing an update (amber, dark text, readable in light and dark mode, with a focus ring).
