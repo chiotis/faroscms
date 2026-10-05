@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.79 — 2026-10-06 — Updates: release notes in Markdown, and a button that stands out
+- **The release notes and the safe update guide of Admin > Updates are shown as Markdown.** The marks typed in the changelog (`code`, **bold**, *italic*, [links](https://…)) were shown as they are; they are now formatted (`Format::inlineMarkdown`: everything else is escaped, so no HTML gets in, and a link out opens in a new tab, as in the footer's credits line).
+- **Create verified backup is yellow**, the step to take before installing an update (amber, dark text, readable in light and dark mode, with a focus ring).
+- Tests: the Markdown in notes (`tests/unit/branding.php`) and the screen (`tests/http/updates_screen_test.py`: marks gone, code and bold shown, nothing injected, the button class). Looked at in Chromium in dark and light mode.
+
 ## 0.1.78 — 2026-10-06 — A language taken out of Settings stays out
 - **Taking `en` out of Settings > General > Available languages and saving now keeps it out.** The settings were read over the built-in defaults place by place, so the stored list `[el]` was laid over the default `[el, en]` and `en` came back every time. A list is now the stored list as it is (groups still merge by name, and an empty stored list still leaves the default). The same fix covers every other list in the settings.
 - Content already written in the language is kept; its pages are simply not offered or served until the language is added again.
