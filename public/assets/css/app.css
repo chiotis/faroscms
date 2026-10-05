@@ -1034,6 +1034,7 @@ html.dark .rd-delete:hover { background: #2a1215; color: #fca5a5; }
 .md-row-actions { display: inline-flex; gap: .125rem; }
 .md-empty { padding: 3rem 1rem; border: 1px dashed #cbd5e1; border-radius: .75rem; background: #fff; text-align: center; }
 .md-empty-icon { display: inline-grid; place-items: center; width: 3rem; height: 3rem; border-radius: 99px; background: #f1f5f9; color: #64748b; }
+html.dark .md-empty-icon { background: #1e293b; color: #94a3b8; }
 .md-empty h2 { margin: .625rem 0 0; color: #0f172a; font-size: .875rem; font-weight: 600; }
 .md-empty p { max-width: 24rem; margin: .25rem auto 0; color: #5f6f85; font-size: .8125rem; }
 .md-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; margin-top: .75rem; padding: 0 .25rem; }
@@ -1175,6 +1176,7 @@ html.dark a.db-title:hover { color: #93c5fd; }
 .en-crumb { display: flex; flex-wrap: wrap; align-items: center; gap: .375rem; margin: 0; color: #5f6f85; font-size: .75rem; }
 .en-crumb a { color: #1d4ed8; font-weight: 500; text-decoration: none; }
 .en-crumb a:hover { text-decoration: underline; }
+html.dark .en-crumb a { color: #93c5fd; }
 .en-crumb strong { max-width: 28rem; overflow: hidden; color: #0f172a; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .en-chip { padding: 0 .5rem; border-radius: 99px; background: #f1f5f9; color: #475569; font-size: .6875rem; font-weight: 600; line-height: 1.25rem; text-transform: uppercase; }
 .en-chip.is-live { background: #ecfdf5; color: #047857; text-transform: none; font-weight: 500; }

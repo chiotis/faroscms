@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.77 — 2026-10-06 — Admin: no flash of light before dark
+- **A page of the admin no longer shows light for an instant before it turns dark.** The colour mode was applied by `admin.js`, which loads at the end of the page, so every page the browser drew first in light. A small script in the head of every admin document (the pages, the sign in page and the first-run page) now applies it before the first paint, reading what the switch stores. Same key and default as `admin.js` (a test keeps them together).
+- **Dark mode of the admin, checked page by page** (about thirty screens, with a sweep for light surfaces and low-contrast text): everything holds up but the breadcrumb link above an entry (a dark blue on the dark page) and the round icon of an empty Media library, both fixed. The white buttons in the action bar and the white knob of a switch are by design.
+- **The front of the site** was checked the same way: no flash was found. A site on *system* mode is drawn by the style sheet alone, and a remembered *dark* or *light* is applied by the script in the head before the style sheet. The hard-coded whites in the blocks' styles are text over pictures and video.
+- **Found by the accessibility test along the way:** the boxes for the other languages of a translatable text (0.1.75) had no name for a screen reader; each now says what it is ("Summary (EN)").
+- Tests: the colour mode is set in the head before the style sheets on an admin page and on the sign in page; the key is the one `admin.js` uses (`tests/http/admin_a11y_test.py`).
+
 ## 0.1.76 — 2026-10-06 — Footer Blocks: a set for each language
 - **Each language can have its own footer blocks.** With more than one language the editor of Theme > Footer Blocks has a chip for each (the site's own first, a dot on the ones that have blocks) and shows one set at a time; one save keeps them all. A language with no set of its own shows the site's own blocks, so logos that are the same everywhere are made once. Where it has no set the editor says so and offers *Start from a copy of the site's own blocks*, to translate from.
 - **Stored** as before when there is one set (a plain list, so nothing had to be moved), or a map: `default` for the site's own language and a language code for each other, the way a translatable text is kept (`FooterBlocks`). A site that goes down to one language and back keeps the sets of the others. The checks of the blocks, and of raw HTML for someone who may not add it, apply to every set.
