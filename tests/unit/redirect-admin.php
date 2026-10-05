@@ -37,7 +37,7 @@ $paths = new PublicPaths($content, fn() => $store, fn() => $settings, fn() => 'h
 
 // ---- which addresses lead to a page
 $map = $paths->map();
-check('every published address is listed with its title, forms and drafts are not', $map, ['' => 'Home', 'about' => 'About', 'en/about' => 'About EN', 'posts/hello-world' => 'Hello']);
+check('every published address is listed with its title, forms and drafts are not', $map, ['' => 'Home', 'about' => 'About', 'en/about' => 'About EN', 'hello-world' => 'Hello']);
 foreach ([
     'the home page' => ['', true], 'a page' => ['about', true], 'a page in another language' => ['en/about', true], 'an unknown page' => ['nothing', false],
     'a page that is a draft' => ['draft', false], 'a post' => ['posts/hello-world', true], 'an unknown post' => ['posts/nope', false],
@@ -50,7 +50,7 @@ foreach ([
 
 // ---- the closest address
 check('a typo finds the address (the first of equally close ones)', PublicPaths::suggest('en/abuot', $map), '/about');
-check('a near miss in a post', PublicPaths::suggest('posts/hello-wrld', $map), '/posts/hello-world');
+check('a near miss in a post', PublicPaths::suggest('hello-wrld', $map), '/hello-world');
 check('nothing close gives nothing', PublicPaths::suggest('zzzzzz', $map), '');
 
 // ---- a pasted address

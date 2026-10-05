@@ -3,8 +3,7 @@
   Optional: card_heading_tag (h2|h3|h4, default h3), card_sizes (image sizes attribute).
 #}
 {% set heading = card_heading_tag|default('h3') in ['h2', 'h3', 'h4'] ? card_heading_tag|default('h3') : 'h3' %}
-{% set is_home = item.type == 'pages' and item.slug == site.home_page|default('index') %}
-{% set path = item.type == 'pages' ? (is_home ? prefix : prefix ~ item.slug) : prefix ~ item.type ~ '/' ~ item.slug %}
+{% set path = item_path(item, prefix) %}
 {% set summary = item.meta.excerpt is defined and item.meta.excerpt is not null ? item.meta.excerpt|striptags|trim : plain_text(item.html) %}
 <article class="content-item">
   {% if item.meta.main_image is defined and item.meta.main_image %}

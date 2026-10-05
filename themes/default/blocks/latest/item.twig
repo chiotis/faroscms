@@ -2,8 +2,7 @@
   One content entry. The title link is stretched over the whole item, so an item is a single link.
   Variables: item, lead, sizes, show_image, show_excerpt, show_meta, show_date, prefix, lang, heading_tag, variant, index.
 #}
-{% set is_home = item.type == 'pages' and item.slug == site.home_page|default('index') %}
-{% set path = item.type == 'pages' ? (is_home ? prefix : prefix ~ item.slug) : prefix ~ item.type ~ '/' ~ item.slug %}
+{% set path = item_path(item, prefix) %}
 {% set summary = item.meta.excerpt is defined and item.meta.excerpt is not null ? item.meta.excerpt|striptags|trim : plain_text(item.html) %}
 {% set limit = lead ? 240 : 150 %}
 {% set image_url = show_image ? (item.meta.main_image|default('')) : '' %}

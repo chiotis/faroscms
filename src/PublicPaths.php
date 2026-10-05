@@ -67,7 +67,15 @@ final class PublicPaths
             }
             return count($segments) === 2 && $this->content->find($first, $segments[1], $lang, false, false) !== null;
         }
-        return count($segments) === 1 && $this->content->find('pages', $first, $lang, false, false) !== null;
+        if (count($segments) !== 1) {
+            return false;
+        }
+        foreach (ContentPaths::ROOT_TYPES as $type) {
+            if (($type === 'pages' || in_array($type, $this->content->getTypes(), true)) && $this->content->find($type, $first, $lang, false, false) !== null) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** The existing address most like one that was not found, or '' when nothing is close. @param array<string, string> $known */

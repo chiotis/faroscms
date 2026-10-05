@@ -26,6 +26,9 @@ final class VisualMarkdown
     /** Lines that may sit between blocks without being one: the definitions links refer to. */
     private const DEFINITION = '/^ {0,3}\[[^\]\n]+\]:\s*\S|^\s*["\'(].*["\')]\s*$/';
 
+    /** A line that is only attributes for the block after it: {align=center}. */
+    private const ATTRIBUTES = '/^ {0,3}\{[^{}\n]*\}\s*$/';
+
     /** A definition whose address is on the next line starts with a line that is only the label, and that address is the next line. */
     private const DEFINITION_LABEL = '/^ {0,3}\[[^\]\n]+\]:\s*$/';
     private const DEFINITION_ADDRESS = '/^\s*(<[^<>\n]*>|[^\s<>]+)\s*$/';
@@ -80,6 +83,10 @@ final class VisualMarkdown
             $end = $child instanceof AbstractBlock ? $child->getEndLine() : null;
             if ($start === null || $end === null || $start < 1 || $end < $start) {
                 return $this->fallback($renderer, $document);
+            }
+            // The line of attributes before a block ({align=center}) is part of it: it is read with it and written back with it.
+            while ($start > 1 && !isset($covered[$start - 1]) && preg_match(self::ATTRIBUTES, $lines[$start - 2]) === 1) {
+                $start--;
             }
             for ($n = $start; $n <= $end; $n++) {
                 $covered[$n] = true;

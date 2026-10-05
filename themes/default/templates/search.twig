@@ -26,8 +26,7 @@
       {% else %}
         <ul class="search-results">
           {% for item in results %}
-            {% set is_home = item.type == 'pages' and item.slug == site.home_page %}
-            {% set path = item.type == 'pages' ? (is_home ? prefix : prefix ~ item.slug) : prefix ~ item.type ~ '/' ~ item.slug %}
+            {% set path = item_path(item, prefix) %}
             <li>
               <a href="{{ url(path) }}">{{ item.meta.title }}</a>
               <small>{{ t('type.' ~ item.type, item.type|title) }}</small>

@@ -84,5 +84,15 @@ check('the visual editor draws it with its target', data and 'target="_blank"' i
 st, _, html = root.get('/admin/edit?type=pages&slug=newtab&lang=el')
 check('and the Markdown of the entry is as written', '[elsewhere](https://example.org/x){target=_blank}' in html)
 
+# ---- text alignment: {align=center} on the line before a paragraph or a heading
+write('pages/aligned.md', "---\ntitle: 'Aligned'\nstatus: published\nvisible: true\n---\n\n{align=center}\nA centered paragraph.\n\n{align=right}\n## On the right\n\n{align=justify}\nJustified.\n\n{class=btn onclick=x}\nNot a choice.\n\nPlain.\n")
+st, _, shown = anon.get('/aligned')
+check('a paragraph and a heading are aligned on the site', '<p align="center">A centered paragraph.</p>' in shown and '<h2 align="right">On the right</h2>' in shown and '<p align="justify">Justified.</p>' in shown, re.findall(r'<(?:p|h2)[^>]*>', shown)[:8])
+check('no other attribute gets in', 'onclick' not in shown and 'class="btn"' not in shown.split('Not a choice')[0][-80:])
+st, _, css = anon.get(re.search(r'href="([^"]*site\.css[^"]*)"', shown).group(1))
+check('the theme draws them', 'p[align="center"]' in css and 'p[align="right"]' in css and 'p[align="justify"]' in css)
+st, data = draw(root, "{align=center}\nCentered\n\nPlain\n\n{align=right}\n## Right")
+check('the visual editor gets the line with its block, and the text is accounted for', data and [b['source'] for b in data['blocks']] == ["{align=center}\nCentered", 'Plain', "{align=right}\n## Right"] and data['verbatim'] is True and 'align="center"' in data['blocks'][0]['html'], data)
+
 print('\nALL PASSED' if not fails else '\n%d FAILED: %s' % (len(fails), fails))
 sys.exit(1 if fails else 0)

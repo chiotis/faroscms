@@ -3726,3 +3726,8 @@ p.form-error {
   color: var(--color-muted);
   font-size: var(--step--1);
 }
+
+/* Text alignment chosen in the visual editor (written in the Markdown as {align=center}): paragraphs and headings. */
+p[align="center"], h1[align="center"], h2[align="center"], h3[align="center"], h4[align="center"], h5[align="center"], h6[align="center"] { text-align: center; }
+p[align="right"], h1[align="right"], h2[align="right"], h3[align="right"], h4[align="right"], h5[align="right"], h6[align="right"] { text-align: right; }
+p[align="justify"] { text-align: justify; hyphens: auto; }

@@ -68,6 +68,10 @@ const SAMPLES = {
   'Greek with intraword marks': 'Η λέξη_με_κάτω_παύλες και ένα [σύνδεσμος](https://example.test/ελληνικά).',
   'other scripts and emoji': 'Ünïcödé, 日本語, العربية, and an emoji 🚀 in text.',
   'other ways of writing the same blocks': 'Title\n=====\n\nSub\n---\n\n+ plus item\n+ another\n\n1) paren item\n2) second\n\nA paragraph:\n\n    indented code\n\n___\n\n~~~\ntilde fence\n~~~',
+  'aligned paragraphs and headings': '{align=center}\nA centered paragraph\n\n{align=right}\n## A heading on the right\n\n{align=justify}\nJustified text, long enough to need a few words.\n\nPlain again.',
+  'alignment in a quote': '> {align=center}\n> Centered in a quote\n>\n> And a plain one',
+  'a line of braces that is text, not attributes': 'Before\n\\{align=center}\nafter',
+  'braces inside text': 'A {curly} word, a {align} one and a {a=b} one.',
   'a long mixed page': '# Title\n\nIntro with **bold** and a [link](/a).\n\n## Section\n\n- one\n- two\n  - nested\n\n> Quote\n\n```js\nlet a = 1;\n```\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n\n<iframe src="https://video.test/e"></iframe>\n\nThe end.',
   'nothing': '',
 };
@@ -137,6 +141,14 @@ const DOM_CASES = [
   { name: 'a box of raw HTML is written as it was', html: '<div class="md-raw" contenteditable="false" data-raw="<iframe src=&quot;https://v.test&quot;></iframe>"><span class="md-raw-tag">HTML</span><code>&lt;iframe&gt;</code></div>', markdown: '<iframe src="https://v.test"></iframe>' },
   { name: 'raw HTML inside a line', html: '<p>a <span class="md-raw-inline" contenteditable="false" data-raw="&lt;kbd&gt;">&lt;kbd&gt;</span>key<span class="md-raw-inline" data-raw="&lt;/kbd&gt;">&lt;/kbd&gt;</span></p>', markdown: 'a <kbd>key</kbd>' },
   { name: 'underline', html: '<p>an <u>underlined</u> word</p>', markdown: 'an <u>underlined</u> word' },
+  { name: 'a centered paragraph', html: '<p align="center">Centered</p>', markdown: '{align=center}\nCentered' },
+  { name: 'a paragraph aligned the way the browser may write it', html: '<p style="text-align: right">Right</p>', markdown: '{align=right}\nRight' },
+  { name: 'a justified heading', html: '<h2 align="justify">Title</h2>', markdown: '{align=justify}\n## Title' },
+  { name: 'left is the usual, and so is what is not a choice', html: '<p align="left">a</p><p align="bogus">b</p><p align="">c</p>', markdown: 'a\n\nb\n\nc' },
+  { name: 'an empty aligned paragraph is nothing', html: '<p align="center"><br></p><p>t</p>', markdown: 't' },
+  { name: 'aligned text in a quote', html: '<blockquote><p align="center">q</p></blockquote>', markdown: '> {align=center}\n> q' },
+  { name: 'text that is only braces is escaped, or it would be read as attributes', html: '<p>{align=center}</p><p>one<br>{x=y}</p>', markdown: '\\{align=center}\n\none\n\\{x=y}' },
+  { name: 'braces inside text are shown as they are, unless they would be read as attributes', html: '<p>A {curly} word and {a=b} and {.x}.</p>', markdown: 'A {curly} word and \\{a=b} and \\{.x}.' },
   { name: 'Greek', html: '<p>Το <b>κείμενο</b> είναι <i>ελληνικό</i>.</p>', markdown: 'Το **κείμενο** είναι *ελληνικό*.' },
   { name: 'underscores inside a word are kept', html: '<p>snake_case_name and _x_</p>', markdown: 'snake_case_name and \\_x\\_' },
 ];
@@ -189,6 +201,24 @@ const EDITS = [
       const b = doc.createElement('b'); b.textContent = 'two'; li.textContent = ''; li.appendChild(b);
     },
     expected: '- one\n- **two**\n\nAfter.',
+  },
+  {
+    name: 'a block is aligned, and only that block is written again',
+    markdown: 'One\n\n* two\n* items\n\nThree',
+    edit: (surface) => { nth(surface, 2).setAttribute('align', 'center'); },
+    expected: 'One\n\n* two\n* items\n\n{align=center}\nThree',
+  },
+  {
+    name: 'an aligned block that is not aligned any more loses its line',
+    markdown: '{align=center}\nOne\n\n* two\n* items',
+    edit: (surface) => { nth(surface, 0).removeAttribute('align'); },
+    expected: 'One\n\n* two\n* items',
+  },
+  {
+    name: 'an aligned block that is not touched is written as it was',
+    markdown: '{align=right}\n## Title\n\n{align=center}\nOne\n\nTwo',
+    edit: (surface) => { nth(surface, 2).appendChild(surface.ownerDocument.createTextNode('!')); },
+    expected: '{align=right}\n## Title\n\n{align=center}\nOne\n\nTwo!',
   },
   {
     name: 'a definition with its address on the next line is kept',

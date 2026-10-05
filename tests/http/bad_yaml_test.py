@@ -32,7 +32,7 @@ root = Client(); root.login()
 pub = Client()
 
 # ---- the rest of the site keeps working
-for p in ('/', '/about', '/services', '/search?q=page', '/sitemap.xml', '/robots.txt', '/en/about', '/posts/rebrand-readiness-guide'):
+for p in ('/', '/about', '/services', '/search?q=page', '/sitemap.xml', '/robots.txt', '/en/about', '/rebrand-readiness-guide'):
     st, _, html = pub.get(p)
     check('the public %s still loads' % p, st in (200, 404) and 'Fatal error' not in html and 'ParseException' not in html, (st, html[:120]))
 st, _, html = pub.get('/about'); check('the ordinary page is intact', st == 200 and 'Fatal error' not in html)

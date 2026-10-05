@@ -212,9 +212,14 @@ final class TaxonomyEditor
         if (in_array($name, $taken, true)) {
             return ['name' => '', 'error' => 'The address /' . $name . ' is already used by the site. Choose another.'];
         }
-        foreach ($this->content->getItems('pages', null, true) as $page) {
-            if ($page->slug === $name) {
-                return ['name' => '', 'error' => 'There is a page at /' . $name . '. Choose another address, or rename the page first.'];
+        foreach (ContentPaths::ROOT_TYPES as $rootType) {
+            if ($rootType !== 'pages' && !in_array($rootType, $this->content->getTypes(), true)) {
+                continue;
+            }
+            foreach ($this->content->getItems($rootType, null, true) as $entry) {
+                if ($entry->slug === $name) {
+                    return ['name' => '', 'error' => 'There is ' . ($rootType === 'pages' ? 'a page' : 'a post') . ' at /' . $name . '. Choose another address, or rename it first.'];
+                }
             }
         }
         $types = array_values(array_intersect($this->listableTypes(), array_map('strval', $types)));

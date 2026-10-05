@@ -60,13 +60,15 @@
   /** Text as Markdown text: what would be read as formatting is escaped, and nothing else (a shortcode like [form slug="x"] stays as typed). */
   function escapeText(text) {
     var links = /\]\(|\]\[/.test(text);
-    return text.replace(/[\\`*_~<&\[\]]/g, function (c, i) {
+    return text.replace(/[\\`*_~<&\[\]{]/g, function (c, i) {
       var p = text.charAt(i - 1), n = text.charAt(i + 1);
       if (c === '_') { return /[\p{L}\p{N}]/u.test(p) && /[\p{L}\p{N}]/u.test(n) ? c : '\\_'; }
       if (c === '~') { return p === '~' || n === '~' ? '\\~' : c; }
       if (c === '<') { return /[A-Za-z\/!?]/.test(n) ? '\\<' : c; }
       if (c === '&') { return /^[#A-Za-z0-9]+;/.test(text.slice(i + 1)) ? '\\&' : c; }
       if (c === '[' || c === ']') { return links || (c === '[' && p === '!') ? '\\' + c : c; }
+      // {key=value}, {.class} and {#id} are attributes of what is next to them, and would be read, not shown.
+      if (c === '{') { return /^\{[^{}]*[=#.:][^{}]*\}/.test(text.slice(i)) ? '\\{' : c; }
       return '\\' + c;
     });
   }
@@ -78,7 +80,9 @@
       .replace(/^( {0,3})([>+-])(?=\s|$|[>+-]{2})/, '$1\\$2')
       .replace(/^( {0,3})(\d{1,9})([.)])(?=\s|$)/, '$1$2\\$3')
       .replace(/^( {0,3})(={2,}|-{2,})\s*$/, '$1\\$2')
-      .replace(/^( {0,3})(`{3,}|~{3,})/, '$1\\$2');
+      .replace(/^( {0,3})(`{3,}|~{3,})/, '$1\\$2')
+      // A line that is only {…} would be read as the attributes of the block after it ({align=center}).
+      .replace(/^( {0,3})\{(?=[^{}]*\}\s*$)/, '$1\\{');
   }
 
   function wrap(marker, inner, closing) {
@@ -209,7 +213,20 @@
     return [line(rows[0]), '| ' + rule.join(' | ') + ' |'].concat(rows.slice(1).map(line)).join('\n');
   }
 
+  /** How a paragraph or heading is aligned: center, right or justify; nothing for the usual (left). */
+  function alignOf(node) {
+    var value = (node.getAttribute('align') || (/(?:^|;)\s*text-align:\s*(center|right|justify)/i.exec(node.getAttribute('style') || '') || [])[1] || '').toLowerCase();
+    return value === 'center' || value === 'right' || value === 'justify' ? value : '';
+  }
+
+  /** A paragraph or heading, with the line of attributes before it when it is aligned: {align=center}. */
   function blockString(node) {
+    var text = blockText(node);
+    var align = /^(P|H[1-6])$/.test(node.tagName) && !node.classList.contains('md-raw') ? alignOf(node) : '';
+    return align !== '' && text !== '' ? '{align=' + align + '}\n' + text : text;
+  }
+
+  function blockText(node) {
     if (node.classList.contains('md-raw')) { return node.getAttribute('data-raw') || ''; }
     var tag = node.tagName;
     if (/^H[1-6]$/.test(tag)) {
@@ -429,6 +446,36 @@
     }
     changed();
   }
+  /** Aligns the paragraphs and headings the selection touches: 'left' (the usual) takes the choice away. */
+  function setAlign(value) {
+    restoreRange();
+    var range = currentRange();
+    if (!range) { return; }
+    var pick = function () {
+      var found = [];
+      Array.prototype.forEach.call(surface.querySelectorAll('p,h1,h2,h3,h4,h5,h6'), function (b) {
+        if (range.intersectsNode(b) && !closest(b, '.md-raw') && !closest(b, 'td,th,li,pre')) { found.push(b); }
+      });
+      return found;
+    };
+    var blocks = pick();
+    if (blocks.length === 0 && !closest(range.startContainer, 'li,td,th,pre') && !closest(range.startContainer, '.md-raw')) {
+      // Text typed straight into the page, with no paragraph around it yet.
+      document.execCommand('formatBlock', false, 'p');
+      range = currentRange() || range;
+      blocks = pick();
+    }
+    if (blocks.length === 0) { say('Alignment is for paragraphs and headings, not for list items, tables or code.'); return; }
+    say('');
+    blocks.forEach(function (b) {
+      if (value === 'left') { b.removeAttribute('align'); } else { b.setAttribute('align', value); }
+      if (b.getAttribute('style') !== null && /text-align/.test(b.getAttribute('style'))) {
+        b.style.textAlign = '';
+        if (b.getAttribute('style') === '') { b.removeAttribute('style'); }
+      }
+    });
+    changed();
+  }
   function unwrap(node) {
     var parent = node.parentNode;
     var first = node.firstChild;
@@ -486,7 +533,8 @@
     var first = pop.querySelector('input[type="text"]');
     if (first) { first.focus(); first.select(); }
   }
-  document.addEventListener('mousedown', function (event) { if (pop && !pop.contains(event.target) && !event.target.closest('[data-ed-tools]')) { closePop(); } });
+  // A click outside the small form closes it, except in the toolbar and in the dialogs it opens (the picture library).
+  document.addEventListener('mousedown', function (event) { if (pop && !pop.contains(event.target) && !event.target.closest('[data-ed-tools], dialog')) { closePop(); } });
 
   function safeUrl(value) {
     value = value.trim();
@@ -804,6 +852,10 @@
     undo: '<path d="M9 14L4 9l5-5M4 9h10a6 6 0 010 12h-3"/>',
     redo: '<path d="M15 14l5-5-5-5M20 9H10a6 6 0 000 12h3"/>',
     clear: '<path d="M6 6h12M10 6l-3 12h8M4 20l16-16"/>',
+    alignleft: '<path d="M4 6h16M4 10h10M4 14h16M4 18h10"/>',
+    aligncenter: '<path d="M4 6h16M7 10h10M4 14h16M7 18h10"/>',
+    alignright: '<path d="M4 6h16M10 10h10M4 14h16M10 18h10"/>',
+    alignjustify: '<path d="M4 6h16M4 10h16M4 14h16M4 18h16"/>',
     html: '<path d="M8 8l-4 4 4 4M16 8l4 4-4 4M13 6l-2 12"/>'
   };
   function icon(name) { return '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICONS[name] + '</svg>'; }
@@ -855,6 +907,7 @@
       group.apply(null, inline),
       group(button('link', 'Link', 'Link (Ctrl+K)', linkDialog)),
       group(button('ul', 'Bulleted list', 'Bulleted list', function () { command('insertUnorderedList'); }), button('ol', 'Numbered list', 'Numbered list', function () { command('insertOrderedList'); }), button('quote', 'Quote', 'Quote', function () { setBlock('blockquote'); }), button('codeblock', 'Code block', 'Code block', function () { setBlock('pre'); })),
+      group(button('alignleft', 'Align left', 'Align left', function () { setAlign('left'); }), button('aligncenter', 'Align center', 'Align center', function () { setAlign('center'); }), button('alignright', 'Align right', 'Align right', function () { setAlign('right'); }), button('alignjustify', 'Justify', 'Justify', function () { setAlign('justify'); })),
       group.apply(null, insert),
       group(button('undo', 'Undo', 'Undo', function () { command('undo'); }), button('redo', 'Redo', 'Redo', function () { command('redo'); }), button('clear', 'Clear formatting', 'Clear formatting', function () { command('removeFormat'); })),
       tableBar
@@ -877,6 +930,12 @@
     pressed('link', !!(range && closest(range.commonAncestorContainer, 'a')));
     pressed('quote', !!(range && closest(range.commonAncestorContainer, 'blockquote')));
     pressed('codeblock', !!(range && closest(range.commonAncestorContainer, 'pre')));
+    var aligned = range ? closest(range.startContainer, 'p,h1,h2,h3,h4,h5,h6') : null;
+    var how = aligned && !closest(aligned, 'li,td,th') ? alignOf(aligned) : '';
+    pressed('alignleft', !!aligned && how === '');
+    pressed('aligncenter', how === 'center');
+    pressed('alignright', how === 'right');
+    pressed('alignjustify', how === 'justify');
     if (range && formatSelect) {
       var h = closest(range.startContainer, 'h1,h2,h3,h4,h5,h6,pre');
       var value = h ? h.tagName.toLowerCase() : 'p';

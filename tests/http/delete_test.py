@@ -73,8 +73,8 @@ st, _, html = root.get('/admin/activity-logs'); check('the activity log records 
 
 # a post to its list
 st, hdr, _ = delete(root, 'posts', 'old-news', after='archive')
-r = rd('posts/old-news'); check('a post can be sent to its list', r is not None and r[0] == '/posts', r)
-st, h, _ = pub.get('/posts/old-news'); check('and visitors follow it', st == 301 and loc(h).endswith('/posts'), (st, loc(h)))
+r = rd('old-news'); check('a post can be sent to its list', r is not None and r[0] == '/posts', r)
+st, h, _ = pub.get('/old-news'); check('and visitors follow it', st == 301 and loc(h).endswith('/posts'), (st, loc(h)))
 # the home page, in the other language
 make('pages', 'about-en', 'About EN', lang='en')
 st, hdr, _ = delete(root, 'pages', 'about-en', lang='en', after='home')
