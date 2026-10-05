@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.65 — 2026-10-05 — `LoginController`: signing in, out and the first administrator, out of `App.php`
+- **No change for the people who use the site.** `src/App.php` goes from 3,683 to about 3,510 lines; the whole suite passes.
+- **`LoginController`** answers the addresses of the admin that need no sign-in: the login screen and a sign-in with a password (the block after too many failures, the warning for the password that ships), signing in with Google, signing out, and the first visit to a site with no account. It builds `SignIn`, `GoogleSignIn` and `FirstAdmin` itself (three factories and properties fewer in `App`), and draws, redirects and sets the status of the answer only through closures. `handleAdmin()` asks it first and carries on when the address is not one of its own.
+- New unit test `tests/unit/login-controller.php` (26 checks) with what the site is asked to do recorded instead of done: every step at which a sign-in with Google can stop, signing out only by the form, the shipped password's notification, the block with its 429, and the first administrator. Until now these paths were tested only through a running server, and the Google callback as a whole (state, user lookup, linking) not at all.
+
 ## 0.1.64 — 2026-10-05 — `BlockRuntime`: what the blocks need from the site, out of `App.php`
 - **No change for the people who use the site.** `src/App.php` goes from 3,812 to about 3,680 lines; the whole suite passes.
 - **`BlockRuntime`** holds the block registry (and the choices it offers for types of content, types with a place and forms), the renderer of a page's blocks (the entries, forms, YouTube playlists and maps they show), the maps of content (`GeoView`) and the YouTube services, each built the first time it is asked for. The settings, the language and who is signed in are still read when they are used. `App` keeps one small factory for it and the output of a kept picture (`_yt/…jpg`), whose check (the address's signature) is now a method that returns the file, and is tested.

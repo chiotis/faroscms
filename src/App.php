@@ -36,6 +36,7 @@ final class App
     private NotificationRepository $notifications;
     private BackupRunRepository $backupRuns;
     private LoginThrottle $loginThrottle;
+    private ?LoginController $loginControllerService = null;
     private BackupService $backups;
     private FormSubmissionRepository $formSubmissions;
     private ContentIndex $contentIndex;
@@ -61,7 +62,6 @@ final class App
     private ?SettingsAdmin $settingsAdminService = null;
     private ?AdminChrome $adminChromeService = null;
     private ?UpdateInstaller $updateInstallerService = null;
-    private ?FirstAdmin $firstAdminService = null;
     private ?MenuAdmin $menuAdminService = null;
     /** @var array<string, array<string, string>> the theme's text by language, for the labels the menu editor leaves to the theme */
     private array $menuStrings = [];
@@ -87,8 +87,6 @@ final class App
     private ?DashboardData $dashboardDataService = null;
     private ?FormsAdmin $formsAdminService = null;
     private ?FormProcessor $formProcessorService = null;
-    private ?SignIn $signInService = null;
-    private ?GoogleSignIn $googleSignInService = null;
     private ?RoleAdmin $roleAdminService = null;
     private ?UserAdmin $userAdminService = null;
     private ?ContentTypeAdmin $contentTypeAdminService = null;
@@ -832,44 +830,7 @@ final class App
             return;
         }
 
-        if ($action === 'login' && !$this->auth->check() && $this->firstAdmin()->needed()) {
-            $this->handleSetup();
-            return;
-        }
-
-        if ($action === 'login') {
-            if ($this->auth->check() && ($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
-                $this->redirect('/admin');
-                return;
-            }
-            if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-                $this->handlePasswordLogin();
-                return;
-            }
-
-            $this->renderLogin();
-            return;
-        }
-
-        if ($action === 'google-login') {
-            $this->handleGoogleLogin();
-            return;
-        }
-
-        if ($action === 'google-callback') {
-            $this->handleGoogleCallback();
-            return;
-        }
-
-        if ($action === 'logout') {
-            if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
-                // Signing out changes state, so it only happens through the CSRF-protected form.
-                $this->redirect($this->auth->check() ? '/admin' : '/admin/login');
-                return;
-            }
-            $this->logActivity('auth.logout', 'info', 'user', (string)($this->auth->user()['username'] ?? ''), 'User signed out.');
-            $this->auth->logout();
-            $this->redirect('/admin/login');
+        if ($this->loginController()->handle($action, (string)($_SERVER['REQUEST_METHOD'] ?? 'GET'), $_POST, $_GET, (string)($_SERVER['REMOTE_ADDR'] ?? ''))) {
             return;
         }
 
@@ -903,56 +864,6 @@ final class App
         $this->handleAdminList();
     }
 
-    private function handlePasswordLogin(): void
-    {
-        $outcome = $this->signIn()->password(trim((string)($_POST['username'] ?? '')), (string)($_POST['password'] ?? ''), (string)($_SERVER['REMOTE_ADDR'] ?? ''));
-        if ($outcome['status'] === 'blocked') {
-            http_response_code(429);
-            header('Retry-After: ' . $outcome['retry_after']);
-            $this->renderLogin($outcome['message']);
-            return;
-        }
-        if ($outcome['status'] === 'ok') {
-            if ($outcome['default_password']) {
-                $_SESSION['security_default_password'] = true;
-                $this->notifyDefaultPassword($outcome['username']);
-            }
-            $this->redirect('/admin');
-            return;
-        }
-        $this->renderLogin($outcome['message']);
-    }
-
-    private function signIn(): SignIn
-    {
-        return $this->signInService ??= new SignIn(
-            $this->auth,
-            $this->loginThrottle,
-            fn(string $action, string $level, ?string $type, ?string $id, string $message, array $context, ?array $actor) => $this->logActivity($action, $level, $type, $id, $message, $context, $actor)
-        );
-    }
-
-    private function googleSignIn(): GoogleSignIn
-    {
-        return $this->googleSignInService ??= new GoogleSignIn(fn(): array => $this->settings, fn(string $path): string => $this->buildAbsoluteUrl($path));
-    }
-
-    private function notifyDefaultPassword(string $username): void
-    {
-        try {
-            $this->notifications->createIfMissing([
-                'type' => 'security.default_password',
-                'title' => 'Default password in use',
-                'body' => $username . ' still signs in with the password shipped in content/users/users.yaml. Change it.',
-                'severity' => 'error',
-                'target_url' => '/admin/users-edit?id=' . (int)($this->auth->user()['id'] ?? 0),
-                'context' => ['username' => $username],
-            ]);
-        } catch (\Throwable) {
-            // Notifications must never block sign-in.
-        }
-    }
-
     private function rejectInvalidCsrf(string $action): void
     {
         $this->logActivity('security.csrf_rejected', 'warning', 'admin_route', $action, 'Rejected a form submission without a valid CSRF token.', [
@@ -961,114 +872,31 @@ final class App
         http_response_code(419);
         $message = 'This form could not be verified. It may have expired, or the upload was larger than the server allows. Reload the page and try again.';
         if ($action === 'login' || !$this->auth->check()) {
-            $this->renderLogin($message);
+            $this->loginController()->renderLogin($message);
             return;
         }
         $this->renderForbidden($message, 'Form expired');
     }
 
-    /** A site with no accounts: the first visit makes the first administrator. */
-    private function handleSetup(): void
+    private function loginController(): LoginController
     {
-        $payload = ['username' => '', 'display_name' => '', 'email' => ''];
-        $error = '';
-        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
-            $result = $this->firstAdmin()->create($_POST);
-            if ($result['ok']) {
-                $this->redirect('/admin');
-                return;
-            }
-            $payload = $result['payload'];
-            $error = $result['error'];
-        }
-        $this->render('@admin/setup.twig', ['error' => $error, 'payload' => $payload]);
-    }
-
-    private function firstAdmin(): FirstAdmin
-    {
-        return $this->firstAdminService ??= new FirstAdmin(
-            $this->users,
+        return $this->loginControllerService ??= new LoginController(
             $this->auth,
-            fn(string $action, string $level, ?string $type, ?string $id, string $message, array $context) => $this->logActivity($action, $level, $type, $id, $message, $context)
+            $this->loginThrottle,
+            $this->users,
+            $this->notifications,
+            fn(): array => $this->settings,
+            fn(string $path): string => $this->buildAbsoluteUrl($path),
+            fn(string $action, string $level, ?string $type, ?string $id, ?string $message, array $context, ?array $actor) => $this->logActivity($action, $level, $type, $id, $message, $context, $actor),
+            fn(string $template, array $data) => $this->render($template, $data),
+            fn(string $path) => $this->redirect($path),
+            static function (int $status, array $headers): void {
+                http_response_code($status);
+                foreach ($headers as $header) {
+                    header($header);
+                }
+            }
         );
-    }
-
-    private function renderLogin(string $error = ''): void
-    {
-        $this->render('@admin/login.twig', [
-            'error' => $error,
-            'google_auth' => $this->googleSignIn()->config(),
-        ]);
-    }
-
-    private function handleGoogleLogin(): void
-    {
-        $google = $this->googleSignIn()->config();
-        if (!$google['ready']) {
-            $this->renderLogin('Google Sign-In is not configured yet.');
-            return;
-        }
-
-        $state = bin2hex(random_bytes(16));
-        $_SESSION['google_oauth_state'] = $state;
-        header('Location: ' . $this->googleSignIn()->authorizationUrl($google, $state));
-        exit;
-    }
-
-    private function handleGoogleCallback(): void
-    {
-        $sign = $this->googleSignIn();
-        $google = $sign->config();
-        if (!$google['ready']) {
-            $this->renderLogin('Google Sign-In is not configured yet.');
-            return;
-        }
-
-        $state = (string)($_GET['state'] ?? '');
-        if ($state === '' || $state !== (string)($_SESSION['google_oauth_state'] ?? '')) {
-            unset($_SESSION['google_oauth_state']);
-            $this->renderLogin('Google Sign-In state could not be verified.');
-            return;
-        }
-        unset($_SESSION['google_oauth_state']);
-
-        $code = (string)($_GET['code'] ?? '');
-        if ($code === '') {
-            $this->renderLogin('Google did not return an authorization code.');
-            return;
-        }
-
-        $token = $sign->exchange($code, $google);
-        if (!$token['ok']) {
-            $this->renderLogin((string)$token['message']);
-            return;
-        }
-        $profile = $sign->profile((string)$token['access_token']);
-        if (!$profile['ok']) {
-            $this->renderLogin((string)$profile['message']);
-            return;
-        }
-        $accepted = $sign->accept($profile, $google);
-        if (!$accepted['ok']) {
-            $this->renderLogin($accepted['message']);
-            return;
-        }
-
-        $email = $accepted['email'];
-        $user = $this->users->findByEmail($email);
-        if (!$user || !$this->users->isActive($user)) {
-            $this->renderLogin('No active FarosCMS user matches this Google account.');
-            return;
-        }
-
-        $this->users->linkGoogle((int)$user['id'], $accepted['sub'], $email);
-        $user = $this->users->find((int)$user['id']) ?: $user;
-        $this->auth->loginUser($user);
-        $this->logActivity('auth.login_success', 'info', 'user', (string)($user['username'] ?? $email), 'User logged in.', [
-            'method' => 'google',
-            'email' => $email,
-        ]);
-        $this->redirect('/admin');
     }
 
     private function handleDashboard(): void
