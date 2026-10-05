@@ -457,7 +457,7 @@ final class App
             // [text](javascript:…) and similar links lose their address instead of running script when clicked.
             'allow_unsafe_links' => false,
             // [text](address){target=_blank} opens a link in a new tab (with rel noopener); no other attribute is accepted.
-            'attributes' => ['allow' => ['target']],
+            'attributes' => ['allow' => ['target', 'align']],
             // A wide table scrolls inside its own box; tabindex lets keyboard users scroll it.
             'table' => ['wrap' => ['enabled' => true, 'tag' => 'div', 'attributes' => ['class' => 'table-wrap', 'tabindex' => '0']]],
         ]);

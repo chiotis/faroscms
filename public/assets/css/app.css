@@ -1265,6 +1265,9 @@ html.dark a.db-title:hover { color: #93c5fd; }
 .ed-surface { min-height: 22rem; padding: .75rem 1rem; border: 1px solid #cbd5e1; border-radius: 0 0 .5rem .5rem; background: #fff; color: #1e293b; font-size: .9375rem; line-height: 1.65; overflow-wrap: anywhere; }
 .ed-surface > :first-child { margin-top: 0; }
 .ed-surface p { margin: .75rem 0; }
+.ed-surface p[align="center"], .ed-surface h1[align="center"], .ed-surface h2[align="center"], .ed-surface h3[align="center"], .ed-surface h4[align="center"], .ed-surface h5[align="center"], .ed-surface h6[align="center"] { text-align: center; }
+.ed-surface p[align="right"], .ed-surface h1[align="right"], .ed-surface h2[align="right"], .ed-surface h3[align="right"], .ed-surface h4[align="right"], .ed-surface h5[align="right"], .ed-surface h6[align="right"] { text-align: right; }
+.ed-surface p[align="justify"] { text-align: justify; }
 .ed-surface h1, .ed-surface h2, .ed-surface h3, .ed-surface h4 { margin: 1.25rem 0 .5rem; color: #0f172a; font-weight: 600; line-height: 1.3; }
 .ed-surface h1 { font-size: 1.625rem; }
 .ed-surface h2 { font-size: 1.3125rem; }
