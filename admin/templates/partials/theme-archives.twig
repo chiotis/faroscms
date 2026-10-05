@@ -7,6 +7,7 @@
   archive_layouts   the layouts of a list
 #}
 {% import '@admin/partials/layout-controls.twig' as c %}
+{% import '@admin/partials/fields.twig' as fields %}
 {% import _self as m %}
 {% set short = {cards: 'Cards', list: 'List', compact: 'Compact', overlay: 'Tiles', featured: 'Featured', magazine: 'Magazine', editorial: 'Editorial', map: 'Map'} %}
 
@@ -142,4 +143,34 @@
       </div>
     </section>
   {% endif %}
+  <section aria-labelledby="archive-other-title">
+    <h2 id="archive-other-title" class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Other pages</h2>
+    <div class="grid items-start gap-3 xl:grid-cols-2">
+      {% set sp = search_page %}
+      <article class="lc-card rounded-xl border border-slate-200 bg-white" data-layout-card aria-labelledby="archive-search" data-lang-scope>
+        <header class="flex items-start gap-3 p-3 pb-2">
+          <div class="min-w-0 flex-1">
+            <h3 id="archive-search" class="truncate text-sm font-semibold text-slate-900">Search</h3>
+            <p class="mt-0.5 text-xs text-slate-500">The search page · <code class="rounded bg-slate-100 px-1 text-[11px]">/search</code></p>
+          </div>
+          {{ fields.lang_switch() }}
+        </header>
+        <dl class="m-0 space-y-2.5 border-t border-slate-100 p-3">
+          <div class="lc-row">
+            <dt>Title area</dt>
+            <dd class="m-0">{{ c.tiles('archive_search[title_layout]', archive_title_layouts, sp.title_layout, 'Title area', 'title', '') }}</dd>
+          </div>
+          <div class="lc-row">
+            <dt><label for="archive-search-picture">Picture</label></dt>
+            <dd class="m-0 flex flex-wrap items-center gap-x-3 gap-y-2">
+              <input id="archive-search-picture" type="text" name="archive_search[title_image]" value="{{ sp.title_image }}" placeholder="/uploads/media/picture.jpg" aria-label="Picture of the title area" class="w-full rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900 placeholder:text-slate-400 min-w-0 flex-1" data-image-field>
+              {{ c.chip('archive_search[title_parallax]', 'Parallax', sp.title_parallax) }}
+            </dd>
+          </div>
+          {{ c.text({label: 'Title', type: 'text', translatable: true, placeholder: 'Default: the theme’s word for it (Admin > Translations: search.title)', help: ''}, 'archive_search[title]', sp.title) }}
+          {{ c.text({label: 'Subtitle', type: 'text', translatable: true, placeholder: 'Default: the theme’s line (Admin > Translations: search.subtitle)', help: ''}, 'archive_search[subtitle]', sp.subtitle) }}
+        </dl>
+      </article>
+    </div>
+  </section>
 </div>

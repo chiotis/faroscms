@@ -1901,6 +1901,16 @@ body.has-transparent-header:not(.header-solid) .site-header.is-on-dark[data-stic
   color: #ffffff;
 }
 
+/* A dropdown in that state has a panel of its own: dark and nearly solid, so its links read on any picture (the header itself has no background). */
+body.has-transparent-header:not(.header-sticky) .site-header.is-on-dark:not([data-sticky="always"]) :is(.nav-list-2, .nav-list-3),
+body.has-transparent-header:not(.header-solid) .site-header.is-on-dark[data-sticky="always"] :is(.nav-list-2, .nav-list-3) {
+  border-color: rgb(255 255 255 / 0.22);
+  background: rgb(var(--ink-rgb) / 0.92);
+  box-shadow: 0 18px 40px -16px rgb(0 0 0 / 0.65);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
 /* The logo for dark backgrounds where the header is dark (Theme > Branding): a dark or colour row, or the light-text state above. */
 .site-header.tone-contrast .logo-on-light,
 .site-header.tone-accent .logo-on-light,
@@ -1943,7 +1953,18 @@ body.has-transparent-header:not(.header-solid) .site-header.is-on-dark[data-stic
   content: "";
   position: absolute;
   inset: 0;
-  background: rgb(var(--ink-rgb) / 0.32);
+  background:
+    linear-gradient(180deg, rgb(var(--ink-rgb) / 0.5), transparent calc(var(--header-height, 4.5rem) + 5rem)),
+    rgb(var(--ink-rgb) / 0.32);
+}
+
+/* The top of a picture under the transparent header is darker: the header's light text and its dropdowns read on any picture. */
+.has-transparent-header .main-shell > .block-hero:is(.block--cover, .block--steps):first-child .hero-cover-media::after,
+.has-transparent-header .main-shell > .single-hero-cover:first-child .single-hero-cover-media::after {
+  background:
+    linear-gradient(180deg, rgb(var(--ink-rgb) / 0.55), transparent calc(var(--header-height, 4.5rem) + 5rem)),
+    linear-gradient(90deg, rgb(var(--ink-rgb) / 0.55) 0%, rgb(var(--ink-rgb) / 0.15) 65%, transparent 100%),
+    linear-gradient(180deg, rgb(var(--ink-rgb) / 0.25) 0%, rgb(var(--ink-rgb) / 0.35) 40%, rgb(var(--ink-rgb) / 0.88) 100%);
 }
 
 /* A photo behind the title area: a darker top edge under the transparent header keeps its light text readable. */

@@ -1,22 +1,30 @@
 {% extends 'layouts/base.twig' %}
-{% set document_title = t('search.title') %}
+{# The title area is the one chosen in Theme > Archive Layouts > Search (search_page: title_layout, title_image, title_parallax, title, subtitle). #}
+{% set search_page = theme_settings.search_page|default({}) %}
+{% set search_title = search_page.title|default('')|localized ?: t('search.title') %}
+{% set search_subtitle = search_page.subtitle|default('')|localized ?: t('search.subtitle') %}
+{% set document_title = search_title %}
 
 {# Its first section is a title band: a floating header floats over it from the start. #}
 {% set header_floats_over = true %}
+{# A cover needs its picture; the picture is the background of the area in the default and cover layouts, and then the header can sit over it. #}
+{% set search_picture = search_page.title_image|default('') %}
+{% set search_choice = search_page.title_layout|default('default') in ['default', 'centered', 'split', 'cover', 'minimal'] ? search_page.title_layout|default('default') : 'default' %}
+{% set search_layout = search_choice == 'cover' and not search_picture ? 'default' : search_choice %}
+{% set search_image_behind = search_picture != '' and search_layout in ['default', 'cover'] %}
+{% set opens_under_header = search_image_behind %}
+{% set opens_on_dark = search_image_behind %}
 
 {% block content %}
   {% set prefix = lang_prefix|default('') %}
-  <section class="single-hero">
-    <div class="site-wrap single-hero-inner">
-      <h1>{{ t('search.title') }}</h1>
-      <p class="single-hero-subtitle">{{ t('search.subtitle') }}</p>
-      <form method="get" action="{{ url(prefix ~ 'search') }}" class="search-form" role="search">
-        <label class="visually-hidden" for="search-q">{{ t('search.title') }}</label>
-        <input type="search" id="search-q" name="q" value="{{ query }}" placeholder="{{ t('search.placeholder') }}">
-        <button type="submit">{{ t('search.button') }}</button>
-      </form>
-    </div>
-  </section>
+  {% set search_form %}
+    <form method="get" action="{{ url(prefix ~ 'search') }}" class="search-form" role="search">
+      <label class="visually-hidden" for="search-q">{{ t('search.title') }}</label>
+      <input type="search" id="search-q" name="q" value="{{ query }}" placeholder="{{ t('search.placeholder') }}">
+      <button type="submit">{{ t('search.button') }}</button>
+    </form>
+  {% endset %}
+  {% include 'components/title-area.twig' with {layout: search_layout, title: search_title, hero_text: search_subtitle, hero_extra: search_form, meta_html: '', meta_inline: '', hero_image: search_picture, hero_bg: '', hero_parallax: search_image_behind and search_page.title_parallax|default(false)} only %}
 
   <section class="site-wrap section-stack single-body">
     {% if query %}

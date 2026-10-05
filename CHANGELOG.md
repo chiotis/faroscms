@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.83 — 2026-10-06 — A transparent header reads over any picture
+- **A dropdown of the menu has a panel of its own while the header is transparent over a picture:** dark and nearly solid (with a soft blur), so its links read on a light or busy picture. The header itself still has no background, and once the page scrolls and the header turns solid the dropdown is the same as before.
+- **The top of the picture is a little darker under the transparent header** (a shade that fades out below the header) on a Hero block that covers, a cover title area, and the first slider, so the header's light text reads on any picture. The rest of the picture is as it was.
+- Tests: the dropdown panel and the three shades are in the style sheet (`tests/http/header_footer_test.py`). Looked at in Chromium over a hero with a picture: the open dropdown and the shade at the top.
+
+## 0.1.82 — 2026-10-06 — The search page has a title area too
+- **The search page can have a title area like a list or a page:** a new *Search* card under *Other pages* in Theme > Archive Layouts, with the five layouts, a picture from the Library, parallax, and a title and subtitle of its own (a version for each language when the site has several, with the language chips of Footer and Header). Without any of it the page is the plain band with the theme's words ("Search" and its line from Admin > Translations), as before.
+- **The search box stays inside the title area in every layout** (the component takes a `hero_extra` for it), and the results below are unchanged. A header set to sit over the title area sits over the picture, as on the other pages.
+- Stored in the theme settings as `search_page`, only what differs from the defaults (`SearchPage`); an unsafe picture address or an unknown layout is not kept.
+- Tests: the card, saving and the defaults, the page in each layout with its search box, the title for a language and the site's own for another, and the stored values (`tests/http/layouts_test.py`). Looked at in Chromium: a cover search page with its title and box, and the card.
+
 ## 0.1.81 — 2026-10-06 — A title area for every archive
 - **Each archive layout card has a title area, as a single layout has:** the five layouts (default, centered, split, cover, minimal), a picture chosen from the Library, and parallax. It is on the card of every content type that has a list and of every taxonomy (the pages of a category or a tag): *Title area*, *Picture* and *Parallax* in Theme > Archive Layouts, stored with the rest of the archive's settings (`title_layout`, `title_image`, `title_parallax`; only what differs from the defaults is written).
 - Like an entry's page: a cover needs its picture (without one the area is the default one), the picture is the background in the default and cover layouts, and a header set to sit over the title area sits over the picture, in light colours; centered and split show the picture as a picture, and parallax applies to default and cover.
