@@ -2953,31 +2953,12 @@ final class App
             );
         }));
 
-        // Maps of content (see GeoView): the data of a set of entries, of the page of one, and what is near one.
-        $twig->addFunction(new TwigFunction('geo_dataset', function (array $items, array $options = []): array {
-            return $this->geoView()->dataset(array_values(array_filter($items, static fn($i): bool => $i instanceof ContentItem)), $this->currentLang, $options);
-        }));
-        $twig->addFunction(new TwigFunction('geo_single', function (ContentItem $item, array $options = []): array {
-            return $this->geoView()->single($item, $this->currentLang, $options);
-        }));
-        $twig->addFunction(new TwigFunction('geo_nearby', function (ContentItem $item, array $types, float $radius = 5.0, int $limit = 6): array {
-            return $this->geoView()->nearby($item, $types, $radius, $limit, $this->currentLang);
-        }));
-        $twig->addFunction(new TwigFunction('geo_json', function (array $data): string {
-            return (string)json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE);
-        }, ['is_safe' => ['html']]));
-        $twig->addFunction(new TwigFunction('geo_load', function (): string {
-            return ($this->settings['apis']['maps']['load'] ?? 'click') === 'auto' ? 'auto' : 'click';
-        }));
-        $twig->addFunction(new TwigFunction('geo_position', function (ContentItem $item): ?array {
-            return $this->geoView()->map()->position($item);
-        }));
-        $twig->addFunction(new TwigFunction('route_facts', function (ContentItem $item): ?array {
-            return $this->geoView()->map()->routeFacts($item);
-        }));
-        $twig->addFunction(new TwigFunction('elevation_profile', function (array $profile, string $label): string {
-            return GeoView::profileSvg($profile, $label);
-        }, ['is_safe' => ['html']]));
+        GeoTwigFunctions::register(
+            $twig,
+            fn(): GeoView => $this->geoView(),
+            fn(): string => $this->currentLang,
+            fn(): array => $this->settings
+        );
 
         // What the page of one entry of a type does (Theme > Single Layouts): title style, header, parts, sidebar.
         $twig->addFunction(new TwigFunction('single_layout', function (string $type): array {
@@ -3049,25 +3030,13 @@ final class App
             return '<input type="hidden" name="_csrf" value="' . htmlspecialchars($this->csrfToken(), ENT_QUOTES) . '">';
         }, ['is_safe' => ['html']]));
 
-        // What Theme > Branding adds to a page: a style sheet of the choices made there, and the icons and colour of the browser.
-        $brandingBase = (string)($this->settings['base_url'] ?? '');
-        // The tracking of Admin > Analytics: the owner's code (or the platform's script) for the head, and the owner's code for the end of the page.
-        $twig->addFunction(new TwigFunction('analytics_head', fn(string $scriptUrl = '', string $apiUrl = ''): string => AnalyticsSettings::head(AnalyticsSettings::from($this->settings), $this->auth->check(), $scriptUrl, $apiUrl), ['is_safe' => ['html']]));
-        $twig->addFunction(new TwigFunction('analytics_body', fn(): string => AnalyticsSettings::body(AnalyticsSettings::from($this->settings), $this->auth->check()), ['is_safe' => ['html']]));
-        // The site-wide search engine settings (Admin > SEO) as a page uses them: its title and description, what the robots tag says,
-        // the tags that are the same on every page, and the card of a shared link.
-        $twig->addFunction(new TwigFunction('seo_title', fn(mixed $own, mixed $page, bool $home, mixed $type): string => SeoSettings::title(
-            SeoSettings::from($this->settings), (string)$own, (string)$page, (string)($this->settings['title'] ?? ''), (string)($this->settings['tagline'] ?? ''), $home, (string)$type
-        )));
-        $twig->addFunction(new TwigFunction('seo_description', fn(mixed $own, mixed $excerpt, mixed $document, bool $home): string => SeoSettings::description(
-            SeoSettings::from($this->settings), (string)$own, (string)$excerpt, (string)$document, (string)($this->settings['tagline'] ?? ''), $home
-        )));
-        $twig->addFunction(new TwigFunction('seo_robots', fn(bool $pageNoindex, mixed $kind): string => SeoSettings::robots(SeoSettings::from($this->settings), $pageNoindex, (string)$kind)));
-        $twig->addFunction(new TwigFunction('seo_head', fn(): string => SeoSettings::head(SeoSettings::from($this->settings)), ['is_safe' => ['html']]));
-        $twig->addFunction(new TwigFunction('seo_share_image', fn(): string => (string)SeoSettings::from($this->settings)['share_image']));
-        $twig->addFunction(new TwigFunction('seo_twitter_card', fn(bool $hasImage): string => SeoSettings::twitterCard(SeoSettings::from($this->settings), $hasImage)));
-        $twig->addFunction(new TwigFunction('branding_css', fn(): string => Branding::css($this->themeSettings, $brandingBase), ['is_safe' => ['html']]));
-        $twig->addFunction(new TwigFunction('branding_head', fn(): string => Branding::head($this->themeSettings, $brandingBase), ['is_safe' => ['html']]));
+        PageTwigFunctions::register(
+            $twig,
+            fn(): array => $this->settings,
+            fn(): array => $this->themeSettings,
+            fn(): bool => $this->auth->check(),
+            (string)($this->settings['base_url'] ?? '')
+        );
 
         $twig->addGlobal('site', $this->settings);
         $twig->addGlobal('theme_settings', $this->themeSettings);
