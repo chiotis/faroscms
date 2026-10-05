@@ -481,8 +481,41 @@
     if (variant) variant = Object.assign({}, variant, { options: variantOptions(def, block, variant.options) });
     if (variant && variant.options.length > 1) {
       var layout = el('div', { class: 'bk-field is-wide' }, [el('span', { class: 'bk-label', text: variant.label })]);
-      layout.appendChild(choiceButtons(variant, block.variant == null ? variant['default'] : block.variant, change('variant'), 'bk-choices'));
+      var previews = def.variant_previews || {};
+      if (Object.keys(previews).length) {
+        // Each layout is drawn (variants/<layout>.svg of the block); the drawing follows the design fields that change the layout (<layout>-<value>.svg).
+        var drawing = function (value) {
+          var name = String(value);
+          (def.design_fields || []).forEach(function (key) {
+            var chosen = valueFor(def, block, key);
+            if (previews[name + '-' + chosen]) name = name + '-' + chosen;
+          });
+          return previews[name] || PREVIEW_FALLBACK;
+        };
+        layout.appendChild(choiceButtons(variant, block.variant == null ? variant['default'] : block.variant, change('variant'), 'bk-choices bk-vtiles', function (button, pair) {
+          button.appendChild(thumb(drawing(pair[0])));
+          button.appendChild(el('span', { text: pair[1] }));
+        }));
+      } else {
+        layout.appendChild(choiceButtons(variant, block.variant == null ? variant['default'] : block.variant, change('variant'), 'bk-choices'));
+      }
       panel.appendChild(layout);
+    }
+    // Fields of the block that change how its layout looks (the hero's text alignment), beside the layout; they show while their `when` holds.
+    var beside = (def.design_fields || []).map(function (key) { return def.fields.filter(function (f) { return f.key === key; })[0]; }).filter(function (f) {
+      if (!f) return false;
+      return !f.when || Object.keys(f.when).every(function (other) { return whenMatches(f.when[other], valueFor(def, block, other)); });
+    });
+    if (beside.length) {
+      var besideRow = el('div', { class: 'bk-grid' });
+      beside.forEach(function (f) {
+        besideRow.appendChild(fieldControl(Object.assign({}, f, { span: '' }), block[f.key], function (value) {
+          block[f.key] = value;
+          serialize();
+          render(block._id, 'keep');
+        }, idBase));
+      });
+      panel.appendChild(besideRow);
     }
     var row = el('div', { class: 'bk-grid' });
     var tone = field('tone');
@@ -526,6 +559,7 @@
       });
     };
     def.fields.forEach(function (field) {
+      if ((def.design_fields || []).indexOf(field.key) !== -1) return;
       var node = fieldControl(field, block[field.key], function (value) {
         block[field.key] = value;
         serialize();

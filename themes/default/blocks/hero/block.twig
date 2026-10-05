@@ -23,8 +23,10 @@
 {# The opening hero image is the largest thing on screen: load it first, never lazily. #}
 {% set is_cover = variant == 'cover' or variant == 'steps' %}
 {% set media_sizes = variant == 'split' ? '(min-width: 960px) 46vw, 92vw' : (is_cover ? '100vw' : '(min-width: 1280px) 1216px, 92vw') %}
+{# Over a picture the text can be centred (the choice of the layout; split, centred and minimal have their own alignment). #}
+{% set centred_cover = is_cover and block.align|default('left') == 'center' %}
 {% if is_cover and has_picture %}
-  <div class="hero-cover-media">
+  <div class="hero-cover-media{{ centred_cover ? ' is-centered' : '' }}">
     {% if has_video %}
       {{ hero.video(video, block.video_poster, media_sizes, block_first) }}
     {% else %}
@@ -32,7 +34,7 @@
     {% endif %}
   </div>
 {% endif %}
-<div class="container hero-inner{% if not has_picture %} no-media{% endif %}">
+<div class="container hero-inner{% if not has_picture %} no-media{% endif %}{{ centred_cover ? ' is-centered' : '' }}">
   <div class="hero-content">
     {% if block.eyebrow %}<p class="eyebrow">{{ block.eyebrow }}</p>{% endif %}
     <{{ heading_tag }} class="hero-title" id="{{ block_uid }}-title">{{ block.heading }}</{{ heading_tag }}>

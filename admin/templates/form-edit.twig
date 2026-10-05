@@ -423,16 +423,16 @@
               <p class="mt-0.5 text-xs text-slate-500">For its own page.</p>
             </div>
             <div class="grid gap-3">
-              <label class="block"><span class="{{ label_class }}">Title</span><input type="text" name="seo_title" value="{{ meta_form.seo_title }}" class="{{ input_class }}"></label>
-              <label class="block"><span class="{{ label_class }}">Description</span><textarea name="seo_description" rows="3" class="{{ textarea_class }}">{{ meta_form.seo_description }}</textarea></label>
+              <label class="block"><span class="{{ label_class }}">Title</span><input type="text" name="seo_title" value="{{ meta_form.seo_title }}" class="{{ input_class }}" data-count="30,60,70" data-count-from='input[name="title"]' data-count-label="the title"></label>
+              <label class="block"><span class="{{ label_class }}">Description</span><textarea name="seo_description" rows="3" class="{{ textarea_class }}" data-count="70,160,180">{{ meta_form.seo_description }}</textarea></label>
               {{ ui.toggle('seo_noindex', meta_form.seo_noindex, 'Keep it out of search results', 'Adds noindex to its page.') }}
               {{ ui.toggle('visible', meta_form.visible, 'Show in lists', 'Listings and the sitemap.') }}
               <details class="rounded-md border border-slate-200 bg-slate-50/60 px-3 py-2">
                 <summary class="cursor-pointer text-xs font-medium text-slate-600">Sharing and canonical address</summary>
                 <div class="mt-3 grid gap-3">
                   <label class="block"><span class="{{ label_class }}">Canonical address</span><input type="text" name="seo_canonical" value="{{ meta_form.seo_canonical }}" placeholder="https://example.com/path" class="{{ input_class }}"></label>
-                  <label class="block"><span class="{{ label_class }}">Share title</span><input type="text" name="seo_og_title" value="{{ meta_form.seo_og_title }}" class="{{ input_class }}"></label>
-                  <label class="block"><span class="{{ label_class }}">Share description</span><textarea name="seo_og_description" rows="3" class="{{ textarea_class }}">{{ meta_form.seo_og_description }}</textarea></label>
+                  <label class="block"><span class="{{ label_class }}">Share title</span><input type="text" name="seo_og_title" value="{{ meta_form.seo_og_title }}" class="{{ input_class }}" data-count="30,70,90" data-count-from='input[name="seo_title"]|input[name="title"]' data-count-label="the search title|the title"></label>
+                  <label class="block"><span class="{{ label_class }}">Share description</span><textarea name="seo_og_description" rows="3" class="{{ textarea_class }}" data-count="60,200,250" data-count-from='textarea[name="seo_description"]' data-count-label="the search description">{{ meta_form.seo_og_description }}</textarea></label>
                   <label class="block"><span class="{{ label_class }}">Share image</span><input type="text" name="seo_og_image" value="{{ meta_form.seo_og_image }}" placeholder="/uploads/your-image.jpg" class="{{ input_class }}"></label>
                 </div>
               </details>
@@ -548,4 +548,5 @@
     })();
   </script>
   <script src="{{ asset('js/admin-form-builder.js') }}" defer></script>
+  <script src="{{ asset('js/admin-seo-count.js') }}" defer></script>
 {% endblock %}

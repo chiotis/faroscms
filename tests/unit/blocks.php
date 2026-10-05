@@ -177,4 +177,16 @@ check('hero has a steps layout', array_keys($registry->get('hero')['variants']),
 $heroSteps = array_values(array_filter($once, fn($b) => $b['type'] === 'hero' && ($b['variant'] ?? '') === 'steps'))[0];
 check('hero steps keep their steps', [count($heroSteps['items']), $heroSteps['items'][0]['title']], [4, 'Ανάλυση']);
 check('hero has at most four steps', $registry->get('hero')['fields']['items']['max'], 4);
+// ---- the hero: text alignment over a picture, and a drawing of each layout
+$heroDef = array_column($registry->editorDefinitions(), null, 'type')['hero'];
+check('the hero offers a text alignment, shown beside the layout', [$heroDef['design_fields'], $registry->get('hero')['fields']['align']['default'], array_keys($registry->get('hero')['fields']['align']['options'])], [['align'], 'left', ['left', 'center']]);
+check('only for the layouts over a picture', $registry->get('hero')['fields']['align']['when'], ['variant' => ['cover', 'steps']]);
+$drawn = array_keys((array)$heroDef['variant_previews']);
+sort($drawn);
+check('every layout of the hero is drawn, and the two over a picture also with the text centred', $drawn, ['centered', 'cover', 'cover-center', 'minimal', 'split', 'steps', 'steps-center']);
+check('a drawing is the sanitised markup of its file', str_contains($heroDef['variant_previews']['cover-center'], '<rect') && !str_contains(implode('', (array)$heroDef['variant_previews']), 'script'), true);
+$bannerDef = array_column($registry->editorDefinitions(), null, 'type')['banner'];
+check('a block with no variants folder has no drawings and no design fields', [(array)$bannerDef['variant_previews'], $bannerDef['design_fields']], [[], []]);
+$heroStored = fn(array $extra) => $registry->sanitizeForStorage([['type' => 'hero', 'variant' => 'cover', 'heading' => 'H'] + $extra])[0];
+check('centred text is kept, the usual left is not stored, and anything else is left out', [$heroStored(['align' => 'center'])['align'] ?? null, $heroStored(['align' => 'left'])['align'] ?? null, $heroStored(['align' => 'right'])['align'] ?? null], ['center', null, null]);
 echo $fail === 0 ? "\nALL PASSED\n" : "\n$fail FAILED\n";

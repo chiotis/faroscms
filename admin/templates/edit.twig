@@ -368,8 +368,8 @@
           <span data-serp-description>{{ meta_form.seo_description ?: meta_form.excerpt }}</span>
         </div>
         <div class="en-rows">
-          <div class="seo-row"><label class="seo-label" for="en-seo-title">SEO title</label><input id="en-seo-title" type="text" name="seo_title" value="{{ meta_form.seo_title }}" placeholder="{{ meta_form.title ?: 'SEO title' }}" class="lc-input" data-serp-source="title"></div>
-          <div class="seo-row"><label class="seo-label" for="en-seo-description">Description</label><textarea id="en-seo-description" name="seo_description" rows="2" class="lc-input" data-serp-source="description">{{ meta_form.seo_description }}</textarea></div>
+          <div class="seo-row"><label class="seo-label" for="en-seo-title">SEO title</label><input id="en-seo-title" type="text" name="seo_title" value="{{ meta_form.seo_title }}" placeholder="{{ meta_form.title ?: 'SEO title' }}" class="lc-input" data-serp-source="title" data-count="30,60,70" data-count-from='input[name="title"]' data-count-label="the title"></div>
+          <div class="seo-row"><label class="seo-label" for="en-seo-description">Description</label><textarea id="en-seo-description" name="seo_description" rows="2" class="lc-input" data-serp-source="description" data-count="70,160,180" data-count-from='textarea[name="excerpt"]' data-count-label="the excerpt">{{ meta_form.seo_description }}</textarea></div>
           <div class="seo-row"><label class="seo-label" for="en-seo-canonical">Canonical URL</label><input id="en-seo-canonical" type="text" name="seo_canonical" value="{{ meta_form.seo_canonical }}" placeholder="https://example.com/path" class="lc-input"></div>
           <label class="lc-chip en-noindex"><input type="checkbox" name="seo_noindex" value="1" {% if meta_form.seo_noindex %}checked{% endif %}><span>Keep out of search (adds noindex)</span></label>
         </div>
@@ -379,9 +379,9 @@
         <h2 id="en-h-og" class="en-card-title">When the link is shared</h2>
         <p class="en-help m-0">What shows on social networks and in messages. Each left empty follows the search title, description and the main image.</p>
         <div class="en-rows">
-          <div class="seo-row"><label class="seo-label" for="en-og-title">Title</label><input id="en-og-title" type="text" name="seo_og_title" value="{{ meta_form.seo_og_title }}" placeholder="Defaults to SEO title" class="lc-input"></div>
+          <div class="seo-row"><label class="seo-label" for="en-og-title">Title</label><input id="en-og-title" type="text" name="seo_og_title" value="{{ meta_form.seo_og_title }}" placeholder="Defaults to SEO title" class="lc-input" data-count="30,70,90" data-count-from='#en-seo-title|input[name="title"]' data-count-label="the search title|the title"></div>
           <div class="seo-row"><label class="seo-label" for="en-og-image">Image</label><input id="en-og-image" type="text" name="seo_og_image" value="{{ meta_form.seo_og_image }}" placeholder="{{ main_image ?: '/uploads/your-image.jpg' }}" class="lc-input"></div>
-          <div class="seo-row"><label class="seo-label" for="en-og-description">Description</label><textarea id="en-og-description" name="seo_og_description" rows="2" class="lc-input">{{ meta_form.seo_og_description }}</textarea></div>
+          <div class="seo-row"><label class="seo-label" for="en-og-description">Description</label><textarea id="en-og-description" name="seo_og_description" rows="2" class="lc-input" data-count="60,200,250" data-count-from='#en-seo-description|textarea[name="excerpt"]' data-count-label="the search description|the excerpt">{{ meta_form.seo_og_description }}</textarea></div>
         </div>
       </section>
     </div>
@@ -478,6 +478,7 @@
 
   <script src="{{ asset('js/admin-entry.js') }}" defer></script>
   <script src="{{ asset('js/admin-editor.js') }}" defer></script>
+  <script src="{{ asset('js/admin-seo-count.js') }}" defer></script>
   {% if block_editor_json %}
     {% include '@admin/partials/icon-library.twig' %}
     <script src="{{ asset('js/admin-blocks.js') }}"></script>

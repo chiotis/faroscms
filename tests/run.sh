@@ -57,6 +57,7 @@ run_js() {
   fi
   report "visual-editor-serializer" "$(cd "$ROOT" && node tests/js/serializer.test.js 2>&1)"
   report "visual-editor-toolbar" "$(cd "$ROOT" && node tests/js/editor-tools.test.js 2>&1)"
+  report "seo-count" "$(cd "$ROOT" && node tests/js/seo-count.test.js 2>&1)"
 }
 
 run_http() {

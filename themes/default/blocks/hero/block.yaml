@@ -7,7 +7,17 @@ variants:
   cover: Text over a full-width image
   steps: Text over a full-width image, with numbered steps
   minimal: Large heading, no image
+# Shown in the Design tab beside the layout, because they change how it looks (and its drawing).
+design_fields: [align]
 fields:
+  align:
+    type: select
+    label: Text alignment
+    default: left
+    options:
+      left: Left
+      center: Centered
+    when: { variant: [cover, steps] }
   eyebrow:
     type: text
     label: Eyebrow

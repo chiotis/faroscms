@@ -523,6 +523,14 @@ html.dark .bp-stage { border-color: #334155; background: #1e293b; }
 .seo-row { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr); align-items: start; gap: .5rem; }
 .seo-label { padding-top: .3rem; font-size: .75rem; font-weight: 500; line-height: 1.25rem; color: #4d5d73; }
 .seo-help { margin: .25rem 0 0; font-size: .6875rem; line-height: 1rem; color: #5f6f85; }
+/* The character count under a search or sharing text: green for a good length, amber for a little short or long, red for too long. */
+.seo-count { margin: .25rem 0 0; font-size: .6875rem; font-weight: 500; line-height: 1rem; font-variant-numeric: tabular-nums; color: #5f6f85; }
+.seo-count.is-good { color: #047857; }
+.seo-count.is-short, .seo-count.is-long { color: #b45309; }
+.seo-count.is-over { color: #b91c1c; }
+html.dark .seo-count.is-good { color: #6ee7b7; }
+html.dark .seo-count.is-short, html.dark .seo-count.is-long { color: #fbbf24; }
+html.dark .seo-count.is-over { color: #fca5a5; }
 .seo-flag { display: flex; align-items: flex-start; gap: .5rem; padding: .35rem .5rem; border-radius: .5rem; cursor: pointer; }
 .seo-flag:hover { background: #f8fafc; }
 .seo-flag input { flex: none; width: 1rem; height: 1rem; margin-top: .15rem; accent-color: #2563eb; }
@@ -1408,6 +1416,14 @@ html.dark .ed-pop-row { color: #cbd5e1; }
 .bk-seg button[aria-pressed="true"], .bk-choices button[aria-pressed="true"], .bk-swatches button[aria-pressed="true"] { background: #fff; color: #0f172a; box-shadow: 0 1px 2px rgba(15, 23, 42, .15); }
 .bk-choices { display: grid; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); width: auto; }
 .bk-choices button { justify-content: flex-start; text-align: left; padding: .25rem .625rem; line-height: 1.125rem; }
+/* The layout choice with a drawing of each layout (blocks that have variants/<layout>.svg). */
+.bk-vtiles { grid-template-columns: repeat(auto-fill, minmax(8.25rem, 1fr)); gap: 4px; }
+.bk-vtiles button { flex-direction: column; align-items: stretch; gap: .25rem; padding: .375rem; font-size: .6875rem; line-height: .9rem; text-align: center; }
+.bk-vtiles button .bk-pthumb { width: 100%; height: 3.5rem; border-color: #e2e8f0; background: #f8fafc; color: #64748b; }
+.bk-vtiles button .bk-pthumb svg { width: 4rem; height: 3rem; }
+.bk-vtiles button[aria-pressed="true"] .bk-pthumb { border-color: #2563eb; background: #eff6ff; color: #1d4ed8; }
+html.dark .bk-vtiles button .bk-pthumb { border-color: #334155; background: #0f172a; color: #94a3b8; }
+html.dark .bk-vtiles button[aria-pressed="true"] .bk-pthumb { border-color: #60a5fa; background: #172554; color: #bfdbfe; }
 .bk-swatches button i { width: .875rem; height: .875rem; border: 1px solid #94a3b8; border-radius: 99px; }
 .bk-seg button:focus-visible, .bk-choices button:focus-visible, .bk-swatches button:focus-visible, .bk-tabs button:focus-visible, .bk-toggle:focus-visible, .bk-row-toggle:focus-visible, .bk-add:focus-visible, .bk-icon:focus-visible, .bk-btn:focus-visible { outline: 2px solid #1d4ed8; outline-offset: 1px; }
 .bk-image { display: flex; align-items: center; gap: .375rem; }
