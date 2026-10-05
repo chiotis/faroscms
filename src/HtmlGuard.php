@@ -94,14 +94,34 @@ final class HtmlGuard
             return [];
         }
         [$frontmatter, $body] = FrontMatter::split((string)file_get_contents($path));
-        $texts = [$body];
         try {
             $meta = $frontmatter !== '' ? Yaml::parse($frontmatter) : [];
         } catch (\Throwable) {
             $meta = [];
         }
-        if (is_array($meta) && is_array($meta['blocks'] ?? null)) {
-            $this->eachMarkdownField($meta['blocks'], static function (string $value) use (&$texts): string {
+        return $this->fragmentsOf([$body], is_array($meta) && is_array($meta['blocks'] ?? null) ? $meta['blocks'] : []);
+    }
+
+    /**
+     * Raw HTML fragments in the Markdown fields of blocks that are stored outside a content file (the footer's blocks).
+     *
+     * @param array<int, mixed> $blocks
+     * @return string[]
+     */
+    public function blocksFragments(array $blocks): array
+    {
+        return $this->fragmentsOf([], $blocks);
+    }
+
+    /**
+     * @param string[] $texts
+     * @param array<int, mixed> $blocks
+     * @return string[]
+     */
+    private function fragmentsOf(array $texts, array $blocks): array
+    {
+        if ($blocks !== []) {
+            $this->eachMarkdownField($blocks, static function (string $value) use (&$texts): string {
                 $texts[] = $value;
                 return $value;
             });

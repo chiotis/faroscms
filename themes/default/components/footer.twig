@@ -2,7 +2,8 @@
   Site footer. Theme settings > Footer: layout (columns, mega with a column for each top-level link of the footer menu, one
   row, bar, centered), background (dark, the page's, muted, the palette colour), brand, a call to action above it, texts,
   contact details, opening hours, the links at the bottom (menu place "Footer bottom links"), social icons, a language
-  switcher and a back to top link. Social icons come from Theme settings > Social profiles.
+  switcher and a back to top link. Social icons come from Theme settings > Social profiles. Blocks (Theme > Footer Blocks) sit above
+  the footer itself.
 #}
 {% import 'components/menu-macros.twig' as menu_macros %}
 {% set footer_menu = theme_menus.footer ?? [] %}
@@ -69,6 +70,11 @@
     </div>
   {% endif %}
 {% endset %}
+{# The blocks of Theme > Footer Blocks, above the footer on every page. #}
+{% set footer_blocks_html = footer_blocks().html %}
+{% if footer_blocks_html %}
+<div class="footer-blocks">{{ footer_blocks_html|raw }}</div>
+{% endif %}
 <footer class="site-footer footer--{{ layout }}{% if tone != 'dark' %} is-{{ tone }}{% endif %}{% if tone == 'accent' %} tone-accent{% endif %}{% if footer_bg_image %} has-image{% endif %}"{% if footer_bg or footer_bg_image %} style="{% if footer_bg_image %}--footer-image:url('{{ footer_bg_image|e('html_attr') }}');{% endif %}{% if footer_bg %}--footer-bg:{{ footer_bg|e('html_attr') }};{% endif %}"{% endif %}>
   <div class="site-wrap site-footer-inner">
     {% if has_cta %}

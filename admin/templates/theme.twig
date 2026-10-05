@@ -39,6 +39,11 @@
             <div class="tab-panel space-y-4{% if active_tab != key %} hidden{% else %} active{% endif %}" data-panel="{{ key }}" role="tabpanel">
               {% include key == 'single_layouts' ? '@admin/partials/theme-single.twig' : '@admin/partials/theme-archives.twig' %}
             </div>
+          {% elseif key == 'footer_blocks' %}
+            {# Blocks above the footer (partials/theme-footer-blocks.twig). #}
+            <div class="tab-panel space-y-4{% if active_tab != key %} hidden{% else %} active{% endif %}" data-panel="{{ key }}" role="tabpanel">
+              {% include '@admin/partials/theme-footer-blocks.twig' %}
+            </div>
           {% elseif key == 'branding' %}
             {# Appearance, Brand and Design together (partials/theme-branding.twig). #}
             <div class="tab-panel space-y-4{% if active_tab != key %} hidden{% else %} active{% endif %}" data-panel="{{ key }}" role="tabpanel">

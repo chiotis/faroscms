@@ -110,6 +110,10 @@
   {% for href in block_styles|default([]) %}
   <link rel="stylesheet" href="{{ href }}">
   {% endfor %}
+  {# The blocks above the footer (Theme > Footer Blocks) need their styles on every page. #}
+  {% for href in footer_blocks().styles|filter(h => h not in block_styles|default([])) %}
+  <link rel="stylesheet" href="{{ href }}">
+  {% endfor %}
   {# The choices of Theme > Branding (colours, type, spacing, buttons, logo sizes) come after the theme's styles and before the site's own. #}
   {% set branding_style = branding_css() %}
   {% if branding_style %}
@@ -143,6 +147,9 @@
   {% block scripts %}
   <script src="{{ theme_asset('js/site.js') }}"></script>
   {% for src in block_scripts|default([]) %}
+  <script src="{{ src }}" defer></script>
+  {% endfor %}
+  {% for src in footer_blocks().scripts|filter(h => h not in block_scripts|default([])) %}
   <script src="{{ src }}" defer></script>
   {% endfor %}
   {% set custom_js = custom_asset('js/custom.js') %}

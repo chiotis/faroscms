@@ -25,7 +25,9 @@
 
   var definitions = {};
   (data.definitions || []).forEach(function (def) { definitions[def.type] = def; });
-  var presets = data.presets || [];
+  // The editor of Theme > Footer Blocks (data.context 'footer') is for the blocks above the footer, not for a page: no whole-page layouts.
+  var footerMode = data.context === 'footer';
+  var presets = (data.presets || []).filter(function (p) { return !footerMode || p.kind !== 'page'; });
   var selected = {};
   var nextId = 1;
   var blocks = (data.blocks || []).map(function (block) { return withId(block, false); });
@@ -626,8 +628,8 @@
 
   var list = el('div', { class: 'bk-list', 'data-block-list': '' });
   var empty = el('div', { class: 'bk-empty' }, [
-    el('p', { class: 'bk-empty-title', text: 'This page has no blocks yet.' }),
-    el('p', { class: 'bk-help', text: 'Without blocks the page shows its Markdown text as before. Add blocks to build the page from sections.' }),
+    el('p', { class: 'bk-empty-title', text: footerMode ? 'No blocks above the footer yet.' : 'This page has no blocks yet.' }),
+    el('p', { class: 'bk-help', text: footerMode ? 'Add blocks such as a row of logos or a call to action; they show above the footer on every page.' : 'Without blocks the page shows its Markdown text as before. Add blocks to build the page from sections.' }),
     presets.some(function (p) { return p.kind === 'page'; })
       ? el('button', { type: 'button', class: CLS.btn, text: 'Start from a page layout', onclick: function (event) { pickerTab = 'pages'; openPicker(blocks.length, event.currentTarget); } })
       : null
@@ -739,7 +741,7 @@
   function renderPicker() {
     var position = pickerTarget;
     picker.innerHTML = '';
-    var tabs = [['blocks', 'Blocks'], ['sections', 'Ready-made sections'], ['pages', 'Page layouts']];
+    var tabs = [['blocks', 'Blocks'], ['sections', 'Ready-made sections']].concat(footerMode ? [] : [['pages', 'Page layouts']]);
     var tabBar = el('div', { class: 'bk-pills', role: 'tablist' });
     tabs.forEach(function (tab) {
       var active = pickerTab === tab[0];
@@ -990,7 +992,7 @@
 
   root.innerHTML = '';
   root.appendChild(el('div', { class: 'bk-bar' }, [
-    el('p', { class: 'bk-help', text: 'Sections of this page, top to bottom. An opening Hero becomes the page title. Tick blocks to save them as a reusable section.' }),
+    el('p', { class: 'bk-help', text: footerMode ? 'Top to bottom, above the footer. Tick blocks to save them as a reusable section.' : 'Sections of this page, top to bottom. An opening Hero becomes the page title. Tick blocks to save them as a reusable section.' }),
     el('div', { class: 'bk-bar-actions' }, [expandAll, addButton])
   ]));
   root.appendChild(undoBar);

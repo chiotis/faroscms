@@ -180,6 +180,10 @@ Create `blocks/<type>/` with three files:
 - `block.css`: styles scoped to `.block-<type>`, using the tokens from `site.css`. It is loaded only on pages that use the block, bundled with the other blocks of the page into one request.
 - `block.js` (optional): progressive enhancement only; the block must work without it. Loaded deferred and bundled the same way (`/_themes/default/_blocks.js?b=…`).
 
+### Footer blocks
+
+**Theme > Footer Blocks** holds blocks that show **above the footer on every page, in every language**: a row of logos, a call to action, a form. It is the same block editor as an entry's Blocks tab (without the whole-page layouts), and the blocks are stored in the theme settings (`footer_blocks`), not in a content file. `footer_blocks()` in Twig gives `html`, `styles` and `scripts` for the current language, drawn once per request: `layouts/base.twig` asks for the styles and scripts in the head, and `components/footer.twig` puts the markup in a `.footer-blocks` wrapper before the `<footer>`. A site that overrides either file keeps the blocks by keeping those lines. Someone without the *Raw HTML in content* permission sees HTML they type as text, as in an entry.
+
 ### Editing blocks
 
 Admin > Edit > **Blocks** lists the page's blocks: add (from a picker with each block's description), move, duplicate, hide, remove (with undo), and edit the fields generated from `block.yaml`, including repeaters and image fields with the media library. On save the server checks every value again (`BlockRegistry::sanitizeForStorage`) and stores only values that differ from the defaults. Unknown block types are kept unchanged. Without JavaScript the page's existing blocks are kept when it is saved.
