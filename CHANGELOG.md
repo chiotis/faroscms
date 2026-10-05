@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.61 — 2026-10-04 — The roadmap, in order
+- **`ROADMAP.md` is rewritten as Now, Next and Later**: a short picture of where the project is, the debt to clear first (the whole suite and CI for the last releases, a test for the visual editor's serializer, what was built but not yet seen), the order of the work worth doing next (form translation, a second phase for places and routes, the runtime cache, search, menu ordering), what is wanted but not urgent, and what is not planned. The history is in this file and in `docs/`, not in the roadmap.
+
 ## 0.1.60 — 2026-10-04 — A calmer dashboard, and the pre-update backup in green
 - **The *+ New Page / Post / Project* buttons are gone from the top of the dashboard**: the sidebar already lists every content type, and a button for the first three was an arbitrary choice. The greeting stays.
 - **"Verified pre-update backup created" is green.** On the Updates screen the message after a successful backup before an update was drawn as an error (red) whatever happened; it is a success when the backup was made and verified, and an error only when it was not.
