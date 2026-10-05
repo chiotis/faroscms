@@ -433,7 +433,8 @@ final class BackupService
                     continue;
                 }
                 $relative = str_replace('\\', '/', substr($pathname, strlen($prefix)));
-                if ($this->shouldExclude($relative) || str_starts_with($relative, 'storage/db/app.sqlite')) {
+                // The archive's own manifest takes this name; a file of the site that has it (a backup unzipped in the project) must not clash with it.
+                if ($relative === self::MANIFEST_NAME || $this->shouldExclude($relative) || str_starts_with($relative, 'storage/db/app.sqlite')) {
                     continue;
                 }
                 if ($zip->addFile($pathname, $relative)) {
