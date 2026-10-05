@@ -1,6 +1,6 @@
 {#
-  Theme > Footer Blocks: blocks shown above the footer on every page and in every language (logos, a call to action, a
-  newsletter form). The block editor is the one of the Blocks tab of an entry (public/assets/js/admin-blocks.js); the blocks are
+  Theme > Footer Blocks: blocks shown above the footer on every page (logos, a call to action, a newsletter form), with a set
+  for each language when the site has several (a language without its own set shows the site's own). The block editor is the one of the Blocks tab of an entry (public/assets/js/admin-blocks.js); the blocks are
   stored in the theme settings (`footer_blocks`) and drawn by `footer_blocks()` in components/footer.twig.
 
   footer_blocks_json   what the editor starts from (block types, the blocks now there, ready-made sections)
@@ -9,7 +9,7 @@
   <div class="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
     <div class="min-w-0">
       <h2 id="fb-title" class="text-sm font-semibold text-slate-900">Footer Blocks <span data-block-count class="tab-count"></span></h2>
-      <p class="mt-0.5 text-xs text-slate-500">Shown above the footer on every page, in every language: a row of logos, a call to action, a form. The footer itself is set in the Footer tab.</p>
+      <p class="mt-0.5 text-xs text-slate-500">Shown above the footer on every page: a row of logos, a call to action, a form.{% if admin_languages|length > 1 %} Each language can have its own set; one without shows the site's own.{% endif %} The footer itself is set in the Footer tab.</p>
     </div>
   </div>
   <input type="hidden" name="blocks_json" value="" data-block-editor-output>
