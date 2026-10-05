@@ -1,0 +1,208 @@
+/*
+ * What serializer.test.js is run over. Add to it whenever a text is found that the visual editor damages: the sample goes in
+ * SAMPLES (written the way the editor writes Markdown, so that opening and leaving it changes nothing), and the test proves that
+ * it reads back as the same page. REWRITTEN lists the samples whose rewritten form is known to differ from the original (a different
+ * but equal way of writing it).
+ */
+'use strict';
+
+const SAMPLES = {
+  'headings one to six': '# One\n\n## Two\n\n### Three\n\n#### Four\n\n##### Five\n\n###### Six',
+  'a heading with formatting': '## A **bold** and *italic* [link](https://example.test) heading',
+  'paragraphs': 'First paragraph.\n\nSecond paragraph.\n\nThird.',
+  'a line break inside a paragraph': 'First line\nSecond line\nThird line',
+  'emphasis, strong and strike': 'Some **bold**, *italic*, ***both*** and ~~struck~~ text.',
+  'emphasis inside words': 'A **bold**word and an *in*side and snake_case_name stay.',
+  'code spans': 'Use `echo 1` or ``a ` b`` in text.',
+  'a line made of one character': '***',
+  'escaped characters': 'Not \\*emphasis\\*, not \\_this\\_, a \\`tick\\`, a \\[bracket\\] and a back\\\\slash.',
+  'escaped block starts': '\\# not a heading\n\n1\\. not a list\n\n\\> not a quote\n\n\\- not an item\n\n\\+ nor this',
+  'escaped angle brackets and entities': 'A \\<div> and a \\&amp; and 2 < 3 and a & b.',
+  'a shortcode': '[form slug="contact"]',
+  'a shortcode in a sentence': 'Write to us: [form slug="contact" title="Write"] and we answer.',
+  'a shortcode with several words': '[gallery ids="1,2,3" columns="3"]\n\n[map type="routes" layout="list"]',
+  'links': 'A [link](https://example.test), a [titled](https://example.test "The title") and a [local](/about) one.',
+  'a link that opens in a new tab': 'Read [the report](https://example.test/report){target=_blank} now.',
+  'a link with spaces and parentheses': 'A [file](<https://example.test/a file (1).pdf>) and a [page](https://example.test/a_(b)).',
+  'an automatic link': 'See <https://example.test/auto> for more.',
+  'images': '![A cat](/uploads/cat.jpg)\n\n![](/uploads/none.png "A title")\n\nText ![inline](/uploads/i.png) text.',
+  'an image that is a link': '[![Logo](/uploads/logo.png)](https://example.test)',
+  'a bullet list': '- one\n- two\n- three',
+  'a numbered list': '1. one\n2. two\n3. three',
+  'a numbered list that starts at three': '3. three\n4. four',
+  'a nested list': '- one\n  - one a\n  - one b\n    - deeper\n- two',
+  'a list with numbers inside bullets': '- one\n  1. first\n  2. second\n- two',
+  'a loose list': '- one\n\n- two\n\n- three',
+  'a list item of several paragraphs': '- one\n\n  more of one\n\n- two',
+  'a list item with a code block': '- run:\n\n  ```sh\n  make\n  ```\n\n- done',
+  'a list item with a quote': '- said:\n\n  > hello\n\n- next',
+  'a list with formatting': '- **Bold** item\n- An item with a [link](https://example.test)\n- An item with `code`',
+  'two lists one after the other': '- a\n- b\n\n* c\n* d',
+  'a list after a paragraph': 'Items:\n\n- a\n- b',
+  'a quote': '> A quote\n> over two lines',
+  'a quote of several paragraphs': '> First\n>\n> Second',
+  'a quote inside a quote': '> Outer\n>\n> > Inner',
+  'a quote with a list': '> Things:\n>\n> - one\n> - two',
+  'a quote with code': '> Run:\n>\n> ```\n> make\n> ```',
+  'a code block': '```\nplain code\n  indented\n```',
+  'a code block with a language': '```php\n<?php echo "hi";\n```',
+  'a code block with backticks inside': '````\n```\nfenced inside\n```\n````',
+  'a code block with blank lines': '```\none\n\n\ntwo\n```',
+  'a code block of characters Markdown reads': '```\n# not a heading\n* not a list\n[x](y) <b>&amp;</b>\n```',
+  'a rule': 'Above\n\n---\n\nBelow',
+  'a table': '| Name | Qty |\n| --- | --- |\n| Apples | 3 |\n| Pears | 12 |',
+  'a table with alignment': '| Left | Centre | Right |\n| :--- | :---: | ---: |\n| a | b | c |',
+  'a table with formatting and empty cells': '| Item | Note |\n| --- | --- |\n| **Bold** | a [link](https://example.test) |\n| `code` |  |',
+  'a table with a bar in a cell': '| Command | Meaning |\n| --- | --- |\n| `a \\| b` | pipe |\n| x \\| y | text |',
+  'a table between paragraphs': 'Before.\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n\nAfter.',
+  'raw HTML kept as it is': 'Before.\n\n<iframe src="https://video.test/embed" width="100%" height="315"></iframe>\n\nAfter.',
+  'raw HTML over several lines': '<div class="note">\n  <p>Written by hand</p>\n</div>\n\nText.',
+  'raw HTML with Markdown-looking text': '<div>\n# not a heading *or* [a link](x)\n</div>',
+  'an HTML comment': '<!-- a note for the editors -->\n\nText.',
+  'an inline HTML tag': 'A <span class="mark">marked</span> word and a <kbd>key</kbd>.',
+  'underline': 'An <u>underlined</u> word.',
+  'a line break written as HTML': 'One<br>two',
+  'a definition with its address on the next line': 'See [a] here.\n\n[a]:\n/url',
+  'links by reference': 'See [the docs][1] and [the site][site].\n\n[1]: https://docs.example.test\n[site]: https://example.test "The site"',
+  'Greek text': '# Καλώς ήρθατε\n\nΤο **κείμενο** είναι στα *ελληνικά*, με τόνους: ά έ ή ί ό ύ ώ, και με «εισαγωγικά».\n\n- Πρώτο\n- Δεύτερο',
+  'Greek with intraword marks': 'Η λέξη_με_κάτω_παύλες και ένα [σύνδεσμος](https://example.test/ελληνικά).',
+  'other scripts and emoji': 'Ünïcödé, 日本語, العربية, and an emoji 🚀 in text.',
+  'other ways of writing the same blocks': 'Title\n=====\n\nSub\n---\n\n+ plus item\n+ another\n\n1) paren item\n2) second\n\nA paragraph:\n\n    indented code\n\n___\n\n~~~\ntilde fence\n~~~',
+  'a long mixed page': '# Title\n\nIntro with **bold** and a [link](/a).\n\n## Section\n\n- one\n- two\n  - nested\n\n> Quote\n\n```js\nlet a = 1;\n```\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n\n<iframe src="https://video.test/e"></iframe>\n\nThe end.',
+  'nothing': '',
+};
+
+/** Samples whose rewritten form differs from the original, with the form: other ways of writing the same page. */
+const REWRITTEN = {
+  'a line made of one character': '---',
+  'an automatic link': 'See [https://example.test/auto](https://example.test/auto) for more.',
+  'other ways of writing the same blocks': '# Title\n\n## Sub\n\n- plus item\n- another\n\n1. paren item\n2. second\n\nA paragraph:\n\n```\nindented code\n```\n\n---\n\n```\ntilde fence\n```',
+};
+
+/**
+ * What a browser leaves in the page while someone types: html of the editing surface, and the Markdown it must become.
+ */
+const DOM_CASES = [
+  { name: 'a paragraph', html: '<p>Hello world</p>', markdown: 'Hello world' },
+  { name: 'text with no paragraph at all', html: 'Just typed', markdown: 'Just typed' },
+  { name: 'text, then a paragraph', html: 'Loose<p>Tidy</p>', markdown: 'Loose\n\nTidy' },
+  { name: 'a div for a line, as a browser makes on Enter', html: '<div>One</div><div>Two</div>', markdown: 'One\n\nTwo' },
+  { name: 'bold and italic from the keyboard', html: '<p><b>bold</b> and <i>italic</i></p>', markdown: '**bold** and *italic*' },
+  { name: 'strike from the tools', html: '<p><strike>old</strike> <s>older</s> <del>oldest</del></p>', markdown: '~~old~~ ~~older~~ ~~oldest~~' },
+  { name: 'spaces kept outside the marks', html: '<p>a<b> bold </b>b</p>', markdown: 'a **bold** b' },
+  { name: 'an empty mark is nothing', html: '<p>a<b></b>b<i> </i>c</p>', markdown: 'ab c' },
+  { name: 'a non-breaking space is a space', html: '<p>one&nbsp;two&nbsp;&nbsp;three</p>', markdown: 'one two three' },
+  { name: 'invisible spaces are dropped', html: '<p>ab\u200bc</p>', markdown: 'abc' },
+  { name: 'a line break', html: '<p>one<br>two</p>', markdown: 'one\ntwo' },
+  { name: 'a line break left at the end of a line', html: '<p>one<br></p>', markdown: 'one' },
+  { name: 'an empty line is nothing', html: '<p>one</p><p><br></p><p>two</p>', markdown: 'one\n\ntwo' },
+  { name: 'a span with a style (pasted text) is just text', html: '<p><span style="font-size: 12px">plain</span></p>', markdown: 'plain' },
+  { name: 'a heading', html: '<h2>Title <i>here</i></h2>', markdown: '## Title *here*' },
+  { name: 'a heading with a line break', html: '<h3>one<br>two</h3>', markdown: '### one two' },
+  { name: 'an empty heading is nothing', html: '<h2><br></h2><p>text</p>', markdown: 'text' },
+  { name: 'a link', html: '<p><a href="https://example.test">site</a></p>', markdown: '[site](https://example.test)' },
+  { name: 'a link with a title', html: '<p><a href="/a" title="A &quot;title&quot;">a</a></p>', markdown: '[a](/a "A \\"title\\"")' },
+  { name: 'a link that opens in a new tab', html: '<p><a href="https://example.test" target="_blank" rel="noopener">site</a></p>', markdown: '[site](https://example.test){target=_blank}' },
+  { name: 'a link with no address is its text', html: '<p><a>text</a></p>', markdown: 'text' },
+  { name: 'a link with a space in the address', html: '<p><a href="/a b">a</a></p>', markdown: '[a](</a b>)', readback: '[a](/a%20b)' },
+  { name: 'an image', html: '<p><img src="/uploads/a.jpg" alt="A [cat]"></p>', markdown: '![A \\[cat\\]](/uploads/a.jpg)' },
+  { name: 'an image with no address is nothing', html: '<p>a<img alt="x">b</p>', markdown: 'ab' },
+  { name: 'text that looks like Markdown is escaped', html: '<p>*not bold* and _not italic_ and `not code`</p>', markdown: '\\*not bold\\* and \\_not italic\\_ and \\`not code\\`' },
+  { name: 'a first character that would start a block is escaped', html: '<p># not a heading</p><p>1. not a list</p><p>&gt; not a quote</p><p>- not an item</p>', markdown: '\\# not a heading\n\n1\\. not a list\n\n\\> not a quote\n\n\\- not an item' },
+  { name: 'a line of equals signs or dashes is escaped', html: '<p>Title<br>===<br>---</p>', markdown: 'Title\n\\===\n\\---' },
+  { name: 'backticks are escaped, so three of them do not start a code block', html: '<p>```<br>code</p>', markdown: '\\`\\`\\`\ncode' },
+  { name: 'a shortcode is not escaped', html: '<p>[form slug="contact"]</p>', markdown: '[form slug="contact"]' },
+  { name: 'brackets that could be a link are escaped', html: '<p>see [this](that)</p>', markdown: 'see \\[this\\](that)' },
+  { name: 'a less-than sign is escaped only before a tag', html: '<p>2 &lt; 3 and &lt;b&gt;</p>', markdown: '2 < 3 and \\<b>' },
+  { name: 'an ampersand is escaped only before an entity', html: '<p>a &amp; b and &amp;amp;</p>', markdown: 'a & b and \\&amp;' },
+  { name: 'a bullet list', html: '<ul><li>one</li><li>two</li></ul>', markdown: '- one\n- two' },
+  { name: 'a numbered list', html: '<ol><li>one</li><li>two</li></ol>', markdown: '1. one\n2. two' },
+  { name: 'a numbered list with a start', html: '<ol start="4"><li>four</li><li>five</li></ol>', markdown: '4. four\n5. five' },
+  { name: 'a nested list', html: '<ul><li>one<ul><li>a</li><li>b</li></ul></li><li>two</li></ul>', markdown: '- one\n  - a\n  - b\n- two' },
+  { name: 'a list whose items hold paragraphs is loose', html: '<ul><li><p>one</p></li><li><p>two</p></li></ul>', markdown: '- one\n\n- two' },
+  { name: 'an empty list item stays as an empty bullet', html: '<ul><li>one</li><li><br></li></ul>', markdown: '- one\n-' },
+  { name: 'two lists of the same kind apart', html: '<ul><li>a</li></ul><ul><li>b</li></ul>', markdown: '- a\n\n* b' },
+  { name: 'a quote', html: '<blockquote><p>one</p><p>two</p></blockquote>', markdown: '> one\n>\n> two' },
+  { name: 'a quote with text and no paragraph', html: '<blockquote>said</blockquote>', markdown: '> said' },
+  { name: 'a code block', html: '<pre><code>a &lt; b\n  c</code></pre>', markdown: '```\na < b\n  c\n```' },
+  { name: 'a code block with a language', html: '<pre><code class="language-php">echo 1;</code></pre>', markdown: '```php\necho 1;\n```' },
+  { name: 'a code block that holds backticks', html: '<pre><code>```\ninside\n```</code></pre>', markdown: '````\n```\ninside\n```\n````' },
+  { name: 'inline code with a backtick', html: '<p><code>a`b</code> and <code>`</code></p>', markdown: '``a`b`` and `` ` ``' },
+  { name: 'a rule', html: '<p>a</p><hr><p>b</p>', markdown: 'a\n\n---\n\nb' },
+  { name: 'a table, the first row as the head', html: '<table><thead><tr><th>A</th><th>B</th></tr></thead><tbody><tr><td>1</td><td>2</td></tr></tbody></table>', markdown: '| A | B |\n| --- | --- |\n| 1 | 2 |' },
+  { name: 'a table with alignment', html: '<table><tr><th align="left">A</th><th style="text-align: center">B</th><th align="right">C</th></tr><tr><td>1</td><td>2</td><td>3</td></tr></table>', markdown: '| A | B | C |\n| :--- | :---: | ---: |\n| 1 | 2 | 3 |' },
+  { name: 'a table with a short row', html: '<table><tr><th>A</th><th>B</th></tr><tr><td>1</td></tr></table>', markdown: '| A | B |\n| --- | --- |\n| 1 |  |' },
+  { name: 'a table in the box the site puts around it', html: '<div class="table-wrap" tabindex="0"><table><tr><th>A</th></tr><tr><td>1</td></tr></table></div>', markdown: '| A |\n| --- |\n| 1 |' },
+  { name: 'a bar in a table cell', html: '<table><tr><th>A</th></tr><tr><td>x | y</td></tr></table>', markdown: '| A |\n| --- |\n| x \\| y |' },
+  { name: 'a box of raw HTML is written as it was', html: '<div class="md-raw" contenteditable="false" data-raw="<iframe src=&quot;https://v.test&quot;></iframe>"><span class="md-raw-tag">HTML</span><code>&lt;iframe&gt;</code></div>', markdown: '<iframe src="https://v.test"></iframe>' },
+  { name: 'raw HTML inside a line', html: '<p>a <span class="md-raw-inline" contenteditable="false" data-raw="&lt;kbd&gt;">&lt;kbd&gt;</span>key<span class="md-raw-inline" data-raw="&lt;/kbd&gt;">&lt;/kbd&gt;</span></p>', markdown: 'a <kbd>key</kbd>' },
+  { name: 'underline', html: '<p>an <u>underlined</u> word</p>', markdown: 'an <u>underlined</u> word' },
+  { name: 'Greek', html: '<p>Το <b>κείμενο</b> είναι <i>ελληνικό</i>.</p>', markdown: 'Το **κείμενο** είναι *ελληνικό*.' },
+  { name: 'underscores inside a word are kept', html: '<p>snake_case_name and _x_</p>', markdown: 'snake_case_name and \\_x\\_' },
+];
+
+const nth = (surface, n) => surface.children[n];
+
+/** One block changed: that block is written again, every other one as it was. */
+const EDITS = [
+  {
+    name: 'a paragraph gets more text',
+    markdown: '# Title\n\n* odd marker list\n* kept\n\nSecond paragraph.\n\n***\n\nLast.',
+    edit: (surface) => { nth(surface, 2).appendChild(surface.ownerDocument.createTextNode(' More.')); },
+    expected: '# Title\n\n* odd marker list\n* kept\n\nSecond paragraph. More.\n\n***\n\nLast.',
+  },
+  {
+    name: 'a block is removed, and a definition in the middle moves to the end',
+    markdown: 'One\n\nTwo\n\n[1]: https://a.test\n\nThree',
+    edit: (surface) => { nth(surface, 1).remove(); },
+    expected: 'One\n\nThree\n\n[1]: https://a.test',
+  },
+  {
+    name: 'a block is added',
+    markdown: 'One\n\nThree',
+    edit: (surface, doc) => { const p = doc.createElement('p'); p.textContent = 'Two'; surface.insertBefore(p, nth(surface, 1)); },
+    expected: 'One\n\nTwo\n\nThree',
+  },
+  {
+    name: 'two blocks change places',
+    markdown: 'One\n\n* two\n* items\n\nThree',
+    edit: (surface) => { surface.insertBefore(nth(surface, 2), nth(surface, 1)); },
+    expected: 'One\n\nThree\n\n* two\n* items',
+  },
+  {
+    name: 'a block of raw HTML in the middle is untouched',
+    markdown: 'Text.\n\n<iframe src="https://v.test/e" width="100%"></iframe>\n\nMore.',
+    edit: (surface) => { nth(surface, 2).textContent = 'Changed.'; },
+    expected: 'Text.\n\n<iframe src="https://v.test/e" width="100%"></iframe>\n\nChanged.',
+  },
+  {
+    name: 'the definitions of links stay at the end',
+    markdown: 'See [it][1].\n\nAnother.\n\n[1]: https://a.test "A"',
+    edit: (surface) => { nth(surface, 1).textContent = 'Edited.'; },
+    expected: 'See [it][1].\n\nEdited.\n\n[1]: https://a.test "A"',
+  },
+  {
+    name: 'a word is made bold in an item of a list',
+    markdown: '- one\n- two\n\nAfter.',
+    edit: (surface, doc) => {
+      const li = nth(surface, 0).children[1];
+      const b = doc.createElement('b'); b.textContent = 'two'; li.textContent = ''; li.appendChild(b);
+    },
+    expected: '- one\n- **two**\n\nAfter.',
+  },
+  {
+    name: 'a definition with its address on the next line is kept',
+    markdown: 'One\n\nSee [a] here.\n\n[a]:\n/url',
+    edit: (surface) => { nth(surface, 0).appendChild(surface.ownerDocument.createTextNode('!')); },
+    expected: 'One!\n\nSee [a] here.\n\n[a]:\n/url',
+  },
+  {
+    name: 'when the server cannot say which lines a block came from, everything is written again',
+    markdown: 'One\n\n* two\n* items',
+    answer: { blocks: [{ html: '<p>One</p>', source: '' }, { html: '<ul><li>two</li><li>items</li></ul>', source: '' }], tail: '', verbatim: false },
+    edit: (surface) => { nth(surface, 0).appendChild(surface.ownerDocument.createTextNode('!')); },
+    expected: 'One!\n\n- two\n- items',
+  },
+];
+
+module.exports = { SAMPLES, REWRITTEN, DOM_CASES, EDITS };

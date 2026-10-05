@@ -2,7 +2,7 @@
 
 How to read this file: **Now** is what to do before adding more, **Next** is the order of the work worth doing, **Later** is wanted but not urgent, **Not planned** says what was decided against. What has been delivered is in `CHANGELOG.md` (by version) and in the documents under `docs/`; the list under "Where we are" is only the shape of it. Items marked *(proposal)* are a suggested order, not a decision.
 
-## Where we are (0.1.60)
+## Where we are (0.1.62)
 
 - **Theme**: one all-purpose theme (`themes/default`) that grows with blocks and variants; site changes live in `custom/`. Design system (tokens, palettes, dark mode, Inter, shapes), header (7 layouts), footer (5), phone menu and bottom bar, page templates (standard, landing, with sidebar), hero layouts, single and archive layouts per content type, branding screen. Contract: `docs/theming.md`.
 - **Blocks**: 35 block types: openers, text, media (image, gallery, slider, video, YouTube playlist), showcase (cards, portfolio with filters, logos, marquee, team, timeline, features, stats, compare, before/after), conversion (pricing with a monthly/yearly switch, forms, contact, map, banner, CTA), downloads, checklist, table, quote, divider, tabs, FAQ. 18 page layouts and 15 ready-made sections, in Greek and English.
@@ -14,12 +14,10 @@ How to read this file: **Now** is what to do before adding more, **Next** is the
 
 ## Now: before adding more
 
-Several releases were merged with only the tests of the change run, so this is debt, not a feature.
+Several releases were merged with only the tests of the change run, and CI was red on ten of them without anyone reading it. The suite and CI were read and mended in 0.1.62 (see `CHANGELOG.md`), and the visual editor's serializer has its own test. What is left of the debt is below; and from now on a merge is not finished until CI on `main` is green.
 
-1. **Run the whole suite and read CI for the last releases** (0.1.41 to 0.1.60 were not watched). Fix what is red before anything else is built on it.
-2. **An automatic test for the visual editor's serializer** (`public/assets/js/admin-editor.js`: the DOM back to Markdown). It was checked by hand against 28 samples; the Markdown is the stored format, so a regression there damages content. A Node test run by `tests/run.sh` over those samples, plus the cases found since.
-3. **Look at what was only built, not seen**: dark mode and phone width of the visual editor, the block editor and the maps; Safari, Firefox and touch; the map with the list over it in an archive; the YouTube Data API with a real key; real GPX files from a device (a long recording, one with no heights, one in KML from Google Earth). Screen readers by hand are still to do.
-4. **Known rough edges of the new maps** (small): the automatic text in a popup starts with the entry's headings when there is no excerpt; "near" lists share one limit for points and businesses, so a crowded route can push the points out (the limit should be per kind); the Map block's `list: below` means nothing over a map (read as right).
+1. **Look at what was only built, not seen**: dark mode and phone width of the visual editor, the block editor and the maps; Safari, Firefox and touch; the map with the list over it in an archive; the YouTube Data API with a real key; real GPX files from a device (a long recording, one with no heights, one in KML from Google Earth). Screen readers by hand are still to do.
+2. **Known rough edges of the new maps** (small): the automatic text in a popup starts with the entry's headings when there is no excerpt; "near" lists share one limit for points and businesses, so a crowded route can push the points out (the limit should be per kind); the Map block's `list: below` means nothing over a map (read as right).
 
 ## Next: in this order *(proposal)*
 

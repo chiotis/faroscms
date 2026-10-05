@@ -46,7 +46,10 @@ $strings->save('en', 'el', ['keys' => ['brand'], 'values' => ['Faros']]);
 $strings->save('en', 'el', ['keys' => ['read_more'], 'values' => ['Learn more']]);
 check('a key the form leaves out keeps its override', $theme->customTranslations('en'), ['brand' => 'Faros', 'read_more' => 'Learn more']);
 check('junk in the form is harmless', $strings->save('en', 'el', ['keys' => 'x', 'values' => 5, 'reset' => 'y']), ['ok' => true, 'overrides' => 2]);
-$blocked = new ThemeStrings(new Theme('/nonexistent/' . getmypid(), 'default'));
+// A theme folder that sits below a file cannot be made, not even by root (a path that is only missing can be made by root).
+$notAFolder = "$dir/not-a-folder";
+file_put_contents($notAFolder, 'x');
+$blocked = new ThemeStrings(new Theme("$notAFolder/theme", 'default'));
 check('a folder that cannot be written is reported', $blocked->save('en', 'el', ['keys' => ['a'], 'values' => ['b']])['ok'], false);
 
 // ---- the screen: areas, states, progress

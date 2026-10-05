@@ -1,7 +1,8 @@
 name: Tests
 
 # The whole suite (PHP unit checks and the browser-level HTTP tests) on every push to main and on pull requests.
-# It needs only PHP and Python 3; the repository already contains vendor/ and the compiled admin CSS, so there is no install step.
+# It needs PHP, Python 3 and Node 20 or later (the last two are on the runner); the repository already contains vendor/ and the compiled
+# admin CSS, and tests/run.sh installs the one JavaScript test tool (jsdom) from tests/js/package-lock.json, so there is no install step here.
 on:
   push:
     branches: [main]

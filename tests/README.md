@@ -5,11 +5,12 @@ One command runs everything:
 ```bash
 tests/run.sh          # all checks (about 10 seconds)
 tests/run.sh unit     # PHP checks only, no server
+tests/run.sh js       # JavaScript checks: the visual editor's serializer
 tests/run.sh http     # the browser-level tests
 tests/run.sh redirects   # one HTTP test: editor, roles, import, redirects, save, history, taxonomies, links, delete
 ```
 
-It needs PHP and Python 3 (standard library only). Nothing touches your site: the HTTP tests run against a temporary copy of the code on a free local port, seeded from `tests/fixtures/content`, and remove it afterwards. The exit code is non-zero when anything fails, so it can run in CI.
+It needs PHP, Python 3 (standard library only) and, for the JavaScript checks, Node 20 or later; the first run installs the one tool they use (jsdom) into `tests/js/node_modules` from `tests/js/package-lock.json`. Nothing touches your site: the HTTP tests run against a temporary copy of the code on a free local port, seeded from `tests/fixtures/content`, and remove it afterwards. The exit code is non-zero when anything fails, so it can run in CI.
 
 ## What is covered
 
@@ -18,6 +19,7 @@ It needs PHP and Python 3 (standard library only). Nothing touches your site: th
 | `tests/unit/blocks.php` | Block definitions, defaults, tampered values, video links, storage sanitising |
 | `tests/unit/revisions.php` | The line diff and the history store: capture, dedupe, outside changes, renames, pruning, deleted items |
 | `tests/unit/taxonomies.php` | Term addresses from names, address changes, removals, the layout choices a taxonomy stores |
+| `tests/js/serializer.test.js` | The visual editor's serializer (`public/assets/js/admin-editor.js`, the page back to Markdown), the real code run in jsdom over the texts in `tests/js/serializer-samples.js`, drawn by the server's own Markdown code. For each text: opened and left it is written back byte for byte; every block written again reads back as the same page; written twice it does not change. Also the HTML a browser leaves while typing (div, b, nbsp, empty lines), and an edit that must change one block and keep the others. When a text is found that the editor damages, add it to the samples |
 | `tests/unit/html-to-markdown.php` | HTML turned into Markdown: text, lists, tables, embeds, what is dropped, what is reported |
 | `tests/unit/wordpress-import.php` | Reading a WordPress site, the plan that changes nothing, writing pages, posts, terms and media, redirects, doing it again, files of the site's own |
 | `tests/unit/content-type-catalogue.php` | The types the theme ships, which are on, switching on and off, files kept, pages and forms always on |
