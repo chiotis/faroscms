@@ -3134,7 +3134,7 @@ final class App
             $this->users,
             $this->activityLogs,
             $this->emailLogs,
-            fn(): array => $this->listBackupSnapshots(),
+            fn(): array => $this->backupManager()->knownArchives(),
             $this->siteLimits(),
             $this->systemStatus(),
             fn(callable $can): array => $this->dashboardWatch($can)

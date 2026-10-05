@@ -102,26 +102,49 @@ final class BackupManager
     public function createSnapshot(string $reason = 'manual', bool $prune = true, bool $uploadRemote = true): array
     {
         $result = $this->backups->createFullSnapshot($this->siteSlug(), $this->meta($reason));
-        return $this->finish($result, $prune, $uploadRemote);
+        return $this->finish($result, $prune, $uploadRemote, $reason);
     }
 
     /** @return array{ok: bool, message: string, filename?: string, status?: string} */
     public function createDatabaseSnapshot(string $reason = 'manual'): array
     {
         $result = $this->backups->createDatabaseSnapshot($this->siteSlug(), $this->meta($reason));
-        return $this->finish($result, true, true);
+        return $this->finish($result, true, true, $reason);
     }
 
-    private function finish(array $result, bool $prune, bool $uploadRemote): array
+    private function finish(array $result, bool $prune, bool $uploadRemote, string $reason): array
     {
         if (($result['ok'] ?? false) !== true) {
             return $result;
         }
+        $path = (string)$result['path'];
+        $size = is_file($path) ? (int)(filesize($path) ?: 0) : 0;
         if ($prune) {
             $this->backups->prune($this->localKeep());
         }
-        $remote = $uploadRemote ? $this->uploadRemote((string)$result['path'], (string)$result['filename']) : null;
-        return $this->buildResult((string)$result['message'], (string)$result['filename'], $remote);
+        $remote = $uploadRemote ? $this->uploadRemote($path, (string)$result['filename']) : null;
+        $removed = false;
+        if ($remote !== null && ($remote['ok'] ?? false) === true && $this->keepsNoLocalCopy($reason)) {
+            // It is safe in remote storage, and the settings ask for no copy on this server.
+            $removed = ($this->backups->delete((string)$result['filename'])['ok'] ?? false) === true;
+        }
+        $built = $this->buildResult((string)$result['message'], (string)$result['filename'], $remote, $removed);
+        $built['size'] = $size;
+        return $built;
+    }
+
+    /**
+     * Whether a backup that reached remote storage is taken off this server: the ones that are scheduled or asked for are, unless
+     * the settings keep a copy here. The ones taken before an update or a restore always stay, since the update's undo and the
+     * restore need the file on this server.
+     */
+    private function keepsNoLocalCopy(string $reason): bool
+    {
+        if (!in_array($reason, ['scheduled', 'manual'], true)) {
+            return false;
+        }
+        $remote = $this->settings()['backup']['remote'] ?? [];
+        return is_array($remote) && !Format::isTruthy($remote['keep_local'] ?? false);
     }
 
     private function siteSlug(): string
@@ -150,8 +173,8 @@ final class BackupManager
     {
         try {
             $filename = (string)($result['filename'] ?? '');
-            $size = 0;
-            if ($filename !== '') {
+            $size = (int)($result['size'] ?? 0);
+            if ($filename !== '' && $size === 0) {
                 $path = $this->backups->pathFor($filename);
                 $size = $path !== null ? (int)(filesize($path) ?: 0) : 0;
             }
@@ -194,15 +217,16 @@ final class BackupManager
      * @param array<string, mixed>|null $remote
      * @return array{ok: bool, status: string, message: string, filename: string, remote: array<string, mixed>|null}
      */
-    private function buildResult(string $message, string $filename, ?array $remote): array
+    private function buildResult(string $message, string $filename, ?array $remote, bool $removedLocal = false): array
     {
         $remoteFailed = $remote !== null && (($remote['ok'] ?? false) !== true);
         return [
             'ok' => true,
             'status' => $remoteFailed ? 'warning' : 'success',
-            'message' => $message . $this->remoteMessage($remote),
+            'message' => $message . $this->remoteMessage($remote) . ($removedLocal ? ' It is not kept on this server.' : ''),
             'filename' => $filename,
             'remote' => $remote,
+            'removed_local' => $removedLocal,
         ];
     }
 
@@ -297,11 +321,40 @@ final class BackupManager
         }
     }
 
+    /**
+     * The archives on this server, newest first, with the last backup that was taken and kept only in remote storage when it is
+     * newer (marked `remote`), so a site that keeps nothing here still knows when it was last backed up.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function knownArchives(): array
+    {
+        $local = $this->backups->list();
+        $newestLocal = (int)($local[0]['mtime'] ?? 0);
+        foreach ($this->runs->recent(10) as $run) {
+            if (!in_array((string)($run['status'] ?? ''), ['success', 'warning'], true)) {
+                continue;
+            }
+            $at = (int)strtotime((string)($run['created_at'] ?? ''));
+            if ($at > $newestLocal && $this->backups->pathFor((string)($run['filename'] ?? '')) === null) {
+                array_unshift($local, [
+                    'filename' => (string)($run['filename'] ?? ''),
+                    'mtime' => $at,
+                    'size' => (int)($run['size_bytes'] ?? 0),
+                    'created_at' => (string)($run['created_at'] ?? ''),
+                    'remote' => true,
+                ]);
+            }
+            break;
+        }
+        return $local;
+    }
+
     /** @return array{label: string, value: string, status: string} */
     public function scheduleStatus(): array
     {
         $auto = is_array($this->settings()['backup']['auto'] ?? null) ? $this->settings()['backup']['auto'] : [];
-        $latest = $this->backups->list()[0] ?? null;
+        $latest = $this->knownArchives()[0] ?? null;
         $latestAge = $latest !== null ? time() - (int)$latest['mtime'] : PHP_INT_MAX;
         if (!Format::isTruthy($auto['enabled'] ?? false)) {
             // Without a schedule, only warn when nobody has taken a backup for a month.

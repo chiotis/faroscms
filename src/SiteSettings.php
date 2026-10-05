@@ -108,6 +108,7 @@ final class SiteSettings
                     'prefix' => '',
                     'keep' => 20,
                     'path_style' => false,
+                    'keep_local' => false,
                 ],
             ],
             // Keys of services the site talks to (Admin > Settings > APIs).
@@ -229,6 +230,7 @@ final class SiteSettings
             'backup_remote_prefix' => (string)($merged['backup']['remote']['prefix'] ?? ''),
             'backup_remote_keep' => (string)$remoteKeep,
             'backup_remote_path_style' => Format::isTruthy($merged['backup']['remote']['path_style'] ?? false),
+            'backup_remote_keep_local' => Format::isTruthy($merged['backup']['remote']['keep_local'] ?? false),
             'google_enabled' => Format::isTruthy($merged['auth']['google']['enabled'] ?? false),
             'google_client_id' => (string)($merged['auth']['google']['client_id'] ?? ''),
             'google_allowed_domain' => (string)($merged['auth']['google']['allowed_domain'] ?? ''),
@@ -291,6 +293,7 @@ final class SiteSettings
             'backup_remote_prefix' => (string)($post['backup_remote_prefix'] ?? ''),
             'backup_remote_keep' => (string)($post['backup_remote_keep'] ?? ''),
             'backup_remote_path_style' => isset($post['backup_remote_path_style']) ? '1' : '0',
+            'backup_remote_keep_local' => isset($post['backup_remote_keep_local']) ? '1' : '0',
             'google_enabled' => isset($post['google_enabled']) ? '1' : '0',
             'google_client_id' => (string)($post['google_client_id'] ?? ''),
             'google_client_secret' => (string)($post['google_client_secret'] ?? ''),
@@ -561,6 +564,7 @@ final class SiteSettings
                 'prefix' => trim((string)($form['backup_remote_prefix'] ?? ''), '/'),
                 'keep' => $remoteKeep,
                 'path_style' => Format::isTruthy($form['backup_remote_path_style'] ?? false),
+                'keep_local' => Format::isTruthy($form['backup_remote_keep_local'] ?? false),
             ],
         ];
 

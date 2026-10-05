@@ -23,6 +23,8 @@ Archives made before manifests existed show a **No checksums** badge. They can s
 - `Settings > Backups > Keep local` limits how many archives stay in `storage/backups/` (all types together). Pre-restore safety snapshots never trigger pruning, so the archive being restored cannot be deleted by it.
 - With remote storage enabled, each new archive is uploaded (streamed) to the S3-compatible bucket. Remote pruning only deletes FarosCMS archive names directly under the configured prefix; other objects in the bucket are never touched.
 - A failed remote upload marks the run as a **warning**. The local archive is kept and the schedule advances.
+- **No copy stays on the server by default.** Once a scheduled or manual backup (full or database-only) is confirmed uploaded, its local archive is deleted, so the server holds nothing but what it needs. Tick `Also keep a copy on this server` (`backup.remote.keep_local`) to keep both. A failed upload never deletes anything, and `pre-update` and `pre-restore` snapshots always stay on the server (an update is undone, and a restore started, from them).
+- Because the Backups screen lists the archives on this server, a backup kept only in remote storage is not listed there and cannot be restored from the admin: download the zip from the provider and put it in `storage/backups/`, and it appears in the list. The dashboard and the system check still know when the last backup was taken (from the run history).
 
 ## Verify
 
