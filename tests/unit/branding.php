@@ -129,5 +129,11 @@ $evil = ['design' => [
 $out = Branding::css($evil) . Branding::head($evil);
 check('so nothing of it survives', [has($out, '<script'), has($out, '</style'), has($out, 'body{')], [false, false, false]);
 
+// ---- the footer's credits line: links written as [text](address), everything else escaped
+use FarosCMS\Format;
+check('a credits line: a web link opens in a new tab', Format::inlineLinks('Designed by [Unicorg](https://unicorg.example/a?b=1&c=2)'), 'Designed by <a href="https://unicorg.example/a?b=1&amp;c=2" target="_blank" rel="noopener">Unicorg</a>');
+check('a site address and a mail address are links too', [Format::inlineLinks('[Home](/en/about)'), Format::inlineLinks('[Mail](mailto:a@b.gr)')], ['<a href="/en/about">Home</a>', '<a href="mailto:a@b.gr">Mail</a>']);
+check('other schemes and tags stay as plain text', [Format::inlineLinks('[x](javascript:alert(1))'), Format::inlineLinks('[x](//evil.example)'), Format::inlineLinks('<script>a</script> & "b"')], ['[x](javascript:alert(1))', '[x](//evil.example)', '&lt;script&gt;a&lt;/script&gt; &amp; &quot;b&quot;']);
+
 echo $fail === 0 ? "\nALL PASSED\n" : "\n$fail FAILED\n";
 exit($fail === 0 ? 0 : 1);

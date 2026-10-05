@@ -3054,6 +3054,28 @@ p.form-error {
   text-align: center;
 }
 
+/* The credits line under the copyright row. */
+.footer-credits {
+  margin: calc(var(--space-s) * -1) 0 0;
+  padding-bottom: var(--space-l);
+  color: var(--color-muted);
+  font-size: var(--step--1);
+}
+
+.footer-credits a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.footer-credits a:hover {
+  color: var(--accent);
+}
+
+.footer--centered .footer-credits {
+  text-align: center;
+}
+
 /* Responsive ----------------------------------------------------------------------- */
 
 @media (max-width: 960px) {

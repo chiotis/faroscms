@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.73 — 2026-10-06 — Footer: a credits line, and {copyright} for the © sign
+- **New *Credits line* in Theme > Footer**, shown under the copyright row in every footer layout (for example "Designed by Unicorg"). A link is written `[text](https://address)`; web links open in a new tab, a site path (`/about`) and `mailto:` work too, and anything else is shown as plain text (everything typed there is escaped, so no HTML gets in). Empty shows nothing.
+- **`{copyright}` is the © sign**, next to `{year}` and `{site}`, in both the copyright line and the credits line.
+- Tests: `Format::inlineLinks` (`tests/unit/branding.php`), the credits line and the token in the footer (`tests/http/header_footer_test.py`).
+
 ## 0.1.72 — 2026-10-06 — Logos: the height is a choice, and the usual one is bigger
 - **New choice in the Logos block, *Height of the logos*:** small (2.5 rem, what it was), **medium (4 rem, the new usual height)**, large (5.5 rem) or extra large (7.5 rem). The names shown as text, for a logo with no image, grow with it. Existing blocks have no choice stored, so they take medium: they are bigger than before (the old height was too small for most logos); pick *Small* to keep the old look.
 - **The taller they are, the fewer fit in a row**, because a logo is about as wide as three times its height: up to 7, 5, 4 or 3 in a row (more are in rows of the same length, as before), so a bigger height is really that height and the logos still fill the width of the content. On a tablet a row holds fewer (3, or 4 when small, 2 when large), and on a phone the heights are smaller (2, 2.75, 3.75 and 5 rem) and large and extra large logos are one to a row.

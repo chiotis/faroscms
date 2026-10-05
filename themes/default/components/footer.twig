@@ -30,7 +30,8 @@
     </ul>
   {% endif %}
 {% endset %}
-{% set copyright %}<p class="footer-copy">{% if footer.copyright|default('') %}{{ footer.copyright|replace({'{year}': 'now'|date('Y'), '{site}': site.title}) }}{% else %}© {{ "now"|date("Y") }} {{ site.title }}. {{ t('footer.rights') }}{% endif %}</p>{% endset %}
+{% set copyright %}<p class="footer-copy">{% if footer.copyright|default('') %}{{ footer.copyright|replace({'{year}': 'now'|date('Y'), '{site}': site.title, '{copyright}': '©'}) }}{% else %}© {{ "now"|date("Y") }} {{ site.title }}. {{ t('footer.rights') }}{% endif %}</p>{% endset %}
+{% set credits_markup %}{% if footer.credits|default('') %}<p class="footer-credits">{{ inline_links(footer.credits|replace({'{year}': 'now'|date('Y'), '{site}': site.title, '{copyright}': '©'})) }}</p>{% endif %}{% endset %}
 {% set brand_markup %}
   {% if brand_mode == 'logo' and brand_logo %}
     {# A dark or colour footer wears the logo for dark backgrounds; a light one wears the logo, and the dark one in dark mode. #}
@@ -167,5 +168,6 @@
         {{ extras_markup }}
       </div>
     {% endif %}
+    {{ credits_markup }}
   </div>
 </footer>
