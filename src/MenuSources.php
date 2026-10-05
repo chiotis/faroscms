@@ -104,7 +104,7 @@ final class MenuSources
             }
             $status = strtolower((string)($main->meta['status'] ?? 'published'));
             $draft = $status !== 'published' || ($main->meta['visible'] ?? true) === false;
-            $url = $type === 'pages' ? ($main->slug === $homeSlug ? '' : $main->slug) : $type . '/' . $main->slug;
+            $url = ContentPaths::build($type, $main->slug, $defaultLang, $homeSlug, $defaultLang);
             if ($url === '') {
                 continue; // the home page is offered with the lists
             }

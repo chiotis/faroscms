@@ -22,7 +22,7 @@ Options: `--profile=FILE`, `--menus`, `--custom=PATH`, `--lang=en` (language of 
 
 ## Old addresses
 
-The run writes `redirects.txt` (default `storage/import/`): one line per old address that is not the same on the new site (a post at `/slug/` is now at `/posts/slug`, a category at `/category/news/child/` is at `/category/news-child`, a picture at `/wp-content/uploads/...` is in the library). Paste it into **Admin → Redirects → Import** on the site that will serve them. An old address that is a page of the new site is never redirected.
+The run writes `redirects.txt` (default `storage/import/`): one line per old address that is not the same on the new site (a post at `/2020/05/slug/` is now at `/slug`, a category at `/category/news/child/` is at `/category/news-child`, a picture at `/wp-content/uploads/...` is in the library). Paste it into **Admin → Redirects → Import** on the site that will serve them. An old address that is a page of the new site is never redirected.
 
 ## Running it again
 

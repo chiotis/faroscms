@@ -41,7 +41,7 @@ $absolute = fn(string $path): string => 'https://s.test/' . ltrim($path, '/');
 $sitemap = new Sitemap($content, fn() => $settings, $absolute);
 $entries = $sitemap->entries();
 $locs = array_column($entries, 'loc');
-check('every public entry in every language is there, the home page at the root', [in_array('https://s.test/', $locs, true), in_array('https://s.test/about', $locs, true), in_array('https://s.test/en/about', $locs, true), in_array('https://s.test/posts/old', $locs, true), in_array('https://s.test/en/posts/old', $locs, true)], [true, true, true, true, true]);
+check('every public entry in every language is there, the home page at the root', [in_array('https://s.test/', $locs, true), in_array('https://s.test/about', $locs, true), in_array('https://s.test/en/about', $locs, true), in_array('https://s.test/old', $locs, true), in_array('https://s.test/en/old', $locs, true)], [true, true, true, true, true]);
 check('drafts and hidden entries are not', [in_array('https://s.test/draft', $locs, true), in_array('https://s.test/posts/hidden', $locs, true)], [false, false]);
 check('an entry is listed once however it is found', count($locs) === count(array_unique($locs)), true);
 check('each has the time it last changed', date('c', 1700000100), $entries[array_search('https://s.test/about', $locs, true)]['lastmod']);

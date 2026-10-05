@@ -121,8 +121,8 @@ final class WordPressImporter
                 continue;
             }
             foreach ($this->reader->entries($base) as $entry) {
-                $slug = $this->slugFor($entry, $type === 'pages' && $entry['id'] === $info['home_page_id'], $slugs[$type] ?? []);
-                $slugs[$type][$slug] = true;
+                $slug = $this->slugFor($entry, $type === 'pages' && $entry['id'] === $info['home_page_id'], $slugs[ContentPaths::isRoot($type) ? 'root' : $type] ?? []);
+                $slugs[ContentPaths::isRoot($type) ? 'root' : $type][$slug] = true;
                 $entry['type'] = $type;
                 $entry['new_slug'] = $slug;
                 $entry['new_path'] = ContentPaths::build($type, $slug, $this->lang(), $this->homeSlug(), $this->defaultLang());
@@ -156,8 +156,8 @@ final class WordPressImporter
         foreach ($scraped as $entry) {
             $entry['category_ids'] = $inCategories[$entry['link']] ?? [];
             $type = $entry['type'];
-            $slug = $this->slugFor($entry + ['title' => $entry['title']], false, $slugs[$type] ?? []);
-            $slugs[$type][$slug] = true;
+            $slug = $this->slugFor($entry + ['title' => $entry['title']], false, $slugs[ContentPaths::isRoot($type) ? 'root' : $type] ?? []);
+            $slugs[ContentPaths::isRoot($type) ? 'root' : $type][$slug] = true;
             $entry['new_slug'] = $slug;
             $entry['new_path'] = ContentPaths::build($type, $slug, $this->lang(), $this->homeSlug(), $this->defaultLang());
             $this->linkMap[self::pathOf($entry['link'])] ??= $entry['new_path'];

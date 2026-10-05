@@ -621,45 +621,30 @@ final class App
                 $this->render404();
                 return;
             }
-            $item->html = $this->applyShortcodes($item->html, $lang, $path);
-
-            $viewDefaults['canonical_url'] = $this->resolveCanonicalUrl(
-                $item->meta['seo']['canonical'] ?? null,
-                $currentUrl
-            );
-            $alternates = $this->languageAlternates()->forItem($type, $item->slug);
-            $languageLinks = $this->languageAlternates()->languageLinks($type, $item);
-            if ($type === 'forms') {
-                $formState = $this->handleFormRequest($item, $lang, $path);
-                $this->render($this->resolveItemTemplate($item), [
-                    'item' => $item,
-                    'form_fields' => $formState['fields'],
-                    'form_values' => $formState['values'],
-                    'form_errors' => $formState['errors'],
-                    'form_success' => $formState['success'],
-                    'form_message' => $formState['message'],
-                    'form_action' => $formState['action'],
-                    'form_honeypot' => $formState['honeypot'],
-                    'form_redirect' => $formState['redirect'],
-                ] + $viewDefaults + [
-                    'alternate_urls' => $alternates['urls'],
-                    'alternate_default' => $alternates['default'],
-                    'language_links' => $languageLinks,
-                ]);
-                return;
+            if (ContentPaths::isRoot($type) && $this->content->find('pages', $slug, $lang, $includeHidden, false) === null) {
+                // The old address of a post (/posts/my-post): its address now is at the root of the site. (A post whose address a page
+                // of the same name took stays where it is, so it can still be read.)
+                header('Location: /' . ContentPaths::build($type, $item->slug, $lang, $homeSlug, (string)($this->settings['languages']['default'] ?? 'en')), true, 301);
+                exit;
             }
-            $this->render($this->resolveItemTemplate($item), [
-                'item' => $item,
-                'alternate_urls' => $alternates['urls'],
-                'alternate_default' => $alternates['default'],
-                'language_links' => $languageLinks,
-            ] + $this->frontItemData($item, $lang, $path, $viewDefaults, false) + $viewDefaults);
+            $this->renderEntry($type, $item, $lang, $path, $viewDefaults, $currentUrl);
             return;
         }
 
         $slug = $route['slug'];
         $page = $this->content->find('pages', $slug, $lang, $includeHidden, false);
         if (!$page) {
+            // Posts have their address at the root too, after the pages.
+            foreach (ContentPaths::ROOT_TYPES as $type) {
+                if ($type === 'pages' || !in_array($type, $this->content->getTypes(), true)) {
+                    continue;
+                }
+                $post = $this->content->find($type, $slug, $lang, $includeHidden, false);
+                if ($post) {
+                    $this->renderEntry($type, $post, $lang, $path, $viewDefaults, $currentUrl);
+                    return;
+                }
+            }
             $this->render404();
             return;
         }
@@ -678,6 +663,48 @@ final class App
             'alternate_default' => $alternates['default'],
             'language_links' => $languageLinks,
         ] + $this->frontItemData($page, $lang, $path, $viewDefaults, $template === 'templates/home.twig') + $viewDefaults);
+    }
+
+    /**
+     * One entry of a content type (a post, a project, a form) drawn with its template.
+     *
+     * @param array<string, mixed> $viewDefaults
+     */
+    private function renderEntry(string $type, ContentItem $item, string $lang, string $path, array $viewDefaults, string $currentUrl): void
+    {
+        $item->html = $this->applyShortcodes($item->html, $lang, $path);
+
+        $viewDefaults['canonical_url'] = $this->resolveCanonicalUrl(
+            $item->meta['seo']['canonical'] ?? null,
+            $currentUrl
+        );
+        $alternates = $this->languageAlternates()->forItem($type, $item->slug);
+        $languageLinks = $this->languageAlternates()->languageLinks($type, $item);
+        if ($type === 'forms') {
+            $formState = $this->handleFormRequest($item, $lang, $path);
+            $this->render($this->resolveItemTemplate($item), [
+                'item' => $item,
+                'form_fields' => $formState['fields'],
+                'form_values' => $formState['values'],
+                'form_errors' => $formState['errors'],
+                'form_success' => $formState['success'],
+                'form_message' => $formState['message'],
+                'form_action' => $formState['action'],
+                'form_honeypot' => $formState['honeypot'],
+                'form_redirect' => $formState['redirect'],
+            ] + $viewDefaults + [
+                'alternate_urls' => $alternates['urls'],
+                'alternate_default' => $alternates['default'],
+                'language_links' => $languageLinks,
+            ]);
+            return;
+        }
+        $this->render($this->resolveItemTemplate($item), [
+            'item' => $item,
+            'alternate_urls' => $alternates['urls'],
+            'alternate_default' => $alternates['default'],
+            'language_links' => $languageLinks,
+        ] + $this->frontItemData($item, $lang, $path, $viewDefaults, false) + $viewDefaults);
     }
 
     /**
@@ -1742,7 +1769,9 @@ final class App
         if ($result['moved'] && $result['moved_together']) {
             // Menu links follow a page whose address changed in every language.
             $old = $result['original_slug'];
-            $this->menus()->relink($type === 'pages' ? $old : $type . '/' . $old, $type === 'pages' ? $slug : $type . '/' . $slug);
+            $defaultLang = $this->defaultLanguage();
+            $homeSlug = (string)(($this->settings['home_page'] ?? '') !== '' ? $this->settings['home_page'] : 'index');
+            $this->menus()->relink(ContentPaths::build($type, $old, $defaultLang, $homeSlug, $defaultLang), ContentPaths::build($type, $slug, $defaultLang, $homeSlug, $defaultLang));
         }
 
         $this->logActivity($result['was_existing'] ? 'content.update' : 'content.create', 'info', $type, $slug . ':' . $lang, ($result['was_existing'] ? 'Content updated.' : 'Content created.'), [
@@ -2674,6 +2703,17 @@ final class App
 
         $twig->addFunction(new TwigFunction('format_date', function (mixed $value): string {
             return $this->formatDateValue($value);
+        }));
+
+        // The path of an entry for a link, after the language prefix a template already has ("" or "en/"): about, my-post,
+        // projects/mine, or nothing for the home page.
+        $twig->addFunction(new TwigFunction('item_path', function (mixed $item, string $prefix = ''): string {
+            if (!$item instanceof ContentItem) {
+                return $prefix;
+            }
+            $default = $this->defaultLanguage();
+            $home = (string)(($this->settings['home_page'] ?? '') !== '' ? $this->settings['home_page'] : 'index');
+            return $prefix . ContentPaths::build($item->type, $item->slug, $default, $home, $default);
         }));
 
         $twig->addFunction(new TwigFunction('slug', function (string $value): string {

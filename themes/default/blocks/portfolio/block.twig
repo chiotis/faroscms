@@ -20,7 +20,7 @@
           {% set entry = tile.entry %}
           {% set title = entry.meta.title %}
           {% set picture = entry.meta.main_image|default('') %}
-          {% set href = url(entry.type == 'pages' ? prefix ~ entry.slug : prefix ~ entry.type ~ '/' ~ entry.slug) %}
+          {% set href = url(item_path(entry, prefix)) %}
           {% set text = entry.meta.excerpt is defined and entry.meta.excerpt is not null ? entry.meta.excerpt|striptags|trim : '' %}
         {% else %}
           {% set title = tile.title %}

@@ -51,7 +51,7 @@ check('a site that chose a title layout before finds it on the card', re.search(
 # ---- saving the cards: the page of a post changes
 # A post with no template of its own (the fixture posts ask for the sidebar one themselves).
 open('app/content/posts/typed.md', 'w', encoding='utf-8').write("---\ntitle: Typed post\nstatus: published\nvisible: true\ndate: '2026-03-01'\nexcerpt: A summary.\nauthor: Ada\ntags: [design]\n---\n\nIntro.\n\n## First\n\nText.\n\n## Second\n\nText.\n")
-post = '/posts/typed'
+post = '/typed'
 st, hdr, _ = save(root, {'single_layouts[posts][sidebar]': 'left', 'single_layouts[posts][title]': 'centered', 'single_layouts[posts][header]': 'on'})
 check('saving goes back to the same tab', st == 302 and 'saved=1' in (hdr.get('Location') or '') and 'tab=single_layouts' in (hdr.get('Location') or ''), hdr.get('Location'))
 check('what is stored is under the content type', 'single_layouts:' in stored() and re.search(r'posts:\s+title: centered\s+header: \'?on\'?\s+sidebar: left', stored()) is not None, stored()[-700:])
@@ -70,7 +70,7 @@ check('a box that is not ticked switches the part off', 'single-hero-subtitle' n
 check('and the sidebar is on the right again', 'class="site-wrap with-sidebar"' in html)
 # ---- a single entry can still choose
 open('app/content/posts/own.md', 'w', encoding='utf-8').write("---\ntitle: Own layout\nstatus: published\nvisible: true\ndate: '2026-03-01'\ntemplate: standard\nhero_layout: minimal\n---\n\nText.\n")
-st, _, html = pub.get('/posts/own')
+st, _, html = pub.get('/own')
 check('an entry can ask for the plain layout, and its own title area', st == 200 and 'with-sidebar' not in html and 'single-hero-minimal' in html, st)
 st, _, html = root.get('/admin/edit?type=posts&slug=own&lang=el')
 check('the editor offers the plain layout and says what the others get', 'value="standard"' in html and 'Like the others (With sidebar)' in html, '')

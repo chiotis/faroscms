@@ -156,7 +156,7 @@ final class BlockRuntime
             fn(string $type, string $lang): array => in_array($type, $this->content->getTypes(), true) ? $this->content->getItems($type, $lang, ($this->signedIn)(), false) : [],
             fn(string $type, string $lang): string => $this->typeLabel($type, $lang),
             fn(string $slug, string $lang): string => ($this->termLabel)('categories', $slug, $lang),
-            fn(ContentItem $item, string $lang): string => ($this->absoluteUrl)(FrontRoute::langPrefix($lang, ($this->defaultLanguage)()) . ($item->type === 'pages' ? '' : $item->type . '/') . $item->slug),
+            fn(ContentItem $item, string $lang): string => ($this->absoluteUrl)(ContentPaths::build($item->type, $item->slug, $lang, (string)((($this->settings)()['home_page'] ?? '') !== '' ? ($this->settings)()['home_page'] : 'index'), ($this->defaultLanguage)())),
             fn(): array => array_values(array_filter($this->content->getTypes(), fn(string $type): bool => $type !== 'forms' && $type !== 'pages' && $this->hasPlaceField($type))),
             [
                 'tiles_url' => (string)(($this->settings)()['apis']['maps']['tiles_url'] ?? ''),

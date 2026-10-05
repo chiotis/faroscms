@@ -125,7 +125,7 @@
             {% for entry in found|slice(0, 6) %}
               {% set other = entry.item %}
               <li>
-                <a class="place-near-item" href="{{ url(prefix ~ other.type ~ '/' ~ other.slug) }}">
+                <a class="place-near-item" href="{{ url(item_path(other, prefix)) }}">
                   <span class="place-near-media">{% if other.meta.main_image|default('') %}{{ image(other.meta.main_image, {alt: '', sizes: '96px', max_width: 240}) }}{% endif %}</span>
                   <span class="place-near-body">
                     <span class="place-near-title">{{ other.meta.title }}</span>
