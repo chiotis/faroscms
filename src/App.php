@@ -1985,6 +1985,7 @@ final class App
             'single_cards' => $single->declared() ? $this->layoutsAdmin()->singleCards($this->themeSettings, $default) : [],
             'archive_cards' => $this->layoutsAdmin()->archiveCards($default),
             'archive_layouts' => ContentTypes::LAYOUTS,
+            'archive_title_layouts' => ContentTypes::TITLE_LAYOUTS,
             'archive_columns' => ['2', '3', '4'],
             'sidebar_section' => $schema['sidebar'] ?? null,
         ]);

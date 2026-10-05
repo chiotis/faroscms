@@ -35,7 +35,7 @@
   {% set title_image = opening.image(item, theme_settings)|trim %}
   {% set transparent_on_dark = transparent_header and (title_layout == 'cover' or (title_layout == 'default' and title_image)) %}
 {% else %}
-  {% set transparent_on_dark = transparent_header and (slider_opens or lead_block.variant in ['cover', 'steps'] or lead_block.tone in ['contrast', 'accent']) %}
+  {% set transparent_on_dark = transparent_header and (slider_opens or lead_block.variant in ['cover', 'steps'] or lead_block.tone in ['contrast', 'accent'] or opens_on_dark|default(false)) %}
 {% endif %}
 {% set og_locales = {'el': 'el_GR', 'en': 'en_US', 'de': 'de_DE', 'fr': 'fr_FR', 'it': 'it_IT', 'es': 'es_ES'} %}
 <html lang="{{ current_language }}" data-theme="{{ palette }}" data-mode="{{ mode }}" data-font="{{ font }}" data-shape="{{ shape }}" data-glow="{{ glow }}">

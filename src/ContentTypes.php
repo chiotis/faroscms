@@ -49,6 +49,9 @@ final class ContentTypes
         'map' => 'Map with a list',
     ];
 
+    /** The title areas a list can open with: the ones an entry's page has (Hero block layouts). */
+    public const TITLE_LAYOUTS = ['default' => 'Default', 'centered' => 'Centered', 'split' => 'Split', 'cover' => 'Cover', 'minimal' => 'Minimal'];
+
     /** How tall the map of the map layout is, and where its list sits. */
     public const MAP_HEIGHTS = ['small' => 'Small', 'medium' => 'Medium', 'large' => 'Large', 'tall' => 'Tall'];
     public const MAP_LISTS = ['right' => 'Right', 'left' => 'Left', 'below' => 'Below', 'over_right' => 'Over the map, right', 'over_left' => 'Over the map, left', 'none' => 'No list'];
@@ -428,6 +431,10 @@ final class ContentTypes
             'show_meta' => ['type' => 'toggle', 'label' => 'Show category and card fields', 'default' => true],
             'map_height' => ['type' => 'select', 'label' => 'Map height', 'default' => 'large', 'options' => self::MAP_HEIGHTS],
             'map_list' => ['type' => 'select', 'label' => 'List beside the map', 'default' => 'right', 'options' => self::MAP_LISTS],
+            // The title area above the list: one of the layouts of an entry's title area, with a picture it may use and parallax for it.
+            'title_layout' => ['type' => 'select', 'label' => 'Title area', 'default' => 'default', 'options' => self::TITLE_LAYOUTS],
+            'title_image' => ['type' => 'image', 'label' => 'Picture of the title area', 'default' => ''],
+            'title_parallax' => ['type' => 'toggle', 'label' => 'Parallax', 'default' => false],
         ]);
     }
 
@@ -467,15 +474,18 @@ final class ContentTypes
     {
         $schema = self::archiveSchema();
         $submitted = [];
-        foreach (['layout', 'columns', 'map_height', 'map_list'] as $key) {
+        foreach (['layout', 'columns', 'map_height', 'map_list', 'title_layout'] as $key) {
             $submitted[$key] = FieldSchema::clean($schema[$key], $input[$key] ?? null);
         }
+        // An invalid picture address changes nothing; an empty one takes the picture away.
+        $image = trim((string)($input['title_image'] ?? ''));
+        $submitted['title_image'] = $image === '' ? '' : (string)FieldSchema::clean($schema['title_image'], $image);
         $order = (string)($input['order'] ?? '');
         $submitted['order'] = isset(self::ORDERS[$order]) || ($fieldOrders && preg_match('/^field:[a-z][a-z0-9_]*:(asc|desc)$/', $order))
             ? $order
             : $defaults['order'];
         $submitted['per_page'] = FieldSchema::clean($schema['per_page'], $input['per_page'] ?? null);
-        foreach (['show_image', 'show_excerpt', 'show_date', 'show_meta'] as $key) {
+        foreach (['show_image', 'show_excerpt', 'show_date', 'show_meta', 'title_parallax'] as $key) {
             $submitted[$key] = FieldSchema::isTruthy($input[$key] ?? false);
         }
         $chosen = array_map('strval', is_array($input['taxonomies'] ?? null) ? $input['taxonomies'] : []);
