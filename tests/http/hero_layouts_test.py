@@ -24,7 +24,7 @@ def header(path):
     m = re.search(r'<section class="(single-hero[^"]*)"[^>]*>(.*?)</section>', html, re.S)
     return st, (m.group(1) if m else ''), (m.group(2) if m else ''), html
 
-post = '/posts/rebrand-readiness-guide'
+post = '/rebrand-readiness-guide'
 project = '/projects/gamma-hospitality-rebrand'
 st, _, _, _ = header(post)
 if st != 200:
@@ -33,8 +33,8 @@ st, _, _, _ = header('/en/projects/gamma-hospitality-rebrand')
 project = '/en/projects/gamma-hospitality-rebrand' if st == 200 else '/projects/gamma-hospitality-rebrand'
 
 # A post with the standard template (the fixture posts use the sidebar one, which has no line above the title).
-open('app/content/posts/plain.md', 'w', encoding='utf-8').write("---\ntitle: Plain post\nstatus: published\nvisible: true\ndate: '2026-03-01'\nauthor: Ada\nexcerpt: A short summary.\ntags: [design]\ncategories: [news]\nmain_image: /uploads/media/5e6915a67b9ceec5.jpg\n---\n\nText.\n")
-plain = post.rsplit('/', 1)[0] + '/plain'
+open('app/content/posts/plain-post.md', 'w', encoding='utf-8').write("---\ntitle: Plain post\nstatus: published\nvisible: true\ndate: '2026-03-01'\nauthor: Ada\nexcerpt: A short summary.\ntags: [design]\ncategories: [news]\nmain_image: /uploads/media/5e6915a67b9ceec5.jpg\n---\n\nText.\n")
+plain = '/plain-post'
 
 # ---- the layouts that already existed keep their markup
 layouts(default='default')

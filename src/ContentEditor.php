@@ -620,23 +620,35 @@ final class ContentEditor
     }
 
     /**
-     * A web address nobody else has: the requested one, or with -2, -3 ... added. Pages live at the root of the site,
-     * so they cannot take a word the site already uses (admin, search, a content type, a language code).
+     * A web address nobody else has: the requested one, or with -2, -3 ... added. Pages and posts live at the root of the site,
+     * so they cannot take a word the site already uses (admin, search, a content type, a language code), and a page and a post
+     * cannot share an address in the same language.
      */
     private function availableSlug(string $type, string $slug, string $lang, string $ownPath): string
     {
         $base = $slug;
-        if ($type === 'pages') {
+        $root = ContentPaths::isRoot($type);
+        if ($root) {
             $reserved = array_merge($this->content->getTypes(), (array)($this->settings['languages']['available'] ?? []));
             if (Slug::isReserved($base, $reserved)) {
                 $base .= '-page';
             }
         }
-        $dir = $this->contentDir . '/' . $type;
+        $dirs = [$this->contentDir . '/' . $type];
+        if ($root) {
+            $dirs = array_map(fn(string $t): string => $this->contentDir . '/' . $t, ContentPaths::ROOT_TYPES);
+        }
         $candidate = $base;
         for ($n = 2; $n < 500; $n++) {
-            $candidatePath = $dir . '/' . $this->paths()->filename($candidate, $lang);
-            if (!file_exists($candidatePath) || $candidatePath === $ownPath) {
+            $taken = false;
+            foreach ($dirs as $dir) {
+                $candidatePath = $dir . '/' . $this->paths()->filename($candidate, $lang);
+                if (file_exists($candidatePath) && $candidatePath !== $ownPath) {
+                    $taken = true;
+                    break;
+                }
+            }
+            if (!$taken) {
                 break;
             }
             $candidate = $base . '-' . $n;

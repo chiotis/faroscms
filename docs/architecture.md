@@ -14,13 +14,16 @@ Before the application boots, `public/index.php` hands `/_themes/…` and `/_cus
 
 | Class | Responsibility |
 |-------|----------------|
-| `App` | Routing, request handlers, and the wiring of the classes below. Still the largest file (about 3,100 lines); new behaviour should go into a focused class, as content saving did (`ContentEditor`). |
+| `App` | Routing, request handlers, and the wiring of the classes below. Still the largest file (about 3,500 lines); new behaviour should go into a focused class, as content saving did (`ContentEditor`). |
 | `ContentRepository` / `ContentItem` | Reads Markdown files with YAML front matter; listing, lookup, and frontend search. |
 | `ContentIndex` | SQLite `content_index` kept in sync with the files; admin search and staleness checks. |
 | `Auth` | Session sign-in (SQLite users, YAML fallback), session rotation, per-request user refresh, shipped-password detection. |
 | `UserRepository` | SQLite users: CRUD, YAML import, superadmin guarantee. |
 | `PermissionService` | Role capabilities (`superadmin`, `admin`, `editor`, `user`), the capability catalogue, the super admin's per-role changes (`system_meta.role_permissions`) and roles of the site's own (`system_meta.custom_roles`), and route-to-capability mapping; unmapped routes are administrator-only. |
 | `ContentEditor` | Saving a content item from the editor form: address (from the title, made unique, kept or changed), front matter from the submitted fields, raw HTML guard, writing the file, moving translations, redirects. Takes the submitted fields and returns what happened; knows nothing about requests, sessions, or menus. |
+| `PageTwigFunctions`, `GeoTwigFunctions` | The template functions that read the site's choices as they are when called: analytics, SEO and branding for a page's head and tail, and the maps of content. |
+| `BlockRuntime` | What the blocks of a page need from the site: the block registry and the choices it offers, the renderer for a page's blocks (entries, forms, playlists, maps), the maps of content (`GeoView`) and the YouTube services (`YouTubePlaylist`, `YouTubeThumbs`), each built when first asked for. |
+| `LoginController` | The addresses of the admin that need no sign-in: the login screen and a password sign-in, signing in with Google, signing out, and the first administrator of a site with no account. It builds `SignIn`, `GoogleSignIn` and `FirstAdmin`, and draws and redirects only through closures. |
 | `HtmlGuard` | Neutralises raw HTML for people without `content.raw_html`, leaving HTML already stored in a file alone. |
 | `FormFields` | Form field types (including the two that only show something), widths, the choices of a field, and cleaning of what the form builder sends (no two fields share a name). |
 | `ContentPaths` | File names and public paths of content from the language and home page settings. |

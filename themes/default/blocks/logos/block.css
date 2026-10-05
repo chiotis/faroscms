@@ -10,19 +10,32 @@
 }
 
 .logos-list {
+  /* The logos share the full width of the content. The columns are worked out from how many there are (--logo-cols, in the
+     block's markup); each row is as wide as the content, and a last row with fewer logos spreads over it too. */
+  --logo-per-row: var(--logo-cols, 4);
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: stretch;
   justify-content: center;
-  gap: var(--space-l) clamp(2rem, 1rem + 4vw, 4.5rem);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
+@media (max-width: 48rem) {
+  .logos-list { --logo-per-row: min(var(--logo-cols, 4), 4); }
+}
+
+@media (max-width: 30rem) {
+  .logos-list { --logo-per-row: min(var(--logo-cols, 4), 2); }
+}
+
 .logo-item {
   display: grid;
+  flex: 1 1 calc(100% / var(--logo-per-row));
+  min-width: 0;
   place-items: center;
+  padding: var(--space-s) var(--space-m);
 }
 
 .logo-link {
@@ -34,7 +47,7 @@
 
 .logo-image {
   width: auto;
-  max-width: 10rem;
+  max-width: min(10rem, 100%);
   height: 2.5rem;
   object-fit: contain;
   filter: grayscale(1);
@@ -61,10 +74,22 @@
   color: var(--color-text);
 }
 
+/* Always black and white: pointing at a logo only makes it stronger. */
+[data-colors="mono"] .logo-link:hover .logo-image {
+  filter: grayscale(1);
+}
+
+/* Their own colours. */
+[data-colors="color"] .logo-image {
+  filter: none;
+  opacity: 1;
+}
+
+[data-colors="color"] .logo-wordmark {
+  color: var(--color-text);
+}
+
 .block--grid .logos-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 11rem), 1fr));
-  gap: 0;
   overflow: hidden;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-l);

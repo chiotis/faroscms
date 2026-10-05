@@ -42,6 +42,7 @@ file_put_contents("$dir/content/forms/contact.md", "---\ntitle: Contact\ntags: [
 
 // ---- a new taxonomy
 file_put_contents("$dir/content/pages/showcase.md", "---\ntitle: Showcase\nstatus: published\n---\nBody\n");
+file_put_contents("$dir/content/posts/launch.md", "---\ntitle: Launch\nstatus: published\n---\nBody\n");
 $content = new ContentRepository("$dir/content", new MarkdownConverter($environment), $settings);
 $editor = new TaxonomyEditor($store, $redirects, $content, fn() => $menus);
 $made = $editor->create('Project types', '', ['projects', 'nonsense', 'pages'], ['el', 'en'], 'index', 'tester');
@@ -58,6 +59,7 @@ check('so is one that starts with a number, is one letter, or has odd characters
 check('a word the site uses is refused: reserved, a language, a content type, a taxonomy, the home page, a page', [
     $refused('A', 'admin'), $refused('A', 'en'), $refused('A', 'posts'), $refused('A', 'sectors'), $refused('A', 'tags'), $refused('A', 'index'), $refused('A', 'showcase'),
 ], [true, true, true, true, true, true, true]);
+check('an address a post has is refused, as one a page has', $editor->create('A', 'launch', [], ['el', 'en'], 'index', 'tester')['error'], 'There is a post at /launch. Choose another address, or rename it first.');
 check('a different home page name is refused too', $editor->create('A', 'welcome', [], ['el', 'en'], 'welcome', 'tester')['error'] !== '', true);
 check('and nothing is written when refused', $store->names(), ['categories', 'kladoi', 'project-types', 'sectors', 'tags']);
 

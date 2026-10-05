@@ -1,10 +1,14 @@
 {% set prefix = lang_prefix|default('') %}
-<div class="container">
+{% set shown = block.items|filter(l => l.name or l.image) %}
+{# However many there are, they fill the width of the content: one row up to six, and more in rows of the same length (7 in 4 and 3, 18 in 6, 6 and 6). #}
+{% set rows = max(1, (shown|length / 6)|round(0, 'ceil')) %}
+{% set cols = max(1, (shown|length / rows)|round(0, 'ceil'))|number_format(0, '.', '') %}
+<div class="container" data-colors="{{ block.colors|default('hover') }}">
   {% if block.heading %}
     <{{ heading_tag }} class="logos-heading" id="{{ block_uid }}-title">{{ block.heading }}</{{ heading_tag }}>
   {% endif %}
-  <ul class="logos-list" role="list">
-    {% for logo in block.items|filter(l => l.name or l.image) %}
+  <ul class="logos-list" role="list" style="--logo-cols: {{ cols }}">
+    {% for logo in shown %}
       {% set href = link_url(logo.url, prefix) %}
       {% set mark %}
         {% if logo.image %}

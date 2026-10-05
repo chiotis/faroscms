@@ -41,10 +41,10 @@ check('the website is only offered on the home page, its pages point to it', 'We
 
 # ---- a post with everything
 save(root, 'posts', 'full-post', {'author': 'Jane Doe', 'date': '2026-03-04', 'excerpt': 'Short summary of the post.', 'main_image': '/uploads/media/faros-demo-lake.jpg'})
-st, n, blocks, html = graph(anon, '/en/posts/full-post')
+st, n, blocks, html = graph(anon, '/en/full-post')
 post = n.get('BlogPosting', [{}])[0]
 check('a post is a BlogPosting', st == 200 and len(n.get('BlogPosting', [])) == 1, list(n))
-check('with its title, address, and language', post.get('headline') == 'Full Post' and post['url'].endswith('/en/posts/full-post') and post['mainEntityOfPage'] == {'@type': 'WebPage', '@id': post['url']} and post['inLanguage'] == 'en', post)
+check('with its title, address, and language', post.get('headline') == 'Full Post' and post['url'].endswith('/en/full-post') and post['mainEntityOfPage'] == {'@type': 'WebPage', '@id': post['url']} and post['inLanguage'] == 'en', post)
 check('the author is the person named in the editor', post.get('author') == {'@type': 'Person', 'name': 'Jane Doe'}, post.get('author'))
 check('the publisher is the organization', post.get('publisher') == {'@id': n['Organization'][0]['@id']})
 check('it has the day it was published', post.get('datePublished', '').startswith('2026-03-04'), post.get('datePublished'))
@@ -55,7 +55,7 @@ check('the breadcrumb names where it is', [i['name'] for i in n['BreadcrumbList'
 
 # ---- a post with nothing: the organization is the author, and the site's picture stands in
 save(root, 'posts', 'bare-post', {})
-st, n, _, _ = graph(anon, '/en/posts/bare-post')
+st, n, _, _ = graph(anon, '/en/bare-post')
 bare = n['BlogPosting'][0]
 check('with no author named, the organization is the author', bare['author'] == {'@id': n['Organization'][0]['@id']}, bare['author'])
 import datetime
@@ -64,18 +64,18 @@ check('with no picture, there is none', 'image' not in bare, bare.get('image'))
 
 # ---- a date the YAML reader turned into a number, and a long title
 save(root, 'posts', 'stamp-post', {'date': '1768867200', 'title': 'T' * 200})
-st, n, _, _ = graph(anon, '/en/posts/stamp-post')
+st, n, _, _ = graph(anon, '/en/stamp-post')
 stamp = n['BlogPosting'][0]
 check('a date that is a Unix time is understood', stamp.get('datePublished', '').startswith('2026-01-20'), stamp.get('datePublished'))
 check('a title is cut at 110 characters for the headline', len(stamp['headline']) == 110, len(stamp['headline']))
 
 # ---- the picture falls back: SEO image, then the first in the blocks, then the site's
 save(root, 'posts', 'seo-post', {'seo_og_image': '/uploads/media/faros-demo-path.jpg', 'blocks_editor': '1', 'blocks_json': json.dumps([{'type': 'hero', 'heading': 'Hi', 'image': '/uploads/media/faros-demo-rocks.jpg'}])})
-st, n, _, _ = graph(anon, '/en/posts/seo-post')
+st, n, _, _ = graph(anon, '/en/seo-post')
 img = n['BlogPosting'][0].get('image', '')
 check('the SEO share image comes before the blocks', img.endswith('faros-demo-path.jpg'), img)
 save(root, 'posts', 'block-post', {'blocks_editor': '1', 'blocks_json': json.dumps([{'type': 'hero', 'heading': 'Hi', 'image': '/uploads/media/faros-demo-rocks.jpg'}])})
-st, n, _, _ = graph(anon, '/en/posts/block-post')
+st, n, _, _ = graph(anon, '/en/block-post')
 check('otherwise the first picture in its blocks', n['BlogPosting'][0].get('image', '').endswith('faros-demo-rocks.jpg'), n['BlogPosting'][0].get('image'))
 
 # ---- projects are articles
@@ -95,7 +95,7 @@ check('a page is not an article', 'BlogPosting' not in n and 'Article' not in n)
 
 # ---- text in a title cannot break out of the script tag
 save(root, 'posts', 'evil-post', {'title': 'Bad </script><script>alert(1)</script> & "quotes"', 'author': "O'Neil </script>"})
-st, n, blocks, html = graph(anon, '/en/posts/evil-post')
+st, n, blocks, html = graph(anon, '/en/evil-post')
 ld = ''.join(blocks)
 check('markup in a title or author cannot end the script tag', st == 200 and '</script>' not in ld and '<script>' not in ld and n['BlogPosting'][0]['headline'].startswith('Bad </script>'), ld[:300])
 
@@ -109,7 +109,7 @@ check('then the organization has one', cp.get('telephone') == '+30 210 0000000' 
 
 # ---- every page of the site still gives valid JSON-LD
 bad = []
-for path in ['/', '/en/', '/en/about', '/en/posts', '/en/posts/full-post', '/en/projects', '/en/search?q=x', '/en/tag/strategy', '/en/nothing-here']:
+for path in ['/', '/en/', '/en/about', '/en/posts', '/en/full-post', '/en/projects', '/en/search?q=x', '/en/tag/strategy', '/en/nothing-here']:
     try: graph(anon, path)
     except Exception as e: bad.append((path, repr(e)[:80]))
 check('every kind of public page gives JSON-LD that parses', not bad, bad)

@@ -7,12 +7,8 @@ namespace FarosCMS;
 use League\CommonMark\Environment\Environment;
 use League\CommonMark\Extension\Attributes\AttributesExtension;
 use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
-use League\CommonMark\Extension\CommonMark\Node\Block\HtmlBlock;
-use League\CommonMark\Extension\CommonMark\Node\Inline\HtmlInline;
 use League\CommonMark\Extension\Strikethrough\StrikethroughExtension;
 use League\CommonMark\Extension\Table\TableExtension;
-use League\CommonMark\Node\Block\AbstractBlock;
-use League\CommonMark\Parser\MarkdownParser;
 use League\CommonMark\MarkdownConverter;
 use Symfony\Component\Yaml\Yaml;
 use Twig\Environment as TwigEnvironment;
@@ -40,6 +36,7 @@ final class App
     private NotificationRepository $notifications;
     private BackupRunRepository $backupRuns;
     private LoginThrottle $loginThrottle;
+    private ?LoginController $loginControllerService = null;
     private BackupService $backups;
     private FormSubmissionRepository $formSubmissions;
     private ContentIndex $contentIndex;
@@ -48,7 +45,7 @@ final class App
     private Theme $theme;
     private Images $images;
     private MarkdownConverter $markdown;
-    private ?BlockRegistry $blockRegistry = null;
+    private ?BlockRuntime $blockRuntime = null;
     private ?PresetLibrary $presetLibrary = null;
     private ?ContentTypes $contentTypes = null;
     private string $currentLang;
@@ -65,15 +62,11 @@ final class App
     private ?SettingsAdmin $settingsAdminService = null;
     private ?AdminChrome $adminChromeService = null;
     private ?UpdateInstaller $updateInstallerService = null;
-    private ?FirstAdmin $firstAdminService = null;
     private ?MenuAdmin $menuAdminService = null;
     /** @var array<string, array<string, string>> the theme's text by language, for the labels the menu editor leaves to the theme */
     private array $menuStrings = [];
     private ?LogAdmin $logAdminService = null;
     private ?AdminNotices $adminNoticesService = null;
-    private ?YouTubePlaylist $youtubePlaylistService = null;
-    private ?YouTubeThumbs $youtubeThumbsService = null;
-    private ?GeoView $geoViewService = null;
     private ?UpdateAdmin $updateAdminService = null;
     private ?RevisionAdmin $revisionAdminService = null;
     private ?ContentAdmin $contentAdminService = null;
@@ -94,8 +87,6 @@ final class App
     private ?DashboardData $dashboardDataService = null;
     private ?FormsAdmin $formsAdminService = null;
     private ?FormProcessor $formProcessorService = null;
-    private ?SignIn $signInService = null;
-    private ?GoogleSignIn $googleSignInService = null;
     private ?RoleAdmin $roleAdminService = null;
     private ?UserAdmin $userAdminService = null;
     private ?ContentTypeAdmin $contentTypeAdminService = null;
@@ -207,7 +198,7 @@ final class App
             $this->theme,
             $this->redirects,
             $this->htmlGuard(),
-            fn(): BlockRegistry => $this->blockRegistry(),
+            fn(): BlockRegistry => $this->blockRuntime()->registry(),
             fn(): array => $this->taxonomies()->names(),
             $this->revisions
         );
@@ -261,7 +252,7 @@ final class App
             fn(): array => $this->themeSettings,
             fn(): Taxonomies => $this->taxonomies(),
             fn(): LinkScanner => $this->linkScanner(),
-            fn(): BlockRegistry => $this->blockRegistry(),
+            fn(): BlockRegistry => $this->blockRuntime()->registry(),
             fn(): PresetLibrary => $this->presetLibrary(),
             fn(string $path): string => $this->buildAbsoluteUrl($path)
         );
@@ -431,8 +422,8 @@ final class App
             fn(string $isoDate) => $this->updateBackupLastRun($isoDate),
             fn(string $action, string $level, ?string $type, ?string $id, string $message, array $context) => $this->logActivity($action, $level, $type, $id, $message, $context),
             function (): array {
-                $this->youtubePlaylistService = null;
-                return $this->youtubePlaylist()->test();
+                $this->blockRuntime()->resetYoutube();
+                return $this->blockRuntime()->youtubePlaylist()->test();
             }
         );
     }
@@ -451,7 +442,7 @@ final class App
 
     private function htmlGuard(): HtmlGuard
     {
-        return $this->htmlGuard ??= new HtmlGuard(fn(): Environment => $this->markdownEnvironment(), fn(): BlockRegistry => $this->blockRegistry());
+        return $this->htmlGuard ??= new HtmlGuard(fn(): Environment => $this->markdownEnvironment(), fn(): BlockRegistry => $this->blockRuntime()->registry());
     }
 
     private function markdownConverter(): MarkdownConverter
@@ -466,7 +457,7 @@ final class App
             // [text](javascript:…) and similar links lose their address instead of running script when clicked.
             'allow_unsafe_links' => false,
             // [text](address){target=_blank} opens a link in a new tab (with rel noopener); no other attribute is accepted.
-            'attributes' => ['allow' => ['target']],
+            'attributes' => ['allow' => ['target', 'align']],
             // A wide table scrolls inside its own box; tabindex lets keyboard users scroll it.
             'table' => ['wrap' => ['enabled' => true, 'tag' => 'div', 'attributes' => ['class' => 'table-wrap', 'tabindex' => '0']]],
         ]);
@@ -476,39 +467,6 @@ final class App
         $environment->addExtension(new StrikethroughExtension());
         $environment->addExtension(new AttributesExtension());
         return $environment;
-    }
-
-    /**
-     * Shows raw HTML as plain text instead of letting it through, except HTML that is already in the
-     * content being edited (placed there by someone allowed to), so an edit never breaks an embed.
-     *
-     * @param string[] $allowed HTML fragments to leave as they are
-     */
-    private function neutralizeRawHtml(string $markdown, array $allowed = []): string
-    {
-        return $this->htmlGuard()->neutralize($markdown, $allowed);
-    }
-
-    /**
-     * Raw HTML fragments in the Markdown of an existing content file (its body and its blocks' Markdown fields).
-     *
-     * @return string[]
-     */
-    private function storedHtmlFragments(string $path): array
-    {
-        return $this->htmlGuard()->storedFragments($path);
-    }
-
-    /**
-     * Applies $change to every Markdown field of the blocks (including items inside repeaters) and returns the blocks.
-     *
-     * @param array<int, mixed> $blocks
-     * @param \Closure(string): string $change
-     * @return array<int, mixed>
-     */
-    private function eachMarkdownField(array $blocks, \Closure $change): array
-    {
-        return $this->htmlGuard()->eachMarkdownField($blocks, $change);
     }
 
     private function configureSession(): void
@@ -590,7 +548,7 @@ final class App
         $this->setLanguage($lang);
         $includeHidden = $this->auth->check();
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['form_slug']) && ($segments[0] ?? '') !== 'forms') {
-            $formSlug = $this->slugify((string)($_POST['form_slug'] ?? ''));
+            $formSlug = Slug::plain((string)($_POST['form_slug'] ?? ''));
             if ($formSlug !== '') {
                 $formItem = $this->content->find('forms', $formSlug, $lang, $includeHidden, false);
                 if ($formItem) {
@@ -663,45 +621,30 @@ final class App
                 $this->render404();
                 return;
             }
-            $item->html = $this->applyShortcodes($item->html, $lang, $path);
-
-            $viewDefaults['canonical_url'] = $this->resolveCanonicalUrl(
-                $item->meta['seo']['canonical'] ?? null,
-                $currentUrl
-            );
-            $alternates = $this->languageAlternates()->forItem($type, $item->slug);
-            $languageLinks = $this->languageAlternates()->languageLinks($type, $item);
-            if ($type === 'forms') {
-                $formState = $this->handleFormRequest($item, $lang, $path);
-                $this->render($this->resolveItemTemplate($item), [
-                    'item' => $item,
-                    'form_fields' => $formState['fields'],
-                    'form_values' => $formState['values'],
-                    'form_errors' => $formState['errors'],
-                    'form_success' => $formState['success'],
-                    'form_message' => $formState['message'],
-                    'form_action' => $formState['action'],
-                    'form_honeypot' => $formState['honeypot'],
-                    'form_redirect' => $formState['redirect'],
-                ] + $viewDefaults + [
-                    'alternate_urls' => $alternates['urls'],
-                    'alternate_default' => $alternates['default'],
-                    'language_links' => $languageLinks,
-                ]);
-                return;
+            if (ContentPaths::isRoot($type) && $this->content->find('pages', $slug, $lang, $includeHidden, false) === null) {
+                // The old address of a post (/posts/my-post): its address now is at the root of the site. (A post whose address a page
+                // of the same name took stays where it is, so it can still be read.)
+                header('Location: /' . ContentPaths::build($type, $item->slug, $lang, $homeSlug, (string)($this->settings['languages']['default'] ?? 'en')), true, 301);
+                exit;
             }
-            $this->render($this->resolveItemTemplate($item), [
-                'item' => $item,
-                'alternate_urls' => $alternates['urls'],
-                'alternate_default' => $alternates['default'],
-                'language_links' => $languageLinks,
-            ] + $this->frontItemData($item, $lang, $path, $viewDefaults, false) + $viewDefaults);
+            $this->renderEntry($type, $item, $lang, $path, $viewDefaults, $currentUrl);
             return;
         }
 
         $slug = $route['slug'];
         $page = $this->content->find('pages', $slug, $lang, $includeHidden, false);
         if (!$page) {
+            // Posts have their address at the root too, after the pages.
+            foreach (ContentPaths::ROOT_TYPES as $type) {
+                if ($type === 'pages' || !in_array($type, $this->content->getTypes(), true)) {
+                    continue;
+                }
+                $post = $this->content->find($type, $slug, $lang, $includeHidden, false);
+                if ($post) {
+                    $this->renderEntry($type, $post, $lang, $path, $viewDefaults, $currentUrl);
+                    return;
+                }
+            }
             $this->render404();
             return;
         }
@@ -723,6 +666,48 @@ final class App
     }
 
     /**
+     * One entry of a content type (a post, a project, a form) drawn with its template.
+     *
+     * @param array<string, mixed> $viewDefaults
+     */
+    private function renderEntry(string $type, ContentItem $item, string $lang, string $path, array $viewDefaults, string $currentUrl): void
+    {
+        $item->html = $this->applyShortcodes($item->html, $lang, $path);
+
+        $viewDefaults['canonical_url'] = $this->resolveCanonicalUrl(
+            $item->meta['seo']['canonical'] ?? null,
+            $currentUrl
+        );
+        $alternates = $this->languageAlternates()->forItem($type, $item->slug);
+        $languageLinks = $this->languageAlternates()->languageLinks($type, $item);
+        if ($type === 'forms') {
+            $formState = $this->handleFormRequest($item, $lang, $path);
+            $this->render($this->resolveItemTemplate($item), [
+                'item' => $item,
+                'form_fields' => $formState['fields'],
+                'form_values' => $formState['values'],
+                'form_errors' => $formState['errors'],
+                'form_success' => $formState['success'],
+                'form_message' => $formState['message'],
+                'form_action' => $formState['action'],
+                'form_honeypot' => $formState['honeypot'],
+                'form_redirect' => $formState['redirect'],
+            ] + $viewDefaults + [
+                'alternate_urls' => $alternates['urls'],
+                'alternate_default' => $alternates['default'],
+                'language_links' => $languageLinks,
+            ]);
+            return;
+        }
+        $this->render($this->resolveItemTemplate($item), [
+            'item' => $item,
+            'alternate_urls' => $alternates['urls'],
+            'alternate_default' => $alternates['default'],
+            'language_links' => $languageLinks,
+        ] + $this->frontItemData($item, $lang, $path, $viewDefaults, false) + $viewDefaults);
+    }
+
+    /**
      * Rendered blocks, their stylesheets, and structured data for a page or single item.
      *
      * @param array<string, mixed> $viewDefaults
@@ -735,14 +720,14 @@ final class App
         if (is_array($raw) && $raw !== []) {
             // The sidebar template places the text itself, so blocks must not repeat it.
             $bodyInTemplate = !$isHome && $this->resolveItemTemplate($item) === 'templates/sidebar.twig';
-            $pageBlocks = $this->blockRenderer($lang, $path)->render(array_values($raw), $viewDefaults + [
+            $pageBlocks = $this->blockRuntime()->renderer($lang, $path, $this->twig)->render(array_values($raw), $viewDefaults + [
                 'item' => $item,
                 'body_html' => $bodyInTemplate ? '' : $item->html,
             ]);
         }
         $styles = $pageBlocks['styles'] ?? [];
         $scripts = $pageBlocks['scripts'] ?? [];
-        if ($this->hasPlaceField($item->type)) {
+        if ($this->blockRuntime()->hasPlaceField($item->type)) {
             // The page of a point, a route or a business draws a map: it needs the map's style sheet and script, once.
             $base = rtrim((string)($this->settings['base_url'] ?? ''), '/');
             $types = array_values(array_unique(array_merge($pageBlocks['types'] ?? [], ['map'])));
@@ -775,126 +760,10 @@ final class App
         return $this->archiveBuilder()->build($definition['archive'], $definition['fields'], $definition, $lang, $items, $_GET);
     }
 
-    private function blockRenderer(string $lang, string $path): BlockRenderer
-    {
-        $includeHidden = $this->auth->check();
-        return new BlockRenderer(
-            $this->blockRegistry(),
-            $this->twig,
-            $this->theme,
-            fn(string $markdown): string => $this->applyShortcodes((string)$this->markdown->convert($markdown), $lang, $path),
-            [
-                'items' => function (string $type, string $itemLang, int $limit, string $term = '') use ($includeHidden): array {
-                    if ($type === 'forms' || !in_array($type, $this->content->getTypes(), true)) {
-                        return [];
-                    }
-                    $items = $this->content->getItems($type, $itemLang, $includeHidden, false);
-                    $term = $this->slugify($term);
-                    if ($term !== '') {
-                        // Only items filed under this category or tag.
-                        $items = array_values(array_filter($items, function (ContentItem $item) use ($term): bool {
-                            foreach (['categories', 'tags'] as $taxonomy) {
-                                if (in_array($term, array_map('strval', (array)($item->meta[$taxonomy] ?? [])), true)) {
-                                    return true;
-                                }
-                            }
-                            return false;
-                        }));
-                    }
-                    return array_slice($items, 0, max(1, min(24, $limit)));
-                },
-                'form' => fn(string $slug): string => $slug === '' ? '' : $this->renderFormEmbedBySlug($this->slugify($slug), $lang, $path),
-                'youtube' => function (string $playlistId, string $thumbs): array {
-                    $result = $this->youtubePlaylist()->fetch($playlistId);
-                    foreach ($result['items'] as $i => $video) {
-                        $result['items'][$i]['thumb'] = 'https://i.ytimg.com/vi/' . $video['id'] . '/hqdefault.jpg';
-                        if ($thumbs !== 'youtube') {
-                            $result['items'][$i]['thumb_path'] = $this->youtubeThumbs()->path($video['id']);
-                        }
-                    }
-                    return $result;
-                },
-                'file' => fn(string $url): ?int => $this->images->fileSize($url),
-                // The Map block when it shows content: the entries to put on the map, as the data a map draws (type, language, limit, category).
-                'geo' => function (string $source, string $itemLang, int $limit, string $term) use ($includeHidden): array {
-                    $view = $this->geoView();
-                    $types = $source === 'all' ? $view->placeTypes() : (in_array($source, $view->placeTypes(), true) ? [$source] : []);
-                    return $view->dataset($view->gather($types, $itemLang, $this->slugify($term)), $itemLang, ['limit' => max(1, min(800, $limit))]);
-                },
-                'geo_load' => fn(): string => ($this->settings['apis']['maps']['load'] ?? 'click') === 'auto' ? 'auto' : 'click',
-                'term' => fn(string $id, string $itemLang): string => $this->taxonomyTermLabel('categories', $id, $itemLang),
-                'admin' => fn(): bool => $this->auth->check(),
-            ],
-            rtrim((string)($this->settings['base_url'] ?? ''), '/')
-        );
-    }
-
-    private function youtubePlaylist(): YouTubePlaylist
-    {
-        return $this->youtubePlaylistService ??= new YouTubePlaylist(
-            $this->systemMeta,
-            trim((string)($this->settings['apis']['youtube']['key'] ?? '')),
-            static fn(string $url): array => YouTubePlaylist::request($url),
-            SiteSettings::cacheHours($this->settings['apis']['youtube']['cache_hours'] ?? 6)
-        );
-    }
-
-    /** Whether entries of a content type can have a place (a field of the kind `location`). */
-    private function hasPlaceField(string $type): bool
-    {
-        foreach ($this->contentTypes()->definition($type, $this->currentLang, $this->defaultLanguage())['fields'] as $field) {
-            if ($field['type'] === 'location' && !$field['hidden']) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /** The maps of content: places, routes and what is near what (see GeoView). */
-    private function geoView(): GeoView
-    {
-        return $this->geoViewService ??= new GeoView(
-            new GeoMap(new GeoLibrary($this->images, $this->basePath . '/storage/cache'), $this->images),
-            fn(string $type, string $lang): array => in_array($type, $this->content->getTypes(), true) ? $this->content->getItems($type, $lang, $this->auth->check(), false) : [],
-            fn(string $type, string $lang): string => $this->contentTypes()->definition($type, $lang, $this->defaultLanguage())['label'],
-            fn(string $slug, string $lang): string => $this->taxonomyTermLabel('categories', $slug, $lang),
-            fn(ContentItem $item, string $lang): string => $this->buildAbsoluteUrl($this->langPrefix($lang) . ($item->type === 'pages' ? '' : $item->type . '/') . $item->slug),
-            function (): array {
-                $types = [];
-                foreach ($this->content->getTypes() as $type) {
-                    if ($type === 'forms' || $type === 'pages') {
-                        continue;
-                    }
-                    foreach ($this->contentTypes()->definition($type, $this->currentLang, $this->defaultLanguage())['fields'] as $field) {
-                        if (in_array($field['type'], ['location'], true) && !$field['hidden']) {
-                            $types[] = $type;
-                            break;
-                        }
-                    }
-                }
-                return $types;
-            },
-            [
-                'tiles_url' => (string)($this->settings['apis']['maps']['tiles_url'] ?? ''),
-                'attribution' => (string)($this->settings['apis']['maps']['attribution'] ?? ''),
-            ]
-        );
-    }
-
-    private function youtubeThumbs(): YouTubeThumbs
-    {
-        return $this->youtubeThumbsService ??= new YouTubeThumbs(
-            $this->basePath . '/storage/cache/youtube',
-            $this->systemMeta,
-            static fn(string $url): array => YouTubePlaylist::request($url, 4)
-        );
-    }
-
     /** A picture of a playlist's video, kept on this site (see YouTubeThumbs). */
     private function handleYoutubeThumb(string $path): void
     {
-        $id = (string)preg_replace('/\.jpg$/', '', substr($path, 4));
-        $file = $this->youtubeThumbs()->isValid($id, (string)($_GET['s'] ?? '')) ? $this->youtubeThumbs()->file($id) : null;
+        $file = $this->blockRuntime()->youtubeThumbFile($path, (string)($_GET['s'] ?? ''));
         if ($file === null) {
             http_response_code(404);
             header('Content-Type: text/plain; charset=utf-8');
@@ -908,34 +777,24 @@ final class App
         readfile($file);
     }
 
-    private function blockRegistry(): BlockRegistry
+    private function blockRuntime(): BlockRuntime
     {
-        return $this->blockRegistry ??= new BlockRegistry($this->theme, [
-            'content_types' => function (): array {
-                $options = [];
-                foreach ($this->content->getTypes() as $type) {
-                    if ($type !== 'forms' && $type !== 'pages') {
-                        $options[$type] = $this->contentTypes()->definition($type, 'en', $this->defaultLanguage())['label'];
-                    }
-                }
-                return $options;
-            },
-            // The types whose entries can have a place, for the Map block: each type, and everything with a place.
-            'place_types' => function (): array {
-                $options = [];
-                foreach ($this->geoView()->placeTypes() as $type) {
-                    $options[$type] = $this->contentTypes()->definition($type, 'en', $this->defaultLanguage())['label'];
-                }
-                return count($options) > 1 ? ['all' => 'Everything with a place'] + $options : $options;
-            },
-            'forms' => function (): array {
-                $options = ['' => '—'];
-                foreach ($this->content->getItems('forms', null, true) as $form) {
-                    $options[$form->slug] = (string)($form->meta['title'] ?? $form->slug);
-                }
-                return $options;
-            },
-        ]);
+        return $this->blockRuntime ??= new BlockRuntime(
+            $this->basePath,
+            $this->theme,
+            $this->images,
+            $this->systemMeta,
+            $this->content,
+            fn(): array => $this->settings,
+            fn(): bool => $this->auth->check(),
+            fn(): ContentTypes => $this->contentTypes(),
+            fn(): string => $this->currentLang,
+            fn(): string => $this->defaultLanguage(),
+            fn(string $taxonomy, string $termId, string $lang): string => $this->taxonomyTermLabel($taxonomy, $termId, $lang),
+            fn(string $path): string => $this->buildAbsoluteUrl($path),
+            fn(string $markdown, string $lang, string $path): string => $this->applyShortcodes((string)$this->markdown->convert($markdown), $lang, $path),
+            fn(string $slug, string $lang, string $path): string => $this->renderFormEmbedBySlug($slug, $lang, $path)
+        );
     }
 
     /** Admin addresses served by one handler each, by the first part of the address after /admin. */
@@ -998,44 +857,7 @@ final class App
             return;
         }
 
-        if ($action === 'login' && !$this->auth->check() && $this->firstAdmin()->needed()) {
-            $this->handleSetup();
-            return;
-        }
-
-        if ($action === 'login') {
-            if ($this->auth->check() && ($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
-                $this->redirect('/admin');
-                return;
-            }
-            if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-                $this->handlePasswordLogin();
-                return;
-            }
-
-            $this->renderLogin();
-            return;
-        }
-
-        if ($action === 'google-login') {
-            $this->handleGoogleLogin();
-            return;
-        }
-
-        if ($action === 'google-callback') {
-            $this->handleGoogleCallback();
-            return;
-        }
-
-        if ($action === 'logout') {
-            if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
-                // Signing out changes state, so it only happens through the CSRF-protected form.
-                $this->redirect($this->auth->check() ? '/admin' : '/admin/login');
-                return;
-            }
-            $this->logActivity('auth.logout', 'info', 'user', (string)($this->auth->user()['username'] ?? ''), 'User signed out.');
-            $this->auth->logout();
-            $this->redirect('/admin/login');
+        if ($this->loginController()->handle($action, (string)($_SERVER['REQUEST_METHOD'] ?? 'GET'), $_POST, $_GET, (string)($_SERVER['REMOTE_ADDR'] ?? ''))) {
             return;
         }
 
@@ -1069,56 +891,6 @@ final class App
         $this->handleAdminList();
     }
 
-    private function handlePasswordLogin(): void
-    {
-        $outcome = $this->signIn()->password(trim((string)($_POST['username'] ?? '')), (string)($_POST['password'] ?? ''), (string)($_SERVER['REMOTE_ADDR'] ?? ''));
-        if ($outcome['status'] === 'blocked') {
-            http_response_code(429);
-            header('Retry-After: ' . $outcome['retry_after']);
-            $this->renderLogin($outcome['message']);
-            return;
-        }
-        if ($outcome['status'] === 'ok') {
-            if ($outcome['default_password']) {
-                $_SESSION['security_default_password'] = true;
-                $this->notifyDefaultPassword($outcome['username']);
-            }
-            $this->redirect('/admin');
-            return;
-        }
-        $this->renderLogin($outcome['message']);
-    }
-
-    private function signIn(): SignIn
-    {
-        return $this->signInService ??= new SignIn(
-            $this->auth,
-            $this->loginThrottle,
-            fn(string $action, string $level, ?string $type, ?string $id, string $message, array $context, ?array $actor) => $this->logActivity($action, $level, $type, $id, $message, $context, $actor)
-        );
-    }
-
-    private function googleSignIn(): GoogleSignIn
-    {
-        return $this->googleSignInService ??= new GoogleSignIn(fn(): array => $this->settings, fn(string $path): string => $this->buildAbsoluteUrl($path));
-    }
-
-    private function notifyDefaultPassword(string $username): void
-    {
-        try {
-            $this->notifications->createIfMissing([
-                'type' => 'security.default_password',
-                'title' => 'Default password in use',
-                'body' => $username . ' still signs in with the password shipped in content/users/users.yaml. Change it.',
-                'severity' => 'error',
-                'target_url' => '/admin/users-edit?id=' . (int)($this->auth->user()['id'] ?? 0),
-                'context' => ['username' => $username],
-            ]);
-        } catch (\Throwable) {
-            // Notifications must never block sign-in.
-        }
-    }
-
     private function rejectInvalidCsrf(string $action): void
     {
         $this->logActivity('security.csrf_rejected', 'warning', 'admin_route', $action, 'Rejected a form submission without a valid CSRF token.', [
@@ -1127,114 +899,31 @@ final class App
         http_response_code(419);
         $message = 'This form could not be verified. It may have expired, or the upload was larger than the server allows. Reload the page and try again.';
         if ($action === 'login' || !$this->auth->check()) {
-            $this->renderLogin($message);
+            $this->loginController()->renderLogin($message);
             return;
         }
         $this->renderForbidden($message, 'Form expired');
     }
 
-    /** A site with no accounts: the first visit makes the first administrator. */
-    private function handleSetup(): void
+    private function loginController(): LoginController
     {
-        $payload = ['username' => '', 'display_name' => '', 'email' => ''];
-        $error = '';
-        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
-            $result = $this->firstAdmin()->create($_POST);
-            if ($result['ok']) {
-                $this->redirect('/admin');
-                return;
-            }
-            $payload = $result['payload'];
-            $error = $result['error'];
-        }
-        $this->render('@admin/setup.twig', ['error' => $error, 'payload' => $payload]);
-    }
-
-    private function firstAdmin(): FirstAdmin
-    {
-        return $this->firstAdminService ??= new FirstAdmin(
-            $this->users,
+        return $this->loginControllerService ??= new LoginController(
             $this->auth,
-            fn(string $action, string $level, ?string $type, ?string $id, string $message, array $context) => $this->logActivity($action, $level, $type, $id, $message, $context)
+            $this->loginThrottle,
+            $this->users,
+            $this->notifications,
+            fn(): array => $this->settings,
+            fn(string $path): string => $this->buildAbsoluteUrl($path),
+            fn(string $action, string $level, ?string $type, ?string $id, ?string $message, array $context, ?array $actor) => $this->logActivity($action, $level, $type, $id, $message, $context, $actor),
+            fn(string $template, array $data) => $this->render($template, $data),
+            fn(string $path) => $this->redirect($path),
+            static function (int $status, array $headers): void {
+                http_response_code($status);
+                foreach ($headers as $header) {
+                    header($header);
+                }
+            }
         );
-    }
-
-    private function renderLogin(string $error = ''): void
-    {
-        $this->render('@admin/login.twig', [
-            'error' => $error,
-            'google_auth' => $this->googleSignIn()->config(),
-        ]);
-    }
-
-    private function handleGoogleLogin(): void
-    {
-        $google = $this->googleSignIn()->config();
-        if (!$google['ready']) {
-            $this->renderLogin('Google Sign-In is not configured yet.');
-            return;
-        }
-
-        $state = bin2hex(random_bytes(16));
-        $_SESSION['google_oauth_state'] = $state;
-        header('Location: ' . $this->googleSignIn()->authorizationUrl($google, $state));
-        exit;
-    }
-
-    private function handleGoogleCallback(): void
-    {
-        $sign = $this->googleSignIn();
-        $google = $sign->config();
-        if (!$google['ready']) {
-            $this->renderLogin('Google Sign-In is not configured yet.');
-            return;
-        }
-
-        $state = (string)($_GET['state'] ?? '');
-        if ($state === '' || $state !== (string)($_SESSION['google_oauth_state'] ?? '')) {
-            unset($_SESSION['google_oauth_state']);
-            $this->renderLogin('Google Sign-In state could not be verified.');
-            return;
-        }
-        unset($_SESSION['google_oauth_state']);
-
-        $code = (string)($_GET['code'] ?? '');
-        if ($code === '') {
-            $this->renderLogin('Google did not return an authorization code.');
-            return;
-        }
-
-        $token = $sign->exchange($code, $google);
-        if (!$token['ok']) {
-            $this->renderLogin((string)$token['message']);
-            return;
-        }
-        $profile = $sign->profile((string)$token['access_token']);
-        if (!$profile['ok']) {
-            $this->renderLogin((string)$profile['message']);
-            return;
-        }
-        $accepted = $sign->accept($profile, $google);
-        if (!$accepted['ok']) {
-            $this->renderLogin($accepted['message']);
-            return;
-        }
-
-        $email = $accepted['email'];
-        $user = $this->users->findByEmail($email);
-        if (!$user || !$this->users->isActive($user)) {
-            $this->renderLogin('No active FarosCMS user matches this Google account.');
-            return;
-        }
-
-        $this->users->linkGoogle((int)$user['id'], $accepted['sub'], $email);
-        $user = $this->users->find((int)$user['id']) ?: $user;
-        $this->auth->loginUser($user);
-        $this->logActivity('auth.login_success', 'info', 'user', (string)($user['username'] ?? $email), 'User logged in.', [
-            'method' => 'google',
-            'email' => $email,
-        ]);
-        $this->redirect('/admin');
     }
 
     private function handleDashboard(): void
@@ -1959,8 +1648,8 @@ final class App
     {
         return $this->presetLibrary ??= new PresetLibrary(
             $this->theme,
-            $this->blockRegistry(),
-            fn(string $value): string => $this->slugify($value)
+            $this->blockRuntime()->registry(),
+            fn(string $value): string => Slug::plain($value)
         );
     }
 
@@ -2002,7 +1691,7 @@ final class App
             return;
         }
         $action = (string)($_POST['preset_action'] ?? '');
-        $lang = $this->slugify((string)($_POST['lang'] ?? ''));
+        $lang = Slug::plain((string)($_POST['lang'] ?? ''));
         $defaultLang = (string)($this->settings['languages']['default'] ?? 'en');
         $library = $this->presetLibrary();
 
@@ -2080,7 +1769,9 @@ final class App
         if ($result['moved'] && $result['moved_together']) {
             // Menu links follow a page whose address changed in every language.
             $old = $result['original_slug'];
-            $this->menus()->relink($type === 'pages' ? $old : $type . '/' . $old, $type === 'pages' ? $slug : $type . '/' . $slug);
+            $defaultLang = $this->defaultLanguage();
+            $homeSlug = (string)(($this->settings['home_page'] ?? '') !== '' ? $this->settings['home_page'] : 'index');
+            $this->menus()->relink(ContentPaths::build($type, $old, $defaultLang, $homeSlug, $defaultLang), ContentPaths::build($type, $slug, $defaultLang, $homeSlug, $defaultLang));
         }
 
         $this->logActivity($result['was_existing'] ? 'content.update' : 'content.create', 'info', $type, $slug . ':' . $lang, ($result['was_existing'] ? 'Content updated.' : 'Content created.'), [
@@ -2129,9 +1820,9 @@ final class App
             $this->denyContentType($type);
             return;
         }
-        $slug = $this->slugify((string)($_GET['slug'] ?? ''));
-        $lang = $this->slugify((string)($_GET['lang'] ?? ($this->settings['languages']['default'] ?? 'en')));
-        $template = $this->slugify((string)($_GET['template'] ?? ''));
+        $slug = Slug::plain((string)($_GET['slug'] ?? ''));
+        $lang = Slug::plain((string)($_GET['lang'] ?? ($this->settings['languages']['default'] ?? 'en')));
+        $template = Slug::plain((string)($_GET['template'] ?? ''));
         if ($type === 'forms' && $slug === '' && $template === '') {
             // A new form starts from a ready-made one, or from nothing.
             $this->redirect('/admin/forms-new?lang=' . urlencode($lang));
@@ -2144,7 +1835,7 @@ final class App
     private function handleFormsNew(): void
     {
         $languages = array_map('strval', $this->settings['languages']['available'] ?? [$this->defaultLanguage()]);
-        $lang = $this->slugify((string)($_GET['lang'] ?? $this->defaultLanguage()));
+        $lang = Slug::plain((string)($_GET['lang'] ?? $this->defaultLanguage()));
         if (!in_array($lang, $languages, true)) {
             $lang = $this->defaultLanguage();
         }
@@ -2535,8 +2226,8 @@ final class App
 
     private function handleFormsExport(): void
     {
-        $slug = $this->slugify((string)($_GET['slug'] ?? ''));
-        $lang = $this->slugify((string)($_GET['lang'] ?? ($this->settings['languages']['default'] ?? 'en')));
+        $slug = Slug::plain((string)($_GET['slug'] ?? ''));
+        $lang = Slug::plain((string)($_GET['lang'] ?? ($this->settings['languages']['default'] ?? 'en')));
         if ($slug === '') {
             $this->redirect('/admin/content?type=forms');
             return;
@@ -2654,7 +2345,7 @@ final class App
             'extensions' => SystemStatus::extensions(),
             'environment' => $this->systemStatus()->environment($this->updates()->currentVersion(), $this->updates()->currentGitCommit(), $this->isHttpsRequest()),
             'tasks' => [
-                ['name' => 'Automatic backups', 'schedule' => $this->isTruthy($auto['enabled'] ?? false) ? (string)($auto['schedule'] ?? 'daily') : 'off', 'last' => (string)($auto['last_run'] ?? ''), 'how' => 'Runs on the first admin page view after it is due.'],
+                ['name' => 'Automatic backups', 'schedule' => Format::isTruthy($auto['enabled'] ?? false) ? (string)($auto['schedule'] ?? 'daily') : 'off', 'last' => (string)($auto['last_run'] ?? ''), 'how' => 'Runs on the first admin page view after it is due.'],
                 ['name' => 'Update check', 'schedule' => 'every 12 hours', 'last' => (string)($update['checked_at'] ?? ''), 'how' => 'Runs on an admin page view for users who manage updates.'],
                 ['name' => 'Content index', 'schedule' => 'on change', 'last' => (string)($this->contentIndex->status($this->content->getTypes())['last_indexed_at'] ?? ''), 'how' => 'Updated on save, delete, bulk actions, imports, and restores; rebuilt automatically when files change outside the admin.'],
                 ['name' => 'Sign-in attempt cleanup', 'schedule' => 'continuous', 'last' => '', 'how' => 'Entries older than a day are removed while new attempts are recorded.'],
@@ -2681,7 +2372,7 @@ final class App
             'q' => trim((string)($_GET['q'] ?? '')),
             'status' => trim((string)($_GET['status'] ?? '')),
         ];
-        $overview = $this->formsAdmin()->overview($filters, (string)($_GET['sort'] ?? 'updated'), $languages, $defaultLang, $this->isTruthy($this->settings['forms']['store_submissions'] ?? true));
+        $overview = $this->formsAdmin()->overview($filters, (string)($_GET['sort'] ?? 'updated'), $languages, $defaultLang, Format::isTruthy($this->settings['forms']['store_submissions'] ?? true));
 
         $this->render('@admin/forms-list.twig', [
             'title' => 'Forms',
@@ -2702,7 +2393,7 @@ final class App
 
     private function handleFormSubmissions(): void
     {
-        $slug = $this->slugify((string)($_GET['slug'] ?? ($_POST['slug'] ?? '')));
+        $slug = Slug::plain((string)($_GET['slug'] ?? ($_POST['slug'] ?? '')));
         $defaultLang = (string)($this->settings['languages']['default'] ?? 'en');
         $versions = $this->formsAdmin()->versions($slug);
         if ($slug === '' || $versions === []) {
@@ -2846,7 +2537,7 @@ final class App
             return;
         }
 
-        $selected = $this->slugify((string)($_GET['type'] ?? ''));
+        $selected = Slug::plain((string)($_GET['type'] ?? ''));
         $common = [
             'saved' => isset($_GET['saved']),
             'error' => (string)($_GET['error'] ?? ''),
@@ -2877,7 +2568,7 @@ final class App
         $this->render('@admin/content-types.twig', [
             'types_list' => $admin->typeRows($manageable, $default),
             'toggled' => (string)($_GET['toggled'] ?? ''),
-            'toggled_type' => $this->slugify((string)($_GET['type_name'] ?? '')),
+            'toggled_type' => Slug::plain((string)($_GET['type_name'] ?? '')),
         ] + $common);
     }
 
@@ -2901,7 +2592,7 @@ final class App
             $available = [$defaultLang];
         }
 
-        $lang = $this->slugify((string)($_GET['lang'] ?? $_POST['lang'] ?? $defaultLang));
+        $lang = Slug::plain((string)($_GET['lang'] ?? $_POST['lang'] ?? $defaultLang));
         if (!in_array($lang, $available, true)) {
             $lang = $defaultLang;
         }
@@ -2990,31 +2681,12 @@ final class App
             );
         }));
 
-        // Maps of content (see GeoView): the data of a set of entries, of the page of one, and what is near one.
-        $twig->addFunction(new TwigFunction('geo_dataset', function (array $items, array $options = []): array {
-            return $this->geoView()->dataset(array_values(array_filter($items, static fn($i): bool => $i instanceof ContentItem)), $this->currentLang, $options);
-        }));
-        $twig->addFunction(new TwigFunction('geo_single', function (ContentItem $item, array $options = []): array {
-            return $this->geoView()->single($item, $this->currentLang, $options);
-        }));
-        $twig->addFunction(new TwigFunction('geo_nearby', function (ContentItem $item, array $types, float $radius = 5.0, int $limit = 6): array {
-            return $this->geoView()->nearby($item, $types, $radius, $limit, $this->currentLang);
-        }));
-        $twig->addFunction(new TwigFunction('geo_json', function (array $data): string {
-            return (string)json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE);
-        }, ['is_safe' => ['html']]));
-        $twig->addFunction(new TwigFunction('geo_load', function (): string {
-            return ($this->settings['apis']['maps']['load'] ?? 'click') === 'auto' ? 'auto' : 'click';
-        }));
-        $twig->addFunction(new TwigFunction('geo_position', function (ContentItem $item): ?array {
-            return $this->geoView()->map()->position($item);
-        }));
-        $twig->addFunction(new TwigFunction('route_facts', function (ContentItem $item): ?array {
-            return $this->geoView()->map()->routeFacts($item);
-        }));
-        $twig->addFunction(new TwigFunction('elevation_profile', function (array $profile, string $label): string {
-            return GeoView::profileSvg($profile, $label);
-        }, ['is_safe' => ['html']]));
+        GeoTwigFunctions::register(
+            $twig,
+            fn(): GeoView => $this->blockRuntime()->geoView(),
+            fn(): string => $this->currentLang,
+            fn(): array => $this->settings
+        );
 
         // What the page of one entry of a type does (Theme > Single Layouts): title style, header, parts, sidebar.
         $twig->addFunction(new TwigFunction('single_layout', function (string $type): array {
@@ -3033,8 +2705,19 @@ final class App
             return $this->formatDateValue($value);
         }));
 
+        // The path of an entry for a link, after the language prefix a template already has ("" or "en/"): about, my-post,
+        // projects/mine, or nothing for the home page.
+        $twig->addFunction(new TwigFunction('item_path', function (mixed $item, string $prefix = ''): string {
+            if (!$item instanceof ContentItem) {
+                return $prefix;
+            }
+            $default = $this->defaultLanguage();
+            $home = (string)(($this->settings['home_page'] ?? '') !== '' ? $this->settings['home_page'] : 'index');
+            return $prefix . ContentPaths::build($item->type, $item->slug, $default, $home, $default);
+        }));
+
         $twig->addFunction(new TwigFunction('slug', function (string $value): string {
-            return $this->slugify($value);
+            return Slug::plain($value);
         }));
 
         $twig->addFunction(new TwigFunction('taxonomy_label', function (string $taxonomy, string $termId, ?string $lang = null): string {
@@ -3086,25 +2769,13 @@ final class App
             return '<input type="hidden" name="_csrf" value="' . htmlspecialchars($this->csrfToken(), ENT_QUOTES) . '">';
         }, ['is_safe' => ['html']]));
 
-        // What Theme > Branding adds to a page: a style sheet of the choices made there, and the icons and colour of the browser.
-        $brandingBase = (string)($this->settings['base_url'] ?? '');
-        // The tracking of Admin > Analytics: the owner's code (or the platform's script) for the head, and the owner's code for the end of the page.
-        $twig->addFunction(new TwigFunction('analytics_head', fn(string $scriptUrl = '', string $apiUrl = ''): string => AnalyticsSettings::head(AnalyticsSettings::from($this->settings), $this->auth->check(), $scriptUrl, $apiUrl), ['is_safe' => ['html']]));
-        $twig->addFunction(new TwigFunction('analytics_body', fn(): string => AnalyticsSettings::body(AnalyticsSettings::from($this->settings), $this->auth->check()), ['is_safe' => ['html']]));
-        // The site-wide search engine settings (Admin > SEO) as a page uses them: its title and description, what the robots tag says,
-        // the tags that are the same on every page, and the card of a shared link.
-        $twig->addFunction(new TwigFunction('seo_title', fn(mixed $own, mixed $page, bool $home, mixed $type): string => SeoSettings::title(
-            SeoSettings::from($this->settings), (string)$own, (string)$page, (string)($this->settings['title'] ?? ''), (string)($this->settings['tagline'] ?? ''), $home, (string)$type
-        )));
-        $twig->addFunction(new TwigFunction('seo_description', fn(mixed $own, mixed $excerpt, mixed $document, bool $home): string => SeoSettings::description(
-            SeoSettings::from($this->settings), (string)$own, (string)$excerpt, (string)$document, (string)($this->settings['tagline'] ?? ''), $home
-        )));
-        $twig->addFunction(new TwigFunction('seo_robots', fn(bool $pageNoindex, mixed $kind): string => SeoSettings::robots(SeoSettings::from($this->settings), $pageNoindex, (string)$kind)));
-        $twig->addFunction(new TwigFunction('seo_head', fn(): string => SeoSettings::head(SeoSettings::from($this->settings)), ['is_safe' => ['html']]));
-        $twig->addFunction(new TwigFunction('seo_share_image', fn(): string => (string)SeoSettings::from($this->settings)['share_image']));
-        $twig->addFunction(new TwigFunction('seo_twitter_card', fn(bool $hasImage): string => SeoSettings::twitterCard(SeoSettings::from($this->settings), $hasImage)));
-        $twig->addFunction(new TwigFunction('branding_css', fn(): string => Branding::css($this->themeSettings, $brandingBase), ['is_safe' => ['html']]));
-        $twig->addFunction(new TwigFunction('branding_head', fn(): string => Branding::head($this->themeSettings, $brandingBase), ['is_safe' => ['html']]));
+        PageTwigFunctions::register(
+            $twig,
+            fn(): array => $this->settings,
+            fn(): array => $this->themeSettings,
+            fn(): bool => $this->auth->check(),
+            (string)($this->settings['base_url'] ?? '')
+        );
 
         $twig->addGlobal('site', $this->settings);
         $twig->addGlobal('theme_settings', $this->themeSettings);
@@ -3349,7 +3020,7 @@ final class App
 
     private function loadThemeSettings(): array
     {
-        $raw = $this->siteSettings()->raw('theme_settings', $this->defaultThemeSettings());
+        $raw = $this->siteSettings()->raw('theme_settings', $this->theme->defaultSettings());
         $data = [];
         if (trim($raw) !== '') {
             try {
@@ -3361,16 +3032,6 @@ final class App
         }
         // The theme manifest decides what is valid: new fields get defaults, retired values fall back.
         return $this->theme->resolveSettings($data);
-    }
-
-    private function defaultThemeSettings(): array
-    {
-        return $this->theme->defaultSettings();
-    }
-
-    private function getSystemMeta(string $key): ?string
-    {
-        return $this->systemMeta->get($key);
     }
 
     private function setSystemMeta(string $key, string $value): void
@@ -3651,17 +3312,6 @@ final class App
         $this->render($this->resolveTaxonomyTemplate($page['kind'], $page['slug']), $page['data']);
     }
 
-    private function buildContentPath(string $type, string $slug, string $lang, string $homeSlug, string $defaultLang): string
-    {
-        return ContentPaths::build($type, $slug, $lang, $homeSlug, $defaultLang);
-    }
-
-    private function buildArchivePath(string $type, string $lang, string $defaultLang): string
-    {
-        $prefix = $lang === $defaultLang ? '' : $lang . '/';
-        return $prefix . $type;
-    }
-
     private function buildTaxonomyPath(string $taxonomy, string $termId, string $prefix = ''): string
     {
         $kind = Taxonomies::kind($taxonomy);
@@ -3678,7 +3328,7 @@ final class App
 
     private function resolveTaxonomyTemplate(string $kind, string $slug): string
     {
-        $safeSlug = $this->slugify($slug);
+        $safeSlug = Slug::plain($slug);
         return $this->theme->findTemplate([
             'templates/archive-' . $kind . '-' . $safeSlug . '.twig',
             'templates/archive-' . $kind . '.twig',
@@ -3691,16 +3341,6 @@ final class App
         return Format::dateValue($value, (string)($this->settings['date_format'] ?? 'd/m/Y'));
     }
 
-    private function normalizeMetaList(mixed $value): array
-    {
-        return Format::list($value);
-    }
-
-    private function isTruthy(mixed $value): bool
-    {
-        return Format::isTruthy($value);
-    }
-
     private function isReservedFrontmatterKey(string $key): bool
     {
         return $this->contentEditor()->isReservedKey($key);
@@ -3709,11 +3349,6 @@ final class App
     private function normalizeDateForStorage(string $value): string
     {
         return $this->contentEditor()->normalizeDate($value);
-    }
-
-    private function parseCommaList(string $value): array
-    {
-        return Format::commaList($value);
     }
 
     private function resolveCanonicalUrl(?string $override, string $fallback): string
@@ -3806,25 +3441,10 @@ final class App
         return FrontRoute::langPrefix($lang, $this->defaultLanguage());
     }
 
-    private function slugify(string $value): string
-    {
-        return Slug::plain($value);
-    }
-
-    private function transliterateGreek(string $value): string
-    {
-        return Slug::transliterateGreek($value);
-    }
-
     private function sanitizeType(string $value): string
     {
-        $value = $this->slugify($value);
+        $value = Slug::plain($value);
         return $value === '' ? 'pages' : $value;
-    }
-
-    private function titleFromSlug(string $slug): string
-    {
-        return Slug::title($slug);
     }
 
     /** @return array<int, array<string, mixed>> */
@@ -3921,17 +3541,6 @@ final class App
             return '';
         }
         return $this->twig->render('components/form.twig', $this->publicForms()->embed($form, $currentPath, $this->formStates[$form->slug] ?? null, $_GET));
-    }
-
-    private function buildFilename(string $slug, string $lang): string
-    {
-        return (new ContentPaths($this->settings))->filename($slug, $lang);
-    }
-
-    /** @return array{0: string, 1: string} */
-    private function splitFrontMatter(string $raw): array
-    {
-        return FrontMatter::split($raw);
     }
 
     private function redirect(string $path): void

@@ -131,7 +131,7 @@ check('the home page is the language root', $alt->languageLinks('pages', $home),
 $old = $content->find('pages', 'old', 'el', true, false);
 check('without an id the same address is used', $alt->languageLinks('pages', $old), ['el' => 'old', 'en' => 'en/old']);
 $post = $content->find('posts', 'hello', 'el', true, false);
-check('a post keeps its type in the path', $alt->languageLinks('posts', $post), ['el' => 'posts/hello', 'en' => 'en/posts/hello']);
+check('a post has its address at the root, as a page does', $alt->languageLinks('posts', $post), ['el' => 'hello', 'en' => 'en/hello']);
 
 check('hreflang addresses are complete and only for published translations', $alt->forItem('pages', 'about'), ['urls' => ['el' => 'https://s.test/about', 'en' => 'https://s.test/en/about'], 'default' => 'https://s.test/about']);
 // A language with no translation shows the default language's entry, so it is listed too (the draft German 'about' is not).

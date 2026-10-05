@@ -16,7 +16,7 @@ $fail = 0;
 function check(string $label, $actual, $expected): void { global $fail; $ok = $actual === $expected; if (!$ok) $fail++; echo ($ok ? 'ok   ' : 'FAIL ') . $label . ($ok ? '' : ' => ' . json_encode($actual, JSON_UNESCAPED_UNICODE) . ' expected ' . json_encode($expected, JSON_UNESCAPED_UNICODE)) . "\n"; }
 
 $vm = new VisualMarkdown(function (): Environment {
-    $e = new Environment(['renderer' => ['soft_break' => "<br />\n"], 'allow_unsafe_links' => false, 'attributes' => ['allow' => ['target']]]);
+    $e = new Environment(['renderer' => ['soft_break' => "<br />\n"], 'allow_unsafe_links' => false, 'attributes' => ['allow' => ['target', 'align']]]);
     $e->addExtension(new CommonMarkCoreExtension());
     $e->addExtension(new TableExtension());
     $e->addExtension(new StrikethroughExtension());
@@ -38,6 +38,13 @@ check('blank lines between blocks, and Windows line ends, are not part of a bloc
 $r = $vm->render("Text [ref][1] and [two][2]\n\n[1]: https://one.test\n[2]: https://two.test \"Two\"\n");
 check('the definitions links refer to are kept apart, to be written back at the end', [$r['tail'], $r['verbatim'], count($r['blocks'])], ["[1]: https://one.test\n[2]: https://two.test \"Two\"", true, 1]);
 check('and the link still points where the definition says', str_contains($r['blocks'][0]['html'], 'href="https://one.test"'), true);
+
+$r = $vm->render("{align=center}\nCentered *text*\n\nPlain\n\n{align=right}\n## Right heading\n\n> {align=center}\n> In a quote\n\n{a=b}\n{align=justify}\nTwo lines of attributes");
+check('the line of attributes before a block is part of the block, and written back with it', [array_column($r['blocks'], 'source'), $r['verbatim'], $r['tail']], [["{align=center}\nCentered *text*", 'Plain', "{align=right}\n## Right heading", "> {align=center}\n> In a quote", "{a=b}\n{align=justify}\nTwo lines of attributes"], true, '']);
+check('alignment is drawn as the align attribute, on paragraphs and headings', [$r['blocks'][0]['html'], $r['blocks'][2]['html']], ['<p align="center">Centered <em>text</em></p>', '<h2 align="right">Right heading</h2>']);
+check('and no other attribute is accepted', str_contains($r['blocks'][4]['html'], 'align="justify"') && !str_contains($r['blocks'][4]['html'], ' a="'), true);
+$r = $vm->render("Text\n\\{align=center}\nmore");
+check('a line of braces that is escaped is text, and stays in the paragraph', [count($r['blocks']), $r['blocks'][0]['html']], [1, "<p>Text<br />\n{align=center}<br />\nmore</p>"]);
 
 $r = $vm->render("See [a] and [b].\n\n[a]:\n/one\n\n[b]:\n  <https://two.test/x y>\n  \"Two\"\n");
 check('a definition with its address on the next line is a definition too, kept whole at the end', [$r['tail'], $r['verbatim'], count($r['blocks'])], ["[a]:\n/one\n[b]:\n  <https://two.test/x y>\n  \"Two\"", true, 1]);

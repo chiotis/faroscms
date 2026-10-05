@@ -22,6 +22,10 @@ The text of an entry is **Markdown, always**. The file on disk, the History, the
 
 **Links that open in a new tab.** The link box has *Open in a new tab*. In the Markdown it is written as an attribute after the link, `[text](https://example.org){target=_blank}`, and the site draws `target="_blank"` with `rel="noopener noreferrer"`. It is the only attribute the site accepts that way (no classes, ids or event handlers), and braces that are not an attribute, such as `{name}`, stay as text. A line that is only `{.class}` or `{key=value}` is read as an attribute and not shown.
 
+**Text alignment.** The four alignment buttons (left, center, right, justify) align the paragraphs and headings the selection touches; left is the usual and takes the choice away. In the Markdown it is a line before the block, `{align=center}` then the paragraph or the `## heading`, and the site draws it with the `align` attribute (the theme styles it). It is for paragraphs and headings, not for list items, table cells or code. In Markdown mode you can type the line yourself; `align` is the only attribute of a block that is accepted besides `target` on a link.
+
+**Pictures.** The Image button asks for an address and a description, or *Library…* to choose from the media library; the choice fills the address (and the description, when the picture has one) and *Insert* puts it in the text. **Removing or changing a picture:** click it. It is outlined and a small bar appears with *Edit* (the address and the description, with *Library…* and *Remove picture* in the same form) and *Remove picture*. Delete or Backspace removes a picked picture too, Escape or a click elsewhere lets it go. A paragraph that held only the picture goes with it, and so does a link that held only the picture.
+
 ~~Strikethrough~~ is part of the site's Markdown (the Strike button writes `~~text~~`).
 
 ## Files

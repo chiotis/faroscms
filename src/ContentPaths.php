@@ -7,6 +7,18 @@ namespace FarosCMS;
 /** Where content lives on disk and on the site: file names and public paths, from the language and home page settings. */
 final class ContentPaths
 {
+    /**
+     * The content types whose entries live at the root of the site (/about, /my-post), so they share one set of addresses and
+     * none of them can take a word the site already uses. Every other type has its address under its name (/projects/my-project).
+     */
+    public const ROOT_TYPES = ['pages', 'posts'];
+
+    /** Whether the entries of a type live at the root of the site. */
+    public static function isRoot(string $type): bool
+    {
+        return in_array($type, self::ROOT_TYPES, true);
+    }
+
     public function __construct(private array $settings)
     {
     }
@@ -31,7 +43,7 @@ final class ContentPaths
         return $slug . '.' . $lang . '.md';
     }
 
-    /** The public path (no leading slash) of an item: "about", "en/posts/hello", "" for the home page. */
+    /** The public path (no leading slash) of an item: "about", "en/my-post", "projects/mine", "" for the home page. */
     public function publicPath(string $type, string $slug, string $lang): string
     {
         return self::build($type, $slug, $lang, $this->homeSlug(), $this->defaultLang());
@@ -41,10 +53,10 @@ final class ContentPaths
     {
         $prefix = $lang === $defaultLang ? '' : $lang . '/';
 
-        if ($type === 'pages') {
-            if ($slug === $homeSlug) {
-                return rtrim($prefix, '/');
-            }
+        if ($type === 'pages' && $slug === $homeSlug) {
+            return rtrim($prefix, '/');
+        }
+        if (self::isRoot($type)) {
             return $prefix . $slug;
         }
 

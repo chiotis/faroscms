@@ -176,7 +176,7 @@ $r = $del('pages', ['slug' => 'secret', 'lang' => 'el', 'after' => 'home'], true
 check('deleting with a redirect to the home page', [$r['location'], is_file("$dir/content/pages/secret.md"), $log], [$back . '&deleted=1&from=%2Fsecret&to=%2F', false, ['content.delete']]);
 check('visitors of the old address are sent to the home page', [(int)($redirects->findBySource('secret')['status_code'] ?? 0), $redirects->findBySource('secret')['target'] ?? null], [301, '/']);
 $r = $del('posts', ['slug' => 'hello', 'lang' => 'el'], true, false);
-check('without the right to redirect, the page is deleted and says visitors will find nothing', [$r['location'], is_file("$dir/content/posts/hello.md")], ['/admin/content?type=posts&lang=el&deleted=1&gone=%2Fposts%2Fhello', false]);
+check('without the right to redirect, the page is deleted and says visitors will find nothing', [$r['location'], is_file("$dir/content/posts/hello.md")], ['/admin/content?type=posts&lang=el&deleted=1&gone=%2Fhello', false]);
 $write('pages', 'draftonly', "---\ntitle: Draft\nstatus: draft\n---\n\nx\n");
 $r = $del('pages', ['slug' => 'draftonly', 'lang' => 'el'], true);
 check('a draft, which nobody could have visited, is just deleted', [$r['location'], is_file("$dir/content/pages/draftonly.md")], [$back . '&deleted=1', false]);
