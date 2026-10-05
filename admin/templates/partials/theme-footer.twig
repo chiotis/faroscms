@@ -1,6 +1,6 @@
 {#
   Theme > Footer: the real site beside it, the layouts to choose from, and the rest in a few small
-  cards (look, texts, contact, elements, call to action). The choices are the theme's (`settings.footer` in theme.yaml); a choice
+  cards (look, texts, contact, elements). The choices are the theme's (`settings.footer` in theme.yaml); a choice
   a theme does not declare is left out, and one this screen does not know is listed under "More".
 
   section   the declared footer section        values   what is stored
@@ -15,7 +15,7 @@
   tone: {dark: 'Dark', light: 'Page', muted: 'Muted', accent: 'Colour'},
   brand: {name: 'Name', logo: 'Logo', none: 'None'}
 } %}
-{% set known = ['layout', 'tone', 'brand', 'background', 'background_image', 'summary', 'copyright', 'email', 'phone', 'address', 'hours', 'show_social', 'show_language', 'back_to_top', 'cta_heading', 'cta_text', 'cta_label', 'cta_url'] %}
+{% set known = ['layout', 'tone', 'brand', 'background', 'background_image', 'summary', 'copyright', 'credits', 'email', 'phone', 'address', 'hours', 'show_social', 'show_language', 'back_to_top'] %}
 
 <div class="bp" data-preview data-mode="page" data-endpoint="{{ url('admin/theme?preview=page') }}">
 <div class="bp-grid">
@@ -48,6 +48,7 @@
       <dl class="m-0 space-y-2.5 p-3">
         {% if f.summary is defined %}{{ c.text(f.summary, p ~ 'summary]', v.summary) }}{% endif %}
         {% if f.copyright is defined %}{{ c.text(f.copyright, p ~ 'copyright]', v.copyright) }}{% endif %}
+        {% if f.credits is defined %}{{ c.text(f.credits, p ~ 'credits]', v.credits) }}{% endif %}
       </dl>
       <p class="m-0 px-3 pb-3 text-[11px] leading-4 text-slate-500">The links at the very bottom (privacy, terms) are a menu: make it in <a class="font-medium text-blue-700" href="{{ url('admin/menus') }}">Menus</a> and give it the place “Footer bottom links”.</p>
     </section>
@@ -70,15 +71,6 @@
         {% if f.show_language is defined %}{% set shown = shown|merge([[p ~ 'show_language]', f.show_language.label, v.show_language]]) %}{% endif %}
         {% if f.back_to_top is defined %}{% set shown = shown|merge([[p ~ 'back_to_top]', f.back_to_top.label, v.back_to_top]]) %}{% endif %}
         {% if shown is not empty %}{{ c.toggles('Show', shown) }}{% endif %}
-      </dl>
-    </section>
-
-    <section class="lc-card rounded-xl border border-slate-200 bg-white" aria-labelledby="ft-cta">
-      <h3 id="ft-cta" class="px-3 pt-3 text-sm font-semibold text-slate-900">Call to action <span class="font-normal text-slate-500">· a band above the footer, when it has a heading or a text</span></h3>
-      <dl class="m-0 grid gap-x-6 gap-y-2.5 p-3 md:grid-cols-2">
-        {% for key in ['cta_heading', 'cta_text', 'cta_label', 'cta_url'] %}
-          {% if f[key] is defined %}{{ c.text(f[key], p ~ key ~ ']', v[key]) }}{% endif %}
-        {% endfor %}
       </dl>
     </section>
 

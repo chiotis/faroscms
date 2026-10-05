@@ -1,0 +1,23 @@
+{#
+  Theme > Footer Blocks: blocks shown above the footer on every page and in every language (logos, a call to action, a
+  newsletter form). The block editor is the one of the Blocks tab of an entry (public/assets/js/admin-blocks.js); the blocks are
+  stored in the theme settings (`footer_blocks`) and drawn by `footer_blocks()` in components/footer.twig.
+
+  footer_blocks_json   what the editor starts from (block types, the blocks now there, ready-made sections)
+#}
+<section class="rounded-lg border border-slate-200 bg-white p-4" aria-labelledby="fb-title">
+  <div class="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+    <div class="min-w-0">
+      <h2 id="fb-title" class="text-sm font-semibold text-slate-900">Footer Blocks <span data-block-count class="tab-count"></span></h2>
+      <p class="mt-0.5 text-xs text-slate-500">Shown above the footer on every page, in every language: a row of logos, a call to action, a form. The footer itself is set in the Footer tab.</p>
+    </div>
+  </div>
+  <input type="hidden" name="blocks_json" value="" data-block-editor-output>
+  <input type="hidden" name="blocks_editor" value="" data-block-editor-flag>
+  <div data-block-editor class="space-y-3">
+    <p class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">The block editor needs JavaScript. The footer blocks are kept unchanged when you save.</p>
+  </div>
+  <script type="application/json" id="block-editor-data">{{ footer_blocks_json|raw }}</script>
+</section>
+{% include '@admin/partials/icon-library.twig' %}
+<script src="{{ asset('js/admin-blocks.js') }}"></script>

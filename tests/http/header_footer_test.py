@@ -61,7 +61,7 @@ check('and loads the script that does it, once', html.count('js/admin-preview.js
 st, _, html = root.get('/admin/theme?tab=footer')
 check('the Footer tab has its preview and every layout', 'data-preview data-mode="page"' in html and 'class="hfp' not in html and re.findall(r'name="theme_settings\[footer\]\[layout\]" value="([a-z]+)"', html) == ['columns', 'mega', 'simple', 'bar', 'centered'])
 check('and a field for every choice', all(('name="theme_settings[footer][%s]"' % k) in html for k in (
-    'tone', 'brand', 'show_social', 'show_language', 'back_to_top', 'copyright', 'credits', 'summary', 'email', 'phone', 'address', 'hours', 'cta_heading', 'cta_text', 'cta_label', 'cta_url', 'background', 'background_image')))
+    'tone', 'brand', 'show_social', 'show_language', 'back_to_top', 'copyright', 'credits', 'summary', 'email', 'phone', 'address', 'hours', 'background', 'background_image')) and 'name="theme_settings[footer][cta_heading]"' not in html)
 check('the media picker can fill the footer image', re.search(r'name="theme_settings\[footer\]\[background_image\]"[^>]*data-image-field|data-image-field[^>]*name="theme_settings\[footer\]\[background_image\]"', html) is not None)
 check('the Sidebar and Hero tabs stay where they were put', 'data-tab="single_layouts"' in html and 'data-tab="header"' in html)
 
@@ -128,17 +128,16 @@ h = head(page())
 check('a message with no link is plain text on the palette colour', 'class="topbar tone-accent"' in h and '<p class="topbar-text">Hello</p>' in h)
 
 # ---- the footer
-footer(layout='mega', tone='light', brand='none', copyright='{copyright} {year} {site}. Made in Athens.', credits='Designed by [Unicorg](https://unicorg.example) <b>{copyright}</b>', hours='Mon–Fri 9:00–17:00', email='hello@example.com', show_social='1', show_language='1', back_to_top='1',
-       cta_heading='Ready to start?', cta_text='Tell us about it.', cta_label='Get in touch', cta_url='contact')
+footer(layout='mega', tone='light', brand='none', copyright='{copyright} {year} {site}. Made in Athens.', credits='Designed by [Unicorg](https://unicorg.example) <b>{copyright}</b>', hours='Mon–Fri 9:00–17:00', email='hello@example.com', show_social='1', show_language='1', back_to_top='1')
 f = foot(page())
 check('footer: mega, on the page background', 'footer--mega' in f and ' is-light' in f and 'tone-accent' not in f and 'footer-grid--mega' in f)
 check('no brand when it is switched off', 'class="footer-brand"' not in f)
 check('the copyright line is the site\'s own, with the year and the name', re.search(r'<p class="footer-copy">© \d{4} [^<]+\. Made in Athens\.</p>', f) is not None, re.findall(r'<p class="footer-copy">[^<]*', f))
 check('a credits line under it, with a link, the © sign filled in and nothing else let through', re.search(r'</div>\s*<p class="footer-credits">Designed by <a href="https://unicorg.example" target="_blank" rel="noopener">Unicorg</a> &lt;b&gt;©&lt;/b&gt;</p>', f) is not None, re.findall(r'<p class="footer-credits">[^\n]*', f))
 check('opening hours are in the contact column', 'Mon–Fri 9:00–17:00' in f and 'hello@example.com' in f)
-check('the call to action band, the language switcher and the back to top link', 'footer-cta' in f and 'Ready to start?' in f and re.search(r'<a class="btn btn-primary" href="[^"]*/contact">Get in touch', f) is not None and 'lang-switcher' in f and 'class="footer-top"' in f, [x in f for x in ('footer-cta', 'Ready to start?', 'lang-switcher', 'class="footer-top"')])
+check('the language switcher and the back to top link; the footer has no call to action band (that is a block now)', 'lang-switcher' in f and 'class="footer-top"' in f and 'footer-cta' not in f, [x in f for x in ('lang-switcher', 'class="footer-top"', 'footer-cta')])
 check('social icons are in the footer when it is ticked', 'footer-icons' in f)
-footer(tone='accent', brand='name', show_social=None, show_language=None, back_to_top=None, cta_heading='', cta_text='', cta_label='')
+footer(tone='accent', brand='name', show_social=None, show_language=None, back_to_top=None)
 f = foot(page())
 check('the palette colour: its classes, no social icons, no band, no switcher', 'is-accent' in f and 'tone-accent' in f and 'footer-icons' not in f and 'footer-cta' not in f and 'lang-switcher' not in f and 'footer-top' not in f and 'class="footer-brand"' in f, re.findall(r'<footer class="[^"]*"', f))
 footer(tone='muted')

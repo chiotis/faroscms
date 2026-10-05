@@ -891,25 +891,6 @@ settings:
         default: ''
         placeholder: Mon–Fri 9:00–17:00
         span: full
-      cta_heading:
-        type: text
-        label: Call to action heading
-        default: ''
-        placeholder: Ready to start?
-      cta_label:
-        type: text
-        label: Call to action button text
-        default: ''
-        placeholder: Get in touch
-      cta_text:
-        type: text
-        label: Call to action text
-        default: ''
-      cta_url:
-        type: link
-        label: Call to action button link
-        default: ''
-        placeholder: contact
       background:
         type: color
         label: Background color

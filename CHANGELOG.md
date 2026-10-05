@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.74 — 2026-10-06 — Footer Blocks: blocks above the footer, on every page
+- **New tab *Footer Blocks* in Theme (after Footer).** The block editor of an entry, for blocks that show **above the footer on every page and in every language**: a row of logos, a call to action, a form. Logos are the first use. Ready-made sections work; whole-page layouts are left out, and the texts of the editor speak of the footer, not of a page.
+- **They are drawn on every kind of page** (a page, a list, search, the 404 page), with the styles and scripts they need in the head, and nothing is added to a page when the list is empty. A block can be hidden without removing it.
+- **The footer's own call to action band is gone** (the four *Call to action* fields of Theme > Footer): the CTA block does the same, in any place and with more choices. A site that had one filled in loses the band; its old values stay in the settings, unused. To bring it back, add a CTA block in Footer Blocks.
+- Stored in the theme settings (`footer_blocks`), checked on save like an entry's blocks. Someone without the *Raw HTML in content* permission sees HTML they type as text; HTML already there stays. A save from a page where the editor did not load keeps the blocks.
+- Tests: the footer test no longer expects the band; `tests/http/footer_blocks_test.py` (the tab, saving, the blocks on a page, a list, another language and a missing page, the style sheet in the head, hidden blocks, an empty list). Looked at in Chromium: added a Logos block in the editor, saved, and saw it above the footer of the 404 page.
+
 ## 0.1.74 — 2026-10-06 — Backups: nothing is kept on the server when remote storage is on
 - **With remote storage enabled, a scheduled or manual backup (full or database-only) is deleted from the server as soon as it is safely uploaded.** New choice in Settings > Backups, *Also keep a copy on this server* (off by default), for those who want both. Existing sites with remote storage enabled therefore stop keeping local copies from now on (the ones already there are pruned by *Keep local* as before).
 - **Nothing is lost on the way:** a failed upload keeps the archive on the server (the run is a warning, as before), and the pre-update and pre-restore safety snapshots always stay (an update is undone, and a restore started, from them). The message of the run says when the archive was not kept here.

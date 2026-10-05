@@ -1910,6 +1910,9 @@ final class App
                 $tabs[] = $key;
             }
         }
+        // The blocks above the footer have a tab of their own, right after the footer's.
+        $footerAt = array_search('footer', $tabs, true);
+        array_splice($tabs, $footerAt === false ? count($tabs) : $footerAt + 1, 0, ['footer_blocks']);
         // The two tabs that gather how pages look come after the header's.
         $at = array_search('header', $tabs, true);
         array_splice($tabs, $at === false ? min(1, count($tabs)) : $at + 1, 0, $single->declared() ? ['single_layouts', 'archive_layouts'] : ['archive_layouts']);
@@ -1928,7 +1931,8 @@ final class App
             $activeTab = (string)($_POST['active_tab'] ?? $activeTab);
             $save = $this->saveThemeSettings(
                 is_array($_POST['theme_settings'] ?? null) ? $_POST['theme_settings'] : [],
-                is_array($_POST['single_layouts'] ?? null) ? $_POST['single_layouts'] : null
+                is_array($_POST['single_layouts'] ?? null) ? $_POST['single_layouts'] : null,
+                ($_POST['blocks_editor'] ?? '') === '1' ? json_decode((string)($_POST['blocks_json'] ?? ''), true) : null
             );
             $this->themeSettings = $this->loadThemeSettings();
             if (($save['ok'] ?? false) === true && (is_array($_POST['archive_types'] ?? null) || is_array($_POST['archive_taxonomies'] ?? null))) {
@@ -1962,7 +1966,8 @@ final class App
             'theme_message' => trim((string)($_GET['theme_msg'] ?? '')),
             'theme_schema' => $schema,
             'theme_tabs' => $tabs,
-            'tab_labels' => ['branding' => 'Branding', 'single_layouts' => 'Single Layouts', 'archive_layouts' => 'Archive Layouts'],
+            'tab_labels' => ['branding' => 'Branding', 'single_layouts' => 'Single Layouts', 'archive_layouts' => 'Archive Layouts', 'footer_blocks' => 'Footer Blocks'],
+            'footer_blocks_json' => $this->footerBlocksEditorJson($default),
             'branding' => $branding ? $this->brandingScreen() : null,
             'preview_url' => (string)($this->settings['base_url'] ?? '') . '/',
             'theme_values' => $this->themeSettings,
@@ -2757,6 +2762,29 @@ final class App
             return $groups;
         }));
 
+        // The blocks of Theme > Footer Blocks, drawn once for each language of a request: the markup for above the footer and the
+        // style sheets and scripts they need (the layout asks for those in the head and the footer for the markup).
+        $footerBlocks = [];
+        $twig->addFunction(new TwigFunction('footer_blocks', function (array $context) use (&$footerBlocks): array {
+            $lang = (string)($context['lang'] ?? $this->currentLang);
+            if (!isset($footerBlocks[$lang])) {
+                $raw = $this->themeSettings['footer_blocks'] ?? null;
+                $footerBlocks[$lang] = ['html' => '', 'styles' => [], 'scripts' => []];
+                if (is_array($raw) && $raw !== []) {
+                    $rendered = $this->blockRuntime()->renderer($lang, (string)($context['path_no_lang'] ?? ''), $this->twig)->render(array_values($raw), [
+                        'lang' => $lang,
+                        'lang_prefix' => $context['lang_prefix'] ?? '',
+                        'current_lang' => $lang,
+                        'path_no_lang' => $context['path_no_lang'] ?? '',
+                        'theme_menus' => $context['theme_menus'] ?? [],
+                        'body_html' => '',
+                    ]);
+                    $footerBlocks[$lang] = ['html' => $rendered['html'], 'styles' => $rendered['styles'], 'scripts' => $rendered['scripts']];
+                }
+            }
+            return $footerBlocks[$lang];
+        }, ['needs_context' => true]));
+
         $twig->addFunction(new TwigFunction('can', function (string $capability): bool {
             return $this->permissions->can($this->auth->user(), $capability);
         }));
@@ -3050,7 +3078,7 @@ final class App
      * @param array<string, mixed>|null $singleInput submitted `single_layouts[<type>][...]` values, when the form had the Single Layouts cards
      * @return array{ok: bool, message?: string}
      */
-    private function saveThemeSettings(array $input, ?array $singleInput = null): array
+    private function saveThemeSettings(array $input, ?array $singleInput = null, mixed $footerBlocks = null): array
     {
         if (!$this->systemDatabase->isAvailable()) {
             return ['ok' => false, 'message' => 'Theme settings could not be saved because the SQLite system database is unavailable.'];
@@ -3062,8 +3090,35 @@ final class App
         if ($singleInput !== null && $this->singleLayouts()->declared()) {
             $data['single_layouts'] = $this->singleLayouts()->fromInput($singleInput, $this->content->getTypes(), $current);
         }
-        $this->setSystemMeta('theme_settings', Yaml::dump($data, 4, 2));
+        if (is_array($footerBlocks)) {
+            $blocks = $this->blockRuntime()->registry()->sanitizeForStorage(array_values($footerBlocks));
+            if (!$this->permissions->can($this->auth->user(), 'content.raw_html')) {
+                // Raw HTML can carry script: someone who may not add it sees what they type as text, and what is already there stays.
+                $allowed = $this->htmlGuard()->blocksFragments(is_array($current['footer_blocks'] ?? null) ? array_values($current['footer_blocks']) : []);
+                $blocks = $this->htmlGuard()->eachMarkdownField($blocks, fn(string $value): string => $this->htmlGuard()->neutralize($value, $allowed));
+            }
+            if ($blocks === []) {
+                unset($data['footer_blocks']);
+            } else {
+                $data['footer_blocks'] = $blocks;
+            }
+        }
+        $this->setSystemMeta('theme_settings', Yaml::dump($data, 6, 2));
         return ['ok' => true];
+    }
+
+    /** What the block editor of Theme > Footer Blocks starts from: the block types, the blocks now above the footer, the ready-made sections. */
+    private function footerBlocksEditorJson(string $lang): string
+    {
+        $stored = $this->themeSettings['footer_blocks'] ?? [];
+        return (string)json_encode([
+            'definitions' => $this->blockRuntime()->registry()->editorDefinitions(),
+            'blocks' => is_array($stored) ? array_values($stored) : [],
+            'presets' => $this->presetLibrary()->forEditor($lang, $lang),
+            'presets_url' => rtrim((string)($this->settings['base_url'] ?? ''), '/') . '/admin/block-presets',
+            'lang' => $lang,
+            'context' => 'footer',
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_INVALID_UTF8_SUBSTITUTE);
     }
 
     private function taxonomyTermLabel(string $taxonomy, string $termId, ?string $lang = null): string

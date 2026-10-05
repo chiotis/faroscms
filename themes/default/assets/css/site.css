@@ -2791,38 +2791,6 @@ p.form-error {
   height: var(--footer-logo-height, 2.25rem);
 }
 
-.footer-cta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-s) var(--space-l);
-  margin-bottom: var(--space-xl);
-  padding: var(--space-l);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-l);
-}
-
-.footer-cta-copy {
-  flex: 1 1 18rem;
-}
-
-.footer-cta-copy p {
-  margin: 0;
-}
-
-.footer-cta-title {
-  font-family: var(--font-heading);
-  font-size: var(--step-2);
-  font-weight: var(--heading-weight);
-  letter-spacing: -0.02em;
-}
-
-.footer-cta-text {
-  margin-top: 0.25rem;
-  color: var(--color-muted);
-}
-
 .footer-grid--mega {
   grid-template-columns: minmax(0, 1.4fr) repeat(auto-fit, minmax(9rem, 1fr));
 }
