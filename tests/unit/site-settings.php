@@ -107,7 +107,7 @@ check('without a database, load gives the defaults', $dead->load()['title'], 'Fa
 
 // ---- the form as it arrives
 $f = SiteSettings::formFromPost(['title' => 'T', 'backup_auto_enabled' => 'on', 'google_enabled' => '', 'clear_secret' => ['smtp_pass', 7], 'robots_disallow' => "/a\nDisallow: /b\nhttps://x.test/c"]);
-check('a ticked box is 1, one that was not sent is 0', [$f['backup_auto_enabled'], $f['backup_remote_enabled'], $f['backup_remote_path_style'], $f['google_enabled']], ['1', '0', '0', '1']);
+check('a ticked box is 1, one that was not sent is 0', [$f['backup_auto_enabled'], $f['backup_remote_enabled'], $f['backup_remote_path_style'], $f['backup_remote_keep_local'], $f['google_enabled']], ['1', '0', '0', '0', '1']);
 check('text that was not sent is empty', [$f['title'], $f['tagline'], $f['smtp_host']], ['T', '', '']);
 check('the robots rules are cleaned on the way in', $f['robots_disallow'], "/a\n/b");
 check('a form without the robots box says so (null), so it does not clear them', SiteSettings::formFromPost([])['robots_disallow'], null);

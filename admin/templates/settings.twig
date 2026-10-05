@@ -411,6 +411,13 @@
               <input type="number" min="1" name="backup_remote_keep" value="{{ settings_form.backup_remote_keep }}" class="{{ input_class }}">
             </label>
           </div>
+          <div class="mt-3 border-t border-slate-100 pt-3">
+            <label class="inline-flex items-center gap-2 text-sm text-slate-700">
+              <input type="checkbox" name="backup_remote_keep_local" value="1" {% if settings_form.backup_remote_keep_local %}checked{% endif %} class="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+              Also keep a copy on this server
+            </label>
+            <p class="mt-1 text-xs text-slate-500">Off by default: a scheduled or manual backup is removed from this server once it is safely in remote storage (if the upload fails, it stays). Backups made before an update or a restore always stay on the server. Backups kept only remotely are not listed on the Backups screen and cannot be restored from it.</p>
+          </div>
           <div class="mt-3 flex flex-col gap-3 border-t border-slate-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
             <label class="inline-flex items-center gap-2 text-sm text-slate-700">
               <input type="checkbox" name="backup_remote_path_style" value="1" {% if settings_form.backup_remote_path_style %}checked{% endif %} class="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500">

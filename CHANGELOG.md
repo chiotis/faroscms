@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.74 — 2026-10-06 — Backups: nothing is kept on the server when remote storage is on
+- **With remote storage enabled, a scheduled or manual backup (full or database-only) is deleted from the server as soon as it is safely uploaded.** New choice in Settings > Backups, *Also keep a copy on this server* (off by default), for those who want both. Existing sites with remote storage enabled therefore stop keeping local copies from now on (the ones already there are pruned by *Keep local* as before).
+- **Nothing is lost on the way:** a failed upload keeps the archive on the server (the run is a warning, as before), and the pre-update and pre-restore safety snapshots always stay (an update is undone, and a restore started, from them). The message of the run says when the archive was not kept here.
+- The Backups screen lists the archives on the server, so a backup kept only remotely is not listed and cannot be restored from the admin (download it from the provider into `storage/backups/` first). The dashboard and the system check use the run history too, so they no longer say "no backup yet" when the backups are all remote. The run history now records the size of the backup that was made, not of the file that is left.
+- Tests: removal after upload, kept on failure / pre-update / pre-restore / keep_local, the run size, the latest known remote-only backup (`tests/unit/backup-manager.php`), the new field (`tests/unit/site-settings.php`).
+
 ## 0.1.73 — 2026-10-06 — Footer: a credits line, and {copyright} for the © sign
 - **New *Credits line* in Theme > Footer**, shown under the copyright row in every footer layout (for example "Designed by Unicorg"). A link is written `[text](https://address)`; web links open in a new tab, a site path (`/about`) and `mailto:` work too, and anything else is shown as plain text (everything typed there is escaped, so no HTML gets in). Empty shows nothing.
 - **`{copyright}` is the © sign**, next to `{year}` and `{site}`, in both the copyright line and the credits line.
