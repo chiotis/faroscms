@@ -7,12 +7,8 @@ namespace FarosCMS;
 use League\CommonMark\Environment\Environment;
 use League\CommonMark\Extension\Attributes\AttributesExtension;
 use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
-use League\CommonMark\Extension\CommonMark\Node\Block\HtmlBlock;
-use League\CommonMark\Extension\CommonMark\Node\Inline\HtmlInline;
 use League\CommonMark\Extension\Strikethrough\StrikethroughExtension;
 use League\CommonMark\Extension\Table\TableExtension;
-use League\CommonMark\Node\Block\AbstractBlock;
-use League\CommonMark\Parser\MarkdownParser;
 use League\CommonMark\MarkdownConverter;
 use Symfony\Component\Yaml\Yaml;
 use Twig\Environment as TwigEnvironment;
@@ -478,39 +474,6 @@ final class App
         return $environment;
     }
 
-    /**
-     * Shows raw HTML as plain text instead of letting it through, except HTML that is already in the
-     * content being edited (placed there by someone allowed to), so an edit never breaks an embed.
-     *
-     * @param string[] $allowed HTML fragments to leave as they are
-     */
-    private function neutralizeRawHtml(string $markdown, array $allowed = []): string
-    {
-        return $this->htmlGuard()->neutralize($markdown, $allowed);
-    }
-
-    /**
-     * Raw HTML fragments in the Markdown of an existing content file (its body and its blocks' Markdown fields).
-     *
-     * @return string[]
-     */
-    private function storedHtmlFragments(string $path): array
-    {
-        return $this->htmlGuard()->storedFragments($path);
-    }
-
-    /**
-     * Applies $change to every Markdown field of the blocks (including items inside repeaters) and returns the blocks.
-     *
-     * @param array<int, mixed> $blocks
-     * @param \Closure(string): string $change
-     * @return array<int, mixed>
-     */
-    private function eachMarkdownField(array $blocks, \Closure $change): array
-    {
-        return $this->htmlGuard()->eachMarkdownField($blocks, $change);
-    }
-
     private function configureSession(): void
     {
         if (headers_sent()) {
@@ -590,7 +553,7 @@ final class App
         $this->setLanguage($lang);
         $includeHidden = $this->auth->check();
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['form_slug']) && ($segments[0] ?? '') !== 'forms') {
-            $formSlug = $this->slugify((string)($_POST['form_slug'] ?? ''));
+            $formSlug = Slug::plain((string)($_POST['form_slug'] ?? ''));
             if ($formSlug !== '') {
                 $formItem = $this->content->find('forms', $formSlug, $lang, $includeHidden, false);
                 if ($formItem) {
@@ -789,7 +752,7 @@ final class App
                         return [];
                     }
                     $items = $this->content->getItems($type, $itemLang, $includeHidden, false);
-                    $term = $this->slugify($term);
+                    $term = Slug::plain($term);
                     if ($term !== '') {
                         // Only items filed under this category or tag.
                         $items = array_values(array_filter($items, function (ContentItem $item) use ($term): bool {
@@ -803,7 +766,7 @@ final class App
                     }
                     return array_slice($items, 0, max(1, min(24, $limit)));
                 },
-                'form' => fn(string $slug): string => $slug === '' ? '' : $this->renderFormEmbedBySlug($this->slugify($slug), $lang, $path),
+                'form' => fn(string $slug): string => $slug === '' ? '' : $this->renderFormEmbedBySlug(Slug::plain($slug), $lang, $path),
                 'youtube' => function (string $playlistId, string $thumbs): array {
                     $result = $this->youtubePlaylist()->fetch($playlistId);
                     foreach ($result['items'] as $i => $video) {
@@ -819,7 +782,7 @@ final class App
                 'geo' => function (string $source, string $itemLang, int $limit, string $term) use ($includeHidden): array {
                     $view = $this->geoView();
                     $types = $source === 'all' ? $view->placeTypes() : (in_array($source, $view->placeTypes(), true) ? [$source] : []);
-                    return $view->dataset($view->gather($types, $itemLang, $this->slugify($term)), $itemLang, ['limit' => max(1, min(800, $limit))]);
+                    return $view->dataset($view->gather($types, $itemLang, Slug::plain($term)), $itemLang, ['limit' => max(1, min(800, $limit))]);
                 },
                 'geo_load' => fn(): string => ($this->settings['apis']['maps']['load'] ?? 'click') === 'auto' ? 'auto' : 'click',
                 'term' => fn(string $id, string $itemLang): string => $this->taxonomyTermLabel('categories', $id, $itemLang),
@@ -1960,7 +1923,7 @@ final class App
         return $this->presetLibrary ??= new PresetLibrary(
             $this->theme,
             $this->blockRegistry(),
-            fn(string $value): string => $this->slugify($value)
+            fn(string $value): string => Slug::plain($value)
         );
     }
 
@@ -2002,7 +1965,7 @@ final class App
             return;
         }
         $action = (string)($_POST['preset_action'] ?? '');
-        $lang = $this->slugify((string)($_POST['lang'] ?? ''));
+        $lang = Slug::plain((string)($_POST['lang'] ?? ''));
         $defaultLang = (string)($this->settings['languages']['default'] ?? 'en');
         $library = $this->presetLibrary();
 
@@ -2129,9 +2092,9 @@ final class App
             $this->denyContentType($type);
             return;
         }
-        $slug = $this->slugify((string)($_GET['slug'] ?? ''));
-        $lang = $this->slugify((string)($_GET['lang'] ?? ($this->settings['languages']['default'] ?? 'en')));
-        $template = $this->slugify((string)($_GET['template'] ?? ''));
+        $slug = Slug::plain((string)($_GET['slug'] ?? ''));
+        $lang = Slug::plain((string)($_GET['lang'] ?? ($this->settings['languages']['default'] ?? 'en')));
+        $template = Slug::plain((string)($_GET['template'] ?? ''));
         if ($type === 'forms' && $slug === '' && $template === '') {
             // A new form starts from a ready-made one, or from nothing.
             $this->redirect('/admin/forms-new?lang=' . urlencode($lang));
@@ -2144,7 +2107,7 @@ final class App
     private function handleFormsNew(): void
     {
         $languages = array_map('strval', $this->settings['languages']['available'] ?? [$this->defaultLanguage()]);
-        $lang = $this->slugify((string)($_GET['lang'] ?? $this->defaultLanguage()));
+        $lang = Slug::plain((string)($_GET['lang'] ?? $this->defaultLanguage()));
         if (!in_array($lang, $languages, true)) {
             $lang = $this->defaultLanguage();
         }
@@ -2535,8 +2498,8 @@ final class App
 
     private function handleFormsExport(): void
     {
-        $slug = $this->slugify((string)($_GET['slug'] ?? ''));
-        $lang = $this->slugify((string)($_GET['lang'] ?? ($this->settings['languages']['default'] ?? 'en')));
+        $slug = Slug::plain((string)($_GET['slug'] ?? ''));
+        $lang = Slug::plain((string)($_GET['lang'] ?? ($this->settings['languages']['default'] ?? 'en')));
         if ($slug === '') {
             $this->redirect('/admin/content?type=forms');
             return;
@@ -2654,7 +2617,7 @@ final class App
             'extensions' => SystemStatus::extensions(),
             'environment' => $this->systemStatus()->environment($this->updates()->currentVersion(), $this->updates()->currentGitCommit(), $this->isHttpsRequest()),
             'tasks' => [
-                ['name' => 'Automatic backups', 'schedule' => $this->isTruthy($auto['enabled'] ?? false) ? (string)($auto['schedule'] ?? 'daily') : 'off', 'last' => (string)($auto['last_run'] ?? ''), 'how' => 'Runs on the first admin page view after it is due.'],
+                ['name' => 'Automatic backups', 'schedule' => Format::isTruthy($auto['enabled'] ?? false) ? (string)($auto['schedule'] ?? 'daily') : 'off', 'last' => (string)($auto['last_run'] ?? ''), 'how' => 'Runs on the first admin page view after it is due.'],
                 ['name' => 'Update check', 'schedule' => 'every 12 hours', 'last' => (string)($update['checked_at'] ?? ''), 'how' => 'Runs on an admin page view for users who manage updates.'],
                 ['name' => 'Content index', 'schedule' => 'on change', 'last' => (string)($this->contentIndex->status($this->content->getTypes())['last_indexed_at'] ?? ''), 'how' => 'Updated on save, delete, bulk actions, imports, and restores; rebuilt automatically when files change outside the admin.'],
                 ['name' => 'Sign-in attempt cleanup', 'schedule' => 'continuous', 'last' => '', 'how' => 'Entries older than a day are removed while new attempts are recorded.'],
@@ -2681,7 +2644,7 @@ final class App
             'q' => trim((string)($_GET['q'] ?? '')),
             'status' => trim((string)($_GET['status'] ?? '')),
         ];
-        $overview = $this->formsAdmin()->overview($filters, (string)($_GET['sort'] ?? 'updated'), $languages, $defaultLang, $this->isTruthy($this->settings['forms']['store_submissions'] ?? true));
+        $overview = $this->formsAdmin()->overview($filters, (string)($_GET['sort'] ?? 'updated'), $languages, $defaultLang, Format::isTruthy($this->settings['forms']['store_submissions'] ?? true));
 
         $this->render('@admin/forms-list.twig', [
             'title' => 'Forms',
@@ -2702,7 +2665,7 @@ final class App
 
     private function handleFormSubmissions(): void
     {
-        $slug = $this->slugify((string)($_GET['slug'] ?? ($_POST['slug'] ?? '')));
+        $slug = Slug::plain((string)($_GET['slug'] ?? ($_POST['slug'] ?? '')));
         $defaultLang = (string)($this->settings['languages']['default'] ?? 'en');
         $versions = $this->formsAdmin()->versions($slug);
         if ($slug === '' || $versions === []) {
@@ -2846,7 +2809,7 @@ final class App
             return;
         }
 
-        $selected = $this->slugify((string)($_GET['type'] ?? ''));
+        $selected = Slug::plain((string)($_GET['type'] ?? ''));
         $common = [
             'saved' => isset($_GET['saved']),
             'error' => (string)($_GET['error'] ?? ''),
@@ -2877,7 +2840,7 @@ final class App
         $this->render('@admin/content-types.twig', [
             'types_list' => $admin->typeRows($manageable, $default),
             'toggled' => (string)($_GET['toggled'] ?? ''),
-            'toggled_type' => $this->slugify((string)($_GET['type_name'] ?? '')),
+            'toggled_type' => Slug::plain((string)($_GET['type_name'] ?? '')),
         ] + $common);
     }
 
@@ -2901,7 +2864,7 @@ final class App
             $available = [$defaultLang];
         }
 
-        $lang = $this->slugify((string)($_GET['lang'] ?? $_POST['lang'] ?? $defaultLang));
+        $lang = Slug::plain((string)($_GET['lang'] ?? $_POST['lang'] ?? $defaultLang));
         if (!in_array($lang, $available, true)) {
             $lang = $defaultLang;
         }
@@ -3034,7 +2997,7 @@ final class App
         }));
 
         $twig->addFunction(new TwigFunction('slug', function (string $value): string {
-            return $this->slugify($value);
+            return Slug::plain($value);
         }));
 
         $twig->addFunction(new TwigFunction('taxonomy_label', function (string $taxonomy, string $termId, ?string $lang = null): string {
@@ -3349,7 +3312,7 @@ final class App
 
     private function loadThemeSettings(): array
     {
-        $raw = $this->siteSettings()->raw('theme_settings', $this->defaultThemeSettings());
+        $raw = $this->siteSettings()->raw('theme_settings', $this->theme->defaultSettings());
         $data = [];
         if (trim($raw) !== '') {
             try {
@@ -3361,16 +3324,6 @@ final class App
         }
         // The theme manifest decides what is valid: new fields get defaults, retired values fall back.
         return $this->theme->resolveSettings($data);
-    }
-
-    private function defaultThemeSettings(): array
-    {
-        return $this->theme->defaultSettings();
-    }
-
-    private function getSystemMeta(string $key): ?string
-    {
-        return $this->systemMeta->get($key);
     }
 
     private function setSystemMeta(string $key, string $value): void
@@ -3651,17 +3604,6 @@ final class App
         $this->render($this->resolveTaxonomyTemplate($page['kind'], $page['slug']), $page['data']);
     }
 
-    private function buildContentPath(string $type, string $slug, string $lang, string $homeSlug, string $defaultLang): string
-    {
-        return ContentPaths::build($type, $slug, $lang, $homeSlug, $defaultLang);
-    }
-
-    private function buildArchivePath(string $type, string $lang, string $defaultLang): string
-    {
-        $prefix = $lang === $defaultLang ? '' : $lang . '/';
-        return $prefix . $type;
-    }
-
     private function buildTaxonomyPath(string $taxonomy, string $termId, string $prefix = ''): string
     {
         $kind = Taxonomies::kind($taxonomy);
@@ -3678,7 +3620,7 @@ final class App
 
     private function resolveTaxonomyTemplate(string $kind, string $slug): string
     {
-        $safeSlug = $this->slugify($slug);
+        $safeSlug = Slug::plain($slug);
         return $this->theme->findTemplate([
             'templates/archive-' . $kind . '-' . $safeSlug . '.twig',
             'templates/archive-' . $kind . '.twig',
@@ -3691,16 +3633,6 @@ final class App
         return Format::dateValue($value, (string)($this->settings['date_format'] ?? 'd/m/Y'));
     }
 
-    private function normalizeMetaList(mixed $value): array
-    {
-        return Format::list($value);
-    }
-
-    private function isTruthy(mixed $value): bool
-    {
-        return Format::isTruthy($value);
-    }
-
     private function isReservedFrontmatterKey(string $key): bool
     {
         return $this->contentEditor()->isReservedKey($key);
@@ -3709,11 +3641,6 @@ final class App
     private function normalizeDateForStorage(string $value): string
     {
         return $this->contentEditor()->normalizeDate($value);
-    }
-
-    private function parseCommaList(string $value): array
-    {
-        return Format::commaList($value);
     }
 
     private function resolveCanonicalUrl(?string $override, string $fallback): string
@@ -3806,25 +3733,10 @@ final class App
         return FrontRoute::langPrefix($lang, $this->defaultLanguage());
     }
 
-    private function slugify(string $value): string
-    {
-        return Slug::plain($value);
-    }
-
-    private function transliterateGreek(string $value): string
-    {
-        return Slug::transliterateGreek($value);
-    }
-
     private function sanitizeType(string $value): string
     {
-        $value = $this->slugify($value);
+        $value = Slug::plain($value);
         return $value === '' ? 'pages' : $value;
-    }
-
-    private function titleFromSlug(string $slug): string
-    {
-        return Slug::title($slug);
     }
 
     /** @return array<int, array<string, mixed>> */
@@ -3921,17 +3833,6 @@ final class App
             return '';
         }
         return $this->twig->render('components/form.twig', $this->publicForms()->embed($form, $currentPath, $this->formStates[$form->slug] ?? null, $_GET));
-    }
-
-    private function buildFilename(string $slug, string $lang): string
-    {
-        return (new ContentPaths($this->settings))->filename($slug, $lang);
-    }
-
-    /** @return array{0: string, 1: string} */
-    private function splitFrontMatter(string $raw): array
-    {
-        return FrontMatter::split($raw);
     }
 
     private function redirect(string $path): void
