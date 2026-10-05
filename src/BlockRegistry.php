@@ -94,6 +94,8 @@ final class BlockRegistry
                 'origin' => $definition['origin'],
                 'preview' => $definition['preview'] ?? '',
                 'variant_when' => $definition['variant_when'] === [] ? new \stdClass() : $definition['variant_when'],
+                'variant_previews' => ($definition['variant_previews'] ?? []) === [] ? new \stdClass() : $definition['variant_previews'],
+                'design_fields' => $definition['design_fields'] ?? [],
                 'common' => $prepare($definition['common']),
                 'fields' => $prepare($definition['fields']),
             ];
@@ -183,6 +185,12 @@ final class BlockRegistry
         }
         $tone = (string)($raw['tone'] ?? 'default');
         $spacing = (string)($raw['spacing'] ?? 'default');
+        $fields = FieldSchema::withIcons(FieldSchema::normalize($this->expandFields(is_array($raw['fields'] ?? null) ? $raw['fields'] : [])), $this->theme->iconNames());
+        // Fields of the block that the editor shows beside its layout (in the Design tab) because they change how the layout looks.
+        $designFields = array_values(array_filter(
+            array_map('strval', is_array($raw['design_fields'] ?? null) ? $raw['design_fields'] : []),
+            static fn(string $key): bool => isset($fields[$key]) && $fields[$key]['type'] !== 'repeater'
+        ));
 
         return [
             'type' => $type,
@@ -193,7 +201,9 @@ final class BlockRegistry
             'preview' => self::previewMarkup((string)@file_get_contents(dirname($file) . '/preview.svg')),
             'variants' => $variants,
             'variant_when' => $variantWhen,
-            'fields' => FieldSchema::withIcons(FieldSchema::normalize($this->expandFields(is_array($raw['fields'] ?? null) ? $raw['fields'] : [])), $this->theme->iconNames()),
+            'variant_previews' => self::variantPreviews(dirname($file) . '/variants', array_keys($variants), $designFields, $fields),
+            'design_fields' => $designFields,
+            'fields' => $fields,
             // Every block shares these presentation fields.
             'common' => FieldSchema::normalize([
                 'variant' => ['type' => 'select', 'label' => 'Layout', 'options' => $variants, 'default' => (string)array_key_first($variants)],
@@ -203,6 +213,42 @@ final class BlockRegistry
                 'hidden' => ['type' => 'toggle', 'label' => 'Hide this block'],
             ]),
         ];
+    }
+
+    /**
+     * The small drawing of each layout of a block (`variants/<layout>.svg` next to its block.yaml, in the format of preview.svg), for
+     * the layout choice of the editor. A layout that depends on a design field has one more drawing for each value of that field,
+     * named `<layout>-<value>.svg` (the hero's text over a picture, centred), used while the field has that value.
+     *
+     * @param string[] $variants the layouts
+     * @param string[] $designFields
+     * @param array<string, array<string, mixed>> $fields
+     * @return array<string, string> drawing name => markup
+     */
+    private static function variantPreviews(string $dir, array $variants, array $designFields, array $fields): array
+    {
+        if (!is_dir($dir)) {
+            return [];
+        }
+        $names = $variants;
+        foreach ($variants as $variant) {
+            foreach ($designFields as $key) {
+                foreach (array_keys($fields[$key]['options'] ?? []) as $value) {
+                    $names[] = $variant . '-' . $value;
+                }
+            }
+        }
+        $previews = [];
+        foreach ($names as $name) {
+            if (!preg_match('/^[a-z0-9-]+$/', (string)$name)) {
+                continue;
+            }
+            $markup = self::previewMarkup((string)@file_get_contents($dir . '/' . $name . '.svg'));
+            if ($markup !== '') {
+                $previews[(string)$name] = $markup;
+            }
+        }
+        return $previews;
     }
 
     private const PREVIEW_TAGS = ['g', 'path', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon'];

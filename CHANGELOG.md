@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.86 — 2026-10-06 — Hero: centred text over a picture, and each layout drawn
+- **The Hero layouts that put the text over a full-width picture (*Text over a full-width image*, and the one with numbered steps) can have the text centred.** *Text alignment: Left or Centered* sits beside the layout in the Design tab. Centred, the text is in the middle of the picture (with the steps, at the bottom as before), buttons and highlights are centred too, and the shade over the picture no longer favours the left side. Left is what it was, and existing heroes are unchanged.
+- **The layout choice of the Hero shows a small drawing of each layout** (text beside a picture, centred text with a wide picture, text over a picture, with steps, large heading) instead of long button labels; the drawing of the two layouts over a picture follows the alignment. A block can have this too: `variants/<layout>.svg` next to its `block.yaml`, and `design_fields` for the fields that change how a layout looks (see `docs/theming.md`). Blocks with no drawings keep the plain buttons.
+- Tests: the hero's field, drawings and storage (`tests/unit/blocks.php`), the page in each layout and the definition the editor gets (`tests/http/blocks_pack_test.py`). Looked at in Chromium: the tiles with the selected layout, the drawing changing with the alignment, and a centred cover hero.
+
 ## 0.1.85 — 2026-10-06 — Random order for an archive
 - **Random is a new choice of *Order* on every archive card** (content types and taxonomies, Theme > Archive Layouts; `order: random` in a definition). The list comes in a new order for each visit.
 - **Paging stays right:** the order comes from a number carried by the paging links (`?seed=…`), so while someone pages through the list the order does not change and no entry is shown twice or missed; a visit without the number gets a new one. A filter chosen on the page starts a new order. No global random state is used: the same number always gives the same order.

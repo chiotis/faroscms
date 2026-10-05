@@ -195,5 +195,24 @@ check('a height that is not one of them is medium', 'data-size="medium"' in logo
 check('taller logos need more room, so a row holds fewer (seven, five, four, three)', [cols(logos(7, size=z)) for z in ('small', 'medium', 'large', 'xlarge')] == [7, 4, 4, 3] and [cols(logos(4, size='large')), cols(logos(4, size='xlarge')), cols(logos(3, size='xlarge'))] == [4, 2, 3], [[cols(logos(7, size=z)) for z in ('small', 'medium', 'large', 'xlarge')], cols(logos(4, size='xlarge'))])
 check('the framed grid works the same', 'block--grid' in logos(7, 'color', 'grid') and cols(logos(7, 'color', 'grid')) == 4)
 
+# ---- Hero: the text over a picture can be centred; the editor draws each layout
+def hero(slug, **values):
+    st, _, html = page(slug, {'type': 'hero', 'heading': 'Centre me', 'text': 'Some text.', 'background': 'image', 'image': '/uploads/media/5e6915a67b9ceec5.jpg', **values})
+    return html
+h = hero('hero-left', variant='cover')
+check('a cover hero keeps its text on the left unless asked', 'hero-inner is-centered' not in h and 'hero-cover-media is-centered' not in h and 'hero-cover-media' in h)
+h = hero('hero-centre', variant='cover', align='center')
+check('a cover hero with centred text marks its text and its shade', 'hero-inner is-centered' in h and 'hero-cover-media is-centered' in h)
+h = hero('hero-steps-centre', variant='steps', align='center', items=[{'title': 'One', 'text': 'First'}])
+check('and so does the steps layout, with its steps', 'hero-inner is-centered' in h and 'hero-steps' in h)
+h = hero('hero-split-centre', variant='split', align='center')
+check('the other layouts ignore it', 'is-centered' not in h.split('<main')[1])
+st, _, edit = root.get('/admin/edit?type=pages&slug=about&lang=en')
+data = json.loads(re.search(r'id="block-editor-data"[^>]*>(.*?)</script>', edit, re.S).group(1))
+hero_def = next(d for d in data['definitions'] if d['type'] == 'hero')
+check('the editor gets a drawing of each layout and the alignment as a field beside it', sorted(hero_def['variant_previews']) == ['centered', 'cover', 'cover-center', 'minimal', 'split', 'steps', 'steps-center'] and hero_def['design_fields'] == ['align'], (sorted(hero_def['variant_previews']), hero_def['design_fields']))
+app_css = root.get('/assets/css/app.css')[2]
+check('the admin style sheet has the drawn layout choice', '.bk-vtiles' in app_css)
+
 print('\nALL PASSED' if not fails else '\n%d FAILED: %s' % (len(fails), fails))
 sys.exit(1 if fails else 0)

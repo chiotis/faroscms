@@ -181,6 +181,41 @@
   color: #ffffff;
 }
 
+/* Cover, text centred: the text in the middle of the picture (with the steps, at the bottom as before), and a shade that does not favour a side. */
+.block-hero:is(.block--cover, .block--steps) .hero-inner.is-centered {
+  justify-items: center;
+  text-align: center;
+}
+
+.block-hero.block--cover .hero-inner.is-centered {
+  align-self: center;
+}
+
+.block-hero:is(.block--cover, .block--steps) .is-centered .hero-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 54rem;
+}
+
+.block-hero:is(.block--cover, .block--steps) .is-centered .hero-title {
+  max-width: 18ch;
+}
+
+.block-hero:is(.block--cover, .block--steps) .is-centered .hero-text {
+  margin-inline: auto;
+}
+
+.block-hero:is(.block--cover, .block--steps) .is-centered .actions,
+.block-hero:is(.block--cover, .block--steps) .is-centered .hero-highlights {
+  justify-content: center;
+}
+
+.hero-cover-media.is-centered::after {
+  background:
+    linear-gradient(180deg, rgb(var(--ink-rgb) / 0.35) 0%, rgb(var(--ink-rgb) / 0.5) 45%, rgb(var(--ink-rgb) / 0.82) 100%);
+}
+
 @media (max-width: 900px) {
   .block-hero.block--split .hero-inner {
     grid-template-columns: 1fr;
