@@ -21,3 +21,4 @@ docs/migration-plan.md
 docs/admin-gap-list.md
 # Local tooling settings.
 .claude/
+__pycache__/
