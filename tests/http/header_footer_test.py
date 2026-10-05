@@ -284,5 +284,15 @@ for what, needle in (('a hero that covers', '.block-hero:is(.block--cover, .bloc
     i = css.find('.has-transparent-header .main-shell > ' + needle)
     check('the top of %s is darker under the transparent header' % what, i >= 0 and 'linear-gradient(180deg, rgb(var(--ink-rgb) / 0.5' in css[i:i + 700], css[i:i + 200] if i >= 0 else 'missing')
 
+# ---- a dark or colour menu bar has no line around it
+for tone, expect in (('contrast', True), ('accent', True), ('default', False)):
+    header(layout='stacked', bar_tone=tone, shape='full')
+    cls = head_tag(page())[0].split()
+    check('stacked with a %s bar: the header %s' % (tone, 'is marked to drop its lines' if expect else 'keeps its lines'), ('bar-dark' in cls) == expect, cls)
+header(layout='classic', bar_tone='contrast')
+check('another layout has no bar to mark', 'bar-dark' not in head_tag(page())[0].split())
+css = asset('css')
+check('the marked header has no line under it and its bar none above it', re.search(r'\.site-header\.bar-dark:not\(\.is-floating\)\s*\{[^}]*border-bottom-color:\s*transparent', css) is not None and re.search(r'\.site-header\.bar-dark \.header-bar\s*\{[^}]*border-top-color:\s*transparent', css) is not None)
+
 print('\nALL PASSED' if not fails else '\n%d FAILED: %s' % (len(fails), fails))
 sys.exit(1 if fails else 0)

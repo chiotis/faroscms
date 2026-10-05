@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.84 — 2026-10-06 — A dark menu bar has no line around it
+- **With a dark or colour menu bar (Header > stacked layout > bar colour), the light line above and under the bar is gone.** It was the header's own line and the divider between the row of the logo and the bar, both drawn in the page's light border colour, so a thin light edge showed around the dark bar. The header now carries a `bar-dark` class in that case and drops both lines. A floating header keeps its outline, which is the edge of its card, and a light bar keeps its lines.
+- Tests: the class for a dark, a colour and a default bar and for another layout, and the two rules in the style sheet (`tests/http/header_footer_test.py`). Looked at in Chromium with a dark bar.
+
 ## 0.1.83 — 2026-10-06 — A transparent header reads over any picture
 - **A dropdown of the menu has a panel of its own while the header is transparent over a picture:** dark and nearly solid (with a soft blur), so its links read on a light or busy picture. The header itself still has no background, and once the page scrolls and the header turns solid the dropdown is the same as before.
 - **The top of the picture is a little darker under the transparent header** (a shade that fades out below the header) on a Hero block that covers, a cover title area, and the first slider, so the header's light text reads on any picture. The rest of the picture is as it was.
