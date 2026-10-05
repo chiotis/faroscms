@@ -144,6 +144,12 @@ check('each text is cleaned like any other (no line breaks in a one-line text)',
 check('a text in a repeater row can be translatable too', FieldSchema::fromInput(FieldSchema::normalize(['rows' => ['type' => 'repeater', 'fields' => ['label' => ['type' => 'text', 'translatable' => true]]]]), ['rows' => [['label' => ['default' => 'A', 'en' => 'B']]]], [])['rows'], [['label' => ['default' => 'A', 'en' => 'B']]]);
 check('the text for a language: its own, else the default, else the first', [Format::localized(['default' => 'Γεια', 'en' => 'Hello'], 'en'), Format::localized(['default' => 'Γεια', 'en' => 'Hello'], 'fr'), Format::localized(['en' => 'Hello'], 'el'), Format::localized(['default' => 'Γεια', 'en' => ' '], 'en'), Format::localized('Plain', 'en'), Format::localized(null, 'en'), Format::localized([], 'en')], ['Hello', 'Γεια', 'Hello', 'Γεια', 'Plain', '', '']);
 
+// ---- release notes: a line of Markdown as safe HTML
+check('release notes: code, bold and italic', Format::inlineMarkdown('**New tab** in `Theme` is *shown* now'), '<strong>New tab</strong> in <code>Theme</code> is <em>shown</em> now');
+check('and a link, with nothing inside code touched', Format::inlineMarkdown('See [the docs](https://x.example/a) and `**not bold** [a](https://b.example)`'), 'See <a href="https://x.example/a" target="_blank" rel="noopener">the docs</a> and <code>**not bold** [a](https://b.example)</code>');
+check('HTML and unsafe links stay as text', [Format::inlineMarkdown('<b>x</b> & [y](javascript:alert(1))'), Format::inlineMarkdown('a_b_c and 2 * 3 * 4')], ['&lt;b&gt;x&lt;/b&gt; &amp; [y](javascript:alert(1))', 'a_b_c and 2 * 3 * 4']);
+check('a lone star or a name with underscores is not formatting', Format::inlineMarkdown('footer_blocks and *'), 'footer_blocks and *');
+
 // ---- the footer's credits line: links written as [text](address), everything else escaped
 check('a credits line: a web link opens in a new tab', Format::inlineLinks('Designed by [Unicorg](https://unicorg.example/a?b=1&c=2)'), 'Designed by <a href="https://unicorg.example/a?b=1&amp;c=2" target="_blank" rel="noopener">Unicorg</a>');
 check('a site address and a mail address are links too', [Format::inlineLinks('[Home](/en/about)'), Format::inlineLinks('[Mail](mailto:a@b.gr)')], ['<a href="/en/about">Home</a>', '<a href="mailto:a@b.gr">Mail</a>']);

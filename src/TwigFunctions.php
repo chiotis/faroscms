@@ -50,6 +50,8 @@ final class TwigFunctions
         });
 
         // A short line with [label](address) links, escaped, for what the owner types in a theme setting (the footer's credits).
+        // A line of Markdown (code, bold, italic, links) as safe HTML: the release notes of the Updates screen.
+        $add('inline_markdown', static fn(mixed $text): string => Format::inlineMarkdown((string)$text), true);
         $add('inline_links', static fn(mixed $text): string => Format::inlineLinks((string)$text), true);
 
         // The icon set as JSON ({name: svg}) for the admin's icon picker, one library for every place an icon is chosen.

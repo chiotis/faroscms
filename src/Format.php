@@ -28,7 +28,31 @@ final class Format
      */
     public static function inlineLinks(string $text): string
     {
+        return self::linkify(htmlspecialchars($text, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'));
+    }
+
+    /**
+     * A line of Markdown as safe HTML, for what a release's notes say: `code`, **bold**, *italic* and [links](address); everything
+     * else is text, escaped (no HTML gets through).
+     */
+    public static function inlineMarkdown(string $text): string
+    {
         $html = htmlspecialchars($text, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $codes = [];
+        // Code first, so what is inside it is left alone, then put back at the end.
+        $html = (string)preg_replace_callback('/`([^`\n]+)`/u', static function (array $m) use (&$codes): string {
+            $codes[] = '<code>' . $m[1] . '</code>';
+            return "\x00" . (count($codes) - 1) . "\x00";
+        }, $html);
+        $html = self::linkify($html);
+        $html = (string)preg_replace('/\*\*(?=\S)(.+?)(?<=\S)\*\*/u', '<strong>$1</strong>', $html);
+        $html = (string)preg_replace('/(?<![\w*])\*(?=[^\s*])([^*\n]+?)(?<=[^\s*])\*(?![\w*])/u', '<em>$1</em>', $html);
+        return (string)preg_replace_callback('/\x00(\d+)\x00/', static fn(array $m): string => $codes[(int)$m[1]] ?? '', $html);
+    }
+
+    /** Turns [label](address) in text that is already escaped into links (see inlineLinks). */
+    private static function linkify(string $html): string
+    {
         return (string)preg_replace_callback('/\[([^\]\[]+)\]\(([^()\s]+)\)/u', static function (array $m): string {
             $href = html_entity_decode($m[2], ENT_QUOTES | ENT_HTML5, 'UTF-8');
             $external = (bool)preg_match('#^https?://#i', $href);

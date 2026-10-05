@@ -1515,3 +1515,17 @@ html.dark .en-details-note { color: #94a3b8; }
 .geo-picker { width: min(52rem, 94vw); }
 .geo-picker::backdrop { background: rgb(15 23 42 / .4); }
 .geo-picker-map { width: 100%; height: 24rem; }
+
+/* A button that should be seen: the step to take before something else (Updates > Create verified backup). */
+.btn-attention { border: 1px solid #d97706; background: #fbbf24; color: #451a03; }
+.btn-attention:hover { background: #f59e0b; }
+.btn-attention:focus-visible { outline: 2px solid #451a03; outline-offset: 2px; }
+html.dark .btn-attention { border-color: #f59e0b; background: #fbbf24; color: #451a03; }
+
+/* Release notes and the update guide: the inline Markdown of an item. */
+.release-item code { padding: .05rem .3rem; border-radius: .25rem; background: #f1f5f9; color: #0f172a; font-size: .8em; }
+.release-item strong { color: #0f172a; font-weight: 600; }
+.release-item a { color: #1d4ed8; text-decoration: underline; }
+html.dark .release-item code { background: #1e293b; color: #e2e8f0; }
+html.dark .release-item strong { color: #f1f5f9; }
+html.dark .release-item a { color: #93c5fd; }
