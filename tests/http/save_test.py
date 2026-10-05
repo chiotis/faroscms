@@ -19,7 +19,8 @@ def check(label, ok, detail=''):
 
 def normalise(text):
     import datetime
-    text = re.sub(r'translation_id: [0-9a-f]{16}', 'translation_id: <generated>', text)
+    # The id is 16 random hex characters; one that reads as a number (digits with a single e, as 7220e14467316353) is written in quotes.
+    text = re.sub(r"translation_id: '?[0-9a-f]{16}'?", 'translation_id: <generated>', text)
     # A new post or form is dated today by the editor form.
     return text.replace("date: '" + datetime.date.today().isoformat() + "'", "date: <today>")
 
@@ -127,11 +128,11 @@ compare('page-editor-neutralised', content_path('pages', slug))
 
 # 8. Saving an item again: the translation id stays, the file settles after the first re-save, and it is recorded
 path = content_path('pages', 'pliris-selida-dokimis')
-tid = re.search(r'translation_id: ([0-9a-f]{16})', open(path, encoding='utf-8').read()).group(1)
+tid = re.search(r"translation_id: '?([0-9a-f]{16})'?", open(path, encoding='utf-8').read()).group(1)
 def resave(): save(root, 'pages', 'pliris-selida-dokimis', 'el', {'blocks_editor': '1', 'blocks_json': json.dumps(BLOCKS)}, drop=['visible'])
 resave(); second = open(path, encoding='utf-8').read()
 resave(); third = open(path, encoding='utf-8').read()
-check('re-saving keeps the translation id', f'translation_id: {tid}' in second)
+check('re-saving keeps the translation id', re.search(r"translation_id: '?" + tid + "'?", second) is not None)
 check('re-saving twice gives the same file', second == third)
 compare('page-resaved', path)
 
