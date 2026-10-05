@@ -134,7 +134,7 @@ First block family:
 | `features` | cards, plain, numbered | Icon, title, text, and link per item; 2–4 columns. Services use the same block. |
 | `stats` | row, cards | Numbers in a `<dl>`. |
 | `testimonials` | grid, featured | `<figure>`/`<blockquote>`; initials when there is no photo. |
-| `logos` | row, grid | Image logos or text wordmarks. |
+| `logos` | row, grid | Image logos or text wordmarks, spread over the whole width of the content however many there are (one row up to six; more in rows of the same length). `colors`: black and white with colour on hover (the default), always black and white, or their own colours. |
 | `columns` | image-side, image-top | Two or three columns side by side, each with a label, a heading (a link when it has an address), a picture, text and a link; stacks on a phone. |
 | `faq` | stacked, split | Native `<details>`; adds `FAQPage` structured data. |
 | `cta` | band, card, split | Default tone: accent. |

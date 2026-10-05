@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.69 — 2026-10-05 — Logos: always the full width of the content, and the colour is a choice
+- **The Logos block fills the width of the content however many logos it has.** Up to six are one row, each in an equal column across the whole width; more are in rows of the same length (7 in 4 and 3, 12 in 6 and 6, 18 in 6, 6 and 6), and a last row with fewer logos spreads over the width too. Before, they were centered in a loose group that was as wide as the logos happened to be. On a tablet a row is at most four, on a phone two. The framed grid does the same, so it has no empty cells.
+- **New choice, *Colour of the logos*:** *Black and white, in colour when pointed at* (what the block did, and the default, so existing blocks do not change), *Always black and white*, or *Their own colours* (also for the names shown as text when a logo has no image).
+- Tests: the field and its fallback in `tests/unit/blocks.php`; the columns for 1 to 18 logos and the three colour choices in `tests/http/blocks_pack_test.py`. Also looked at in Chromium at desktop, tablet and phone width with 1, 2, 3, 5, 7 and 18 logos in both layouts: every row of logos spans the full width of the content.
+
 ## 0.1.68 — 2026-10-05 — The visual editor: a picture can be removed or changed where it is
 - **Click a picture in the visual editor** and it is outlined, with a small bar over it: *Edit* (the address and the description, with *Library…*, and *Remove picture* in the same form) and *Remove picture*. Delete and Backspace remove a picked picture too; Escape, or a click anywhere else, lets it go. Until now a picture could only be taken away by going back to Markdown.
 - A paragraph that held only the picture goes with it, a link that held only the picture goes with it, and the words round a picture in a line stay. A picked picture (or HTML box) no longer makes its block be written again when something else is edited: the mark of what is picked is left out of the comparison with how the block was drawn.
