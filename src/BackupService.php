@@ -254,7 +254,7 @@ final class BackupService
 
         $result['errors'] = array_slice($result['errors'], 0, 25);
         if ($result['errors'] !== []) {
-            $result['message'] = 'Verification failed: ' . count($result['errors']) . ' problem(s) found.';
+            $result['message'] = 'Verification failed: ' . count($result['errors']) . ' problem(s) found. ' . implode(' ', array_slice($result['errors'], 0, 3));
             return $result;
         }
         $result['ok'] = true;

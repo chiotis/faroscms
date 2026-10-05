@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.63 — 2026-10-05 — A failed backup check says what is wrong
+- **The message after "Verify checksums" and "Create verified backup" names the problems.** It said only "Verification failed: 1 problem(s) found."; the file and the kind of problem (size or checksum mismatch, missing or unexpected file) were only in the activity log. The first three are now part of the message.
+
 ## 0.1.62 — 2026-10-05 — The suite is green again, and the visual editor's serializer is tested
 - **Reading CI for 0.1.41 to 0.1.61** (the debt named in the roadmap). Of the 20 CI runs (0.1.56 was pushed with 0.1.57), 10 ran red: 0.1.46 to 0.1.49 (`sidebar_brand`, on all three PHP versions, mended in 0.1.50), 0.1.54 (`hero_layouts`, mended in 0.1.55), and 0.1.57 to 0.1.61 (`youtube-playlist`, on PHP 8.1 only, still red on `main`), with one more red job on PHP 8.5 in 0.1.58 (`system-status`, not seen again). This version mends the two that were still open or likely to come back, and the whole suite passes here (PHP 8.3).
 - **`youtube-playlist`**: the test that a picture kept for 30 days is fetched again aged the file with `touch()` and then asked, in the same process, for its age; on some PHP versions `touch()` does not clear PHP's file status cache, so the old age was read back. The test clears the cache after `touch()`. The code was right (each request is a new process).
