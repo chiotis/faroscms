@@ -1443,6 +1443,7 @@ html.dark .ed-pop-row { color: #cbd5e1; }
 .bk-pills button { padding: .05rem .75rem; border: 0; border-radius: .375rem; background: none; color: #475569; font-size: .75rem; font-weight: 500; line-height: 1.25rem; cursor: pointer; }
 .bk-pills button[aria-selected="true"], .bk-pills button[aria-pressed="true"] { background: #fff; color: #0f172a; box-shadow: 0 1px 2px rgba(15, 23, 42, .15); }
 .bk-pills.is-light { border-color: transparent; background: none; padding: 0; gap: .25rem; }
+.bk-pills button.has-missing::after { content: ''; display: inline-block; width: .375rem; height: .375rem; margin-left: .3rem; border-radius: 99px; background: #d97706; vertical-align: middle; }
 .bk-pills.is-light button { border: 1px solid #cbd5e1; border-radius: 99px; padding: 0 .625rem; }
 .bk-pills.is-light button[aria-pressed="true"] { border-color: #0f172a; background: #0f172a; color: #fff; box-shadow: none; }
 .bk-picker-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; margin-bottom: .5rem; }

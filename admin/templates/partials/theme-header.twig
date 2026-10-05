@@ -66,8 +66,8 @@
       {% if f.transparent is defined %}<p class="m-0 px-3 pb-3 text-[11px] leading-4 text-slate-500">Over an opening hero (a Hero block or a full width Slider) the header sits on it and turns solid on scroll. A content type or a single page can decide otherwise in <a class="font-medium text-blue-700" href="{{ url('admin/theme?tab=single_layouts') }}">Single Layouts</a>.</p>{% endif %}
     </section>
 
-    <section class="lc-card rounded-xl border border-slate-200 bg-white" aria-labelledby="hd-elements">
-      <h3 id="hd-elements" class="px-3 pt-3 text-sm font-semibold text-slate-900">Elements</h3>
+    <section class="lc-card rounded-xl border border-slate-200 bg-white" aria-labelledby="hd-elements" data-lang-scope>
+      <div class="flex items-center justify-between gap-2 px-3 pt-3"><h3 id="hd-elements" class="text-sm font-semibold text-slate-900">Elements</h3>{{ fields.lang_switch() }}</div>
       <dl class="m-0 space-y-2.5 p-3">
         {% if f.search is defined %}{{ c.choice(f.search, p ~ 'search]', v.search, 'seg', short.search) }}{% endif %}
         {% set shown = [] %}
@@ -80,8 +80,8 @@
       </dl>
     </section>
 
-    <section class="lc-card rounded-xl border border-slate-200 bg-white" aria-labelledby="hd-topbar">
-      <h3 id="hd-topbar" class="px-3 pt-3 text-sm font-semibold text-slate-900">Top bar</h3>
+    <section class="lc-card rounded-xl border border-slate-200 bg-white" aria-labelledby="hd-topbar" data-lang-scope>
+      <div class="flex items-center justify-between gap-2 px-3 pt-3"><h3 id="hd-topbar" class="text-sm font-semibold text-slate-900">Top bar</h3>{{ fields.lang_switch() }}</div>
       <dl class="m-0 space-y-2.5 p-3">
         {% if f.topbar_text is defined %}{{ c.text(f.topbar_text, p ~ 'topbar_text]', v.topbar_text) }}{% endif %}
         {% if f.topbar_url is defined %}{{ c.text(f.topbar_url, p ~ 'topbar_url]', v.topbar_url) }}{% endif %}

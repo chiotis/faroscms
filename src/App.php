@@ -13,6 +13,7 @@ use League\CommonMark\MarkdownConverter;
 use Symfony\Component\Yaml\Yaml;
 use Twig\Environment as TwigEnvironment;
 use Twig\Loader\FilesystemLoader;
+use Twig\TwigFilter;
 use Twig\TwigFunction;
 
 final class App
@@ -2762,6 +2763,9 @@ final class App
             return $groups;
         }));
 
+        // A text a theme setting may have in several languages, as the text for the language of the page.
+        $twig->addFilter(new TwigFilter('localized', fn(array $context, mixed $value): string => Format::localized($value, (string)($context['lang'] ?? $this->currentLang)), ['needs_context' => true]));
+
         // The blocks of Theme > Footer Blocks, drawn once for each language of a request: the markup for above the footer and the
         // style sheets and scripts they need (the layout asks for those in the head and the footer for the markup).
         $footerBlocks = [];
@@ -2805,6 +2809,9 @@ final class App
             (string)($this->settings['base_url'] ?? '')
         );
 
+        // The languages of the site, its own first: the admin shows a version of each translatable text for each of them.
+        $siteDefault = (string)($this->settings['languages']['default'] ?? 'en');
+        $twig->addGlobal('admin_languages', array_values(array_unique(array_merge([$siteDefault], array_map('strval', (array)($this->settings['languages']['available'] ?? []))))));
         $twig->addGlobal('site', $this->settings);
         $twig->addGlobal('theme_settings', $this->themeSettings);
         $twig->addGlobal('theme', ['name' => $this->theme->name(), 'version' => $this->theme->version()]);

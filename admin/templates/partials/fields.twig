@@ -2,6 +2,34 @@
   Form controls for FieldSchema definitions (theme settings and content type fields).
   field: a normalized definition from FieldSchema::normalize(); name: the input name; value: current value.
 #}
+{#
+  Texts with a version for each language (a field with `translatable: true`, shown while the site has more than one language):
+    lang_switch()                       the chips that choose which language the texts of the nearest [data-lang-scope] show
+    i18n_inputs(field, name, value, class)   one input for each language, named name[default] (the site's own language) and name[en]…;
+                                        the value is a plain text (the default one) or a map; admin-langs.js shows one at a time
+#}
+{% macro lang_switch() %}
+  {% if admin_languages|length > 1 %}
+    <span class="bk-pills is-light" data-lang-switch role="group" aria-label="Language of the texts">
+      {% for code in admin_languages %}<button type="button" data-lang-pick="{{ code }}" aria-pressed="{{ loop.first ? 'true' : 'false' }}" title="{{ loop.first ? 'The site\'s own language' : 'Translation' }}">{{ code|upper }}</button>{% endfor %}
+    </span>
+  {% endif %}
+{% endmacro %}
+
+{% macro i18n_inputs(field, name, value, cls, id) %}
+  {% set source = value is iterable ? (value.default ?? '') : value %}
+  {% for code in admin_languages %}
+    {% set key = loop.first ? 'default' : code %}
+    {% set text = loop.first ? source : (value is iterable ? (value[code] ?? '') : '') %}
+    {% set hint = loop.first ? field.placeholder : (source ?: field.placeholder) %}
+    {% if field.type == 'textarea' %}
+      <textarea{% if id %} id="{{ id }}{{ loop.first ? '' : '-' ~ code }}"{% endif %} name="{{ name }}[{{ key }}]" rows="2" placeholder="{{ hint }}" class="{{ cls }}" data-lang="{{ code }}" lang="{{ code }}"{% if not loop.first %} hidden{% endif %}>{{ text }}</textarea>
+    {% else %}
+      <input{% if id %} id="{{ id }}{{ loop.first ? '' : '-' ~ code }}"{% endif %} type="text" name="{{ name }}[{{ key }}]" value="{{ text }}" placeholder="{{ hint }}" class="{{ cls }}" data-lang="{{ code }}" lang="{{ code }}"{% if not loop.first %} hidden{% endif %}>
+    {% endif %}
+  {% endfor %}
+{% endmacro %}
+
 {% macro field(field, name, value) %}
   {% import _self as m %}
   {% set control = 'w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-500 focus:ring-2 focus:ring-slate-300' %}
@@ -25,8 +53,10 @@
             <option value="{{ option_value }}" {% if value ~ '' == option_value ~ '' %}selected{% endif %}>{{ option_label }}</option>
           {% endfor %}
         </select>
+      {% elseif field.translatable|default(false) and admin_languages|length > 1 %}
+        {{ m.i18n_inputs(field, name, value, control) }}
       {% elseif field.type == 'textarea' %}
-        <textarea name="{{ name }}" rows="3" placeholder="{{ field.placeholder }}" class="{{ control }}">{{ value }}</textarea>
+        <textarea name="{{ name }}" rows="3" placeholder="{{ field.placeholder }}" class="{{ control }}">{{ value is iterable ? value|localized : value }}</textarea>
       {% elseif field.type == 'markdown' %}
         <textarea name="{{ name }}" rows="6" placeholder="{{ field.placeholder }}" class="{{ control }}">{{ value }}</textarea>
       {% elseif field.type == 'date' %}
@@ -41,7 +71,7 @@
           <input type="text" name="{{ name }}" value="{{ value }}" placeholder="{{ field.placeholder }}" class="{{ control }}">
         </span>
       {% else %}
-        <input type="{{ field.type == 'email' ? 'email' : 'text' }}" name="{{ name }}" value="{{ value }}" placeholder="{{ field.placeholder }}" class="{{ control }}"{% if field.type == 'image' %} data-image-field{% elseif field.type == 'video' %} data-image-field data-media-kind="video"{% elseif field.type == 'file' %} data-image-field data-media-kind="{{ field.kind|default('all') }}"{% elseif field.type == 'location' %} data-location-field inputmode="decimal" autocomplete="off"{% endif %}>
+        <input type="{{ field.type == 'email' ? 'email' : 'text' }}" name="{{ name }}" value="{{ value is iterable ? value|localized : value }}" placeholder="{{ field.placeholder }}" class="{{ control }}"{% if field.type == 'image' %} data-image-field{% elseif field.type == 'video' %} data-image-field data-media-kind="video"{% elseif field.type == 'file' %} data-image-field data-media-kind="{{ field.kind|default('all') }}"{% elseif field.type == 'location' %} data-location-field inputmode="decimal" autocomplete="off"{% endif %}>
       {% endif %}
       {% if field.help %}<span class="mt-1 block text-xs text-slate-400">{{ field.help }}</span>{% endif %}
     </label>
@@ -55,8 +85,10 @@
 {% macro repeater(field, name, value, span) %}
   {% import _self as m %}
   {% set rows = value is iterable ? value : [] %}
-  <fieldset class="rounded-md border border-slate-200 p-3{{ span }}" data-repeater data-repeater-max="{{ field.max ?? 0 }}" data-repeater-item="{{ field.item_label }}">
+  {% set has_translatable = field.fields|filter(sub => sub.translatable|default(false))|length > 0 %}
+  <fieldset class="rounded-md border border-slate-200 p-3{{ span }}" data-repeater data-repeater-max="{{ field.max ?? 0 }}" data-repeater-item="{{ field.item_label }}"{% if has_translatable %} data-lang-scope{% endif %}>
     <legend class="px-1 text-sm font-medium text-slate-700">{{ field.label }}</legend>
+    {% if has_translatable %}<div class="mb-2">{{ m.lang_switch() }}</div>{% endif %}
     {% if field.help %}<p class="mb-2 text-xs text-slate-400">{{ field.help }}</p>{% endif %}
     {# Sent first: with no rows it says "none"; rows after it replace it. #}
     <input type="hidden" name="{{ name }}" value="">
