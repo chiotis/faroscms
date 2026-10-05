@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.72 — 2026-10-06 — Logos: the height is a choice, and the usual one is bigger
+- **New choice in the Logos block, *Height of the logos*:** small (2.5 rem, what it was), **medium (4 rem, the new usual height)**, large (5.5 rem) or extra large (7.5 rem). The names shown as text, for a logo with no image, grow with it. Existing blocks have no choice stored, so they take medium: they are bigger than before (the old height was too small for most logos); pick *Small* to keep the old look.
+- **The taller they are, the fewer fit in a row**, because a logo is about as wide as three times its height: up to 7, 5, 4 or 3 in a row (more are in rows of the same length, as before), so a bigger height is really that height and the logos still fill the width of the content. On a tablet a row holds fewer (3, or 4 when small, 2 when large), and on a phone the heights are smaller (2, 2.75, 3.75 and 5 rem) and large and extra large logos are one to a row.
+- Tests: the field and its fallback (`tests/unit/blocks.php`), the size and the number of columns for each size (`tests/http/blocks_pack_test.py`). Looked at in Chromium at desktop, tablet and phone width: the logos have the height chosen (except extra large on a tablet, where the width of the row limits it a little) and every row spans the width of the content.
+
 ## 0.1.71 — 2026-10-05 — A backup is no longer "not verified" because of a stray file
 - **A full backup now verifies when the project holds a file named `faroscms-backup.json`** (it appears when a backup is unzipped inside the project). The archive writes its own checksum manifest under that name, over the site's file, so the check found a size mismatch every time ("Size mismatch: faroscms-backup.json") and the pre-update backup could never be marked verified. The site's file is now left out of the archive. Test in `tests/unit/backup-manager.php`. If your site has such a file in its root, it can be deleted.
 

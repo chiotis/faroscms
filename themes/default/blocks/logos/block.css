@@ -10,6 +10,7 @@
 }
 
 .logos-list {
+  --logo-height: 4rem;
   /* The logos share the full width of the content. The columns are worked out from how many there are (--logo-cols, in the
      block's markup); each row is as wide as the content, and a last row with fewer logos spreads over it too. */
   --logo-per-row: var(--logo-cols, 4);
@@ -22,12 +23,25 @@
   list-style: none;
 }
 
+/* The height of the logos is a choice of the block (the wordmarks, with no image, grow with it). A logo is about three times as
+   wide as it is tall, so the taller they are, the fewer fit in a row: --logo-cap is the most in a row on a smaller screen. */
+[data-size="small"] .logos-list { --logo-height: 2.5rem; }
+[data-size="large"] .logos-list { --logo-height: 5.5rem; }
+[data-size="xlarge"] .logos-list { --logo-height: 7.5rem; }
+
 @media (max-width: 48rem) {
-  .logos-list { --logo-per-row: min(var(--logo-cols, 4), 4); }
+  .logos-list { --logo-cap: 3; --logo-per-row: min(var(--logo-cols, 4), var(--logo-cap)); }
+  [data-size="small"] .logos-list { --logo-cap: 4; }
+  [data-size="large"] .logos-list { --logo-cap: 2; }
+  [data-size="xlarge"] .logos-list { --logo-cap: 2; }
 }
 
 @media (max-width: 30rem) {
-  .logos-list { --logo-per-row: min(var(--logo-cols, 4), 2); }
+  .logos-list { --logo-height: 2.75rem; --logo-cap: 2; }
+  [data-size="small"] .logos-list { --logo-height: 2rem; --logo-cap: 3; }
+  [data-size="large"] .logos-list { --logo-height: 3.75rem; --logo-cap: 1; }
+  [data-size="xlarge"] .logos-list { --logo-height: 5rem; --logo-cap: 1; }
+  .logo-item { padding-inline: 0.5rem; }
 }
 
 .logo-item {
@@ -35,7 +49,7 @@
   flex: 1 1 calc(100% / var(--logo-per-row));
   min-width: 0;
   place-items: center;
-  padding: var(--space-s) var(--space-m);
+  padding: var(--space-s);
 }
 
 .logo-link {
@@ -47,8 +61,8 @@
 
 .logo-image {
   width: auto;
-  max-width: min(10rem, 100%);
-  height: 2.5rem;
+  max-width: min(calc(var(--logo-height) * 4), 100%);
+  height: var(--logo-height);
   object-fit: contain;
   filter: grayscale(1);
   opacity: 0.7;
@@ -58,7 +72,7 @@
 .logo-wordmark {
   color: var(--color-muted);
   font-family: var(--font-heading);
-  font-size: var(--step-1);
+  font-size: calc(var(--logo-height) * 0.5);
   font-weight: 700;
   letter-spacing: -0.02em;
   white-space: nowrap;
