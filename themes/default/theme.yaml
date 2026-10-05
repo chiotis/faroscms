@@ -858,7 +858,14 @@ settings:
         label: Copyright line
         default: ''
         placeholder: © {year} {site}. All rights reserved.
-        help: "{year} and {site} are filled in. Empty uses the theme's own line."
+        help: "{year}, {site} and {copyright} (the © sign) are filled in. Empty uses the theme's own line."
+        span: full
+      credits:
+        type: text
+        label: Credits line
+        default: ''
+        placeholder: Designed by [Unicorg](https://example.com)
+        help: "A line under the copyright. Write a link as [text](https://address). {year}, {site} and {copyright} work here too."
         span: full
       summary:
         type: textarea

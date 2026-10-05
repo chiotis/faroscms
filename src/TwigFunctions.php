@@ -49,6 +49,9 @@ final class TwigFunctions
             return trim(preg_replace('/\s+/u', ' ', str_replace("\u{00A0}", ' ', $text)) ?? $text);
         });
 
+        // A short line with [label](address) links, escaped, for what the owner types in a theme setting (the footer's credits).
+        $add('inline_links', static fn(mixed $text): string => Format::inlineLinks((string)$text), true);
+
         // The icon set as JSON ({name: svg}) for the admin's icon picker, one library for every place an icon is chosen.
         $add('icon_library_json', static function () use ($theme): string {
             $library = [];
