@@ -39,6 +39,13 @@ $r = $vm->render("Text [ref][1] and [two][2]\n\n[1]: https://one.test\n[2]: http
 check('the definitions links refer to are kept apart, to be written back at the end', [$r['tail'], $r['verbatim'], count($r['blocks'])], ["[1]: https://one.test\n[2]: https://two.test \"Two\"", true, 1]);
 check('and the link still points where the definition says', str_contains($r['blocks'][0]['html'], 'href="https://one.test"'), true);
 
+$r = $vm->render("See [a] and [b].\n\n[a]:\n/one\n\n[b]:\n  <https://two.test/x y>\n  \"Two\"\n");
+check('a definition with its address on the next line is a definition too, kept whole at the end', [$r['tail'], $r['verbatim'], count($r['blocks'])], ["[a]:\n/one\n[b]:\n  <https://two.test/x y>\n  \"Two\"", true, 1]);
+check('and the links still point where it says', [str_contains($r['blocks'][0]['html'], 'href="/one"'), str_contains($r['blocks'][0]['html'], 'title="Two"')], [true, true]);
+
+$r = $vm->render("One\n\n[a]:\n\nTwo");
+check('a label with nothing after it is not a definition, only a paragraph', [$r['verbatim'], count($r['blocks'])], [true, 3]);
+
 // ---- raw HTML is shown, never run
 $r = $vm->render("<iframe src=\"https://x.test\" width=\"100%\"></iframe>\n\n<script>alert(1)</script>\n\nAfter");
 $html = $r['blocks'][0]['html'];

@@ -1,0 +1,11 @@
+{
+  "name": "faroscms-js-tests",
+  "private": true,
+  "description": "Test tooling for the admin JavaScript. Production servers never see it: it is not part of the release package.",
+  "scripts": {
+    "test": "node serializer.test.js"
+  },
+  "devDependencies": {
+    "jsdom": "27.0.0"
+  }
+}

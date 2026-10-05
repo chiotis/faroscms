@@ -78,7 +78,8 @@ $page('pages', 'b.md', 'Beta', 'draft');
 $page('pages', 'a.en.md', 'Alpha EN', 'published');
 $page('posts', 'p.md', 'Post', 'published');
 touch("$dir/content/pages/a.md", time() - 100);
-touch("$dir/content/pages/b.md", time() - 50);
+$betaTime = time() - 50; // kept, so that the minute shown below is the one that was set even if a minute passes between the two
+touch("$dir/content/pages/b.md", $betaTime);
 touch("$dir/content/pages/a.en.md", time() - 200);
 touch("$dir/content/posts/p.md", time() - 10);
 $users = new UserRepository($db, "$dir/content/users/users.yaml");
@@ -99,7 +100,7 @@ $d = $dash->build($all, $all);
 check('content is counted by type, drafts apart', [$d['content_total'], $d['content_published'], $d['content_draft']], [4, 3, 1]);
 check('each type has its own figures', $d['content_types'], [['type' => 'pages', 'count' => 3, 'published' => 2, 'draft' => 1], ['type' => 'posts', 'count' => 1, 'published' => 1, 'draft' => 0]]);
 check('recent content is newest first', array_column($d['recent_content'], 'title'), ['Post', 'Beta', 'Alpha', 'Alpha EN']);
-check('with its language, status and time', [$d['recent_content'][1]['lang'], $d['recent_content'][1]['status'], $d['recent_content'][1]['updated_at']], ['el', 'draft', date('Y-m-d H:i', time() - 50)]);
+check('with its language, status and time', [$d['recent_content'][1]['lang'], $d['recent_content'][1]['status'], $d['recent_content'][1]['updated_at']], ['el', 'draft', date('Y-m-d H:i', $betaTime)]);
 check('people, backups, logs and mail are shown', [$d['users_total'], $d['users_active'], $d['backups_total'], $d['last_backup'], $d['activity_total'], count($d['recent_activity']), $d['email_total'], $d['failed_emails']], [2, 1, 2, ['filename' => 'one.zip'], 1, 1, 2, 1]);
 check('the storage summary and system health are included', [$d['storage']['limit'], count($d['system_checks']) > 5, $d['system_status']['status'], $d['php_version']], [104857600, true, 'warning', PHP_VERSION]);
 

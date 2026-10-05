@@ -172,6 +172,7 @@ check('a picture is fetched the first time it is asked for, and kept', [$file ==
 $thumbs->file('AAAAAAAAAAA');
 check('and not fetched again', count($asked), 1);
 touch($file, time() - 31 * 86400);
+clearstatcache(); // touch() does not clear PHP's file status cache on every version, and the file's age is what is being tested
 $thumbs->file('AAAAAAAAAAA');
 check('after 30 days it is', count($asked), 2);
 $none = new YouTubeThumbs("$dir/cache", $meta, fn() => [404, '']);

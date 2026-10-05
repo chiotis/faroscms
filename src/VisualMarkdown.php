@@ -26,6 +26,10 @@ final class VisualMarkdown
     /** Lines that may sit between blocks without being one: the definitions links refer to. */
     private const DEFINITION = '/^ {0,3}\[[^\]\n]+\]:\s*\S|^\s*["\'(].*["\')]\s*$/';
 
+    /** A definition whose address is on the next line starts with a line that is only the label, and that address is the next line. */
+    private const DEFINITION_LABEL = '/^ {0,3}\[[^\]\n]+\]:\s*$/';
+    private const DEFINITION_ADDRESS = '/^\s*(<[^<>\n]*>|[^\s<>]+)\s*$/';
+
     /** @param \Closure(): Environment $environment the site's Markdown environment */
     public function __construct(private \Closure $environment)
     {
@@ -86,13 +90,16 @@ final class VisualMarkdown
 
         $tail = [];
         $verbatim = true;
+        $afterLabel = false;
         foreach ($lines as $i => $line) {
             if (isset($covered[$i + 1]) || trim($line) === '') {
                 continue;
             }
-            if (preg_match(self::DEFINITION, $line) !== 1) {
+            $isLabel = preg_match(self::DEFINITION_LABEL, $line) === 1;
+            if (preg_match(self::DEFINITION, $line) !== 1 && !$isLabel && !($afterLabel && preg_match(self::DEFINITION_ADDRESS, $line) === 1)) {
                 $verbatim = false;
             }
+            $afterLabel = $isLabel;
             $tail[] = $line;
         }
         return ['blocks' => $blocks, 'tail' => $verbatim ? implode("\n", $tail) : '', 'verbatim' => $verbatim];

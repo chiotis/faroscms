@@ -3,6 +3,7 @@
 # Runs the checks:
 #   tests/run.sh            everything
 #   tests/run.sh unit       the PHP checks only (fast, no server)
+#   tests/run.sh js         the JavaScript checks only (the visual editor's serializer; needs Node 20 or later)
 #   tests/run.sh http       the browser-level tests only
 #   tests/run.sh redirects  one HTTP test by name (editor, roles, import, redirects, save, history, taxonomies, links, delete, blocks, hero_layouts, mobile_menu, bottom_bar, logs, users_tabs, sidebar, sidebar_brand, theme_page, media_upload, upload_limits, notifications, bad_yaml, custom_roles, storage, storage_cache, line_endings, media_usage, media_picker, admin_a11y, seo_jsonld, robots, media_usage_cache, update_install, setup, fresh_install, catalogue, menu_editor, form_builder, layouts, header_footer, branding, custom_taxonomies, type_options, demo_content, hero_video, seo, analytics, translations, content_types, media, dashboard, editor_visual, youtube_playlist blocks_pack geo)
 #
@@ -45,6 +46,18 @@ run_unit() {
   done
 }
 
+run_js() {
+  echo "JavaScript checks"
+  if ! command -v node >/dev/null 2>&1 || ! command -v npm >/dev/null 2>&1; then
+    echo "  FAIL  node and npm are needed for the JavaScript checks"; FAILED+=("node missing"); return
+  fi
+  # The one tool they need (jsdom) is installed beside them, once, from the lock file. Nothing outside tests/js is touched.
+  if [ ! -d "$ROOT/tests/js/node_modules/jsdom" ]; then
+    (cd "$ROOT/tests/js" && npm ci --no-audit --no-fund >/dev/null 2>&1) || { echo "  FAIL  npm ci in tests/js did not work"; FAILED+=("npm ci"); return; }
+  fi
+  report "visual-editor-serializer" "$(cd "$ROOT" && node tests/js/serializer.test.js 2>&1)"
+}
+
 run_http() {
   local only="${1:-}"
   command -v python3 >/dev/null 2>&1 || { echo "python3 is needed for the HTTP tests"; FAILED+=("python3 missing"); return; }
@@ -85,8 +98,9 @@ PYCOPY
 }
 
 case "$MODE" in
-  all) run_unit; echo; run_http ;;
+  all) run_unit; echo; run_js; echo; run_http ;;
   unit) run_unit ;;
+  js) run_js ;;
   http) run_http ;;
   editor|roles|import|redirects|save|history|taxonomies|links|delete|blocks|hero_layouts|mobile_menu|bottom_bar|logs|users_tabs|sidebar|sidebar_brand|theme_page|media_upload|upload_limits|notifications|bad_yaml|custom_roles|storage|storage_cache|line_endings|media_usage|media_picker|admin_a11y|seo_jsonld|robots|media_usage_cache|update_install|setup|fresh_install|catalogue|menu_editor|form_builder|layouts|header_footer|branding|custom_taxonomies|type_options|demo_content|hero_video|seo|analytics|translations|content_types|media|dashboard|editor_visual|youtube_playlist|blocks_pack|geo) run_http "$MODE" ;;
   *) echo "Unknown option: $MODE"; exit 2 ;;
