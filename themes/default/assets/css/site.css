@@ -830,6 +830,15 @@ ul.checklist li::before {
   background: var(--header-bg);
 }
 
+/* A dark or colour menu bar (stacked header) has no line around it: not above it, where it meets the row of the logo, and not under it. */
+.site-header.bar-dark:not(.is-floating) {
+  border-bottom-color: transparent;
+}
+
+.site-header.bar-dark .header-bar {
+  border-top-color: transparent;
+}
+
 /* The row with the logo can be a solid tint; the menu bar below keeps its own colour. */
 .site-header.row-muted {
   --header-bg: var(--color-surface);
