@@ -106,6 +106,23 @@ st, hdr, _ = save(root, {'archive_taxonomies[tags][layout]': 'compact', 'archive
 tags = open('app/content/taxonomies/tags.yaml', encoding='utf-8').read()
 check('a taxonomy card is saved in the taxonomy file', 'layout: compact' in tags and re.search(r'types:\s+- posts', tags) is not None, tags[-200:])
 
+# ---- random order
+st, _, html = root.get('/admin/theme?tab=archive_layouts')
+check('random is one of the orders on an archive card', re.search(r'<option value="random"', html) is not None and html.count('value="random"') >= 4, html.count('value="random"'))
+save(root, {'archive_types[posts][order]': 'random', 'archive_types[posts][per_page]': '1', 'archive_taxonomies[tags][order]': 'random'}, tab='archive_layouts')
+check('it is written as the order of the card', 'order: random' in custom('posts'), custom('posts'))
+st, _, html = pub.get('/posts')
+links = re.findall(r'href="(\?seed=\d+[^"]*)"', html)
+check('the list shows, and its paging links carry the number that keeps the order while paging', st == 200 and len(links) >= 1 and all(re.match(r'\?seed=\d+(&amp;|&)page=\d+', l) or re.match(r'\?seed=\d+$', l) for l in links), (st, links[:3]))
+if links:
+    seed = re.search(r'seed=(\d+)', links[0]).group(1)
+    body = lambda h: h.split('<main', 1)[1].split('</main>', 1)[0] if '<main' in h else h
+    one = body(pub.get('/posts?seed=%s&page=1' % seed)[2])
+    again = body(pub.get('/posts?seed=%s&page=1' % seed)[2])
+    check('the same number gives the same page', one == again and len(one) > 200, (len(one), len(again)))
+save(root, {'archive_types[posts][order]': 'date_desc', 'archive_types[posts][per_page]': '12', 'archive_taxonomies[tags][order]': 'date_desc'}, tab='archive_layouts')
+check('and back to newest first writes nothing for the order', 'order:' not in custom('posts'), custom('posts'))
+
 # ---- the title area of a list, as the page of an entry has
 st, _, html = root.get('/admin/theme?tab=archive_layouts')
 check('each archive card has the title area, its picture and parallax', all(('name="archive_types[posts][%s]"' % k) in html for k in ('title_layout', 'title_image', 'title_parallax')) and 'name="archive_taxonomies[tags][title_layout]"' in html and html.count('value="cover"') >= 4, '')

@@ -117,6 +117,13 @@ final class ArchiveBuilder
             usort($items, static fn(ContentItem $a, ContentItem $b): int => strcmp($title($a), $title($b)));
         } elseif ($settings['order'] === 'title_desc') {
             usort($items, static fn(ContentItem $a, ContentItem $b): int => strcmp($title($b), $title($a)));
+        } elseif ($settings['order'] === 'random') {
+            // A new order for each visit, but the same one while someone pages through the list: the order comes from a number the
+            // paging links carry (`seed`), so no entry is shown twice or missed from one page to the next. No global random state is used.
+            $seed = (int)($query['seed'] ?? 0);
+            $seed = $seed > 0 && $seed <= 2147483647 ? $seed : random_int(1, 2147483647);
+            $mix = static fn(ContentItem $item): string => md5($seed . '|' . $item->type . '|' . $item->slug);
+            usort($items, static fn(ContentItem $a, ContentItem $b): int => strcmp($mix($a), $mix($b)));
         }
 
         $total = count($items);
@@ -132,10 +139,14 @@ final class ArchiveBuilder
         if ($perPage > 0) {
             $items = array_slice($items, ($page - 1) * $perPage, $perPage);
         }
-        $link = static function (int $number) use ($selected): string {
+        $seed = $settings['order'] === 'random' ? ($seed ?? 0) : 0;
+        $link = static function (int $number) use ($selected, $seed): string {
             $next = [];
             if ($selected !== []) {
                 $next['filter'] = $selected;
+            }
+            if ($seed > 0) {
+                $next['seed'] = $seed;
             }
             if ($number > 1) {
                 $next['page'] = $number;

@@ -29,7 +29,7 @@ use Symfony\Component\Yaml\Yaml;
  *                                    and templates read archive.settings.options
  *   archive:
  *     title, subtitle                text or a map per language
- *     layout, columns, per_page, order (newest, oldest, title, or field:<key>:asc|desc), show_image,
+ *     layout, columns, per_page, order (newest, oldest, title, random, or field:<key>:asc|desc), show_image,
  *     show_excerpt, show_date, show_meta
  *     taxonomies: [categories]       taxonomies offered as filters
  *
@@ -61,6 +61,7 @@ final class ContentTypes
         'date_asc' => 'Oldest first',
         'title_asc' => 'Title A–Z',
         'title_desc' => 'Title Z–A',
+        'random' => 'Random (a new order for each visit)',
     ];
 
     /** Field types an archive can be ordered by. */

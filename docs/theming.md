@@ -219,7 +219,7 @@ archive:
   layout: cards            # cards, list, compact, overlay, featured, magazine, editorial
   columns: '3'
   per_page: 12             # 0 shows everything on one page
-  order: date_desc         # date_desc, date_asc, title_asc, title_desc, or field:<key>:asc|desc
+  order: date_desc         # date_desc, date_asc, title_asc, title_desc, random, or field:<key>:asc|desc
   taxonomies: [categories] # taxonomies offered as filters
   show_image: true
   show_excerpt: true
