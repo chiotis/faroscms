@@ -10,6 +10,15 @@ fields:
     type: text
     label: Heading
     placeholder: Trusted by
+  size:
+    type: select
+    label: Height of the logos
+    default: medium
+    options:
+      small: Small
+      medium: Medium
+      large: Large
+      xlarge: Extra large
   colors:
     type: select
     label: Colour of the logos

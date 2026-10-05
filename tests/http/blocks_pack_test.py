@@ -176,19 +176,23 @@ presets_el = {p['id']: p for p in data_el['presets']}
 check('and the same in Greek, for a Greek page', all(ids[l] in presets_el and presets_el[ids[l]]['blocks'][0]['type'] == presets[ids[l]]['blocks'][0]['type'] and (l == 'link-in-bio' or presets_el[ids[l]]['label'] != presets[ids[l]]['label']) for l in layouts))
 
 # ---- Logos: they fill the width of the content however many there are, in the colour that was chosen
-def logos(n, colors=None, variant='row'):
+def logos(n, colors=None, variant='row', size=None):
     block = {'type': 'logos', 'variant': variant, 'items': [{'name': 'Logo %d' % i} for i in range(n)]}
     if colors is not None: block['colors'] = colors
-    st, _, html = page('logos-%d-%s-%s' % (n, variant, colors), block)
+    if size is not None: block['size'] = size
+    st, _, html = page('logos-%d-%s-%s-%s' % (n, variant, colors, size), block)
     return section(html, 'logos')
 def cols(html):
     m = re.search(r'--logo-cols: (\d+)', html)
     return int(m.group(1)) if m else None
-check('one row of up to six logos, each its own column', [cols(logos(n)) for n in (1, 2, 5, 6)] == [1, 2, 5, 6], [cols(logos(n)) for n in (1, 2, 5, 6)])
-check('more are in rows of the same length (7 in 4 and 3, 12 in 6, 18 in 6)', [cols(logos(n)) for n in (7, 12, 13, 18)] == [4, 6, 5, 6], [cols(logos(n)) for n in (7, 12, 13, 18)])
+check('one row of up to five logos at the usual height, each its own column', [cols(logos(n)) for n in (1, 2, 4, 5)] == [1, 2, 4, 5], [cols(logos(n)) for n in (1, 2, 4, 5)])
+check('more are in rows of the same length (6 in 3 and 3, 7 in 4 and 3, 12 in 4, 13 in 5)', [cols(logos(n)) for n in (6, 7, 12, 13)] == [3, 4, 4, 5], [cols(logos(n)) for n in (6, 7, 12, 13)])
 check('the colour is black and white with colour on hover when nothing is chosen, as it was', 'data-colors="hover"' in logos(3), logos(3)[:200])
 check('and can be always black and white, or their own colours', 'data-colors="mono"' in logos(3, 'mono') and 'data-colors="color"' in logos(3, 'color'))
 check('a choice that is not one of them is the usual', 'data-colors="hover"' in logos(3, 'rainbow'))
+check('the height is medium when nothing is chosen, and can be small, large or extra large', 'data-size="medium"' in logos(3) and all(('data-size="%s"' % z) in logos(3, size=z) for z in ('small', 'large', 'xlarge')))
+check('a height that is not one of them is medium', 'data-size="medium"' in logos(3, size='huge'))
+check('taller logos need more room, so a row holds fewer (seven, five, four, three)', [cols(logos(7, size=z)) for z in ('small', 'medium', 'large', 'xlarge')] == [7, 4, 4, 3] and [cols(logos(4, size='large')), cols(logos(4, size='xlarge')), cols(logos(3, size='xlarge'))] == [4, 2, 3], [[cols(logos(7, size=z)) for z in ('small', 'medium', 'large', 'xlarge')], cols(logos(4, size='xlarge'))])
 check('the framed grid works the same', 'block--grid' in logos(7, 'color', 'grid') and cols(logos(7, 'color', 'grid')) == 4)
 
 print('\nALL PASSED' if not fails else '\n%d FAILED: %s' % (len(fails), fails))

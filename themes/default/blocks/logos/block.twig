@@ -1,9 +1,11 @@
 {% set prefix = lang_prefix|default('') %}
 {% set shown = block.items|filter(l => l.name or l.image) %}
-{# However many there are, they fill the width of the content: one row up to six, and more in rows of the same length (7 in 4 and 3, 18 in 6, 6 and 6). #}
-{% set rows = max(1, (shown|length / 6)|round(0, 'ceil')) %}
+{# However many there are, they fill the width of the content: one row up to the most a row holds for the height chosen (7, 5, 4 or 3: a logo is about three times as wide as it is tall), and more in rows of the same length (7 in 4 and 3 at the usual height). #}
+{% set size = block.size in ['small', 'medium', 'large', 'xlarge'] ? block.size : 'medium' %}
+{% set per_row = {small: 7, medium: 5, large: 4, xlarge: 3}[size] %}
+{% set rows = max(1, (shown|length / per_row)|round(0, 'ceil')) %}
 {% set cols = max(1, (shown|length / rows)|round(0, 'ceil'))|number_format(0, '.', '') %}
-<div class="container" data-colors="{{ block.colors|default('hover') }}">
+<div class="container" data-colors="{{ block.colors|default('hover') }}" data-size="{{ size }}">
   {% if block.heading %}
     <{{ heading_tag }} class="logos-heading" id="{{ block_uid }}-title">{{ block.heading }}</{{ heading_tag }}>
   {% endif %}
