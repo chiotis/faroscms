@@ -74,5 +74,23 @@ check('page links keep the chosen filters', [$f['next'], array_column($f['page_l
 check('the settings and definition are passed through for the template', [$f['settings']['per_page'], $f['definition']], [1, null]);
 check('an empty list is one empty page', [$b->build($settings, [], null, 'en', [], [])['total'], $b->build($settings, [], null, 'en', [], [])['pages'], $b->build($settings, [], null, 'en', [], [])['items']], [0, 1, []]);
 
+// ---- random order: a new order for each visit, the same one while paging
+$rnd = fn(array $query, int $per = 4) => $b->build(['order' => 'random', 'per_page' => $per, 'taxonomies' => []], [], null, 'en', $many, $query);
+$all = fn(array $r) => $slugs($r);
+$a1 = $rnd(['seed' => '7']); $a2 = $rnd(['seed' => '7']); $b1 = $rnd(['seed' => '8']);
+check('with the same number the order is the same, and it is every entry once (on one page)', [$all($rnd(['seed' => '7'], 0)) === $all($rnd(['seed' => '7'], 0)), count(array_unique($all($rnd(['seed' => '7'], 0)))), $all($a1) === $all($a2)], [true, 10, true]);
+check('another number gives another order', $all($rnd(['seed' => '7'], 0)) !== $all($rnd(['seed' => '8'], 0)), true);
+check('the order is not the order the entries came in', $all($rnd(['seed' => '7'], 0)) !== array_map(fn($n) => 'e' . $n, range(1, 10)), true);
+$pages = [];
+foreach ([1, 2, 3] as $n) { $pages = array_merge($pages, $all($rnd(['seed' => '42', 'page' => (string)$n]))); }
+check('paging through it shows every entry once: none twice, none missed', [count($pages), count(array_unique($pages))], [10, 10]);
+$first = $rnd(['seed' => '42']);
+check('the paging links carry the number, so the next page continues the same order', [$first['next'], array_column($first['page_links'], 'href')], ['?seed=42&page=2', ['?seed=42', '?seed=42&page=2', '?seed=42&page=3']]);
+$fresh = $rnd([]);
+check('a visit with no number gets one, and its links carry it', preg_match('/^\?seed=\d+&page=2$/', $fresh['next']) === 1 && count($fresh['items']) === 4, true);
+check('a number that is not one is replaced', preg_match('/^\?seed=[1-9]\d*&page=2$/', $rnd(['seed' => 'abc'])['next']) === 1 && preg_match('/^\?seed=[1-9]\d*&page=2$/', $rnd(['seed' => '-5'])['next']) === 1, true);
+check('the other orders have no number in their links', [$pg(1)['next'], $b->build(['order' => 'title_asc', 'per_page' => 4, 'taxonomies' => []], [], null, 'en', $many, ['seed' => '9'])['next']], ['?page=2', '?page=2']);
+check('random is one of the orders to choose', isset(\FarosCMS\ContentTypes::ORDERS['random']) && isset(\FarosCMS\ContentTypes::orderOptions([])['random']), true);
+
 echo $fail === 0 ? "\nALL PASSED\n" : "\n$fail FAILED\n";
 exit($fail === 0 ? 0 : 1);

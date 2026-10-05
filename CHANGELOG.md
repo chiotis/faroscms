@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.85 — 2026-10-06 — Random order for an archive
+- **Random is a new choice of *Order* on every archive card** (content types and taxonomies, Theme > Archive Layouts; `order: random` in a definition). The list comes in a new order for each visit.
+- **Paging stays right:** the order comes from a number carried by the paging links (`?seed=…`), so while someone pages through the list the order does not change and no entry is shown twice or missed; a visit without the number gets a new one. A filter chosen on the page starts a new order. No global random state is used: the same number always gives the same order.
+- A page that is stored and served again as it is (a cache in front of the site) would show the same order to everyone until it is renewed; the runtime cache of the roadmap will have to leave a random list out of the page cache.
+- Tests: the order, the paging and the links with a number, numbers that are not numbers, and the other orders unchanged (`tests/unit/archive-builder.php`); the choice on the cards and the page (`tests/http/layouts_test.py`).
+
 ## 0.1.84 — 2026-10-06 — A dark menu bar has no line around it
 - **With a dark or colour menu bar (Header > stacked layout > bar colour), the light line above and under the bar is gone.** It was the header's own line and the divider between the row of the logo and the bar, both drawn in the page's light border colour, so a thin light edge showed around the dark bar. The header now carries a `bar-dark` class in that case and drops both lines. A floating header keeps its outline, which is the edge of its card, and a light bar keeps its lines.
 - Tests: the class for a dark, a colour and a default bar and for another layout, and the two rules in the style sheet (`tests/http/header_footer_test.py`). Looked at in Chromium with a dark bar.
