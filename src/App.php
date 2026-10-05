@@ -44,7 +44,7 @@ final class App
     private Theme $theme;
     private Images $images;
     private MarkdownConverter $markdown;
-    private ?BlockRegistry $blockRegistry = null;
+    private ?BlockRuntime $blockRuntime = null;
     private ?PresetLibrary $presetLibrary = null;
     private ?ContentTypes $contentTypes = null;
     private string $currentLang;
@@ -67,9 +67,6 @@ final class App
     private array $menuStrings = [];
     private ?LogAdmin $logAdminService = null;
     private ?AdminNotices $adminNoticesService = null;
-    private ?YouTubePlaylist $youtubePlaylistService = null;
-    private ?YouTubeThumbs $youtubeThumbsService = null;
-    private ?GeoView $geoViewService = null;
     private ?UpdateAdmin $updateAdminService = null;
     private ?RevisionAdmin $revisionAdminService = null;
     private ?ContentAdmin $contentAdminService = null;
@@ -203,7 +200,7 @@ final class App
             $this->theme,
             $this->redirects,
             $this->htmlGuard(),
-            fn(): BlockRegistry => $this->blockRegistry(),
+            fn(): BlockRegistry => $this->blockRuntime()->registry(),
             fn(): array => $this->taxonomies()->names(),
             $this->revisions
         );
@@ -257,7 +254,7 @@ final class App
             fn(): array => $this->themeSettings,
             fn(): Taxonomies => $this->taxonomies(),
             fn(): LinkScanner => $this->linkScanner(),
-            fn(): BlockRegistry => $this->blockRegistry(),
+            fn(): BlockRegistry => $this->blockRuntime()->registry(),
             fn(): PresetLibrary => $this->presetLibrary(),
             fn(string $path): string => $this->buildAbsoluteUrl($path)
         );
@@ -427,8 +424,8 @@ final class App
             fn(string $isoDate) => $this->updateBackupLastRun($isoDate),
             fn(string $action, string $level, ?string $type, ?string $id, string $message, array $context) => $this->logActivity($action, $level, $type, $id, $message, $context),
             function (): array {
-                $this->youtubePlaylistService = null;
-                return $this->youtubePlaylist()->test();
+                $this->blockRuntime()->resetYoutube();
+                return $this->blockRuntime()->youtubePlaylist()->test();
             }
         );
     }
@@ -447,7 +444,7 @@ final class App
 
     private function htmlGuard(): HtmlGuard
     {
-        return $this->htmlGuard ??= new HtmlGuard(fn(): Environment => $this->markdownEnvironment(), fn(): BlockRegistry => $this->blockRegistry());
+        return $this->htmlGuard ??= new HtmlGuard(fn(): Environment => $this->markdownEnvironment(), fn(): BlockRegistry => $this->blockRuntime()->registry());
     }
 
     private function markdownConverter(): MarkdownConverter
@@ -698,14 +695,14 @@ final class App
         if (is_array($raw) && $raw !== []) {
             // The sidebar template places the text itself, so blocks must not repeat it.
             $bodyInTemplate = !$isHome && $this->resolveItemTemplate($item) === 'templates/sidebar.twig';
-            $pageBlocks = $this->blockRenderer($lang, $path)->render(array_values($raw), $viewDefaults + [
+            $pageBlocks = $this->blockRuntime()->renderer($lang, $path, $this->twig)->render(array_values($raw), $viewDefaults + [
                 'item' => $item,
                 'body_html' => $bodyInTemplate ? '' : $item->html,
             ]);
         }
         $styles = $pageBlocks['styles'] ?? [];
         $scripts = $pageBlocks['scripts'] ?? [];
-        if ($this->hasPlaceField($item->type)) {
+        if ($this->blockRuntime()->hasPlaceField($item->type)) {
             // The page of a point, a route or a business draws a map: it needs the map's style sheet and script, once.
             $base = rtrim((string)($this->settings['base_url'] ?? ''), '/');
             $types = array_values(array_unique(array_merge($pageBlocks['types'] ?? [], ['map'])));
@@ -738,126 +735,10 @@ final class App
         return $this->archiveBuilder()->build($definition['archive'], $definition['fields'], $definition, $lang, $items, $_GET);
     }
 
-    private function blockRenderer(string $lang, string $path): BlockRenderer
-    {
-        $includeHidden = $this->auth->check();
-        return new BlockRenderer(
-            $this->blockRegistry(),
-            $this->twig,
-            $this->theme,
-            fn(string $markdown): string => $this->applyShortcodes((string)$this->markdown->convert($markdown), $lang, $path),
-            [
-                'items' => function (string $type, string $itemLang, int $limit, string $term = '') use ($includeHidden): array {
-                    if ($type === 'forms' || !in_array($type, $this->content->getTypes(), true)) {
-                        return [];
-                    }
-                    $items = $this->content->getItems($type, $itemLang, $includeHidden, false);
-                    $term = Slug::plain($term);
-                    if ($term !== '') {
-                        // Only items filed under this category or tag.
-                        $items = array_values(array_filter($items, function (ContentItem $item) use ($term): bool {
-                            foreach (['categories', 'tags'] as $taxonomy) {
-                                if (in_array($term, array_map('strval', (array)($item->meta[$taxonomy] ?? [])), true)) {
-                                    return true;
-                                }
-                            }
-                            return false;
-                        }));
-                    }
-                    return array_slice($items, 0, max(1, min(24, $limit)));
-                },
-                'form' => fn(string $slug): string => $slug === '' ? '' : $this->renderFormEmbedBySlug(Slug::plain($slug), $lang, $path),
-                'youtube' => function (string $playlistId, string $thumbs): array {
-                    $result = $this->youtubePlaylist()->fetch($playlistId);
-                    foreach ($result['items'] as $i => $video) {
-                        $result['items'][$i]['thumb'] = 'https://i.ytimg.com/vi/' . $video['id'] . '/hqdefault.jpg';
-                        if ($thumbs !== 'youtube') {
-                            $result['items'][$i]['thumb_path'] = $this->youtubeThumbs()->path($video['id']);
-                        }
-                    }
-                    return $result;
-                },
-                'file' => fn(string $url): ?int => $this->images->fileSize($url),
-                // The Map block when it shows content: the entries to put on the map, as the data a map draws (type, language, limit, category).
-                'geo' => function (string $source, string $itemLang, int $limit, string $term) use ($includeHidden): array {
-                    $view = $this->geoView();
-                    $types = $source === 'all' ? $view->placeTypes() : (in_array($source, $view->placeTypes(), true) ? [$source] : []);
-                    return $view->dataset($view->gather($types, $itemLang, Slug::plain($term)), $itemLang, ['limit' => max(1, min(800, $limit))]);
-                },
-                'geo_load' => fn(): string => ($this->settings['apis']['maps']['load'] ?? 'click') === 'auto' ? 'auto' : 'click',
-                'term' => fn(string $id, string $itemLang): string => $this->taxonomyTermLabel('categories', $id, $itemLang),
-                'admin' => fn(): bool => $this->auth->check(),
-            ],
-            rtrim((string)($this->settings['base_url'] ?? ''), '/')
-        );
-    }
-
-    private function youtubePlaylist(): YouTubePlaylist
-    {
-        return $this->youtubePlaylistService ??= new YouTubePlaylist(
-            $this->systemMeta,
-            trim((string)($this->settings['apis']['youtube']['key'] ?? '')),
-            static fn(string $url): array => YouTubePlaylist::request($url),
-            SiteSettings::cacheHours($this->settings['apis']['youtube']['cache_hours'] ?? 6)
-        );
-    }
-
-    /** Whether entries of a content type can have a place (a field of the kind `location`). */
-    private function hasPlaceField(string $type): bool
-    {
-        foreach ($this->contentTypes()->definition($type, $this->currentLang, $this->defaultLanguage())['fields'] as $field) {
-            if ($field['type'] === 'location' && !$field['hidden']) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /** The maps of content: places, routes and what is near what (see GeoView). */
-    private function geoView(): GeoView
-    {
-        return $this->geoViewService ??= new GeoView(
-            new GeoMap(new GeoLibrary($this->images, $this->basePath . '/storage/cache'), $this->images),
-            fn(string $type, string $lang): array => in_array($type, $this->content->getTypes(), true) ? $this->content->getItems($type, $lang, $this->auth->check(), false) : [],
-            fn(string $type, string $lang): string => $this->contentTypes()->definition($type, $lang, $this->defaultLanguage())['label'],
-            fn(string $slug, string $lang): string => $this->taxonomyTermLabel('categories', $slug, $lang),
-            fn(ContentItem $item, string $lang): string => $this->buildAbsoluteUrl($this->langPrefix($lang) . ($item->type === 'pages' ? '' : $item->type . '/') . $item->slug),
-            function (): array {
-                $types = [];
-                foreach ($this->content->getTypes() as $type) {
-                    if ($type === 'forms' || $type === 'pages') {
-                        continue;
-                    }
-                    foreach ($this->contentTypes()->definition($type, $this->currentLang, $this->defaultLanguage())['fields'] as $field) {
-                        if (in_array($field['type'], ['location'], true) && !$field['hidden']) {
-                            $types[] = $type;
-                            break;
-                        }
-                    }
-                }
-                return $types;
-            },
-            [
-                'tiles_url' => (string)($this->settings['apis']['maps']['tiles_url'] ?? ''),
-                'attribution' => (string)($this->settings['apis']['maps']['attribution'] ?? ''),
-            ]
-        );
-    }
-
-    private function youtubeThumbs(): YouTubeThumbs
-    {
-        return $this->youtubeThumbsService ??= new YouTubeThumbs(
-            $this->basePath . '/storage/cache/youtube',
-            $this->systemMeta,
-            static fn(string $url): array => YouTubePlaylist::request($url, 4)
-        );
-    }
-
     /** A picture of a playlist's video, kept on this site (see YouTubeThumbs). */
     private function handleYoutubeThumb(string $path): void
     {
-        $id = (string)preg_replace('/\.jpg$/', '', substr($path, 4));
-        $file = $this->youtubeThumbs()->isValid($id, (string)($_GET['s'] ?? '')) ? $this->youtubeThumbs()->file($id) : null;
+        $file = $this->blockRuntime()->youtubeThumbFile($path, (string)($_GET['s'] ?? ''));
         if ($file === null) {
             http_response_code(404);
             header('Content-Type: text/plain; charset=utf-8');
@@ -871,34 +752,24 @@ final class App
         readfile($file);
     }
 
-    private function blockRegistry(): BlockRegistry
+    private function blockRuntime(): BlockRuntime
     {
-        return $this->blockRegistry ??= new BlockRegistry($this->theme, [
-            'content_types' => function (): array {
-                $options = [];
-                foreach ($this->content->getTypes() as $type) {
-                    if ($type !== 'forms' && $type !== 'pages') {
-                        $options[$type] = $this->contentTypes()->definition($type, 'en', $this->defaultLanguage())['label'];
-                    }
-                }
-                return $options;
-            },
-            // The types whose entries can have a place, for the Map block: each type, and everything with a place.
-            'place_types' => function (): array {
-                $options = [];
-                foreach ($this->geoView()->placeTypes() as $type) {
-                    $options[$type] = $this->contentTypes()->definition($type, 'en', $this->defaultLanguage())['label'];
-                }
-                return count($options) > 1 ? ['all' => 'Everything with a place'] + $options : $options;
-            },
-            'forms' => function (): array {
-                $options = ['' => '—'];
-                foreach ($this->content->getItems('forms', null, true) as $form) {
-                    $options[$form->slug] = (string)($form->meta['title'] ?? $form->slug);
-                }
-                return $options;
-            },
-        ]);
+        return $this->blockRuntime ??= new BlockRuntime(
+            $this->basePath,
+            $this->theme,
+            $this->images,
+            $this->systemMeta,
+            $this->content,
+            fn(): array => $this->settings,
+            fn(): bool => $this->auth->check(),
+            fn(): ContentTypes => $this->contentTypes(),
+            fn(): string => $this->currentLang,
+            fn(): string => $this->defaultLanguage(),
+            fn(string $taxonomy, string $termId, string $lang): string => $this->taxonomyTermLabel($taxonomy, $termId, $lang),
+            fn(string $path): string => $this->buildAbsoluteUrl($path),
+            fn(string $markdown, string $lang, string $path): string => $this->applyShortcodes((string)$this->markdown->convert($markdown), $lang, $path),
+            fn(string $slug, string $lang, string $path): string => $this->renderFormEmbedBySlug($slug, $lang, $path)
+        );
     }
 
     /** Admin addresses served by one handler each, by the first part of the address after /admin. */
@@ -1922,7 +1793,7 @@ final class App
     {
         return $this->presetLibrary ??= new PresetLibrary(
             $this->theme,
-            $this->blockRegistry(),
+            $this->blockRuntime()->registry(),
             fn(string $value): string => Slug::plain($value)
         );
     }
@@ -2955,7 +2826,7 @@ final class App
 
         GeoTwigFunctions::register(
             $twig,
-            fn(): GeoView => $this->geoView(),
+            fn(): GeoView => $this->blockRuntime()->geoView(),
             fn(): string => $this->currentLang,
             fn(): array => $this->settings
         );

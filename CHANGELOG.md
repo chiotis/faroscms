@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.64 — 2026-10-05 — `BlockRuntime`: what the blocks need from the site, out of `App.php`
+- **No change for the people who use the site.** `src/App.php` goes from 3,812 to about 3,680 lines; the whole suite passes.
+- **`BlockRuntime`** holds the block registry (and the choices it offers for types of content, types with a place and forms), the renderer of a page's blocks (the entries, forms, YouTube playlists and maps they show), the maps of content (`GeoView`) and the YouTube services, each built the first time it is asked for. The settings, the language and who is signed in are still read when they are used. `App` keeps one small factory for it and the output of a kept picture (`_yt/…jpg`), whose check (the address's signature) is now a method that returns the file, and is tested.
+- The list of the types that can have a place was written twice (once for the maps, once for a page's own map); it is one rule now.
+- New unit test `tests/unit/block-runtime.php`. The blocks, Map and Playlist HTTP tests cover the rendering as before.
+
 ## 0.1.63 — 2026-10-05 — `App.php` is smaller: dead code out, the template functions of the page and the maps in their own classes
 - **No change for the people who use the site.** `src/App.php` goes from 3,942 to about 3,800 lines, and the whole suite passes before and after each step.
 - **Dead code removed**: twelve private methods that nothing called (`neutralizeRawHtml`, `storedHtmlFragments`, `eachMarkdownField`, `getSystemMeta`, `buildContentPath`, `buildArchivePath`, `normalizeMetaList`, `parseCommaList`, `titleFromSlug`, `buildFilename`, `splitFrontMatter`, `transliterateGreek`), left behind by earlier extractions, four unused imports, and three methods that only forwarded to `Slug`, `Format` and `Theme` (called directly now).
