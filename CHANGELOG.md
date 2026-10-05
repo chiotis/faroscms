@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.68 — 2026-10-05 — The visual editor: a picture can be removed or changed where it is
+- **Click a picture in the visual editor** and it is outlined, with a small bar over it: *Edit* (the address and the description, with *Library…*, and *Remove picture* in the same form) and *Remove picture*. Delete and Backspace remove a picked picture too; Escape, or a click anywhere else, lets it go. Until now a picture could only be taken away by going back to Markdown.
+- A paragraph that held only the picture goes with it, a link that held only the picture goes with it, and the words round a picture in a line stay. A picked picture (or HTML box) no longer makes its block be written again when something else is edited: the mark of what is picked is left out of the comparison with how the block was drawn.
+- Tests: `tests/js/editor-tools.test.js` covers picking, the bar, Remove, Edit and Apply, Delete, Backspace and Escape, the picture in a line and in a link, and that a picked picture is written as it was.
+- The save test's pattern for the random translation id allows the quotes YAML puts round one that looks like a number (about one id in a thousand), which had failed once in CI.
+
 ## 0.1.67 — 2026-10-05 — The visual editor: text alignment, and the picture library works
 - **Text alignment** in the visual editor of the main content: four buttons (left, center, right, justify) for the paragraphs and headings the selection touches. It is written in the Markdown as a line before the block, `{align=center}`, so the stored text stays plain Markdown, and drawn on the site with the `align` attribute, which the theme styles. `align` is the one new attribute the Markdown accepts (besides `target` on a link). It is not offered for list items, table cells or code, and says so.
 - **The picture button's *Library…* did nothing**: the small form closed itself the moment the library opened (a click in the library counted as a click outside the form), so the picture chosen had nowhere to go. A click in a dialog that the form opened no longer closes it. (Typing an address and pressing *Insert* worked all along, which is why Markdown mode and a typed address seemed fine.)

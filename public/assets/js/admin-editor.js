@@ -265,6 +265,17 @@
     return out;
   }
 
+  /** What a block looks like for the comparison with how it was drawn: without the mark of what is picked (a picture, an HTML box). */
+  function snapshotOf(node) {
+    if (!node.querySelector('.is-picked') && !node.classList.contains('is-picked')) { return node.outerHTML; }
+    var copy = node.cloneNode(true);
+    [copy].concat(Array.prototype.slice.call(copy.querySelectorAll('.is-picked'))).forEach(function (n) {
+      n.classList.remove('is-picked');
+      if (n.getAttribute('class') === '') { n.removeAttribute('class'); }
+    });
+    return copy.outerHTML;
+  }
+
   /**
    * The whole document as Markdown. A top-level block that is exactly as it was drawn is written as the lines it came from.
    * @param {boolean} full write every block again (used to test that what is written reads back the same)
@@ -282,7 +293,7 @@
       if (!isBlock(node) && !node.classList.contains('table-wrap')) { run.push(node); return; }
       endRun();
       var index = node.getAttribute('data-b');
-      if (!full && state.verbatim && index !== null && !used[index] && state.snaps[index] === node.outerHTML && state.sources[index] !== '') {
+      if (!full && state.verbatim && index !== null && !used[index] && state.snaps[index] === snapshotOf(node) && state.sources[index] !== '') {
         used[index] = true;
         out.push(state.sources[index]);
         return;
@@ -596,6 +607,66 @@
     });
   }
 
+  /* A picture in the text: a click picks it, and a small bar offers to change or remove it (Delete and Backspace remove it too). */
+
+  var pictureBar = null;
+  function unpick() {
+    Array.prototype.forEach.call(surface.querySelectorAll('.is-picked'), function (n) { n.classList.remove('is-picked'); });
+    if (pictureBar) { pictureBar.remove(); pictureBar = null; }
+  }
+  function pickPicture(img) {
+    unpick();
+    img.classList.add('is-picked');
+    var keep = function (e) { e.preventDefault(); };
+    var edit = el('button', { type: 'button', class: 'ed-text', text: 'Edit', title: 'Change the address or the description', onmousedown: keep, onclick: function () { rememberRange(); editPicture(img, edit); } });
+    var remove = el('button', { type: 'button', class: 'ed-text is-danger', text: 'Remove picture', onmousedown: keep, onclick: function () { removePicture(img); } });
+    pictureBar = el('div', { class: 'ed-picturebar', role: 'toolbar', 'aria-label': 'Picture' }, [edit, remove]);
+    box.appendChild(pictureBar);
+    var at = img.getBoundingClientRect(), host = box.getBoundingClientRect();
+    pictureBar.style.top = Math.max(0, at.top - host.top + 6) + 'px';
+    pictureBar.style.left = Math.max(0, Math.min(at.left - host.left + 6, host.width - pictureBar.offsetWidth - 8)) + 'px';
+  }
+  function removePicture(img) {
+    var parent = img.parentNode;
+    var link = parent && parent.tagName === 'A' && parent.childNodes.length === 1 ? parent : null;
+    var holder = (link || img).parentNode;
+    (link || img).remove();
+    unpick();
+    var next = holder;
+    // A paragraph that held only the picture goes with it.
+    if (holder !== surface && holder.tagName === 'P' && holder.textContent.trim() === '' && !holder.querySelector('img')) {
+      next = holder.nextElementSibling || holder.previousElementSibling;
+      holder.remove();
+    }
+    if (!surface.firstElementChild) { surface.appendChild(el('p', { html: '<br>' })); next = surface.firstElementChild; }
+    if (next) { placeCaret(next, false); }
+    surface.focus();
+    changed();
+  }
+  function editPicture(img, anchor) {
+    ask(anchor, 'Edit picture', [
+      { name: 'url', label: 'Address', value: img.getAttribute('src') || '' },
+      { name: 'alt', label: 'Description', value: img.getAttribute('alt') || '', placeholder: 'What the picture shows' }
+    ], function (v) {
+      var url = safeUrl(v.url);
+      if (url === '') { return; }
+      img.setAttribute('src', url);
+      img.setAttribute('alt', v.alt);
+      changed();
+    }, {
+      ok: 'Apply',
+      removeLabel: 'Remove picture',
+      remove: function () { removePicture(img); },
+      library: function (inputs) {
+        window.FarosMediaPicker.open(function (url, item) {
+          inputs.url.value = url;
+          if (item && item.alt && !inputs.alt.value) { inputs.alt.value = item.alt; }
+          inputs.alt.focus();
+        });
+      }
+    });
+  }
+
   function rawDialog(anchor, kind) {
     if (kind === 'iframe') {
       ask(anchor, 'Embed a page or video', [{ name: 'url', label: 'Address', placeholder: 'https://…' }], function (v) {
@@ -800,6 +871,7 @@
   surface && surface.addEventListener('keydown', function (event) {
     var mod = event.metaKey || event.ctrlKey;
     if (event.key === ' ' && !mod && !event.altKey && typedRule(event)) { return; }
+    if (event.key === 'Escape' && surface.querySelector('.is-picked')) { unpick(); return; }
     if (event.key === 'Enter' && !event.shiftKey && !mod && enterRule(event)) { return; }
     if (event.key === 'Tab' && !mod) {
       var range = currentRange();
@@ -821,14 +893,17 @@
     if (mod && event.key.toLowerCase() === 'k') { event.preventDefault(); linkDialog(tools.querySelector('[data-cmd="link"]') || tools); return; }
     if (mod && event.shiftKey && event.key.toLowerCase() === 's') { event.preventDefault(); command('strikeThrough'); return; }
     if ((event.key === 'Backspace' || event.key === 'Delete')) {
+      var pickedPicture = surface.querySelector('img.is-picked');
+      if (pickedPicture) { event.preventDefault(); removePicture(pickedPicture); return; }
       var picked = surface.querySelector('.md-raw.is-picked');
       if (picked) { event.preventDefault(); var next = picked.nextElementSibling || picked.previousElementSibling; picked.remove(); if (!surface.firstElementChild) { surface.appendChild(el('p', { html: '<br>' })); next = surface.firstElementChild; } if (next) { placeCaret(next, false); } changed(); }
     }
   });
   surface && surface.addEventListener('click', function (event) {
-    surface.querySelectorAll('.md-raw.is-picked').forEach(function (n) { n.classList.remove('is-picked'); });
+    unpick();
     var chip = event.target.closest && event.target.closest('.md-raw');
-    if (chip) { chip.classList.add('is-picked'); }
+    if (chip) { chip.classList.add('is-picked'); return; }
+    if (event.target.tagName === 'IMG') { event.preventDefault(); pickPicture(event.target); }
   });
   surface && surface.addEventListener('input', changed);
   surface && surface.addEventListener('blur', sync);
@@ -1027,6 +1102,7 @@
     area.hidden = visual;
     if (mdTools) { mdTools.hidden = visual; }
     closePop();
+    unpick();
     count();
   }
 

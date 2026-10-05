@@ -37,7 +37,18 @@ const DRAWN = {
   ],
 };
 
-async function page() {
+/** The same text with a picture of its own and one inside a link, for what is done with a picture. */
+const WITH_PICTURES = {
+  ok: true, tail: '', verbatim: true,
+  blocks: DRAWN.blocks.concat([
+    { html: '<p><img src="/uploads/media/a.png" alt="A cat"></p>', source: '![A cat](/uploads/media/a.png)' },
+    { html: '<p>Words <img src="/uploads/media/b.png" alt="B"> in a line</p>', source: 'Words ![B](/uploads/media/b.png) in a line' },
+    { html: '<p><a href="/x"><img src="/uploads/media/c.png" alt="C"></a></p>', source: '[![C](/uploads/media/c.png)](/x)' },
+  ]),
+};
+const BASE_MD = 'Hello world\n\n## Title\n\n- item';
+
+async function page(drawn) {
   const dom = new JSDOM('<!doctype html><body><form><input type="hidden" name="_csrf" value="t"><section>'
     + '<button type="button" data-ed-mode="visual" hidden>Visual</button><button type="button" data-ed-mode="markdown" hidden>Markdown</button>'
     + '<div data-editor data-endpoint="/admin/markdown-visual" data-raw-html="0"><div data-ed-tools hidden></div><div data-md-toolbar hidden></div>'
@@ -47,7 +58,7 @@ async function page() {
   const calls = [];
   // jsdom does not know contentEditable, which the editor looks for before it starts.
   Object.defineProperty(window.HTMLElement.prototype, 'contentEditable', { get() { return this.getAttribute('contenteditable') || 'inherit'; }, set(v) { this.setAttribute('contenteditable', v); }, configurable: true });
-  window.fetch = () => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(DRAWN) });
+  window.fetch = () => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(drawn || DRAWN) });
   window.document.execCommand = function (name, ui, value) { calls.push([name, value]); return true; };
   const library = { callback: null, open(callback) { this.callback = callback; const d = window.document.createElement('dialog'); d.setAttribute('open', ''); d.innerHTML = '<button type="button" data-pick>A picture</button>'; window.document.body.appendChild(d); this.dialog = d; } };
   window.FarosMediaPicker = library;
@@ -122,6 +133,65 @@ async function page() {
   t.caretIn(item);
   t.click(t.$('[data-cmd=aligncenter]'));
   check('a list item is left alone, and the person is told why', !item.hasAttribute('align') && !t.surface.querySelector('ul').hasAttribute('align') && /not for list items/.test(t.$('[data-ed-note]').textContent), t.$('[data-ed-note]').textContent);
+
+  // ---- a picture in the text: picked, changed, removed
+  t = await page(WITH_PICTURES);
+  const lone = t.surface.querySelectorAll('img')[0];
+  t.click(lone);
+  check('a click on a picture picks it, and a bar offers to change or remove it', lone.classList.contains('is-picked') && t.$('.ed-picturebar') !== null && /Remove picture/.test(t.$('.ed-picturebar').textContent), t.surface.innerHTML);
+  await wait(400);
+  check('picking changes nothing in the text', t.$('textarea').value === BASE_MD, JSON.stringify(t.$('textarea').value));
+  t.click(t.surface.children[0]);
+  check('a click elsewhere un-picks it, and takes the bar away', !lone.classList.contains('is-picked') && t.$('.ed-picturebar') === null);
+  t.click(lone);
+  t.surface.dispatchEvent(new t.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+  check('so does Escape', !lone.classList.contains('is-picked') && t.$('.ed-picturebar') === null);
+
+  t.click(lone);
+  Array.from(t.window.document.querySelectorAll('.ed-picturebar button')).find((b) => /Remove/.test(b.textContent)).click();
+  check('Remove picture takes the picture away, and the paragraph that held only it', t.surface.querySelectorAll('img').length === 2 && !Array.from(t.surface.children).some((c) => c.tagName === 'P' && c.textContent === '' && !c.querySelector('img')) && t.surface.children.length === 5, t.surface.innerHTML);
+  check('and the bar', t.$('.ed-picturebar') === null);
+  await wait(400);
+  check('the Markdown has lost it, and nothing else', !t.$('textarea').value.includes('a.png') && t.$('textarea').value.includes('Words ![B](/uploads/media/b.png) in a line') && t.$('textarea').value.startsWith(BASE_MD), JSON.stringify(t.$('textarea').value));
+
+  const inLine = t.surface.querySelectorAll('img')[0];
+  t.click(inLine);
+  t.surface.dispatchEvent(new t.window.KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true }));
+  check('Backspace removes a picked picture, and the words round it stay', t.surface.querySelectorAll('img').length === 1 && t.surface.textContent.includes('Words') && t.surface.textContent.includes('in a line'), t.surface.innerHTML);
+  await wait(400);
+  check('as Markdown', t.$('textarea').value.includes('Words  in a line') || /Words\s+in a line/.test(t.$('textarea').value), JSON.stringify(t.$('textarea').value));
+
+  const linked = t.surface.querySelector('img');
+  t.click(linked);
+  t.surface.dispatchEvent(new t.window.KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true }));
+  check('Delete does too, and a picture that was all a link held takes the link with it', t.surface.querySelectorAll('img, a').length === 0 && t.surface.children.length === 4, t.surface.innerHTML);
+  t.caretIn(t.surface.children[0]);
+  t.surface.dispatchEvent(new t.window.KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true }));
+  check('Backspace when nothing is picked is left to the browser', t.surface.children.length === 4);
+
+  t = await page(WITH_PICTURES);
+  const first = t.surface.querySelectorAll('img')[0];
+  t.click(first);
+  Array.from(t.window.document.querySelectorAll('.ed-picturebar button')).find((b) => /Edit/.test(b.textContent)).click();
+  const edit = Array.from(t.window.document.querySelectorAll('.ed-pop input[type=text]'));
+  check('Edit opens the address and the description as they are', t.$('.ed-pop') !== null && edit[0].value === '/uploads/media/a.png' && edit[1].value === 'A cat', edit.map((i) => i.value));
+  edit[1].value = 'A black cat';
+  t.$('.ed-pop').dispatchEvent(new t.window.Event('submit', { bubbles: true, cancelable: true }));
+  check('Apply changes the picture', first.getAttribute('alt') === 'A black cat' && first.getAttribute('src') === '/uploads/media/a.png', first.outerHTML);
+  await wait(400);
+  check('and the Markdown', t.$('textarea').value.includes('![A black cat](/uploads/media/a.png)'), JSON.stringify(t.$('textarea').value));
+  t.click(first);
+  Array.from(t.window.document.querySelectorAll('.ed-picturebar button')).find((b) => /Edit/.test(b.textContent)).click();
+  Array.from(t.window.document.querySelectorAll('.ed-pop button')).find((b) => /Remove picture/.test(b.textContent)).click();
+  check('and the form has Remove picture as well', !t.surface.contains(first) && t.$('.ed-pop') === null);
+
+  // a picked picture does not make its block be written again
+  t = await page(WITH_PICTURES);
+  t.click(t.surface.querySelectorAll('img')[1]);
+  t.caretIn(t.surface.children[0]);
+  t.click(t.$('[data-cmd=aligncenter]'));
+  await wait(400);
+  check('a picture that is picked while something else is changed is written as it was', t.$('textarea').value === '{align=center}\nHello world\n\n## Title\n\n- item\n\n![A cat](/uploads/media/a.png)\n\nWords ![B](/uploads/media/b.png) in a line\n\n[![C](/uploads/media/c.png)](/x)', JSON.stringify(t.$('textarea').value));
 
   console.log(failed === 0 ? '\nALL PASSED' : '\n' + failed + ' FAILED');
   process.exit(failed === 0 ? 0 : 1);
