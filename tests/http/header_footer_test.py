@@ -16,7 +16,8 @@ pub = Client()
 def post_theme(tab, overrides, drop=()):
     """Submit the Theme form the way the browser does: its own values, then what the test changes."""
     form = next(f for f in root.forms('/admin/theme?tab=' + tab) if any(x[0] == 'active_tab' for x in f['fields']))
-    fields = [tuple(x) for x in form['fields'] if x[0] not in overrides and x[0] not in drop and x[0] != 'active_tab']
+    # A text with a version for each language has an input for each (text[default], text[en]); a test that sets it as one text replaces them all.
+    fields = [tuple(x) for x in form['fields'] if x[0] not in overrides and x[0] not in drop and x[0] != 'active_tab' and not any(x[0].startswith(o + '[') for o in overrides)]
     for k, v in overrides.items():
         if v is None:
             continue
@@ -60,7 +61,7 @@ check('the tone of the bar is only asked for when the layout is stacked', 'data-
 check('and loads the script that does it, once', html.count('js/admin-preview.js') == 1)
 st, _, html = root.get('/admin/theme?tab=footer')
 check('the Footer tab has its preview and every layout', 'data-preview data-mode="page"' in html and 'class="hfp' not in html and re.findall(r'name="theme_settings\[footer\]\[layout\]" value="([a-z]+)"', html) == ['columns', 'mega', 'simple', 'bar', 'centered'])
-check('and a field for every choice', all(('name="theme_settings[footer][%s]"' % k) in html for k in (
+check('and a field for every choice', all(('name="theme_settings[footer][%s]"' % k) in html or ('name="theme_settings[footer][%s][default]"' % k) in html for k in (
     'tone', 'brand', 'show_social', 'show_language', 'back_to_top', 'copyright', 'credits', 'summary', 'email', 'phone', 'address', 'hours', 'background', 'background_image')) and 'name="theme_settings[footer][cta_heading]"' not in html)
 check('the media picker can fill the footer image', re.search(r'name="theme_settings\[footer\]\[background_image\]"[^>]*data-image-field|data-image-field[^>]*name="theme_settings\[footer\]\[background_image\]"', html) is not None)
 check('the Sidebar and Hero tabs stay where they were put', 'data-tab="single_layouts"' in html and 'data-tab="header"' in html)
@@ -245,6 +246,35 @@ check('nor someone who is not signed in', st in (302, 403, 419) and not out, st)
 before = head_tag(page())[0]
 st, _, _ = ed.request('/admin/theme', data=[('active_tab', 'header'), ('theme_settings[header][layout]', 'split')])
 check('an editor cannot save them', head_tag(page())[0] == before, st)
+
+# ---- texts in more than one language
+st, _, html = root.get('/admin/theme?tab=footer')
+langs = re.findall(r'data-lang-pick="([a-z-]+)"', html)
+langs = list(dict.fromkeys(langs))
+check('the Footer tab offers a chip for each language of the site, the site\'s own first', len(langs) >= 2 and 'js/admin-langs.js' in html, langs)
+own, other = langs[0], langs[1]
+check('each translatable text has an input for each language, named default and by code', all(('name="theme_settings[footer][%s][default]"' % k) in html and ('name="theme_settings[footer][%s][%s]"' % (k, other)) in html for k in ('summary', 'copyright', 'credits', 'address', 'hours')) and 'name="theme_settings[footer][email]"' in html)
+page_own = '/about'
+page_other = '/%s/about' % other
+post_theme('footer', {'theme_settings[footer][summary][default]': 'Own summary', 'theme_settings[footer][summary][%s]' % other: 'Other summary',
+                      'theme_settings[footer][address][default]': 'Own street 1', 'theme_settings[footer][address][%s]' % other: '',
+                      'theme_settings[footer][credits][default]': 'Own credits', 'theme_settings[footer][credits][%s]' % other: 'Other credits'})
+fo, ft = foot(page(page_own)), foot(page(page_other))
+check('each page shows the text of its own language', 'Own summary' in fo and 'Other summary' not in fo and 'Other summary' in ft and 'Own summary' not in ft, (page_own, page_other))
+check('a language with no text of its own shows the site\'s own text', 'Own street 1' in fo and 'Own street 1' in ft)
+check('the credits line follows the language too', 'Own credits' in fo and 'Other credits' in ft and 'Other credits' not in fo)
+st, _, html = root.get('/admin/theme?tab=footer')
+check('what was saved comes back in the right input', re.search(r'name="theme_settings\[footer\]\[summary\]\[%s\]"[^>]*>Other summary<' % other, html) is not None and re.search(r'name="theme_settings\[footer\]\[summary\]\[default\]"[^>]*>Own summary<', html) is not None)
+footer(summary='Changed own')
+fo, ft = foot(page(page_own)), foot(page(page_other))
+check('a text sent as one string changes the site\'s own text and keeps the translations', 'Changed own' in fo and 'Other summary' in ft)
+post_theme('footer', {'theme_settings[footer][summary][default]': 'Only own', 'theme_settings[footer][summary][%s]' % other: ''})
+check('with every translation emptied the text is the same on every page', 'Only own' in foot(page(page_own)) and 'Only own' in foot(page(page_other)))
+# the header: a button text and a message for the top bar
+post_theme('header', {'theme_settings[header][cta_label][default]': 'Own button', 'theme_settings[header][cta_label][%s]' % other: 'Other button', 'theme_settings[header][cta_url]': 'contact',
+                      'theme_settings[header][topbar_text][default]': 'Own message', 'theme_settings[header][topbar_text][%s]' % other: 'Other message'})
+ho, hother = head(page(page_own)), head(page(page_other))
+check('the header button and the top bar message follow the language', 'Own button' in ho and 'Other button' not in ho and 'Other button' in hother and 'Own message' in ho and 'Other message' in hother and 'Own message' not in hother)
 
 print('\nALL PASSED' if not fails else '\n%d FAILED: %s' % (len(fails), fails))
 sys.exit(1 if fails else 0)

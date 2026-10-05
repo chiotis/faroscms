@@ -50,19 +50,22 @@
 
 {# A row with a text, a link, an address, a colour or a picture to type or choose. #}
 {% macro text(field, name, value) %}
+  {% import '@admin/partials/fields.twig' as fields %}
   {% set id = 'f-' ~ name|replace({'[': '-', ']': ''}) %}
   <div class="lc-row">
     <dt><label for="{{ id }}">{{ field.label }}</label></dt>
     <dd class="m-0">
-      {% if field.type == 'textarea' %}
-        <textarea id="{{ id }}" name="{{ name }}" rows="2" placeholder="{{ field.placeholder }}" class="lc-input">{{ value }}</textarea>
+      {% if field.translatable|default(false) and admin_languages|length > 1 %}
+        {{ fields.i18n_inputs(field, name, value, 'lc-input', id) }}
+      {% elseif field.type == 'textarea' %}
+        <textarea id="{{ id }}" name="{{ name }}" rows="2" placeholder="{{ field.placeholder }}" class="lc-input">{{ value is iterable ? value|localized : value }}</textarea>
       {% elseif field.type == 'color' %}
         <span class="flex items-center gap-2">
           <span class="h-6 w-6 shrink-0 rounded border border-slate-300" style="background: {{ value ?: 'transparent' }};" aria-hidden="true"></span>
           <input id="{{ id }}" type="text" name="{{ name }}" value="{{ value }}" placeholder="{{ field.placeholder }}" class="lc-input">
         </span>
       {% else %}
-        <input id="{{ id }}" type="{{ field.type == 'email' ? 'email' : 'text' }}" name="{{ name }}" value="{{ value }}" placeholder="{{ field.placeholder }}" class="lc-input"{% if field.type == 'image' %} data-image-field{% endif %}>
+        <input id="{{ id }}" type="{{ field.type == 'email' ? 'email' : 'text' }}" name="{{ name }}" value="{{ value is iterable ? value|localized : value }}" placeholder="{{ field.placeholder }}" class="lc-input"{% if field.type == 'image' %} data-image-field{% endif %}>
       {% endif %}
       {% if field.help %}<span class="mt-1 block text-[11px] leading-4 text-slate-500">{{ field.help }}</span>{% endif %}
     </dd>

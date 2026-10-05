@@ -39,6 +39,28 @@ final class Format
         }, $html);
     }
 
+    /**
+     * A text that may have a version for each language (a plain string, or a map of `default` and language codes) as the text for
+     * one language: its own version, else the default one, else the first there is.
+     */
+    public static function localized(mixed $value, string $lang): string
+    {
+        if (!is_array($value)) {
+            return is_scalar($value) ? (string)$value : '';
+        }
+        foreach ([$lang, 'default'] as $key) {
+            if (isset($value[$key]) && is_scalar($value[$key]) && trim((string)$value[$key]) !== '') {
+                return (string)$value[$key];
+            }
+        }
+        foreach ($value as $text) {
+            if (is_scalar($text) && trim((string)$text) !== '') {
+                return (string)$text;
+            }
+        }
+        return '';
+    }
+
     /** A list from front matter: an array, a comma separated text, or one value; empty entries are dropped. @return array<int, string> */
     public static function list(mixed $value): array
     {

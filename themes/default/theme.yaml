@@ -280,7 +280,7 @@ settings:
         help: The links next to the Menu button in the bottom bar, each with an icon. Leave the list empty for the automatic ones (call, email, and the header button).
         fields:
           icon: { type: icon, label: Icon }
-          label: { type: text, label: Label, placeholder: Call us }
+          label: { type: text, label: Label, placeholder: Call us, translatable: true }
           url: { type: link, label: Link, placeholder: 'tel:+302100000000, contact, or /en/contact' }
       topbar_contacts:
         type: toggle
@@ -288,6 +288,7 @@ settings:
         help: Uses the phone and email from the Footer section.
         default: false
       cta_label:
+        translatable: true
         type: text
         label: Button text
         default: ''
@@ -305,6 +306,7 @@ settings:
           solid: Solid
           outline: Outline
       topbar_text:
+        translatable: true
         type: text
         label: Top bar message
         default: ''
@@ -854,6 +856,7 @@ settings:
         label: Back to top link
         default: false
       copyright:
+        translatable: true
         type: text
         label: Copyright line
         default: ''
@@ -861,6 +864,7 @@ settings:
         help: "{year}, {site} and {copyright} (the © sign) are filled in. Empty uses the theme's own line."
         span: full
       credits:
+        translatable: true
         type: text
         label: Credits line
         default: ''
@@ -868,6 +872,7 @@ settings:
         help: "A line under the copyright. Write a link as [text](https://address). {year}, {site} and {copyright} work here too."
         span: full
       summary:
+        translatable: true
         type: textarea
         label: Summary
         default: ''
@@ -881,11 +886,13 @@ settings:
         label: Phone
         default: ''
       address:
+        translatable: true
         type: text
         label: Address
         default: ''
         span: full
       hours:
+        translatable: true
         type: text
         label: Opening hours
         default: ''

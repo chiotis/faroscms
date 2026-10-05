@@ -41,6 +41,12 @@ final class FieldSchema
                 'hidden' => ($definition['hidden'] ?? false) === true,
                 'required' => ($definition['required'] ?? false) === true,
             ];
+            // A text that has a version for each language of the site (see sanitizeTranslations).
+            if ($type === 'text' || $type === 'textarea') {
+                if (($definition['translatable'] ?? false) === true) {
+                    $field['translatable'] = true;
+                }
+            }
             // A field that matters only while another has a value: `when: {background: video}` (or a list of values).
             $when = [];
             foreach (is_array($definition['when'] ?? null) ? $definition['when'] : [] as $other => $wanted) {
@@ -199,6 +205,9 @@ final class FieldSchema
         if ($value === null) {
             return $fallback;
         }
+        if (($field['translatable'] ?? false) === true && (is_array($value) || (is_array($fallback) && is_scalar($value)))) {
+            return self::sanitizeTranslations($field, $value, $fallback);
+        }
 
         switch ($field['type']) {
             case 'toggle':
@@ -313,6 +322,37 @@ final class FieldSchema
                 }
                 return self::limit(trim(preg_replace('/[\x00-\x1F\x7F]+/', ' ', (string)$value) ?? ''), 2000);
         }
+    }
+
+    /**
+     * A translatable text is a plain string (the text for every language) or a map: `default` is the text of the site's own language
+     * (what a plain string is), and a language code has the text for that language. Empty texts are dropped, a map with only the
+     * default text is kept as a plain string, and a plain string sent over a map replaces only the default text.
+     *
+     * @param array<string, mixed> $field
+     */
+    private static function sanitizeTranslations(array $field, mixed $value, mixed $fallback): mixed
+    {
+        $plain = $field;
+        unset($plain['translatable']);
+        if (!is_array($value)) {
+            $value = ['default' => $value] + array_filter((array)$fallback, static fn(mixed $v, mixed $k): bool => $k !== 'default', ARRAY_FILTER_USE_BOTH);
+        }
+        $texts = [];
+        foreach ($value as $lang => $text) {
+            $lang = (string)$lang;
+            if ($lang !== 'default' && !preg_match('/^[a-z]{2,3}(-[a-z0-9]{2,8})?$/i', $lang)) {
+                continue;
+            }
+            $clean = self::sanitize($plain, is_scalar($text) ? $text : '', '');
+            if (is_string($clean) && $clean !== '') {
+                $texts[$lang] = $clean;
+            }
+        }
+        if ($texts === []) {
+            return '';
+        }
+        return array_keys($texts) === ['default'] ? $texts['default'] : $texts;
     }
 
     public static function isTruthy(mixed $value): bool

@@ -9,6 +9,8 @@
 {% set footer_menu = theme_menus.footer ?? [] %}
 {% set legal_menu = theme_menus.footer_legal ?? [] %}
 {% set footer = theme_settings.footer|default({}) %}
+{# Texts typed in Theme > Footer may have a version for each language; the page uses its own. #}
+{% set footer = footer|merge({summary: footer.summary|default('')|localized, copyright: footer.copyright|default('')|localized, credits: footer.credits|default('')|localized, address: footer.address|default('')|localized, hours: footer.hours|default('')|localized}) %}
 {% set layout = footer.layout|default('columns') in ['columns', 'mega', 'simple', 'bar', 'centered'] ? footer.layout|default('columns') : 'columns' %}
 {% set tone = footer.tone|default('dark') in ['light', 'muted', 'accent'] ? footer.tone : 'dark' %}
 {% set footer_bg = footer.background ?? '' %}

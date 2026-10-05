@@ -7,7 +7,7 @@
  */
 $repo = dirname(__DIR__, 2);
 require $repo . '/vendor/autoload.php';
-use FarosCMS\{Branding, FieldSchema, Theme};
+use FarosCMS\{Branding, FieldSchema, Format, Theme};
 
 $fail = 0;
 function check(string $label, $actual, $expected): void { global $fail; $ok = $actual === $expected; if (!$ok) $fail++; echo ($ok ? 'ok   ' : 'FAIL ') . $label . ($ok ? '' : ' => ' . json_encode($actual, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . ' expected ' . json_encode($expected, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) . "\n"; }
@@ -129,8 +129,22 @@ $evil = ['design' => [
 $out = Branding::css($evil) . Branding::head($evil);
 check('so nothing of it survives', [has($out, '<script'), has($out, '</style'), has($out, 'body{')], [false, false, false]);
 
+// ---- a text with a version for each language
+$tr = FieldSchema::normalize(['t' => ['type' => 'text', 'translatable' => true], 'area' => ['type' => 'textarea', 'translatable' => true], 'plain' => ['type' => 'text'], 'n' => ['type' => 'number', 'translatable' => true]]);
+check('only text and textarea fields can be translatable', [$tr['t']['translatable'] ?? false, $tr['area']['translatable'] ?? false, isset($tr['plain']['translatable']), isset($tr['n']['translatable'])], [true, true, false, false]);
+$set = static fn($v, $current = []) => FieldSchema::fromInput($tr, ['t' => $v], ['t' => $current])['t'];
+check('a plain text stays a plain text', $set('Hello'), 'Hello');
+check('a map keeps the default and the languages, and drops empty and odd ones', $set(['default' => ' Γεια ', 'en' => 'Hello', 'de' => '', 'x y' => 'no', '<b>' => 'no']), ['default' => 'Γεια', 'en' => 'Hello']);
+check('a map with only the default text is the plain text', $set(['default' => 'Γεια', 'en' => '']), 'Γεια');
+check('a map with nothing is empty', $set(['default' => '', 'en' => '']), '');
+check('only a translation, no default, is kept as it is', $set(['en' => 'Hello']), ['en' => 'Hello']);
+check('a plain text sent over a map changes only the default text', $set('New', ['default' => 'Old', 'en' => 'Hello']), ['default' => 'New', 'en' => 'Hello']);
+check('a map sent to a text that is not translatable is not a text', FieldSchema::fromInput($tr, ['plain' => ['a' => 'b']], ['plain' => 'keep'])['plain'], 'keep');
+check('each text is cleaned like any other (no line breaks in a one-line text)', $set(['default' => "a\nb", 'en' => "c\r\nd"]), ['default' => 'a b', 'en' => 'c d']);
+check('a text in a repeater row can be translatable too', FieldSchema::fromInput(FieldSchema::normalize(['rows' => ['type' => 'repeater', 'fields' => ['label' => ['type' => 'text', 'translatable' => true]]]]), ['rows' => [['label' => ['default' => 'A', 'en' => 'B']]]], [])['rows'], [['label' => ['default' => 'A', 'en' => 'B']]]);
+check('the text for a language: its own, else the default, else the first', [Format::localized(['default' => 'Γεια', 'en' => 'Hello'], 'en'), Format::localized(['default' => 'Γεια', 'en' => 'Hello'], 'fr'), Format::localized(['en' => 'Hello'], 'el'), Format::localized(['default' => 'Γεια', 'en' => ' '], 'en'), Format::localized('Plain', 'en'), Format::localized(null, 'en'), Format::localized([], 'en')], ['Hello', 'Γεια', 'Hello', 'Γεια', 'Plain', '', '']);
+
 // ---- the footer's credits line: links written as [text](address), everything else escaped
-use FarosCMS\Format;
 check('a credits line: a web link opens in a new tab', Format::inlineLinks('Designed by [Unicorg](https://unicorg.example/a?b=1&c=2)'), 'Designed by <a href="https://unicorg.example/a?b=1&amp;c=2" target="_blank" rel="noopener">Unicorg</a>');
 check('a site address and a mail address are links too', [Format::inlineLinks('[Home](/en/about)'), Format::inlineLinks('[Mail](mailto:a@b.gr)')], ['<a href="/en/about">Home</a>', '<a href="mailto:a@b.gr">Mail</a>']);
 check('other schemes and tags stay as plain text', [Format::inlineLinks('[x](javascript:alert(1))'), Format::inlineLinks('[x](//evil.example)'), Format::inlineLinks('<script>a</script> & "b"')], ['[x](javascript:alert(1))', '[x](//evil.example)', '&lt;script&gt;a&lt;/script&gt; &amp; &quot;b&quot;']);

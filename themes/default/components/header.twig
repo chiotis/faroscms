@@ -8,6 +8,8 @@
 {% import 'components/menu-macros.twig' as menu_macros %}
 {% set menu = theme_menus.header ?? [] %}
 {% set hs = theme_settings.header|default({}) %}
+{# Texts typed in Theme > Header may have a version for each language; the page uses its own. #}
+{% set hs = hs|merge({cta_label: hs.cta_label|default('')|localized, topbar_text: hs.topbar_text|default('')|localized, bar_items: hs.bar_items|default([])|map(i => i|merge({label: i.label|default('')|localized}))}) %}
 {% set layout = hs.layout|default('classic') %}
 {% set contact = theme_settings.footer|default({}) %}
 {% set cta_href = link_url(hs.cta_url|default(''), prefix) %}

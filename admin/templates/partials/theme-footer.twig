@@ -43,8 +43,8 @@
       </dl>
     </section>
 
-    <section class="lc-card rounded-xl border border-slate-200 bg-white" aria-labelledby="ft-text">
-      <h3 id="ft-text" class="px-3 pt-3 text-sm font-semibold text-slate-900">Texts</h3>
+    <section class="lc-card rounded-xl border border-slate-200 bg-white" aria-labelledby="ft-text" data-lang-scope>
+      <div class="flex items-center justify-between gap-2 px-3 pt-3"><h3 id="ft-text" class="text-sm font-semibold text-slate-900">Texts</h3>{{ fields.lang_switch() }}</div>
       <dl class="m-0 space-y-2.5 p-3">
         {% if f.summary is defined %}{{ c.text(f.summary, p ~ 'summary]', v.summary) }}{% endif %}
         {% if f.copyright is defined %}{{ c.text(f.copyright, p ~ 'copyright]', v.copyright) }}{% endif %}
@@ -53,8 +53,8 @@
       <p class="m-0 px-3 pb-3 text-[11px] leading-4 text-slate-500">The links at the very bottom (privacy, terms) are a menu: make it in <a class="font-medium text-blue-700" href="{{ url('admin/menus') }}">Menus</a> and give it the place “Footer bottom links”.</p>
     </section>
 
-    <section class="lc-card rounded-xl border border-slate-200 bg-white" aria-labelledby="ft-contact">
-      <h3 id="ft-contact" class="px-3 pt-3 text-sm font-semibold text-slate-900">Contact</h3>
+    <section class="lc-card rounded-xl border border-slate-200 bg-white" aria-labelledby="ft-contact" data-lang-scope>
+      <div class="flex items-center justify-between gap-2 px-3 pt-3"><h3 id="ft-contact" class="text-sm font-semibold text-slate-900">Contact</h3>{{ fields.lang_switch() }}</div>
       <dl class="m-0 space-y-2.5 p-3">
         {% for key in ['email', 'phone', 'address', 'hours'] %}
           {% if f[key] is defined %}{{ c.text(f[key], p ~ key ~ ']', v[key]) }}{% endif %}
