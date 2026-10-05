@@ -1,0 +1,68 @@
+{#
+  The title area, drawn from what it is given: the five layouts (default, centered, split, cover, minimal) of the Hero block.
+  page-header.twig gives it an entry's title, excerpt and picture; the archive template gives it a list's.
+    layout          default, centered, split, cover or minimal (cover needs a picture: the caller falls back to default without one)
+    title           the h1
+    hero_text       the line under the title
+    meta_html       the small line above the title (default layout); meta_inline the same worded for the centred layouts
+    hero_image      the picture, or nothing
+    hero_bg         a colour behind the area, or nothing
+    hero_parallax   true when the picture moves slower than the page (default and cover; see site.js)
+#}
+{% set bg_style = hero_bg ? ' style="--hero-bg:' ~ hero_bg|e('html_attr') ~ ';"' : '' %}
+{% if layout == 'centered' %}
+  <section class="single-hero single-hero-centered"{{ bg_style|raw }}>
+    <div class="site-wrap single-hero-inner">
+      {% if meta_inline|trim %}<p class="single-hero-meta single-hero-meta-inline">{{ meta_inline }}</p>{% endif %}
+      <h1>{{ title }}</h1>
+      {% if hero_text %}<p class="single-hero-subtitle">{{ hero_text }}</p>{% endif %}
+      {% if hero_image %}
+        <div class="single-hero-media">
+          {{ image(hero_image, {priority: true, sizes: '(min-width: 1280px) 1216px, 92vw'}) }}
+        </div>
+      {% endif %}
+    </div>
+  </section>
+{% elseif layout == 'split' %}
+  <section class="single-hero single-hero-split{% if not hero_image %} no-media{% endif %}"{{ bg_style|raw }}>
+    <div class="site-wrap single-hero-inner">
+      <div class="single-hero-content">
+        {% if meta_inline|trim %}<p class="single-hero-meta single-hero-meta-inline">{{ meta_inline }}</p>{% endif %}
+        <h1>{{ title }}</h1>
+        {% if hero_text %}<p class="single-hero-subtitle">{{ hero_text }}</p>{% endif %}
+      </div>
+      {% if hero_image %}
+        <div class="single-hero-media">
+          {{ image(hero_image, {priority: true, sizes: '(min-width: 960px) 46vw, 92vw'}) }}
+        </div>
+      {% endif %}
+    </div>
+  </section>
+{% elseif layout == 'cover' %}
+  <section class="single-hero single-hero-cover"{% if hero_parallax %} data-parallax{% endif %}{{ bg_style|raw }}>
+    <div class="single-hero-cover-media">
+      {{ image(hero_image, {priority: true, sizes: '100vw'}) }}
+    </div>
+    <div class="site-wrap single-hero-inner">
+      {% if meta_inline|trim %}<p class="single-hero-meta single-hero-meta-inline">{{ meta_inline }}</p>{% endif %}
+      <h1>{{ title }}</h1>
+      {% if hero_text %}<p class="single-hero-subtitle">{{ hero_text }}</p>{% endif %}
+    </div>
+  </section>
+{% elseif layout == 'minimal' %}
+  <section class="single-hero single-hero-minimal"{{ bg_style|raw }}>
+    <div class="site-wrap single-hero-inner">
+      {% if meta_inline|trim %}<p class="single-hero-meta single-hero-meta-inline">{{ meta_inline }}</p>{% endif %}
+      <h1>{{ title }}</h1>
+      {% if hero_text %}<p class="single-hero-subtitle">{{ hero_text }}</p>{% endif %}
+    </div>
+  </section>
+{% else %}
+  <section class="single-hero{% if hero_image %} has-image{% endif %}"{% if hero_parallax %} data-parallax{% endif %}{% if hero_image or hero_bg %} style="{% if hero_image %}--hero-image:url('{{ hero_image|e('html_attr') }}');{% endif %}{% if hero_bg %}--hero-bg:{{ hero_bg|e('html_attr') }};{% endif %}"{% endif %}>
+    <div class="site-wrap single-hero-inner">
+      {% if meta_html|trim %}<p class="single-hero-meta">{{ meta_html }}</p>{% endif %}
+      <h1>{{ title }}</h1>
+      {% if hero_text %}<p class="single-hero-subtitle">{{ hero_text }}</p>{% endif %}
+    </div>
+  </section>
+{% endif %}

@@ -3,6 +3,7 @@
     layout(item, settings)       the title layout: default, centered, split, cover, minimal
     transparent(item, settings)  "1" when the header sits over the opening hero, otherwise empty
     image(item, settings)        the picture of the title area, or nothing (none, or switched off for the content type)
+    parallax(item, settings)     "1" when that picture moves slower than the page (default and cover title areas only)
   Each answers from the entry's own choice (front matter hero_layout / header_transparent), then the single layout of its
   content type (Theme settings > Single Layouts, read with single_layout()), then the site default.
 #}
@@ -21,6 +22,16 @@
   {%- set by_type = single_layout(item.type|default('pages')).header|default('site') -%}
   {%- set choice = own in ['on', 'off'] ? own : (by_type in ['on', 'off'] ? by_type : 'site') -%}
   {{- choice == 'on' or (choice == 'site' and settings.header.transparent|default(false)) ? '1' : '' -}}
+{%- endmacro %}
+
+{#- "1" when the picture of the title area moves slower than the page: the entry's own choice (front matter hero_parallax: on or off), else its content type's (Single Layouts). Only the layouts that use the picture as the background of the area have it: default and cover. -#}
+{% macro parallax(item, settings) -%}
+  {%- set own = item.meta.hero_parallax|default('') -%}
+  {%- set own = own is same as(true) ? 'on' : (own is same as(false) ? 'off' : own) -%}
+  {%- set by_type = single_layout(item.type|default('pages')).parallax|default(false) -%}
+  {%- set layout = _self.layout(item, settings)|trim -%}
+  {%- set has_image = _self.image(item, settings)|trim != '' -%}
+  {{- has_image and (layout == 'default' or layout == 'cover') and (own == 'on' or (own != 'off' and by_type)) ? '1' : '' -}}
 {%- endmacro %}
 
 {% macro image(item, settings) -%}

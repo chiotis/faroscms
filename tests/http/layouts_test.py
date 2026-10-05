@@ -106,6 +106,35 @@ st, hdr, _ = save(root, {'archive_taxonomies[tags][layout]': 'compact', 'archive
 tags = open('app/content/taxonomies/tags.yaml', encoding='utf-8').read()
 check('a taxonomy card is saved in the taxonomy file', 'layout: compact' in tags and re.search(r'types:\s+- posts', tags) is not None, tags[-200:])
 
+# ---- the title area of a list, as the page of an entry has
+st, _, html = root.get('/admin/theme?tab=archive_layouts')
+check('each archive card has the title area, its picture and parallax', all(('name="archive_types[posts][%s]"' % k) in html for k in ('title_layout', 'title_image', 'title_parallax')) and 'name="archive_taxonomies[tags][title_layout]"' in html and html.count('value="cover"') >= 4, '')
+def archive_head(path):
+    st, _, h = pub.get(path)
+    m = re.search(r'<section class="(single-hero[^"]*)"([^>]*)>', h)
+    return st, (m.group(1) if m else ''), (m.group(2) if m else ''), h
+st, cls, attrs, h = archive_head('/en/posts')
+check('before: the plain title band', st == 200 and cls == 'single-hero' and 'data-parallax' not in attrs, (st, cls))
+picture = '/uploads/media/5e6915a67b9ceec5.jpg'
+save(root, {'archive_types[posts][title_layout]': 'cover', 'archive_types[posts][title_image]': picture, 'archive_types[posts][title_parallax]': '1'}, tab='archive_layouts')
+st, cls, attrs, h = archive_head('/en/posts')
+check('a cover with a picture and parallax', 'single-hero-cover' in cls and 'data-parallax' in attrs and picture.split('/')[-1].split('.')[0] in h.split('<main')[1].split('</section>')[0], (cls, attrs))
+check('the choices are written in the site\'s own file, and only those', 'title_layout: cover' in custom('posts') and picture in custom('posts') and 'title_parallax: true' in custom('posts'), custom('posts'))
+save(root, {'archive_types[posts][title_layout]': 'default'}, tab='archive_layouts')
+st, cls, attrs, h = archive_head('/en/posts')
+check('the default title area with a picture has it behind the text, and moves it', cls == 'single-hero has-image' and 'data-parallax' in attrs and '5e6915a67b9ceec5.jpg' in attrs, (cls, attrs))
+save(root, {'archive_types[posts][title_layout]': 'centered', 'archive_types[posts][title_parallax]': '1'}, tab='archive_layouts')
+st, cls, attrs, h = archive_head('/en/posts')
+check('centered shows the picture as a picture and keeps it still', 'single-hero-centered' in cls and 'single-hero-media' in h and 'data-parallax' not in attrs, (cls, attrs))
+save(root, {'archive_types[posts][title_layout]': 'cover', 'archive_types[posts][title_image]': '', 'archive_types[posts][title_parallax]': None}, drop=('archive_types[posts][title_parallax]',), tab='archive_layouts')
+st, cls, attrs, h = archive_head('/en/posts')
+check('a cover with no picture is the plain band', cls == 'single-hero' and 'title_image' not in custom('posts'), (cls, custom('posts')))
+save(root, {'archive_types[posts][title_image]': 'javascript:alert(1)', 'archive_types[posts][title_layout]': 'sideways'}, tab='archive_layouts')
+check('a picture address that is not safe, and a layout the theme does not have, are not kept', 'javascript' not in custom('posts') and 'sideways' not in custom('posts'), custom('posts'))
+save(root, {'archive_taxonomies[tags][title_layout]': 'minimal'}, tab='archive_layouts')
+st, cls, attrs, h = archive_head('/en/tags/design') if pub.get('/en/tags/design')[0] == 200 else archive_head('/tags/design')
+check('a category or tag page has it too', 'single-hero-minimal' in cls, (st, cls))
+
 # ---- the old places no longer edit the layout, and do not lose it
 st, _, html = root.get('/admin/content-types?type=posts')
 check('the content type screen links to the archive layouts instead of holding them', st == 200 and 'name="archive[layout]"' not in html and 'tab=archive_layouts' in html, st)

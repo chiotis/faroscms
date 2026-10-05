@@ -77,6 +77,15 @@
                 <dd class="m-0">{{ c.seg(name ~ '[header]', header_options, v.header, 'Header', 'header') }}</dd>
               </div>
             {% endif %}
+            {% if card.standard and single_fields.parallax is defined %}
+              <div class="lc-row" data-hide-landing>
+                <dt>Effect</dt>
+                <dd class="m-0 flex flex-wrap items-center gap-1.5">
+                  {{ c.chip(name ~ '[parallax]', single_fields.parallax.label, v.parallax) }}
+                  <span class="text-[11px] text-slate-500">The picture of a Default or Cover title area moves slower than the page.</span>
+                </dd>
+              </div>
+            {% endif %}
             {% if card.standard %}
               <div class="lc-row" data-hide-landing>
                 <dt>Show</dt>

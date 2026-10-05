@@ -184,6 +184,45 @@ check('"Follow settings" removes them again', 'hero_layout' not in text and 'hea
 save('type=forms&slug=contact&lang=el', hero_layout='minimal')
 check('a form can choose too', 'hero_layout: minimal' in stored('forms/contact.md'), stored('forms/contact.md')[:300])
 
+# ---- parallax: the picture of a default or cover title area moves slower than the page
+def parallax_setting(layout, on):
+    """Posts have this title layout and parallax on or off, as Theme settings > Single Layouts stores them."""
+    body = 'single_layouts:\n  posts:\n    title: %s\n    parallax: %s\n' % (layout, 'true' if on else 'false')
+    run("insert or replace into system_meta (key, value, updated_at) values ('theme_settings', ?, datetime('now'))", (body,))
+def has_parallax(path):
+    st, cls, inner, html = header(path)
+    m = re.search(r'<section class="single-hero[^"]*"([^>]*)>', html)
+    return st == 200 and m is not None and 'data-parallax' in m.group(1)
+parallax_setting('default', False)
+check('no parallax unless it is asked for', not has_parallax(plain))
+parallax_setting('default', True)
+check('a content type with parallax: the default title area with a picture has it', has_parallax(plain))
+parallax_setting('cover', True)
+check('and the cover', has_parallax(plain) and 'single-hero-cover' in header(plain)[1])
+check('a page with no picture has none to move', not has_parallax('/about'))
+for layout in ('centered', 'split', 'minimal'):
+    parallax_setting(layout, True)
+    check('%s keeps its picture where it is' % layout, not has_parallax(plain))
+parallax_setting('default', True)
+save('type=posts&slug=plain-post&lang=el', hero_parallax='off')
+check('an entry can ask for none although its type has it', "hero_parallax: 'off'" in stored('posts/plain-post.md') and not has_parallax(plain), stored('posts/plain-post.md')[:200])
+parallax_setting('default', False)
+save('type=posts&slug=plain-post&lang=el', hero_parallax='on')
+check('or for it although its type has none', "hero_parallax: 'on'" in stored('posts/plain-post.md') and has_parallax(plain))
+st, _, html = root.get('/admin/edit?type=posts&slug=plain-post&lang=el')
+check('the editor offers the choice and shows it', st == 200 and 'name="hero_parallax"' in html and re.search(r'<option value="on"\s+selected', html) is not None and 'Follow settings (Off)' in html, re.findall(r'Follow settings \([^)]*\)', html))
+st, _, html = root.get('/admin/edit?type=forms&slug=contact&lang=el')
+check('and so does the editor of a form', 'name="hero_parallax"' in html)
+save('type=posts&slug=plain-post&lang=el', hero_parallax='sideways')
+check('a choice that is not on or off changes nothing', "hero_parallax: 'on'" in stored('posts/plain-post.md'))
+save('type=posts&slug=plain-post&lang=el', hero_parallax='')
+check('"Follow settings" removes it', 'hero_parallax' not in stored('posts/plain-post.md'))
+st, _, html = root.get('/admin/theme?tab=single_layouts')
+check('Single Layouts has the Parallax choice for each type', st == 200 and html.count('[parallax]') >= 3, html.count('[parallax]'))
+js = pub.get(re.search(r'src="([^"]*site\.js[^"]*)"', page_html := pub.get('/about')[2]).group(1))[2]
+css = pub.get(re.search(r'href="([^"]*site\.css[^"]*)"', page_html).group(1))[2]
+check('the theme script moves the picture (and not for people who ask for less motion), the style sheet makes room for it', 'data-parallax' in js and 'prefers-reduced-motion' in js and '.is-parallax' in css and '--parallax-y' in css)
+
 # ---- the form page and the sidebar template use the same header
 run("delete from system_meta where key='theme_settings'")
 st, _, html = pub.get('/about'); check('with no choice made the pages still render', st == 200 and 'single-hero' in html, st)

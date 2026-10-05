@@ -72,6 +72,10 @@ single_layouts:
       type: toggle
       label: Image
       default: true
+    parallax:
+      type: toggle
+      label: Parallax
+      default: false
     excerpt:
       type: toggle
       label: Excerpt

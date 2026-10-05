@@ -10,18 +10,19 @@
 {% set document_title = title_text %}
 {# Its first section is a title band: a floating header floats over it from the start. #}
 {% set header_floats_over = true %}
+{# The title area is one of the entry layouts (settings: title_layout, title_image, title_parallax). A cover needs its picture; the picture is
+   the background of the area in the default and cover layouts, and then the header can sit over it, in the light colours, as on a page. #}
+{% set archive_title_image = config.title_image|default('') %}
+{% set archive_title_choice = config.title_layout|default('default') in ['default', 'centered', 'split', 'cover', 'minimal'] ? config.title_layout|default('default') : 'default' %}
+{% set archive_title_layout = archive_title_choice == 'cover' and not archive_title_image ? 'default' : archive_title_choice %}
+{% set archive_image_behind = archive_title_image != '' and archive_title_layout in ['default', 'cover'] %}
+{% set opens_under_header = archive_image_behind %}
+{% set opens_on_dark = archive_image_behind %}
 
 {% block content %}
   {% set prefix = lang_prefix|default('') %}
   {% set layout = config.layout|default('cards') %}
-  <section class="single-hero">
-    <div class="site-wrap single-hero-inner">
-      <h1>{{ title_text }}</h1>
-      {% if subtitle_text %}
-        <p class="single-hero-subtitle">{{ subtitle_text }}</p>
-      {% endif %}
-    </div>
-  </section>
+  {% include 'components/title-area.twig' with {layout: archive_title_layout, title: title_text, hero_text: subtitle_text, meta_html: '', meta_inline: '', hero_image: archive_title_image, hero_bg: '', hero_parallax: archive_image_behind and config.title_parallax|default(false)} only %}
 
   <section class="site-wrap section-stack single-body archive-body">
     {# On a map the categories are chosen in the map's own bar, instantly; the page's filters keep the rest (activity, difficulty…). #}

@@ -69,6 +69,12 @@ final class SingleLayouts
         return array_diff_key(is_array($options) ? $options : [], ['site' => true]);
     }
 
+    /** @return array<string, string> what an entry can ask of the picture of its title area: to move slower than the page, or to stay (empty when the theme has no such choice) */
+    public function parallaxChoices(): array
+    {
+        return isset($this->fields()['parallax']) ? ['on' => 'On', 'off' => 'Off'] : [];
+    }
+
     /**
      * The page layouts an entry of a type can choose. When the type has a layout of its own (say, the one with a sidebar)
      * "default" follows it, and the plain one is offered as "standard" for the entries that should not.

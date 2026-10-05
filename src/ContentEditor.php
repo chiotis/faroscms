@@ -224,7 +224,7 @@ final class ContentEditor
         // How the entry opens, when it should differ from its content type: a title layout, and whether the
         // header sits over it. Empty means "follow the settings"; a value the theme does not offer is left as it is.
         $single = new SingleLayouts($this->theme);
-        foreach (['hero_layout' => $single->titleChoices(), 'header_transparent' => $single->headerChoices()] as $key => $choices) {
+        foreach (['hero_layout' => $single->titleChoices(), 'header_transparent' => $single->headerChoices(), 'hero_parallax' => $single->parallaxChoices()] as $key => $choices) {
             if (!array_key_exists($key, $post)) {
                 continue;
             }
@@ -768,6 +768,7 @@ final class ContentEditor
             'template',
             'hero_layout',
             'header_transparent',
+            'hero_parallax',
             'blocks',
             'translation_id',
             'fields',

@@ -10,7 +10,7 @@
 {% import _self as m %}
 {% set short = {cards: 'Cards', list: 'List', compact: 'Compact', overlay: 'Tiles', featured: 'Featured', magazine: 'Magazine', editorial: 'Editorial', map: 'Map'} %}
 
-{% macro card(item, name, kind, archive_layouts, short, labels) %}
+{% macro card(item, name, kind, archive_layouts, short, labels, title_layouts) %}
   {% import '@admin/partials/layout-controls.twig' as c %}
   {% set a = item.archive %}
   {% set field_class = 'w-full rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900 placeholder:text-slate-400' %}
@@ -31,6 +31,17 @@
       <div class="lc-row">
         <dt>Layout</dt>
         <dd class="m-0">{{ c.tiles(name ~ '[layout]', short, a.layout, 'Layout', 'archive', 'archive', archive_layouts) }}</dd>
+      </div>
+      <div class="lc-row">
+        <dt>Title area</dt>
+        <dd class="m-0">{{ c.tiles(name ~ '[title_layout]', title_layouts, a.title_layout, 'Title area', 'title', '') }}</dd>
+      </div>
+      <div class="lc-row">
+        <dt><label for="{{ id }}-picture">Picture</label></dt>
+        <dd class="m-0 flex flex-wrap items-center gap-x-3 gap-y-2">
+          <input id="{{ id }}-picture" type="text" name="{{ name }}[title_image]" value="{{ a.title_image }}" placeholder="/uploads/media/picture.jpg" aria-label="Picture of the title area" class="{{ field_class }} min-w-0 flex-1" data-image-field>
+          {{ c.chip(name ~ '[title_parallax]', 'Parallax', a.title_parallax) }}
+        </dd>
       </div>
       <div class="lc-row">
         <dt>Columns</dt>
@@ -114,7 +125,7 @@
     <h2 id="archive-types-title" class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Content types</h2>
     <div class="grid items-start gap-3 xl:grid-cols-2">
       {% for item in archive_cards.types %}
-        {{ m.card(item, 'archive_types[' ~ item.type ~ ']', 'type', archive_layouts, short, {}) }}
+        {{ m.card(item, 'archive_types[' ~ item.type ~ ']', 'type', archive_layouts, short, {}, archive_title_layouts) }}
       {% else %}
         <p class="text-sm text-slate-500">No content type has a list yet.</p>
       {% endfor %}
@@ -126,7 +137,7 @@
       <h2 id="archive-tax-title" class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Categories, tags and other taxonomies</h2>
       <div class="grid items-start gap-3 xl:grid-cols-2">
         {% for item in archive_cards.taxonomies %}
-          {{ m.card(item, 'archive_taxonomies[' ~ item.name ~ ']', 'taxonomy', archive_layouts, short, archive_cards.type_labels) }}
+          {{ m.card(item, 'archive_taxonomies[' ~ item.name ~ ']', 'taxonomy', archive_layouts, short, archive_cards.type_labels, archive_title_layouts) }}
         {% endfor %}
       </div>
     </section>

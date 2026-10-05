@@ -373,7 +373,7 @@
         </section>
 
         <div class="space-y-4">
-          {% if opening.layouts|default([]) is not empty or opening.transparent|default([]) is not empty %}
+          {% if opening.layouts|default([]) is not empty or opening.transparent|default([]) is not empty or opening.parallax|default([]) is not empty %}
             <section class="{{ section_class }}" data-opening>
               <div class="{{ section_header_class }}">
                 <h2 class="text-sm font-semibold text-slate-900">Title layout</h2>
@@ -398,6 +398,17 @@
                       <option value="">Follow settings ({{ opening.transparent[opening.type_transparent]|default(opening.type_transparent) }})</option>
                       {% for key, label in opening.transparent %}
                         <option value="{{ key }}" {% if meta_form.header_transparent|default('') == key %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                {% endif %}
+                {% if opening.parallax|default([]) is not empty %}
+                  <label class="block">
+                    <span class="{{ label_class }}">Parallax picture</span>
+                    <select name="hero_parallax" class="{{ input_class }}">
+                      <option value="">Follow settings ({{ opening.parallax[opening.type_parallax]|default(opening.type_parallax) }})</option>
+                      {% for key, label in opening.parallax %}
+                        <option value="{{ key }}" {% if meta_form.hero_parallax|default('') == key %}selected{% endif %}>{{ label }}</option>
                       {% endfor %}
                     </select>
                   </label>
