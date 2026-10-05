@@ -136,4 +136,11 @@ bob = Client(); bob.login('bob', 'Sturdy-pass-99')
 st, _, _ = bob.get('/admin/content'); check('basic user cannot open content', st == 403, st)
 st, _, _ = bob.get('/admin'); check('basic user has no dashboard', st == 403, st)
 
+# ---- the SEO tab counts the characters of the search and sharing texts
+st, _, html = root.get('/admin/edit?type=pages&slug=about&lang=en')
+check('the SEO tab of an entry asks for a count on its four texts, and loads the script', html.count('data-count="') == 4 and 'js/admin-seo-count.js' in html and all(('name="%s"' % n) in html for n in ('seo_title', 'seo_description', 'seo_og_title', 'seo_og_description')), html.count('data-count="'))
+check('with the ranges that suit them (search title, search description, share title, share description)', all(r in html for r in ('data-count="30,60,70"', 'data-count="70,160,180"', 'data-count="30,70,90"', 'data-count="60,200,250"')))
+st, _, html = root.get('/admin/edit?type=forms&slug=contact&lang=el')
+check('and so does a form', html.count('data-count="') == 4 and 'js/admin-seo-count.js' in html, html.count('data-count="'))
+
 print('\nALL PASSED' if not fails else '\n%d FAILED: %s' % (len(fails), fails))

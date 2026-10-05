@@ -523,6 +523,14 @@ html.dark .bp-stage { border-color: #334155; background: #1e293b; }
 .seo-row { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr); align-items: start; gap: .5rem; }
 .seo-label { padding-top: .3rem; font-size: .75rem; font-weight: 500; line-height: 1.25rem; color: #4d5d73; }
 .seo-help { margin: .25rem 0 0; font-size: .6875rem; line-height: 1rem; color: #5f6f85; }
+/* The character count under a search or sharing text: green for a good length, amber for a little short or long, red for too long. */
+.seo-count { margin: .25rem 0 0; font-size: .6875rem; font-weight: 500; line-height: 1rem; font-variant-numeric: tabular-nums; color: #5f6f85; }
+.seo-count.is-good { color: #047857; }
+.seo-count.is-short, .seo-count.is-long { color: #b45309; }
+.seo-count.is-over { color: #b91c1c; }
+html.dark .seo-count.is-good { color: #6ee7b7; }
+html.dark .seo-count.is-short, html.dark .seo-count.is-long { color: #fbbf24; }
+html.dark .seo-count.is-over { color: #fca5a5; }
 .seo-flag { display: flex; align-items: flex-start; gap: .5rem; padding: .35rem .5rem; border-radius: .5rem; cursor: pointer; }
 .seo-flag:hover { background: #f8fafc; }
 .seo-flag input { flex: none; width: 1rem; height: 1rem; margin-top: .15rem; accent-color: #2563eb; }

@@ -5,6 +5,8 @@
  * The Markdown environment is the application's own (App::markdownEnvironment), so the test cannot drift from the site.
  *   echo '["# Hi"]' | php tests/js/render-markdown.php
  */
+// What it prints is JSON read by the test: a notice from a library about a newer PHP must not end up in it.
+ini_set('display_errors', '0');
 require dirname(__DIR__, 2) . '/vendor/autoload.php';
 
 use FarosCMS\App;
@@ -12,7 +14,6 @@ use FarosCMS\VisualMarkdown;
 
 $app = (new ReflectionClass(App::class))->newInstanceWithoutConstructor();
 $environment = new ReflectionMethod(App::class, 'markdownEnvironment');
-$environment->setAccessible(true);
 $visual = new VisualMarkdown(fn() => $environment->invoke($app));
 
 $texts = json_decode((string)stream_get_contents(STDIN), true);

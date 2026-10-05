@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.87 — 2026-10-06 — A character count in the SEO tab
+- **The SEO tab of an entry (and of a form) counts the characters of its four texts and says whether the length suits, in colour:** green for a good length, amber for a little short or a little long, red for too long. It is in the line under each field, and the words say the same as the colour ("62 characters · a little long, it may be cut off (over 60)").
+- **Lengths:** search title 30–60 (cut off over 70), search description 70–160 (over 180), share title 30–70 (over 90), share description 60–200 (over 250). Letters are counted, not bytes (Greek letters and emoji count as one).
+- **A field left empty counts the text the page will use instead and says so:** the page title for the search title, the excerpt for the description, and for the share texts the search text, then the title or excerpt ("34 characters (from the title)").
+- A field of the admin can ask for a count with `data-count="min,max,cut"` (`data-count-from`, `data-count-label`; see `public/assets/js/admin-seo-count.js`).
+- Along the way: the helper that draws Markdown for the serializer test printed a PHP 8.5 notice into its JSON and stopped that test on this PHP; it keeps notices out now.
+- Tests: the count, its states at the limits, the text it falls back to, its place and typing (`tests/js/seo-count.test.js`, in `tests/run.sh js`), and the fields in the entry and form screens (`tests/http/editor_test.py`). Looked at in Chromium: a red, a green and a fallback count.
+
 ## 0.1.86 — 2026-10-06 — Hero: centred text over a picture, and each layout drawn
 - **The Hero layouts that put the text over a full-width picture (*Text over a full-width image*, and the one with numbered steps) can have the text centred.** *Text alignment: Left or Centered* sits beside the layout in the Design tab. Centred, the text is in the middle of the picture (with the steps, at the bottom as before), buttons and highlights are centred too, and the shade over the picture no longer favours the left side. Left is what it was, and existing heroes are unchanged.
 - **The layout choice of the Hero shows a small drawing of each layout** (text beside a picture, centred text with a wide picture, text over a picture, with steps, large heading) instead of long button labels; the drawing of the two layouts over a picture follows the alignment. A block can have this too: `variants/<layout>.svg` next to its `block.yaml`, and `design_fields` for the fields that change how a layout looks (see `docs/theming.md`). Blocks with no drawings keep the plain buttons.
