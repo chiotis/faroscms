@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.78 — 2026-10-06 — A language taken out of Settings stays out
+- **Taking `en` out of Settings > General > Available languages and saving now keeps it out.** The settings were read over the built-in defaults place by place, so the stored list `[el]` was laid over the default `[el, en]` and `en` came back every time. A list is now the stored list as it is (groups still merge by name, and an empty stored list still leaves the default). The same fix covers every other list in the settings.
+- Content already written in the language is kept; its pages are simply not offered or served until the language is added again.
+- Tests: the merge (`tests/unit/site-settings.php`) and the flow of saving only `el` and adding `en` back, which showed the bug before the fix (`tests/http/translations_test.py`).
+
 ## 0.1.77 — 2026-10-06 — Admin: no flash of light before dark
 - **A page of the admin no longer shows light for an instant before it turns dark.** The colour mode was applied by `admin.js`, which loads at the end of the page, so every page the browser drew first in light. A small script in the head of every admin document (the pages, the sign in page and the first-run page) now applies it before the first paint, reading what the switch stores. Same key and default as `admin.js` (a test keeps them together).
 - **Dark mode of the admin, checked page by page** (about thirty screens, with a sweep for light surfaces and low-contrast text): everything holds up but the breadcrumb link above an entry (a dark blue on the dark page) and the round icon of an empty Media library, both fixed. The white buttons in the action bar and the white knob of a switch are by design.

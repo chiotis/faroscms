@@ -32,6 +32,14 @@ check('later loads come from the database', $s->load()['title'], 'Old site');
 check('parse of blank text is empty', $s->parse('  '), []);
 check('parse of broken text is empty', $s->parse("a: [\n"), []);
 
+// ---- a list that shrinks stays shrunk
+check('a list is the stored list: taking a language out keeps it out', SiteSettings::withDefaults(['languages' => ['default' => 'el', 'available' => ['el', 'en']]], ['languages' => ['available' => ['el']]])['languages'], ['default' => 'el', 'available' => ['el']]);
+check('groups still merge by name, and an empty stored list leaves the default', SiteSettings::withDefaults(['a' => ['x' => 1, 'y' => 2], 'l' => ['p', 'q']], ['a' => ['y' => 3], 'l' => []]), ['a' => ['x' => 1, 'y' => 3], 'l' => ['p', 'q']]);
+check('a stored value is not changed by a default of another kind', SiteSettings::withDefaults(['k' => ['a', 'b']], ['k' => 'text']), ['k' => 'text']);
+$meta->set('site_settings', Yaml::dump(['title' => 'One language', 'languages' => ['default' => 'el', 'available' => ['el']]]));
+check('so a site saved with only its own language loads with only it', $s->load()['languages'], ['default' => 'el', 'available' => ['el']]);
+$meta->set('site_settings', Yaml::dump(['title' => 'Old site', 'tagline' => 'Old tag', 'languages' => ['default' => 'en', 'available' => ['en', 'el']]]));
+
 // ---- the form values
 $form = $s->formValues([]);
 check('form shows the title', $form['title'], 'Old site');

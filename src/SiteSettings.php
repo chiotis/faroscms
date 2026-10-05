@@ -37,7 +37,31 @@ final class SiteSettings
             return $defaults;
         }
 
-        return array_replace_recursive($defaults, $data);
+        return self::withDefaults($defaults, $data);
+    }
+
+    /**
+     * The stored settings over the defaults. Groups are merged by name, but a list is the stored list as it is: merging lists
+     * place by place would bring back what was taken out (a site with only `el` got `en` again from the default `[el, en]`). An
+     * empty stored list leaves the default, as before.
+     *
+     * @param array<string, mixed> $defaults
+     * @param array<string, mixed> $stored
+     * @return array<string, mixed>
+     */
+    public static function withDefaults(array $defaults, array $stored): array
+    {
+        foreach ($stored as $key => $value) {
+            $default = $defaults[$key] ?? null;
+            if (is_array($value) && is_array($default) && !array_is_list($value) && !array_is_list($default)) {
+                $defaults[$key] = self::withDefaults($default, $value);
+            } elseif (is_array($value) && $value === [] && is_array($default)) {
+                continue;
+            } else {
+                $defaults[$key] = $value;
+            }
+        }
+        return $defaults;
     }
 
     public function defaults(): array
@@ -177,7 +201,7 @@ final class SiteSettings
     public function formValues(array $parsed): array
     {
         $defaults = $this->load();
-        $merged = array_replace_recursive($defaults, $parsed);
+        $merged = self::withDefaults($defaults, $parsed);
         $backupSchedule = (string)($merged['backup']['auto']['schedule'] ?? 'daily');
         if (!in_array($backupSchedule, ['daily', 'weekly', 'monthly'], true)) {
             $backupSchedule = 'daily';

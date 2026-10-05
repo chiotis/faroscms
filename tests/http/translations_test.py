@@ -89,5 +89,17 @@ check('and can be deleted', 'shop.buy_now' not in rows(screen('en')[1]))
 st, _, logs = root.get('/admin/activity-logs')
 check('a save is in the activity log', 'Translations updated' in logs)
 
+# ---- a language taken out of Settings > General stays out (the default list [el, en] used to bring it back)
+def languages():
+    st, _, html = root.get('/admin/settings')
+    return (re.search(r'name="languages_available" value="([^"]*)"', html) or [None, None])[1]
+before = languages()
+root.submit('/admin/settings', has_field('languages_available'), {'languages_default': 'el', 'languages_available': 'el'})
+check('with only the site\'s own language saved, Settings shows only it', languages() == 'el', (before, languages()))
+st, _, html = root.get('/admin/translations')
+check('and Translations offers no other language', 'lang=en' not in html, re.findall(r'translations\?lang=([a-z-]+)', html))
+root.submit('/admin/settings', has_field('languages_available'), {'languages_default': 'el', 'languages_available': 'el, en'})
+check('adding it back works the same way', languages() == 'el, en', languages())
+
 print('\nALL PASSED' if not fails else '\n%d FAILED: %s' % (len(fails), fails))
 sys.exit(1 if fails else 0)
