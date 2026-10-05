@@ -276,5 +276,13 @@ post_theme('header', {'theme_settings[header][cta_label][default]': 'Own button'
 ho, hother = head(page(page_own)), head(page(page_other))
 check('the header button and the top bar message follow the language', 'Own button' in ho and 'Other button' not in ho and 'Other button' in hother and 'Own message' in ho and 'Other message' in hother and 'Own message' not in hother)
 
+# ---- over a picture, a dropdown has a panel of its own and the top of the picture is darker
+css = asset('css')
+m = re.search(r'\.is-on-dark:not\(\[data-sticky="always"\]\) :is\(\.nav-list-2, \.nav-list-3\)[^{]*\{([^}]*)\}', css)
+check('a dropdown over the picture has a dark, nearly solid panel (the header has no background there)', m is not None and 'rgb(var(--ink-rgb) / 0.9' in m.group(1) and 'blur' in m.group(1), m and m.group(1)[:200])
+for what, needle in (('a hero that covers', '.block-hero:is(.block--cover, .block--steps):first-child .hero-cover-media::after'), ('a cover title area', '.single-hero-cover:first-child .single-hero-cover-media::after'), ('a slider', '.block-slider:first-of-type .slide-media::after')):
+    i = css.find('.has-transparent-header .main-shell > ' + needle)
+    check('the top of %s is darker under the transparent header' % what, i >= 0 and 'linear-gradient(180deg, rgb(var(--ink-rgb) / 0.5' in css[i:i + 700], css[i:i + 200] if i >= 0 else 'missing')
+
 print('\nALL PASSED' if not fails else '\n%d FAILED: %s' % (len(fails), fails))
 sys.exit(1 if fails else 0)
