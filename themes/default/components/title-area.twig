@@ -4,6 +4,7 @@
     layout          default, centered, split, cover or minimal (cover needs a picture: the caller falls back to default without one)
     title           the h1
     hero_text       the line under the title
+    hero_extra      markup after the line under the title (the search form of the search page), or nothing
     meta_html       the small line above the title (default layout); meta_inline the same worded for the centred layouts
     hero_image      the picture, or nothing
     hero_bg         a colour behind the area, or nothing
@@ -16,6 +17,7 @@
       {% if meta_inline|trim %}<p class="single-hero-meta single-hero-meta-inline">{{ meta_inline }}</p>{% endif %}
       <h1>{{ title }}</h1>
       {% if hero_text %}<p class="single-hero-subtitle">{{ hero_text }}</p>{% endif %}
+      {{ hero_extra|default('') }}
       {% if hero_image %}
         <div class="single-hero-media">
           {{ image(hero_image, {priority: true, sizes: '(min-width: 1280px) 1216px, 92vw'}) }}
@@ -30,6 +32,7 @@
         {% if meta_inline|trim %}<p class="single-hero-meta single-hero-meta-inline">{{ meta_inline }}</p>{% endif %}
         <h1>{{ title }}</h1>
         {% if hero_text %}<p class="single-hero-subtitle">{{ hero_text }}</p>{% endif %}
+        {{ hero_extra|default('') }}
       </div>
       {% if hero_image %}
         <div class="single-hero-media">
@@ -47,6 +50,7 @@
       {% if meta_inline|trim %}<p class="single-hero-meta single-hero-meta-inline">{{ meta_inline }}</p>{% endif %}
       <h1>{{ title }}</h1>
       {% if hero_text %}<p class="single-hero-subtitle">{{ hero_text }}</p>{% endif %}
+      {{ hero_extra|default('') }}
     </div>
   </section>
 {% elseif layout == 'minimal' %}
@@ -55,6 +59,7 @@
       {% if meta_inline|trim %}<p class="single-hero-meta single-hero-meta-inline">{{ meta_inline }}</p>{% endif %}
       <h1>{{ title }}</h1>
       {% if hero_text %}<p class="single-hero-subtitle">{{ hero_text }}</p>{% endif %}
+      {{ hero_extra|default('') }}
     </div>
   </section>
 {% else %}
@@ -63,6 +68,7 @@
       {% if meta_html|trim %}<p class="single-hero-meta">{{ meta_html }}</p>{% endif %}
       <h1>{{ title }}</h1>
       {% if hero_text %}<p class="single-hero-subtitle">{{ hero_text }}</p>{% endif %}
+      {{ hero_extra|default('') }}
     </div>
   </section>
 {% endif %}

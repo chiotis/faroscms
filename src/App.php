@@ -1933,7 +1933,8 @@ final class App
             $save = $this->saveThemeSettings(
                 is_array($_POST['theme_settings'] ?? null) ? $_POST['theme_settings'] : [],
                 is_array($_POST['single_layouts'] ?? null) ? $_POST['single_layouts'] : null,
-                ($_POST['blocks_editor'] ?? '') === '1' ? json_decode((string)($_POST['blocks_json'] ?? ''), true) : null
+                ($_POST['blocks_editor'] ?? '') === '1' ? json_decode((string)($_POST['blocks_json'] ?? ''), true) : null,
+                is_array($_POST['archive_search'] ?? null) ? $_POST['archive_search'] : null
             );
             $this->themeSettings = $this->loadThemeSettings();
             if (($save['ok'] ?? false) === true && (is_array($_POST['archive_types'] ?? null) || is_array($_POST['archive_taxonomies'] ?? null))) {
@@ -1986,6 +1987,7 @@ final class App
             'archive_cards' => $this->layoutsAdmin()->archiveCards($default),
             'archive_layouts' => ContentTypes::LAYOUTS,
             'archive_title_layouts' => ContentTypes::TITLE_LAYOUTS,
+            'search_page' => SearchPage::values($this->themeSettings),
             'archive_columns' => ['2', '3', '4'],
             'sidebar_section' => $schema['sidebar'] ?? null,
         ]);
@@ -3085,7 +3087,7 @@ final class App
      * @param array<string, mixed>|null $singleInput submitted `single_layouts[<type>][...]` values, when the form had the Single Layouts cards
      * @return array{ok: bool, message?: string}
      */
-    private function saveThemeSettings(array $input, ?array $singleInput = null, mixed $footerBlocks = null): array
+    private function saveThemeSettings(array $input, ?array $singleInput = null, mixed $footerBlocks = null, ?array $searchInput = null): array
     {
         if (!$this->systemDatabase->isAvailable()) {
             return ['ok' => false, 'message' => 'Theme settings could not be saved because the SQLite system database is unavailable.'];
@@ -3096,6 +3098,15 @@ final class App
         $data = $this->theme->settingsFromInput($input, $current);
         if ($singleInput !== null && $this->singleLayouts()->declared()) {
             $data['single_layouts'] = $this->singleLayouts()->fromInput($singleInput, $this->content->getTypes(), $current);
+        }
+        if ($searchInput !== null) {
+            // The look of the search page (its card in Archive Layouts): only what differs from the defaults is kept.
+            $keep = SearchPage::fromInput($searchInput, $current);
+            if ($keep === []) {
+                unset($data['search_page']);
+            } else {
+                $data['search_page'] = $keep;
+            }
         }
         if (is_array($footerBlocks)) {
             // A set of blocks for each language (or one list), each checked like the blocks of an entry.

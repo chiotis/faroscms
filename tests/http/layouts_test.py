@@ -135,6 +135,34 @@ save(root, {'archive_taxonomies[tags][title_layout]': 'minimal'}, tab='archive_l
 st, cls, attrs, h = archive_head('/en/tags/design') if pub.get('/en/tags/design')[0] == 200 else archive_head('/tags/design')
 check('a category or tag page has it too', 'single-hero-minimal' in cls, (st, cls))
 
+# ---- the search page has the same title area, with its own title and subtitle for each language
+st, _, html = root.get('/admin/theme?tab=archive_layouts')
+check('the Search card has the title area, picture, parallax, title and subtitle', 'aria-labelledby="archive-search"' in html and all(('name="archive_search[%s]"' % k) in html for k in ('title_layout', 'title_image', 'title_parallax')) and 'name="archive_search[title][default]"' in html and 'name="archive_search[subtitle][default]"' in html, '')
+def search_head(lang='en', q=''):
+    st, _, h = pub.get('/%s/search%s' % (lang, ('?q=' + q) if q else ''))
+    m = re.search(r'<section class="(single-hero[^"]*)"([^>]*)>(.*?)</section>', h, re.S)
+    return st, (m.group(1) if m else ''), (m.group(2) if m else ''), (m.group(3) if m else ''), h
+st, cls, attrs, inner, h = search_head()
+check('before: the plain band with the theme\'s words and the search box in it', st == 200 and cls == 'single-hero' and 'class="search-form"' in inner and '<h1>' in inner, (st, cls))
+save(root, {'archive_search[title_layout]': 'cover', 'archive_search[title_image]': picture, 'archive_search[title_parallax]': '1', 'archive_search[title][default]': 'Find it', 'archive_search[title][en]': 'Look it up', 'archive_search[subtitle][default]': 'Search everything'}, tab='archive_layouts')
+st, cls, attrs, inner, h = search_head('en', 'design')
+check('a cover with a picture and parallax, the search box still inside it', 'single-hero-cover' in cls and 'data-parallax' in attrs and 'class="search-form"' in inner and 'name="q"' in inner and 'value="design"' in inner, (cls, attrs))
+check('the title of the language, and the site\'s own text for the subtitle', '<h1>Look it up</h1>' in inner and 'Search everything' in inner and '<title>Look it up' in h, inner[:300])
+st, cls, attrs, inner, h = search_head('el')
+check('another language shows the site\'s own title', '<h1>Find it</h1>' in inner, inner[:200])
+stored_theme = stored()
+check('only what differs from the defaults is stored, under search_page', 'search_page:' in stored_theme and 'title_layout: cover' in stored_theme and 'title_parallax: true' in stored_theme, stored_theme[-400:])
+for layout in ('default', 'split', 'minimal', 'centered'):
+    save(root, {'archive_search[title_layout]': layout}, tab='archive_layouts')
+    st, cls, attrs, inner, h = search_head()
+    ok = {'default': 'has-image' in cls and 'data-parallax' in attrs, 'split': 'single-hero-split' in cls, 'minimal': 'single-hero-minimal' in cls, 'centered': 'single-hero-centered' in cls and 'single-hero-media' in h}[layout]
+    check('search, %s title area, with the search box' % layout, ok and 'class="search-form"' in inner, (layout, cls))
+save(root, {'archive_search[title_layout]': 'default', 'archive_search[title_image]': '', 'archive_search[title][default]': '', 'archive_search[title][en]': '', 'archive_search[subtitle][default]': ''}, drop=('archive_search[title_parallax]',), tab='archive_layouts')
+check('everything back to the defaults writes nothing', 'search_page' not in stored(), stored()[-300:])
+save(root, {'archive_search[title_image]': 'javascript:alert(1)', 'archive_search[title_layout]': 'sideways'}, tab='archive_layouts')
+check('an unsafe picture address and an unknown layout are not kept', 'javascript' not in stored() and 'sideways' not in stored(), stored()[-300:])
+save(root, {'archive_search[title_image]': ''}, tab='archive_layouts')
+
 # ---- the old places no longer edit the layout, and do not lose it
 st, _, html = root.get('/admin/content-types?type=posts')
 check('the content type screen links to the archive layouts instead of holding them', st == 200 and 'name="archive[layout]"' not in html and 'tab=archive_layouts' in html, st)
