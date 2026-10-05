@@ -23,9 +23,9 @@
     {% set text = loop.first ? source : (value is iterable ? (value[code] ?? '') : '') %}
     {% set hint = loop.first ? field.placeholder : (source ?: field.placeholder) %}
     {% if field.type == 'textarea' %}
-      <textarea{% if id %} id="{{ id }}{{ loop.first ? '' : '-' ~ code }}"{% endif %} name="{{ name }}[{{ key }}]" rows="2" placeholder="{{ hint }}" class="{{ cls }}" data-lang="{{ code }}" lang="{{ code }}"{% if not loop.first %} hidden{% endif %}>{{ text }}</textarea>
+      <textarea{% if id %} id="{{ id }}{{ loop.first ? '' : '-' ~ code }}"{% endif %} name="{{ name }}[{{ key }}]" rows="2" placeholder="{{ hint }}" class="{{ cls }}" data-lang="{{ code }}" lang="{{ code }}"{% if not loop.first %} aria-label="{{ field.label }} ({{ code|upper }})" hidden{% endif %}>{{ text }}</textarea>
     {% else %}
-      <input{% if id %} id="{{ id }}{{ loop.first ? '' : '-' ~ code }}"{% endif %} type="text" name="{{ name }}[{{ key }}]" value="{{ text }}" placeholder="{{ hint }}" class="{{ cls }}" data-lang="{{ code }}" lang="{{ code }}"{% if not loop.first %} hidden{% endif %}>
+      <input{% if id %} id="{{ id }}{{ loop.first ? '' : '-' ~ code }}"{% endif %} type="text" name="{{ name }}[{{ key }}]" value="{{ text }}" placeholder="{{ hint }}" class="{{ cls }}" data-lang="{{ code }}" lang="{{ code }}"{% if not loop.first %} aria-label="{{ field.label }} ({{ code|upper }})" hidden{% endif %}>
     {% endif %}
   {% endfor %}
 {% endmacro %}

@@ -30,7 +30,23 @@
   var presets = (data.presets || []).filter(function (p) { return !footerMode || p.kind !== 'page'; });
   var selected = {};
   var nextId = 1;
-  var blocks = (data.blocks || []).map(function (block) { return withId(block, false); });
+  // The footer's blocks can have a set for each language (data.languages: [{key: 'default', code: 'el'}, {key: 'en', code: 'en'}], the
+  // site's own first; data.blocks is then a map of key to blocks). One editor shows one set at a time; the output holds them all.
+  var languages = footerMode && Array.isArray(data.languages) && data.languages.length > 1 ? data.languages : [];
+  var sets = null;
+  var activeKey = '';
+  var blocks;
+  if (languages.length) {
+    sets = {};
+    languages.forEach(function (language) {
+      var own = data.blocks && !Array.isArray(data.blocks) ? data.blocks[language.key] : (language.key === 'default' ? data.blocks : []);
+      sets[language.key] = (Array.isArray(own) ? own : []).map(function (block) { return withId(block, false); });
+    });
+    activeKey = languages[0].key;
+    blocks = sets[activeKey];
+  } else {
+    blocks = (data.blocks || []).map(function (block) { return withId(block, false); });
+  }
   var lastRemoved = null;
 
   var CLS = {
@@ -109,9 +125,23 @@
   }
 
   function serialize() {
-    output.value = JSON.stringify(blocks);
+    var total = blocks.length;
+    if (sets) {
+      var all = {};
+      total = 0;
+      languages.forEach(function (language) { all[language.key] = sets[language.key]; total += sets[language.key].length; });
+      output.value = JSON.stringify(all);
+      languageButtons.forEach(function (button) {
+        var key = button.getAttribute('data-set');
+        var size = sets[key].length;
+        button.classList.toggle('has-blocks', size > 0);
+        button.title = size ? size + ' block(s)' : (key === languages[0].key ? 'No blocks' : 'No blocks of its own: the site\'s own blocks show');
+      });
+    } else {
+      output.value = JSON.stringify(blocks);
+    }
     var count = document.querySelector('[data-block-count]');
-    if (count) count.textContent = blocks.length ? String(blocks.length) : '';
+    if (count) count.textContent = total ? String(total) : '';
   }
 
   function summaryOf(block) {
@@ -636,6 +666,48 @@
   ]);
   var undoBar = el('div', { class: 'bk-note hidden', role: 'status' });
 
+  /* One set of blocks for each language (footer only) ------------------------------ */
+
+  var languageButtons = [];
+  var languageBar = null;
+  var copyNote = null;
+  if (sets) {
+    languageBar = el('span', { class: 'bk-pills is-light', role: 'group', 'aria-label': 'Language of the blocks' });
+    languages.forEach(function (language) {
+      var button = el('button', { type: 'button', 'data-set': language.key, 'aria-pressed': language.key === activeKey ? 'true' : 'false', text: String(language.code).toUpperCase() });
+      button.addEventListener('click', function () { switchSet(language.key); });
+      languageButtons.push(button);
+      languageBar.appendChild(button);
+    });
+    // A language with no blocks of its own shows the site's own: say so, and offer a copy to start from.
+    var copyButton = el('button', { type: 'button', class: CLS.btn, text: 'Start from a copy of the site\'s own blocks' });
+    copyButton.addEventListener('click', function () {
+      var source = sets[languages[0].key];
+      if (!source.length) return;
+      insertBlocks(source, blocks.length);
+      render(blocks.length ? blocks[0]._id : null, 'toggle');
+    });
+    copyNote = el('div', { class: 'bk-note hidden', role: 'status' }, [
+      el('span', { text: 'This language has no blocks of its own: its pages show the blocks of the site\'s own language. Add blocks to give it a set.' }),
+      copyButton
+    ]);
+  }
+
+  function switchSet(key) {
+    if (!sets || !sets[key]) return;
+    activeKey = key;
+    blocks = sets[key];
+    selected = {};
+    lastRemoved = null;
+    undoBar.classList.add('hidden');
+    closePicker(true);
+    pickerTarget = blocks.length;
+    languageButtons.forEach(function (button) { button.setAttribute('aria-pressed', button.getAttribute('data-set') === key ? 'true' : 'false'); });
+    expandAll.textContent = blocks.length && blocks.every(function (b) { return b._open; }) ? 'Collapse all' : 'Expand all';
+    render(null);
+    syncSaveBar();
+  }
+
   function showUndo(label) {
     undoBar.innerHTML = '';
     undoBar.appendChild(el('span', { text: label + ' removed.' }));
@@ -664,6 +736,7 @@
     list.innerHTML = '';
     blocks.forEach(function (block, index) { list.appendChild(renderBlock(block, index)); });
     empty.classList.toggle('hidden', blocks.length > 0);
+    if (copyNote) copyNote.classList.toggle('hidden', blocks.length > 0 || activeKey === languages[0].key || !sets[languages[0].key].length);
     serialize();
     if (focusId) {
       var card = list.querySelector('[data-block-card="' + focusId + '"]');
@@ -993,8 +1066,9 @@
   root.innerHTML = '';
   root.appendChild(el('div', { class: 'bk-bar' }, [
     el('p', { class: 'bk-help', text: footerMode ? 'Top to bottom, above the footer. Tick blocks to save them as a reusable section.' : 'Sections of this page, top to bottom. An opening Hero becomes the page title. Tick blocks to save them as a reusable section.' }),
-    el('div', { class: 'bk-bar-actions' }, [expandAll, addButton])
+    el('div', { class: 'bk-bar-actions' }, [languageBar, expandAll, addButton])
   ]));
+  if (copyNote) root.appendChild(copyNote);
   root.appendChild(undoBar);
   root.appendChild(saveBar);
   root.appendChild(picker);

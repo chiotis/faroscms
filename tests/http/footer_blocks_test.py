@@ -56,5 +56,27 @@ check('a hidden block is not shown', 'Hidden one' not in page())
 save_blocks([])
 check('an empty list takes the blocks away', 'footer_blocks' not in stored() and 'footer-blocks' not in page())
 
+# ---- a set of blocks for each language
+html = root.get('/admin/theme?tab=footer_blocks')[2]
+m = re.search(r'"languages":(\[\{.*?\}\])', html)
+langs = json.loads(m.group(1)) if m else []
+check('with several languages the editor has a set for each, the site\'s own first', len(langs) >= 2 and langs[0]['key'] == 'default', langs)
+other = langs[1]['code']
+own_set = [{'type': 'logos', 'heading': 'Own partners', 'items': [{'name': 'OwnCo'}]}]
+other_set = [{'type': 'logos', 'heading': 'Other partners', 'items': [{'name': 'OtherCo'}]}]
+save_blocks({'default': own_set, other: other_set})
+po, pt = before_footer(page('/about')), before_footer(page('/%s/about' % other))
+check('each language shows its own set', 'Own partners' in po and 'Other partners' not in po and 'Other partners' in pt and 'Own partners' not in pt, (po[:80], pt[:80]))
+html = root.get('/admin/theme?tab=footer_blocks')[2]
+check('and the editor starts from both', 'Own partners' in html and 'Other partners' in html)
+save_blocks({'default': own_set, other: []})
+check('a language with no set of its own shows the site\'s own', 'Own partners' in before_footer(page('/%s/about' % other)) and 'Other partners' not in stored(), stored()[-200:])
+save_blocks({'default': [], other: other_set})
+check('a set for another language only shows nowhere else', before_footer(page('/about')) == '' and 'Other partners' in before_footer(page('/%s/about' % other)))
+save_blocks(own_set)
+check('a plain list (the editor with one language) replaces the site\'s own set and keeps the others', 'Own partners' in before_footer(page('/about')) and 'Other partners' in before_footer(page('/%s/about' % other)))
+save_blocks({'default': [], other: []})
+check('every set emptied takes the blocks away', 'footer_blocks' not in stored() and 'footer-blocks' not in page())
+
 print('\nALL PASSED' if not fails else '\n%d FAILED' % len(fails))
 sys.exit(1 if fails else 0)

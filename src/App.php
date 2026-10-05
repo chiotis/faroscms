@@ -2772,10 +2772,10 @@ final class App
         $twig->addFunction(new TwigFunction('footer_blocks', function (array $context) use (&$footerBlocks): array {
             $lang = (string)($context['lang'] ?? $this->currentLang);
             if (!isset($footerBlocks[$lang])) {
-                $raw = $this->themeSettings['footer_blocks'] ?? null;
+                $raw = FooterBlocks::forLanguage($this->themeSettings['footer_blocks'] ?? null, $lang, (string)($this->settings['languages']['default'] ?? 'en'));
                 $footerBlocks[$lang] = ['html' => '', 'styles' => [], 'scripts' => []];
-                if (is_array($raw) && $raw !== []) {
-                    $rendered = $this->blockRuntime()->renderer($lang, (string)($context['path_no_lang'] ?? ''), $this->twig)->render(array_values($raw), [
+                if ($raw !== []) {
+                    $rendered = $this->blockRuntime()->renderer($lang, (string)($context['path_no_lang'] ?? ''), $this->twig)->render($raw, [
                         'lang' => $lang,
                         'lang_prefix' => $context['lang_prefix'] ?? '',
                         'current_lang' => $lang,
@@ -2810,8 +2810,7 @@ final class App
         );
 
         // The languages of the site, its own first: the admin shows a version of each translatable text for each of them.
-        $siteDefault = (string)($this->settings['languages']['default'] ?? 'en');
-        $twig->addGlobal('admin_languages', array_values(array_unique(array_merge([$siteDefault], array_map('strval', (array)($this->settings['languages']['available'] ?? []))))));
+        $twig->addGlobal('admin_languages', $this->siteLanguageCodes());
         $twig->addGlobal('site', $this->settings);
         $twig->addGlobal('theme_settings', $this->themeSettings);
         $twig->addGlobal('theme', ['name' => $this->theme->name(), 'version' => $this->theme->version()]);
@@ -3098,29 +3097,56 @@ final class App
             $data['single_layouts'] = $this->singleLayouts()->fromInput($singleInput, $this->content->getTypes(), $current);
         }
         if (is_array($footerBlocks)) {
-            $blocks = $this->blockRuntime()->registry()->sanitizeForStorage(array_values($footerBlocks));
-            if (!$this->permissions->can($this->auth->user(), 'content.raw_html')) {
-                // Raw HTML can carry script: someone who may not add it sees what they type as text, and what is already there stays.
-                $allowed = $this->htmlGuard()->blocksFragments(is_array($current['footer_blocks'] ?? null) ? array_values($current['footer_blocks']) : []);
-                $blocks = $this->htmlGuard()->eachMarkdownField($blocks, fn(string $value): string => $this->htmlGuard()->neutralize($value, $allowed));
+            // A set of blocks for each language (or one list), each checked like the blocks of an entry.
+            $stored = $current['footer_blocks'] ?? null;
+            $mayWriteHtml = $this->permissions->can($this->auth->user(), 'content.raw_html');
+            // Raw HTML can carry script: someone who may not add it sees what they type as text, and what is already there stays.
+            $allowed = [];
+            if (!$mayWriteHtml) {
+                foreach (FooterBlocks::sets($stored, array_merge(['default'], is_array($stored) && !array_is_list($stored) ? array_map('strval', array_keys($stored)) : [])) as $set) {
+                    $allowed = array_merge($allowed, $this->htmlGuard()->blocksFragments($set));
+                }
             }
-            if ($blocks === []) {
+            $sets = [];
+            foreach (FooterBlocks::fromPost($footerBlocks, $stored) as $key => $set) {
+                $set = $this->blockRuntime()->registry()->sanitizeForStorage($set);
+                if (!$mayWriteHtml) {
+                    $set = $this->htmlGuard()->eachMarkdownField($set, fn(string $value): string => $this->htmlGuard()->neutralize($value, $allowed));
+                }
+                $sets[$key] = $set;
+            }
+            $kept = FooterBlocks::toStore($sets);
+            if ($kept === []) {
                 unset($data['footer_blocks']);
             } else {
-                $data['footer_blocks'] = $blocks;
+                $data['footer_blocks'] = $kept;
             }
         }
         $this->setSystemMeta('theme_settings', Yaml::dump($data, 6, 2));
         return ['ok' => true];
     }
 
+    /** The languages of the site, its own first. @return string[] */
+    private function siteLanguageCodes(): array
+    {
+        $own = (string)($this->settings['languages']['default'] ?? 'en');
+        return array_values(array_unique(array_merge([$own], array_map('strval', (array)($this->settings['languages']['available'] ?? [])))));
+    }
+
     /** What the block editor of Theme > Footer Blocks starts from: the block types, the blocks now above the footer, the ready-made sections. */
     private function footerBlocksEditorJson(string $lang): string
     {
         $stored = $this->themeSettings['footer_blocks'] ?? [];
+        // With several languages the editor has a set for each (the site's own first); with one it is a plain list.
+        $languages = [];
+        foreach ($this->siteLanguageCodes() as $i => $code) {
+            $languages[] = ['key' => $i === 0 ? 'default' : (string)$code, 'code' => (string)$code];
+        }
+        $multiple = count($languages) > 1;
         return (string)json_encode([
             'definitions' => $this->blockRuntime()->registry()->editorDefinitions(),
-            'blocks' => is_array($stored) ? array_values($stored) : [],
+            'blocks' => $multiple ? FooterBlocks::sets($stored, array_column($languages, 'key')) : FooterBlocks::forLanguage($stored, 'default', 'default'),
+            'languages' => $multiple ? $languages : [],
             'presets' => $this->presetLibrary()->forEditor($lang, $lang),
             'presets_url' => rtrim((string)($this->settings['base_url'] ?? ''), '/') . '/admin/block-presets',
             'lang' => $lang,

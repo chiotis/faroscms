@@ -163,6 +163,15 @@ for cls in ('text-slate-400', 'text-slate-500'):
     m = re.search(r'\.dark \.' + cls + r'\s*\{\s*color:\s*(#[0-9a-f]{6})', app)
     check(f'{cls} in dark mode reads on the dark panel', m is not None and ratio(hexrgb(m.group(1)), DARK) >= 4.5, m and m.group(1))
 
+js_early = urllib.request.urlopen(BASE + '/assets/js/admin.js').read().decode()
+# ---- the colour mode is applied before the first paint, so a page does not show light and then dark
+def before_paint(html):
+    mode, sheet = html.find("localStorage.getItem('admin.theme')"), html.find('admin.build.css')
+    return 0 <= mode < sheet
+for label, html in (('an admin page', root.get('/admin')[2]), ('the sign in page', Client().get('/admin/login')[2])):
+    check(f'{label} sets the colour mode in the head, before the style sheets', before_paint(html), html[:300])
+check('the script that stores the choice reads and writes the same key and default', "localStorage.getItem('admin.theme') || 'light'" in js_early and "localStorage.getItem('admin.theme') || 'light'" in root.get('/admin')[2])
+
 # ---- the scripts that give tabs and scroll boxes their semantics are there
 js = urllib.request.urlopen(BASE + '/assets/js/admin.js').read().decode()
 check('the script gives tab bars their roles, keys, and focus order', 'function enhanceTabs' in js and "'ArrowRight'" in js and "setAttribute('role', 'tab')" in js)

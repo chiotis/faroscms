@@ -1,0 +1,14 @@
+{#
+  The colour mode of the admin, applied before the first paint so a page does not show light and then dark. It reads what
+  admin.js stores (`admin.theme`: light, dark or system; light when nothing is stored) and must stay the same as effectiveTheme()
+  there. Included in the head of every admin document, before the style sheets.
+#}
+<script>
+  (function () {
+    try {
+      var pref = localStorage.getItem('admin.theme') || 'light';
+      var dark = pref === 'dark' || (pref === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      if (dark) document.documentElement.classList.add('dark');
+    } catch (e) {}
+  })();
+</script>
