@@ -142,6 +142,13 @@ $settings['backup']['auto'] = ['enabled' => true, 'schedule' => 'daily', 'last_r
 $s = $m->scheduleStatus();
 check('on but overdue: warning', [$s['status'], $s['value']], ['warning', 'overdue (daily)']);
 
+// ---- a file of the site named like the archive's own manifest does not break the check
+file_put_contents($dir . '/' . BackupService::MANIFEST_NAME, '{"stray":"a backup unzipped in the project"}');
+$stray = $m->createSnapshot('pre-restore', false, false);
+$v = $service->verify((string)$stray['filename']);
+check('a stray manifest-named file: the snapshot still verifies', [$v['ok'], $v['errors']], [true, []]);
+unlink($dir . '/' . BackupService::MANIFEST_NAME);
+
 exec('rm -rf ' . escapeshellarg($dir));
 echo $fail === 0 ? "\nALL PASSED\n" : "\n$fail FAILED\n";
 exit($fail === 0 ? 0 : 1);

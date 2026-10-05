@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.71 — 2026-10-05 — A backup is no longer "not verified" because of a stray file
+- **A full backup now verifies when the project holds a file named `faroscms-backup.json`** (it appears when a backup is unzipped inside the project). The archive writes its own checksum manifest under that name, over the site's file, so the check found a size mismatch every time ("Size mismatch: faroscms-backup.json") and the pre-update backup could never be marked verified. The site's file is now left out of the archive. Test in `tests/unit/backup-manager.php`. If your site has such a file in its root, it can be deleted.
+
 ## 0.1.70 — 2026-10-05 — A failed backup check says what is wrong
 - **The message after "Verify checksums" and "Create verified backup" names the problems.** It said only "Verification failed: 1 problem(s) found."; the file and the kind of problem (size or checksum mismatch, missing or unexpected file) were only in the activity log. The first three are now part of the message.
 
