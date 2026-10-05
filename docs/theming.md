@@ -182,7 +182,7 @@ Create `blocks/<type>/` with three files:
 
 ### Footer blocks
 
-**Theme > Footer Blocks** holds blocks that show **above the footer on every page, in every language**: a row of logos, a call to action, a form. It is the same block editor as an entry's Blocks tab (without the whole-page layouts), and the blocks are stored in the theme settings (`footer_blocks`), not in a content file. `footer_blocks()` in Twig gives `html`, `styles` and `scripts` for the current language, drawn once per request: `layouts/base.twig` asks for the styles and scripts in the head, and `components/footer.twig` puts the markup in a `.footer-blocks` wrapper before the `<footer>`. A site that overrides either file keeps the blocks by keeping those lines. Someone without the *Raw HTML in content* permission sees HTML they type as text, as in an entry.
+**Theme > Footer Blocks** holds blocks that show **above the footer on every page, in every language**: a row of logos, a call to action, a form (the footer has no call to action band of its own: use the CTA block). It is the same block editor as an entry's Blocks tab (without the whole-page layouts), and the blocks are stored in the theme settings (`footer_blocks`), not in a content file. `footer_blocks()` in Twig gives `html`, `styles` and `scripts` for the current language, drawn once per request: `layouts/base.twig` asks for the styles and scripts in the head, and `components/footer.twig` puts the markup in a `.footer-blocks` wrapper before the `<footer>`. A site that overrides either file keeps the blocks by keeping those lines. Someone without the *Raw HTML in content* permission sees HTML they type as text, as in an entry.
 
 ### Editing blocks
 
@@ -324,7 +324,7 @@ Footer:
 
 - **Layout**: *columns* (brand and summary, the footer menu, contact), *mega* (a column for each top-level link of the footer menu that has links under it; the links with none share the first column), *one row*, *bar* (the copyright on the left, the links on the right, thin lines between them) and *centered*.
 - **Background**: dark (the base), the page's, muted, or the palette colour; a colour or an image of your own replaces it. **Brand**: the site name, the logo, or nothing.
-- **Content**: the summary, the copyright line (`{year}`, `{site}` and `{copyright}`, the © sign, are filled in), a credits line under it (for example *Designed by [Unicorg](https://…)*; links are written `[text](address)`, and the same three words work), email, phone, address and opening hours, a **call to action band** above the footer (heading, text, button), the **links at the bottom** (a menu given the place *Footer bottom links*), the social icons, a language switcher and a back to top link.
+- **Content**: the summary, the copyright line (`{year}`, `{site}` and `{copyright}`, the © sign, are filled in), a credits line under it (for example *Designed by [Unicorg](https://…)*; links are written `[text](address)`, and the same three words work), email, phone, address and opening hours, the **links at the bottom** (a menu given the place *Footer bottom links*), the social icons, a language switcher and a back to top link.
 
 A site-specific block goes in `custom/blocks/<type>/` with the same files.
 
