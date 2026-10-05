@@ -1,5 +1,5 @@
 label: Logos
-description: Client or partner logos. Without an image the name is shown as text.
+description: Client or partner logos, spread over the whole width of the content however many there are. Without an image the name is shown as text.
 category: Showcase
 variants:
   row: Single row
@@ -10,6 +10,14 @@ fields:
     type: text
     label: Heading
     placeholder: Trusted by
+  colors:
+    type: select
+    label: Colour of the logos
+    default: hover
+    options:
+      hover: Black and white, in colour when pointed at
+      mono: Always black and white
+      color: Their own colours
   items:
     type: repeater
     label: Logos

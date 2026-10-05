@@ -175,5 +175,21 @@ data_el = json.loads(re.search(r'id="block-editor-data"[^>]*>(.*?)</script>', ed
 presets_el = {p['id']: p for p in data_el['presets']}
 check('and the same in Greek, for a Greek page', all(ids[l] in presets_el and presets_el[ids[l]]['blocks'][0]['type'] == presets[ids[l]]['blocks'][0]['type'] and (l == 'link-in-bio' or presets_el[ids[l]]['label'] != presets[ids[l]]['label']) for l in layouts))
 
+# ---- Logos: they fill the width of the content however many there are, in the colour that was chosen
+def logos(n, colors=None, variant='row'):
+    block = {'type': 'logos', 'variant': variant, 'items': [{'name': 'Logo %d' % i} for i in range(n)]}
+    if colors is not None: block['colors'] = colors
+    st, _, html = page('logos-%d-%s-%s' % (n, variant, colors), block)
+    return section(html, 'logos')
+def cols(html):
+    m = re.search(r'--logo-cols: (\d+)', html)
+    return int(m.group(1)) if m else None
+check('one row of up to six logos, each its own column', [cols(logos(n)) for n in (1, 2, 5, 6)] == [1, 2, 5, 6], [cols(logos(n)) for n in (1, 2, 5, 6)])
+check('more are in rows of the same length (7 in 4 and 3, 12 in 6, 18 in 6)', [cols(logos(n)) for n in (7, 12, 13, 18)] == [4, 6, 5, 6], [cols(logos(n)) for n in (7, 12, 13, 18)])
+check('the colour is black and white with colour on hover when nothing is chosen, as it was', 'data-colors="hover"' in logos(3), logos(3)[:200])
+check('and can be always black and white, or their own colours', 'data-colors="mono"' in logos(3, 'mono') and 'data-colors="color"' in logos(3, 'color'))
+check('a choice that is not one of them is the usual', 'data-colors="hover"' in logos(3, 'rainbow'))
+check('the framed grid works the same', 'block--grid' in logos(7, 'color', 'grid') and cols(logos(7, 'color', 'grid')) == 4)
+
 print('\nALL PASSED' if not fails else '\n%d FAILED: %s' % (len(fails), fails))
 sys.exit(1 if fails else 0)
