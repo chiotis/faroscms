@@ -245,7 +245,7 @@ check('a form has its fields, notifications and settings', [$c['form_fields'][0]
 check('and its submissions, none yet', [$c['form_submissions'], $c['form_submissions_total']], [[], 0]);
 $blocks = json_decode($f['block_editor_json'], true);
 check('a page has the block editor, with the blocks, the sections to start from and where to save them', [is_array($blocks['definitions']), $blocks['blocks'], $blocks['lang'], $blocks['presets_url'], is_array($blocks['presets'])], [true, [], 'el', 'https://s.test/admin/block-presets', true]);
-check('the choices of how an entry opens', array_keys($f['opening']), ['layouts', 'transparent', 'type_layout', 'type_transparent']);
+check('the choices of how an entry opens', array_keys($f['opening']), ['layouts', 'transparent', 'parallax', 'type_layout', 'type_transparent', 'type_parallax']);
 $themeSettings = ['hero_layouts' => ['default' => 'default', 'posts' => 'default'], 'transparent_header' => ['default' => 'off']];
 check('and what the type does today', [$form->form('pages', 'about', 'el', [], true)['opening']['type_transparent']], ['off']);
 $moved = $form->form('pages', 'about', 'el', ['address' => 'changed'], true);
