@@ -1,0 +1,10 @@
+kind: section
+label: { el: 'Επικοινωνία με χάρτη', en: 'Contact with map' }
+description: { el: 'Στοιχεία επικοινωνίας δίπλα στη φόρμα, και χάρτης OpenStreetMap από κάτω. Συμπληρώστε τις συντεταγμένες.', en: 'Contact details beside the form, with an OpenStreetMap map below. Fill in the coordinates.' }
+blocks:
+  el:
+    - { type: contact, variant: split, eyebrow: 'Επικοινωνία', heading: 'Ας μιλήσουμε', intro: 'Απαντάμε μέσα σε μία εργάσιμη.', items: [{ icon: phone, label: 'Τηλέφωνο', value: '+30 210 000 0000', url: 'tel:+302100000000' }, { icon: mail, label: 'Email', value: 'info@example.com', url: 'mailto:info@example.com' }, { icon: map-pin, label: 'Διεύθυνση', value: 'Οδός και αριθμός, Πόλη' }], form: contact }
+    - { type: map, variant: full, place_name: 'το γραφείο μας', address: 'Οδός και αριθμός, Πόλη' }
+  en:
+    - { type: contact, variant: split, eyebrow: 'Contact', heading: "Let's talk", intro: 'We reply within one working day.', items: [{ icon: phone, label: 'Phone', value: '+30 210 000 0000', url: 'tel:+302100000000' }, { icon: mail, label: 'Email', value: 'info@example.com', url: 'mailto:info@example.com' }, { icon: map-pin, label: 'Address', value: 'Street and number, City' }], form: contact }
+    - { type: map, variant: full, place_name: 'our office', address: 'Street and number, City' }

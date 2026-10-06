@@ -1,0 +1,8 @@
+kind: section
+label: { el: 'Τελευταία έργα σε εικόνες', en: 'Latest projects as image tiles' }
+description: { el: 'Τα πιο πρόσφατα έργα ως εικόνες με τον τίτλο πάνω τους.', en: 'The newest projects as pictures with the title on top.' }
+blocks:
+  el:
+    - { type: latest, variant: overlay, tone: muted, source: projects, eyebrow: 'Έργα', heading: 'Πρόσφατη δουλειά', link_label: 'Όλα τα έργα', link_url: projects }
+  en:
+    - { type: latest, variant: overlay, tone: muted, source: projects, eyebrow: 'Projects', heading: 'Recent work', link_label: 'All projects', link_url: projects }

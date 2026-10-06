@@ -1,0 +1,12 @@
+kind: page
+label: { el: 'Επικοινωνία', en: 'Contact' }
+description: { el: 'Στοιχεία επικοινωνίας με φόρμα, χάρτης και σύντομες ερωτήσεις.', en: 'Contact details with a form, a map, and a few questions.' }
+blocks:
+  el:
+    - { type: contact, variant: split, eyebrow: 'Επικοινωνία', heading: 'Ας μιλήσουμε', intro: 'Απαντάμε μέσα σε μία εργάσιμη.', items: [{ icon: phone, label: 'Τηλέφωνο', value: '+30 210 000 0000', url: 'tel:+302100000000' }, { icon: mail, label: 'Email', value: 'info@example.com', url: 'mailto:info@example.com' }, { icon: map-pin, label: 'Διεύθυνση', value: 'Οδός και αριθμός, Πόλη' }, { icon: clock, label: 'Ώρες', value: 'Δευτέρα – Παρασκευή, 09:00 – 17:00' }], form: contact }
+    - { type: map, variant: full, place_name: 'το γραφείο μας', address: 'Οδός και αριθμός, Πόλη' }
+    - { type: faq, variant: stacked, heading: 'Πριν μας γράψετε', items: [{ question: 'Πόσο γρήγορα απαντάτε;', answer: 'Μέσα σε μία εργάσιμη.' }, { question: 'Κάνετε συναντήσεις online;', answer: 'Ναι, με όποιο εργαλείο σας βολεύει.' }] }
+  en:
+    - { type: contact, variant: split, eyebrow: 'Contact', heading: "Let's talk", intro: 'We reply within one working day.', items: [{ icon: phone, label: 'Phone', value: '+30 210 000 0000', url: 'tel:+302100000000' }, { icon: mail, label: 'Email', value: 'info@example.com', url: 'mailto:info@example.com' }, { icon: map-pin, label: 'Address', value: 'Street and number, City' }, { icon: clock, label: 'Hours', value: 'Monday – Friday, 09:00 – 17:00' }], form: contact }
+    - { type: map, variant: full, place_name: 'our office', address: 'Street and number, City' }
+    - { type: faq, variant: stacked, heading: 'Before you write', items: [{ question: 'How fast do you reply?', answer: 'Within one working day.' }, { question: 'Do you meet online?', answer: 'Yes, with whichever tool suits you.' }] }

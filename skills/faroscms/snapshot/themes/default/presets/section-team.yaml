@@ -1,0 +1,8 @@
+kind: section
+label: { el: 'Η ομάδα', en: 'The team' }
+description: { el: 'Τέσσερα μέλη με ρόλο και σύντομο βιογραφικό. Προσθέστε φωτογραφίες ή κρατήστε τα αρχικά.', en: 'Four people with a role and a short bio. Add photos or keep the initials.' }
+blocks:
+  el:
+    - { type: team, variant: grid, columns: '4', eyebrow: 'Η ομάδα', heading: 'Οι άνθρωποι πίσω από τη δουλειά', members: [{ name: 'Όνομα Επώνυμο', role: 'Ρόλος', bio: 'Μία πρόταση για την εμπειρία του.' }, { name: 'Όνομα Επώνυμο', role: 'Ρόλος', bio: 'Μία πρόταση για την εμπειρία της.' }, { name: 'Όνομα Επώνυμο', role: 'Ρόλος', bio: 'Μία πρόταση για την εμπειρία του.' }, { name: 'Όνομα Επώνυμο', role: 'Ρόλος', bio: 'Μία πρόταση για την εμπειρία της.' }] }
+  en:
+    - { type: team, variant: grid, columns: '4', eyebrow: 'The team', heading: 'The people behind the work', members: [{ name: 'First Last', role: 'Role', bio: 'One sentence about their experience.' }, { name: 'First Last', role: 'Role', bio: 'One sentence about their experience.' }, { name: 'First Last', role: 'Role', bio: 'One sentence about their experience.' }, { name: 'First Last', role: 'Role', bio: 'One sentence about their experience.' }] }

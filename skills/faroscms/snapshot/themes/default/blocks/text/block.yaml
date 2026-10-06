@@ -1,0 +1,32 @@
+label: Text
+description: A heading with rich text. Use it for introductions, statements, and longer copy.
+category: Content
+variants:
+  default: Single column
+  split: Heading beside the text
+  lead: Large introduction
+  contents: Text with a contents list
+fields:
+  eyebrow:
+    type: text
+    label: Eyebrow
+  heading:
+    type: text
+    label: Heading
+  body:
+    type: markdown
+    label: Text
+  align:
+    type: select
+    label: Alignment
+    default: left
+    options: { left: Left, center: Center }
+  actions:
+    type: repeater
+    label: Buttons
+    item_label: Button
+    max: 2
+    fields:
+      label: { type: text, label: Label }
+      url: { type: link, label: Link }
+      style: { type: select, label: Style, default: primary, options: { primary: Primary, secondary: Secondary } }

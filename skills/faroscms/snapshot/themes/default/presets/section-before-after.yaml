@@ -1,0 +1,8 @@
+kind: section
+label: { el: 'Πριν και μετά', en: 'Before and after' }
+description: { el: 'Δύο φωτογραφίες του ίδιου χώρου με λαβή που τις συγκρίνει. Προσθέστε τις εικόνες μετά.', en: 'Two pictures of the same space with a handle to compare them. Add the images afterwards.' }
+blocks:
+  el:
+    - { type: before-after, variant: slider, eyebrow: 'Το αποτέλεσμα', heading: 'Πριν και μετά', intro: 'Σύρετε τη λαβή για να δείτε τη διαφορά.', caption: 'Ο ίδιος χώρος πριν και μετά την ανακαίνιση.' }
+  en:
+    - { type: before-after, variant: slider, eyebrow: 'The result', heading: 'Before and after', intro: 'Drag the handle to see the difference.', caption: 'The same space before and after the renovation.' }

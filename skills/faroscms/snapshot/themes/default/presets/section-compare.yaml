@@ -1,0 +1,8 @@
+kind: section
+label: { el: 'Πίνακας σύγκρισης', en: 'Comparison table' }
+description: { el: 'Τρεις επιλογές δίπλα-δίπλα, με ομάδες χαρακτηριστικών και τη μεσαία τονισμένη.', en: 'Three options side by side, with groups of features and the middle one highlighted.' }
+blocks:
+  el:
+    - { type: compare, variant: lines, eyebrow: 'Σύγκριση', heading: 'Τι περιλαμβάνει κάθε επιλογή', columns: [{ name: 'Βασικό' }, { name: 'Επαγγελματικό', badge: 'Προτεινόμενο', highlight: true, button_label: 'Επικοινωνία', button_url: contact }, { name: 'Εταιρικό' }], rows: [{ label: 'Χαρακτηριστικά', group: true }, { label: 'Πρώτο χαρακτηριστικό', v1: 'ναι', v2: 'ναι', v3: 'ναι' }, { label: 'Δεύτερο χαρακτηριστικό', v1: 'όχι', v2: 'ναι', v3: 'ναι' }, { label: 'Υποστήριξη', group: true }, { label: 'Χρόνος απάντησης', v1: '3 ημέρες', v2: '1 ημέρα', v3: '4 ώρες' }, { label: 'Προσωπικός σύμβουλος', v1: 'όχι', v2: 'όχι', v3: 'ναι' }], note: 'Οι τιμές και τα χαρακτηριστικά είναι ενδεικτικά.' }
+  en:
+    - { type: compare, variant: lines, eyebrow: 'Compare', heading: 'What each option includes', columns: [{ name: 'Starter' }, { name: 'Professional', badge: 'Recommended', highlight: true, button_label: 'Get in touch', button_url: contact }, { name: 'Enterprise' }], rows: [{ label: 'Features', group: true }, { label: 'First feature', v1: 'yes', v2: 'yes', v3: 'yes' }, { label: 'Second feature', v1: 'no', v2: 'yes', v3: 'yes' }, { label: 'Support', group: true }, { label: 'Response time', v1: '3 days', v2: '1 day', v3: '4 hours' }, { label: 'Personal advisor', v1: 'no', v2: 'no', v3: 'yes' }], note: 'Prices and features are examples.' }

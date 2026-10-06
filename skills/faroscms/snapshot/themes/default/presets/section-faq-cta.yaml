@@ -1,0 +1,10 @@
+kind: section
+label: { el: 'Συχνές ερωτήσεις και κάλεσμα', en: 'FAQ and call to action' }
+description: { el: 'Ερωτήσεις με απαντήσεις και μια μπάντα που οδηγεί στην επικοινωνία.', en: 'Questions and answers followed by a band that leads to contact.' }
+blocks:
+  el:
+    - { type: faq, variant: split, eyebrow: 'Συχνές ερωτήσεις', heading: 'Πριν ξεκινήσουμε', intro: 'Δεν βρίσκετε την απάντηση; Στείλτε μας μήνυμα.', items: [{ question: 'Πρώτη συχνή ερώτηση;', answer: 'Σύντομη, σαφής απάντηση.' }, { question: 'Δεύτερη συχνή ερώτηση;', answer: 'Σύντομη, σαφής απάντηση.' }, { question: 'Τρίτη συχνή ερώτηση;', answer: 'Σύντομη, σαφής απάντηση.' }] }
+    - { type: cta, variant: band, heading: 'Έτοιμοι να ξεκινήσουμε;', text: 'Πείτε μας τι χρειάζεστε και θα απαντήσουμε σύντομα.', actions: [{ label: 'Επικοινωνία', url: contact }] }
+  en:
+    - { type: faq, variant: split, eyebrow: 'FAQ', heading: 'Before we start', intro: 'Cannot find the answer? Send us a message.', items: [{ question: 'First common question?', answer: 'A short, clear answer.' }, { question: 'Second common question?', answer: 'A short, clear answer.' }, { question: 'Third common question?', answer: 'A short, clear answer.' }] }
+    - { type: cta, variant: band, heading: 'Ready to start?', text: 'Tell us what you need and we will reply soon.', actions: [{ label: 'Contact us', url: contact }] }

@@ -1,0 +1,8 @@
+kind: section
+label: { el: 'Διαδικασία σε βήματα', en: 'Process in steps' }
+description: { el: 'Τέσσερα βήματα που δείχνουν πώς δουλεύετε, από την πρώτη επαφή ως την παράδοση.', en: 'Four steps that show how you work, from first contact to delivery.' }
+blocks:
+  el:
+    - { type: timeline, variant: steps, tone: muted, eyebrow: 'Πώς δουλεύουμε', heading: 'Από την πρώτη συζήτηση ως την παράδοση', items: [{ label: '01', title: 'Γνωριμία', text: 'Καταλαβαίνουμε τι χρειάζεστε.' }, { label: '02', title: 'Πρόταση', text: 'Σαφές εύρος, χρόνος και κόστος.' }, { label: '03', title: 'Υλοποίηση', text: 'Εβδομαδιαία ενημέρωση για την πρόοδο.' }, { label: '04', title: 'Υποστήριξη', text: 'Είμαστε εδώ και μετά την παράδοση.' }] }
+  en:
+    - { type: timeline, variant: steps, tone: muted, eyebrow: 'How we work', heading: 'From the first conversation to delivery', items: [{ label: '01', title: 'Discovery', text: 'We understand what you need.' }, { label: '02', title: 'Proposal', text: 'Clear scope, timeline, and cost.' }, { label: '03', title: 'Delivery', text: 'A weekly update on progress.' }, { label: '04', title: 'Support', text: 'We are here after launch too.' }] }
