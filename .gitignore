@@ -22,3 +22,4 @@ docs/admin-gap-list.md
 # Local tooling settings.
 .claude/
 __pycache__/
+skills/*.zip
