@@ -1,0 +1,8 @@
+kind: section
+label: { el: 'Υπηρεσίες σε κάρτες', en: 'Services in cards' }
+description: { el: 'Τρεις υπηρεσίες με εικονίδιο, σύντομο κείμενο και σύνδεσμο στη σελίδα τους.', en: 'Three services with an icon, a short text, and a link to their page.' }
+blocks:
+  el:
+    - { type: features, variant: cards, eyebrow: 'Υπηρεσίες', heading: 'Τι κάνουμε για εσάς', intro: 'Μια πρόταση που συνοψίζει πώς βοηθάτε.', columns: '3', items: [{ icon: compass, title: 'Πρώτη υπηρεσία', text: 'Τι περιλαμβάνει και ποιο πρόβλημα λύνει.', link: services }, { icon: layers, title: 'Δεύτερη υπηρεσία', text: 'Τι περιλαμβάνει και ποιο πρόβλημα λύνει.', link: services }, { icon: shield, title: 'Τρίτη υπηρεσία', text: 'Τι περιλαμβάνει και ποιο πρόβλημα λύνει.', link: services }] }
+  en:
+    - { type: features, variant: cards, eyebrow: 'Services', heading: 'What we do for you', intro: 'One sentence that sums up how you help.', columns: '3', items: [{ icon: compass, title: 'First service', text: 'What it includes and which problem it solves.', link: services }, { icon: layers, title: 'Second service', text: 'What it includes and which problem it solves.', link: services }, { icon: shield, title: 'Third service', text: 'What it includes and which problem it solves.', link: services }] }

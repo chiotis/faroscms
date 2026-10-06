@@ -62,7 +62,7 @@ check('a new content type has a card with the defaults', [isset($byType['events'
 $a = $admin->archiveCards('el');
 $cards = array_column($a['types'], null, 'type');
 check('the lists of the content types, not pages and forms', array_keys($cards), ['books', 'events', 'posts']);
-check('each with its settings and the orders it can use', [$cards['posts']['archive']['layout'], $cards['posts']['archive']['per_page'], array_keys($cards['posts']['orders'])], ['cards', 12, ['date_desc', 'date_asc', 'title_asc', 'title_desc']]);
+check('each with its settings and the orders it can use', [$cards['posts']['archive']['layout'], $cards['posts']['archive']['per_page'], array_keys($cards['posts']['orders'])], ['cards', 12, ['date_desc', 'date_asc', 'title_asc', 'title_desc', 'random']]);
 check('the taxonomies have a card too, with the types they list', [array_column($a['taxonomies'], 'name'), array_column($a['taxonomies'], 'kind'), $a['taxonomies'][0]['listable']], [['categories', 'tags'], ['category', 'tag'], ['books', 'events', 'posts']]);
 check('and the names of the types, for their chips', $a['type_labels']['posts'], 'Άρθρα');
 

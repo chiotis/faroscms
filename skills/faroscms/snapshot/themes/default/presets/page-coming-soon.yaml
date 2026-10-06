@@ -1,0 +1,13 @@
+kind: page
+template: landing
+label: { el: 'Σύντομα κοντά σας', en: 'Coming soon' }
+description: { el: 'Μια σελίδα αναμονής: τίτλος, κινούμενη ταινία και φόρμα για να αφήσουν το email τους. Χρησιμοποιεί το template Landing.', en: 'A holding page: a headline, a scrolling band, and a form to leave an email. Uses the Landing template.' }
+blocks:
+  el:
+    - { type: hero, variant: centered, eyebrow: 'Σύντομα κοντά σας', heading: 'Ετοιμάζουμε κάτι νέο', text: 'Μια πρόταση για το τι έρχεται και πότε.' }
+    - { type: marquee, variant: text, speed: slow, items: [{ text: 'Σύντομα' }, { text: 'Κάτι νέο' }, { text: 'Μείνετε κοντά' }] }
+    - { type: form, variant: stacked, anchor: notify, eyebrow: 'Ενημερωθείτε πρώτοι', heading: 'Αφήστε μας το email σας', intro: 'Θα σας γράψουμε μία φορά, όταν είμαστε έτοιμοι.', form: contact }
+  en:
+    - { type: hero, variant: centered, eyebrow: 'Coming soon', heading: 'We are working on something new', text: 'One sentence about what is coming and when.' }
+    - { type: marquee, variant: text, speed: slow, items: [{ text: Soon }, { text: 'Something new' }, { text: 'Stay tuned' }] }
+    - { type: form, variant: stacked, anchor: notify, eyebrow: 'Be the first to know', heading: 'Leave us your email', intro: 'We will write once, when we are ready.', form: contact }

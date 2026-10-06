@@ -1,0 +1,57 @@
+label: Portfolio
+description: A grid of work with filter buttons for the categories. Type the pieces in, or show the entries of a content type (filtered by their categories).
+category: Showcase
+variants:
+  grid: Grid
+  overlay: Title over the picture
+fields:
+  eyebrow:
+    type: text
+    label: Eyebrow
+  heading:
+    type: text
+    label: Heading
+  intro:
+    type: textarea
+    label: Introduction
+  source:
+    type: select
+    label: Show
+    default: manual
+    options: { manual: Pieces entered below }
+    options_from: content_types
+  limit:
+    type: number
+    label: Number of entries
+    default: 12
+    min: 1
+    max: 24
+  columns:
+    type: select
+    label: Columns
+    default: '3'
+    options: { '2': '2', '3': '3', '4': '4' }
+  ratio:
+    type: select
+    label: Picture shape
+    default: landscape
+    options: { landscape: 'Landscape (4:3)', square: Square, portrait: 'Portrait (4:5)' }
+  filters:
+    type: toggle
+    label: Filter buttons
+    default: true
+  all_label:
+    type: text
+    label: "'All' button text"
+    placeholder: All
+  items:
+    type: repeater
+    label: Pieces
+    item_label: Piece
+    max: 48
+    fields:
+      title: { type: text, label: Title }
+      category: { type: text, label: Categories, placeholder: 'Web, Branding', help: 'One or more, separated by commas.' }
+      image: { type: image, label: Image }
+      text: { type: textarea, label: Short text }
+      url: { type: link, label: Link }

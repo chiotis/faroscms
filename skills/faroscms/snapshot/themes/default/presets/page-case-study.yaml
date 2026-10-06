@@ -1,0 +1,22 @@
+kind: page
+label: { el: 'Μελέτη περίπτωσης', en: 'Case study' }
+description: { el: 'Ένα έργο σε μορφή ιστορίας: αποτελέσματα, πρόκληση, λύση, εικόνες, απόσπασμα πελάτη και κάλεσμα.', en: 'One project told as a story: results, the challenge, the solution, pictures, a client quote, and a call to action.' }
+blocks:
+  el:
+    - { type: hero, variant: cover, tone: contrast, eyebrow: 'Μελέτη περίπτωσης', heading: 'Όνομα πελάτη: το αποτέλεσμα σε μία πρόταση', text: 'Τι ζήτησε ο πελάτης και τι πετύχαμε μαζί.' }
+    - { type: stats, variant: cards, items: [{ value: '+120%', label: 'Επισκέψεις' }, { value: '3×', label: 'Αιτήματα επικοινωνίας' }, { value: '6', label: 'Εβδομάδες υλοποίησης' }] }
+    - { type: text, variant: split, eyebrow: 'Η πρόκληση', heading: 'Από πού ξεκινήσαμε', body: "Περιγράψτε την κατάσταση του πελάτη, το πρόβλημα και τι διακυβεύονταν.\n\nΜία-δύο παράγραφοι αρκούν." }
+    - { type: image, variant: wide, ratio: landscape, caption: 'Λεζάντα για την εικόνα του έργου.' }
+    - { type: text, variant: split, eyebrow: 'Η λύση', heading: 'Τι κάναμε', body: "Εξηγήστε την προσέγγιση και τις βασικές αποφάσεις.\n\n- Πρώτο βήμα\n- Δεύτερο βήμα\n- Τρίτο βήμα" }
+    - { type: gallery, variant: masonry, columns: '3', lightbox: true, heading: 'Το αποτέλεσμα' }
+    - { type: quote, variant: bar, quote: 'Η φράση του πελάτη που συνοψίζει τη συνεργασία.', name: 'Όνομα Επώνυμο', role: 'Ρόλος, Πελάτης' }
+    - { type: cta, variant: card, heading: 'Έχετε παρόμοιο έργο;', text: 'Θα χαρούμε να το συζητήσουμε.', actions: [{ label: 'Επικοινωνία', url: contact }] }
+  en:
+    - { type: hero, variant: cover, tone: contrast, eyebrow: 'Case study', heading: 'Client name: the result in one sentence', text: 'What the client asked for and what we achieved together.' }
+    - { type: stats, variant: cards, items: [{ value: '+120%', label: Visits }, { value: '3×', label: Enquiries }, { value: '6', label: 'Weeks to deliver' }] }
+    - { type: text, variant: split, eyebrow: 'The challenge', heading: 'Where we started', body: "Describe the client’s situation, the problem, and what was at stake.\n\nOne or two paragraphs are enough." }
+    - { type: image, variant: wide, ratio: landscape, caption: 'A caption for the picture of the project.' }
+    - { type: text, variant: split, eyebrow: 'The solution', heading: 'What we did', body: "Explain the approach and the key decisions.\n\n- First step\n- Second step\n- Third step" }
+    - { type: gallery, variant: masonry, columns: '3', lightbox: true, heading: 'The result' }
+    - { type: quote, variant: bar, quote: 'The client’s sentence that sums up the work.', name: 'First Last', role: 'Role, Client' }
+    - { type: cta, variant: card, heading: 'Have a similar project?', text: 'We would be glad to talk about it.', actions: [{ label: 'Get in touch', url: contact }] }
