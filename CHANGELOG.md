@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.94 — 2026-10-12 — A feed, and the pages of a list as WordPress wrote them
+- **An RSS feed** (found moving apostolosdoxiadis.com): `/feed` lists the newest posts, `/en/feed` those of another language, `/projects/feed` the entries of any other content type, and `/category/news/feed` (`/tag/…`, a site's own taxonomy) the entries of every type filed under a term. Each item has its title, address, date, categories and its excerpt, or the start of its text without the code of blocks; drafts and hidden entries are never listed. Every page announces the feed in its head. A page or an entry called "feed" keeps its address.
+- **Admin > SEO > Crawling & sitemap has a Feed card:** on or off (a site that asked to stay out of search has none) and the number of entries (10, 20, 30 or 50). On by default.
+- **`/category/news/page/2/` goes to `/category/news?page=2`** (301), for categories, tags, taxonomies of the site's own and the list of a content type, in any language: old WordPress links and search results land on the right page. The first page goes to the list itself. An address that is not a list is still a not found.
+- Tests: the feed's scopes, document and settings, and the addresses (`tests/unit/feed.php`); the screen, the feeds, the head link, a page named feed, the limit, the switch and the redirects against a running site (`tests/http/feed_test.py`).
+
 ## 0.1.93 — 2026-10-12 — The roadmap: the second client site
 - **`ROADMAP.md`:** *Where we are* brought to this version (Footer Blocks, title areas, the WordPress importer, the skill, backups from cron, the first client site live). A new *Now* section for the second client site (apostolosdoxiadis.com), moved with the CMS as it is, and what it accepts for now. *Next* in a new order from what the move asked for: categories in a tree, nested repeaters, theme options (headings in the palette colour, a header gradient, slides of one height on phones, a title area per term, visible breadcrumbs, a picture beside the text), a second version of the importer; then form translation, places and routes, the runtime cache and search. Menu ordering by drag and drop is out of *Next* (done with the menu editor).
 

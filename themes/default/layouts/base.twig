@@ -52,6 +52,10 @@
   {% if canonical_url is defined and canonical_url %}
   <link rel="canonical" href="{{ canonical_url }}">
   {% endif %}
+  {% set feed_link = feed_url(lang_prefix|default('')) %}
+  {% if feed_link %}
+  <link rel="alternate" type="application/rss+xml" title="{{ site.title }}" href="{{ feed_link }}">
+  {% endif %}
   {% if alternate_urls is defined and alternate_urls %}
   {% for code, link in alternate_urls %}
   <link rel="alternate" hreflang="{{ code }}" href="{{ link }}">

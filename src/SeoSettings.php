@@ -68,6 +68,7 @@ final class SeoSettings
             'block_ai' => false,
             'snippets' => true,
             'sitemap' => ['enabled' => true, 'images' => true, 'taxonomies' => true, 'exclude' => []],
+            'feed' => ['enabled' => true, 'items' => 20],
             'identity' => ['type' => 'Organization', 'name' => '', 'alternate_name' => '', 'description' => '', 'street' => '', 'locality' => '', 'region' => '', 'postal' => '', 'country' => '', 'price_range' => ''],
             'schema' => ['article_type' => 'BlogPosting', 'breadcrumbs' => true, 'search_box' => true],
             'verification' => array_fill_keys(array_keys(self::VERIFICATION), ''),
@@ -116,6 +117,10 @@ final class SeoSettings
             $out['sitemap'][$key] = array_key_exists($key, $map) ? Format::isTruthy($map[$key]) : true;
         }
         $out['sitemap']['exclude'] = RobotsTxt::rules(is_array($map['exclude'] ?? null) ? $map['exclude'] : []);
+
+        $feed = is_array($stored['feed'] ?? null) ? $stored['feed'] : [];
+        $out['feed']['enabled'] = array_key_exists('enabled', $feed) ? Format::isTruthy($feed['enabled']) : true;
+        $out['feed']['items'] = self::feedItems($feed['items'] ?? null);
 
         $identity = is_array($stored['identity'] ?? null) ? $stored['identity'] : [];
         $out['identity']['type'] = array_key_exists(self::one($identity['type'] ?? ''), self::IDENTITY_TYPES) ? self::one($identity['type']) : 'Organization';
@@ -185,6 +190,7 @@ final class SeoSettings
                 'taxonomies' => $on($post['sitemap_taxonomies'] ?? null),
                 'exclude' => RobotsTxt::rules((string)($post['sitemap_exclude'] ?? '')),
             ];
+            $seo['feed'] = ['enabled' => $on($post['feed_enabled'] ?? null), 'items' => self::feedItems($post['feed_items'] ?? null)];
         } elseif ($tab === 'identity') {
             $identity = [];
             $identity['type'] = array_key_exists($line('identity_type'), self::IDENTITY_TYPES) ? $line('identity_type') : 'Organization';
@@ -210,6 +216,12 @@ final class SeoSettings
             unset($seo['robots_disallow']);
         }
         return $seo;
+    }
+
+    /** How many entries a feed lists: a whole number from 5 to 100, 20 when nothing usable was given. */
+    private static function feedItems(mixed $value): int
+    {
+        return is_numeric($value) ? max(5, min(100, (int)$value)) : 20;
     }
 
     // ---- what a page needs

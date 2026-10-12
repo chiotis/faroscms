@@ -7,7 +7,7 @@
     Overview     the checks of the site and of every published entry
     Search       the title format, descriptions, content types, pages kept out
     Social       the share image and the cards of social networks
-    Crawling     visibility, robots.txt, the sitemap
+    Crawling     visibility, robots.txt, the sitemap, the feed
     Identity     who the site is, for structured data
     Verification the ownership codes of search engines
 #}
@@ -237,6 +237,17 @@
               {{ f.area('Leave out', 'sitemap_exclude', sitemap_exclude_text, "/thank-you\n/forms/", 'Addresses that begin like this are not listed. One per line.', 0, 3) }}
             </div>
             <p class="m-0 px-3 pt-3 text-[11px] leading-4 text-slate-500">Tell search engines where it is: add it in <a class="{{ link }}" href="https://search.google.com/search-console" target="_blank" rel="noopener">Google Search Console</a> and <a class="{{ link }}" href="https://www.bing.com/webmasters" target="_blank" rel="noopener">Bing Webmaster Tools</a> (the Verification tab has their codes).</p>
+          </section>
+
+          <section class="{{ card }} pb-3" aria-labelledby="seo-h-feed">
+            <h2 id="seo-h-feed" class="{{ card_title }}">Feed</h2>
+            <p class="{{ card_note }}">{% if seo.feed.enabled and not seo.discourage %}<a href="{{ url('feed') }}" target="_blank" rel="noopener" class="{{ link }}">/feed</a> follows the newest posts for feed readers. A type has its own at <code>/projects/feed</code>, a category at <code>/category/news/feed</code>.{% else %}There is no feed now.{% endif %}</p>
+            <div class="space-y-1 p-3 pb-0">
+              {{ f.flag('feed_enabled', 'Publish a feed', 'An RSS feed of the newest entries, announced in the head of every page. Drafts and hidden entries are never listed.', seo.feed.enabled) }}
+            </div>
+            <div class="space-y-2.5 p-3 pb-0">
+              {{ f.pick('Entries in a feed', 'feed_items', {'10': '10', '20': '20', '30': '30', '50': '50'}, seo.feed.items) }}
+            </div>
           </section>
         </div>
 
