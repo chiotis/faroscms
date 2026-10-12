@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.90 — 2026-10-12 — Hero: two centred layouts over a picture
+- **Two new Hero layouts, in the layout choice with their own drawings:** *Centered text over a full-width image* and *Centered text over a full-width image, with numbered steps*, next to the ones they follow. They replace the *Text alignment* field of 0.1.86 (a layout is easier to see than a hidden choice); a hero saved with that field becomes the matching layout when it is shown, edited or saved, and nothing else changes.
+- Centred, the text sits in the middle of the picture (with the steps, at the bottom as before), buttons and highlights are centred, the shade does not favour a side, and the steps stay in a row of the block's width, each centred under its line.
+- A layout can now be declared a variant of another in `block.yaml` (`variant_extends`): its section also gets the other's class, so the styles of the cover apply to the centred cover and a site's own CSS for `.block--cover` keeps working. `variant_migrations` moves blocks saved in a layout that has become another (see `docs/theming.md`).
+- The skill for AI assistants (`skills/faroscms`) is refreshed with the new layouts.
+- Tests: the layouts, the migration and what is stored (`tests/unit/blocks.php`), the page for each, the old alignment shown centred and the editor's drawings and labels (`tests/http/blocks_pack_test.py`), the skill's snapshot (`tests/unit/skill.php`). Looked at in Chromium: the seven tiles, an old centred hero opening as the new layout, and the steps in a row.
+
 ## 0.1.89 — 2026-10-12 — The System screen tells about the cron job
 - **A *Cron job* card in Admin > System:** the entry to add (every day at 03:00, with the real path of the site's `src/cron-backup.php`), the status, when the cron job was last seen, and whether this server starts due work after a visit (PHP-FPM, LiteSpeed) or not (mod_php, the built-in server). With short notes on adding it in cPanel and on using the full path of the right PHP.
 - **A *Cron job* line in the health checks** (so also on the dashboard): *running, last …* when it was seen in the last 36 hours; a warning, while scheduled backups are on, when it has not been seen for longer (*stopped?*) or when it was never set up on a server where a visit cannot start due work (they would wait for someone to open the admin); otherwise a note. The cron script records the time it ran for this.

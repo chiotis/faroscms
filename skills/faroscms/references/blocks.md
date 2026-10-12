@@ -1,4 +1,4 @@
-# Blocks of this installation (FarosCMS 0.1.87)
+# Blocks of this installation (FarosCMS 0.1.90)
 
 ## Fields every block has
 
@@ -268,11 +268,10 @@ A set of images in a grid, a masonry layout, or a scrolling strip. Images open l
 ### `hero` — Hero
 Opening section with a strong heading, supporting text, buttons, and an image or a video behind it. The steps layout adds up to four numbered steps over the image. As the first block of a page it becomes the page title (h1).
 
-**Layouts** (`variant`): `split` (Text and image side by side), `centered` (Centered text, wide image below), `cover` (Text over a full-width image), `steps` (Text over a full-width image, with numbered steps), `minimal` (Large heading, no image). First is the default.
+**Layouts** (`variant`): `split` (Text and image side by side), `centered` (Centered text, wide image below), `cover` (Text over a full-width image), `cover-centered` (Centered text over a full-width image), `steps` (Text over a full-width image, with numbered steps), `steps-centered` (Centered text over a full-width image, with numbered steps), `minimal` (Large heading, no image). First is the default.
 
 | field | kind and choices | notes |
 |---|---|---|
-| `align` | choice; one of `left`, `center`; default `left`; only when `variant` is `cover` or `steps` |  |
 | `eyebrow` | text |  |
 | `heading` | text; required |  |
 | `text` | text (several lines) |  |
@@ -319,7 +318,7 @@ The newest posts, projects, or any content type, shown from a quiet text list to
 | `eyebrow` | text |  |
 | `heading` | text |  |
 | `intro` | text (several lines) |  |
-| `source` | choice; a content type of the site |  |
+| `source` | choice; a content type of the site; default `posts` |  |
 | `term` | text | Optional. The slug of a category or tag, as in Taxonomies. |
 | `limit` | whole number; 1 to 12; default `3` |  |
 | `columns` | choice; one of `2`, `3`, `4`; default `3` |  |

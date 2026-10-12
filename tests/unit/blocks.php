@@ -173,20 +173,25 @@ $ba = array_values(array_filter($once, fn($b) => $b['type'] === 'before-after'))
 check('before and after keeps both images', [$ba[0]['before'], $ba[0]['after']], ['/uploads/media/faros-demo-rocks.jpg', '/uploads/media/faros-demo-lake.jpg']);
 check('before and after variants', array_keys($registry->get('before-after')['variants']), ['slider', 'side']);
 check('before and after shape falls back', FieldSchema::resolve($registry->get('before-after')['fields'], ['image_ratio' => 'huge'])['image_ratio'], 'landscape');
-check('hero has a steps layout', array_keys($registry->get('hero')['variants']), ['split', 'centered', 'cover', 'steps', 'minimal']);
+check('hero has a steps layout', in_array('steps', array_keys($registry->get('hero')['variants']), true), true);
 $heroSteps = array_values(array_filter($once, fn($b) => $b['type'] === 'hero' && ($b['variant'] ?? '') === 'steps'))[0];
 check('hero steps keep their steps', [count($heroSteps['items']), $heroSteps['items'][0]['title']], [4, 'Ανάλυση']);
 check('hero has at most four steps', $registry->get('hero')['fields']['items']['max'], 4);
-// ---- the hero: text alignment over a picture, and a drawing of each layout
+// ---- the hero: centred text over a picture is a layout of its own, and each layout is drawn
 $heroDef = array_column($registry->editorDefinitions(), null, 'type')['hero'];
-check('the hero offers a text alignment, shown beside the layout', [$heroDef['design_fields'], $registry->get('hero')['fields']['align']['default'], array_keys($registry->get('hero')['fields']['align']['options'])], [['align'], 'left', ['left', 'center']]);
-check('only for the layouts over a picture', $registry->get('hero')['fields']['align']['when'], ['variant' => ['cover', 'steps']]);
+check('the hero has the two centred layouts over a picture, after the ones they follow', array_keys($registry->get('hero')['variants']), ['split', 'centered', 'cover', 'cover-centered', 'steps', 'steps-centered', 'minimal']);
+check('a centred layout is styled as the one it follows', $registry->get('hero')['variant_extends'], ['cover-centered' => 'cover', 'steps-centered' => 'steps']);
 $drawn = array_keys((array)$heroDef['variant_previews']);
 sort($drawn);
-check('every layout of the hero is drawn, and the two over a picture also with the text centred', $drawn, ['centered', 'cover', 'cover-center', 'minimal', 'split', 'steps', 'steps-center']);
-check('a drawing is the sanitised markup of its file', str_contains($heroDef['variant_previews']['cover-center'], '<rect') && !str_contains(implode('', (array)$heroDef['variant_previews']), 'script'), true);
+check('every layout of the hero is drawn', $drawn, ['centered', 'cover', 'cover-centered', 'minimal', 'split', 'steps', 'steps-centered']);
+check('a drawing is the sanitised markup of its file', str_contains($heroDef['variant_previews']['cover-centered'], '<rect') && !str_contains(implode('', (array)$heroDef['variant_previews']), 'script'), true);
+check('the hero has no text alignment field any more', [isset($registry->get('hero')['fields']['align']), $heroDef['design_fields']], [false, []]);
 $bannerDef = array_column($registry->editorDefinitions(), null, 'type')['banner'];
 check('a block with no variants folder has no drawings and no design fields', [(array)$bannerDef['variant_previews'], $bannerDef['design_fields']], [[], []]);
-$heroStored = fn(array $extra) => $registry->sanitizeForStorage([['type' => 'hero', 'variant' => 'cover', 'heading' => 'H'] + $extra])[0];
-check('centred text is kept, the usual left is not stored, and anything else is left out', [$heroStored(['align' => 'center'])['align'] ?? null, $heroStored(['align' => 'left'])['align'] ?? null, $heroStored(['align' => 'right'])['align'] ?? null], ['center', null, null]);
+$legacy = fn(array $b) => $registry->migrate(['type' => 'hero', 'heading' => 'H'] + $b);
+check('a hero saved with the 0.1.86 alignment becomes the centred layout, and the alignment goes', [$legacy(['variant' => 'cover', 'align' => 'center']), $legacy(['variant' => 'steps', 'align' => 'center'])], [['type' => 'hero', 'heading' => 'H', 'variant' => 'cover-centered'], ['type' => 'hero', 'heading' => 'H', 'variant' => 'steps-centered']]);
+check('other heroes are left as they are', [$legacy(['variant' => 'cover', 'align' => 'left']), $legacy(['variant' => 'split', 'align' => 'center']), $legacy(['variant' => 'cover'])], [['type' => 'hero', 'heading' => 'H', 'variant' => 'cover', 'align' => 'left'], ['type' => 'hero', 'heading' => 'H', 'variant' => 'split', 'align' => 'center'], ['type' => 'hero', 'heading' => 'H', 'variant' => 'cover']]);
+check('a block that is not a hero, or has no definition, is returned as it is', [$registry->migrate(['type' => 'text', 'variant' => 'cover', 'align' => 'center']), $registry->migrate(['type' => 'gone', 'align' => 'center']), $registry->migrate([])], [['type' => 'text', 'variant' => 'cover', 'align' => 'center'], ['type' => 'gone', 'align' => 'center'], []]);
+$heroStored = fn(array $extra) => $registry->sanitizeForStorage([['type' => 'hero', 'heading' => 'H'] + $extra])[0];
+check('saved, the centred layouts are kept as layouts, and the old alignment is stored as the layout', [$heroStored(['variant' => 'cover-centered'])['variant'], $heroStored(['variant' => 'steps-centered'])['variant'], $heroStored(['variant' => 'cover', 'align' => 'center'])['variant'], isset($heroStored(['variant' => 'cover', 'align' => 'center'])['align'])], ['cover-centered', 'steps-centered', 'cover-centered', false]);
 echo $fail === 0 ? "\nALL PASSED\n" : "\n$fail FAILED\n";
