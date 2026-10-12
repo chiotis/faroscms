@@ -54,6 +54,7 @@ final class App
     private array $formStates = [];
     private ?Menus $menuStore = null;
     private ?Sitemap $sitemapService = null;
+    private ?Feed $feedService = null;
     private ?SeoAdmin $seoAdminService = null;
     private ?AnalyticsStore $analyticsStoreService = null;
     private ?AnalyticsCollector $analyticsCollectorService = null;
@@ -380,6 +381,17 @@ final class App
         );
     }
 
+    private function feed(): Feed
+    {
+        return $this->feedService ??= new Feed(
+            $this->content,
+            fn(): array => $this->settings,
+            fn(string $path): string => $this->buildAbsoluteUrl($path),
+            fn(): Taxonomies => $this->taxonomies(),
+            fn(string $taxonomy, string $termId, string $prefix): string => $this->buildTaxonomyPath($taxonomy, $termId, $prefix)
+        );
+    }
+
     /**
      * The pages of the terms (categories, tags, a site's own taxonomies) that have entries in a language, with the date of
      * the newest entry: what the sitemap lists of the taxonomies.
@@ -580,6 +592,14 @@ final class App
         if ($route['kind'] === 'robots') {
             $this->renderRobots();
             return;
+        }
+        if ($route['kind'] === 'feed') {
+            if (!$this->feedIsShadowed($route)) {
+                $this->renderFeed($route);
+                return;
+            }
+            // An entry or page with that very name wins: it is read as the address it always was.
+            $route = FrontRoute::resolve($path, $this->settings, $this->content->getTypes(), array_values(array_filter($this->taxonomies()->names(), [Taxonomies::class, 'isCustom'])), false);
         }
 
         $lang = $route['lang'];
@@ -2845,6 +2865,9 @@ final class App
             return '<input type="hidden" name="_csrf" value="' . htmlspecialchars($this->csrfToken(), ENT_QUOTES) . '">';
         }, ['is_safe' => ['html']]));
 
+        // The address of the site's feed in the language of the page, or nothing while the feed is off: the head announces it.
+        $twig->addFunction(new TwigFunction('feed_url', fn(string $prefix = ''): string => $this->feed()->hasSiteFeed() ? $this->buildAbsoluteUrl($prefix . 'feed') : ''));
+
         PageTwigFunctions::register(
             $twig,
             fn(): array => $this->settings,
@@ -3435,6 +3458,35 @@ final class App
         }
         header('Content-Type: application/xml; charset=utf-8');
         echo $this->sitemap()->xml();
+    }
+
+    /** Whether a page or an entry is called "feed" where a feed would be, so the address is its and not the feed's. */
+    private function feedIsShadowed(array $route): bool
+    {
+        $base = $route['segments'];
+        $lang = $route['lang'];
+        $hidden = $this->auth->check();
+        if ($base === []) {
+            foreach (ContentPaths::ROOT_TYPES as $type) {
+                if (in_array($type, $this->content->getTypes(), true) && $this->content->find($type, 'feed', $lang, $hidden, false) !== null) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        return count($base) === 1 && $this->content->find($base[0], 'feed', $lang, $hidden, false) !== null;
+    }
+
+    private function renderFeed(array $route): void
+    {
+        $lang = $route['lang'];
+        $scope = $this->feed()->enabled() ? $this->feed()->scope($route['segments'], $lang) : null;
+        if ($scope === null) {
+            $this->render404();
+            return;
+        }
+        header('Content-Type: application/rss+xml; charset=utf-8');
+        echo $this->feed()->xml($scope, $lang, $route['lang_prefix'] . implode('/', array_merge($route['segments'], ['feed'])));
     }
 
     private function renderRobots(): void

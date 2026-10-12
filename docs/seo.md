@@ -11,7 +11,7 @@ Everything is stored under `seo` in the site settings, and every value has a def
 | **Overview** | The checks of the site (open to search engines, site address and https, tagline, sitemap, default share image, verification, addresses not found) and of every published entry in every language: missing description, a description that is too short or too long, a title that is too long, a title or description that two entries share, no picture for a shared link, and what is kept out of search. Each finding names the entry and links to its editor. |
 | **Search appearance** | The title separator and format (`{title}`, `{site}`, `{tagline}`, `{sep}`), the home page's title and description, the default description, a title format, "No index" and "Sitemap" for each content type, and whether the search results and the category and tag pages are kept out of search. A live preview draws the result. |
 | **Social** | The default share image (used by a page that has none, then the one of Theme > Branding), the card on X, the X account (`twitter:site`) and the Facebook app ID, with a preview of a shared link. |
-| **Crawling & sitemap** | Ask search engines to stay out of the whole site, allow large previews (`max-image-preview`), the paths of robots.txt, blocking the AI crawlers, and the sitemap: on or off, the main picture of each entry, the pages of the terms, and the addresses to leave out. |
+| **Crawling & sitemap** | Ask search engines to stay out of the whole site, allow large previews (`max-image-preview`), the paths of robots.txt, blocking the AI crawlers, the sitemap: on or off, the main picture of each entry, the pages of the terms, and the addresses to leave out; and the feed: on or off, and how many entries it holds. |
 | **Identity & schema** | Whether the site is an organization, a local business (with its address and price range) or a person, its name, other name and description; the type of a post (blog posting, article, news article); breadcrumbs and the site search in the structured data. The logo, phone, email and profiles come from the theme. |
 | **Verification** | The ownership codes of Google, Bing, Yandex, Pinterest, Baidu and Facebook. A whole meta tag can be pasted: its code is taken. |
 
@@ -21,6 +21,12 @@ Everything is stored under `seo` in the site settings, and every value has a def
 * **Description**: the page's own, the home page's (for the home page), the summary (excerpt), what the template gives (a list, the search), the default description, the tagline.
 * **Robots**: `noindex, nofollow` on every page of a site that asked to stay out; `noindex, follow` for a page with "No index", a content type that is kept out, the search results or the term pages when chosen; `max-image-preview:large, max-snippet:-1, max-video-preview:-1` for the rest (unless large previews are off).
 * **Share image**: the page's own, its main image, the first picture of its blocks, the default of this screen, the one of Theme > Branding.
+
+## The feed
+
+`/feed` is an RSS 2.0 feed of the newest posts of the site, `/en/feed` the same in another language, `/projects/feed` the entries of any other content type, and `/category/news/feed` (or `/tag/…`, or the term of a taxonomy of the site's own) the entries of every type filed under a term. Each item has its title, address, date, its categories and its excerpt, or the start of its text (without the code of blocks). Drafts and hidden entries are never listed; pages and forms have no feed. Every page announces the site's feed in its head (`<link rel="alternate" type="application/rss+xml">`). The feed holds 10 to 50 entries (Crawling & sitemap); it can be switched off, answers 404 then, and a site that asked to stay out of search has none. A page or an entry called "feed" keeps its address.
+
+A list that WordPress paged as `/category/news/page/2/` is sent for good to `/category/news?page=2` (the first page to the list itself), so old links and search results keep working.
 
 ## The sitemap
 
