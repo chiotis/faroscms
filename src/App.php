@@ -185,7 +185,43 @@ final class App
 
         $this->sendSecurityHeaders(false);
 
+        // A scheduled backup that is due starts after the page has been sent, so it does not depend on someone opening the admin.
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
+            register_shutdown_function(fn() => $this->runScheduledAfterResponse());
+        }
+
         $this->handleFront($path);
+    }
+
+    /**
+     * After a visit to the public site: the scheduled backup, when it is due. Only where the response can be finished before the work
+     * starts (PHP-FPM, LiteSpeed), so no visitor ever waits for a backup; elsewhere the admin and the cron script (src/cron-backup.php) do it.
+     */
+    private function runScheduledAfterResponse(): void
+    {
+        try {
+            if (!$this->backupManager()->isRunDue()) {
+                return;
+            }
+            $finish = function_exists('fastcgi_finish_request') ? 'fastcgi_finish_request' : (function_exists('litespeed_finish_request') ? 'litespeed_finish_request' : null);
+            if ($finish === null) {
+                return;
+            }
+            // The visitor's session is let go first (its lock would hold their next page), then the response, then the work.
+            @session_write_close();
+            $finish();
+            @ignore_user_abort(true);
+            @set_time_limit(0);
+            $this->backupManager()->runIfDue();
+        } catch (\Throwable) {
+            // A backup that could not run is told by its own run (Backups, notifications); a visit is never broken by it.
+        }
+    }
+
+    /** For the command line (src/cron-backup.php): the scheduled backup when it is due, and what became of it. */
+    public function runScheduledBackup(): string
+    {
+        return $this->backupManager()->runIfDue();
     }
 
     private function contentEditor(): ContentEditor
@@ -1406,6 +1442,7 @@ final class App
             'user' => $this->auth->user(),
             'admin_section' => 'backups',
             'current_type' => 'pages',
+            'backup_cron_command' => 'php ' . escapeshellarg($this->basePath . '/src/cron-backup.php'),
             'backup_status' => (string)($_GET['backup'] ?? ''),
             'delete_status' => (string)($_GET['deleted'] ?? ''),
             'backup_message' => trim((string)($_GET['backup_msg'] ?? '')),

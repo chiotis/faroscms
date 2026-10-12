@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.88 — 2026-10-12 — Scheduled backups no longer wait for the admin
+- **Found on a live site:** the daily backup was only taken on days someone opened the admin, because the schedule was checked only there. A site that nobody opens the admin of went days without one.
+- **A scheduled backup now also starts after a visit to the public site** (once the page has been sent, so the visitor does not wait; PHP-FPM and LiteSpeed), and **from a cron job**: `php src/cron-backup.php`, once a day. It prints `off`, `not due`, `busy`, `ok` or `failed` and does nothing when no backup is due. Backups > Policy shows the line to add, with the site's real path. Where the page cannot be finished before the work starts (mod_php, the built-in server), a visit does not start it, and the cron job is the way.
+- **A job at the same time every day is no longer found early:** the last run was a few seconds after that time, so the next day it was a few seconds short of 24 hours and had to wait for the day after. A backup is due two hours before its interval is up.
+- The script is in `src/` because an update replaces that folder and a new file elsewhere would stop older sites from updating (it is a rule of the release test).
+- Tests: the schedule and its slack, what a run answers (`tests/unit/backup-manager.php`), and the script run for real against a site (`tests/http/backup_schedule_test.py`). `docs/backups.md` says when a backup runs.
+
 ## 0.1.87 — 2026-10-06 — A character count in the SEO tab
 - **The SEO tab of an entry (and of a form) counts the characters of its four texts and says whether the length suits, in colour:** green for a good length, amber for a little short or a little long, red for too long. It is in the line under each field, and the words say the same as the colour ("62 characters · a little long, it may be cut off (over 60)").
 - **Lengths:** search title 30–60 (cut off over 70), search description 70–160 (over 180), share title 30–70 (over 90), share description 60–200 (over 250). Letters are counted, not bytes (Greek letters and emoji count as one).

@@ -49,6 +49,14 @@ check('monthly, 20 days ago: not due', BackupManager::isDue(time() - 20 * 86400,
 check('monthly, 31 days ago: due', BackupManager::isDue(time() - 31 * 86400, 'monthly'), true);
 check('an unknown schedule is never due', BackupManager::isDue(time() - 999999999, 'hourly'), false);
 
+// A job that runs at the same time every day has its last run a few seconds after that time: the next day it must not be found early.
+$noon = 1760270400;
+check('daily, a job one day later (a few seconds short of 24 hours): due', BackupManager::isDue($noon + 12, 'daily', $noon + 86400), true);
+check('daily, a minute under 22 hours later: not due (the slack is two hours)', BackupManager::isDue($noon, 'daily', $noon + 22 * 3600 - 60), false);
+check('daily, 23 hours later: due', BackupManager::isDue($noon, 'daily', $noon + 23 * 3600), true);
+check('weekly, a job a week later: due; five days later: not', [BackupManager::isDue($noon + 12, 'weekly', $noon + 7 * 86400), BackupManager::isDue($noon, 'weekly', $noon + 5 * 86400)], [true, false]);
+check('monthly: thirty days later is due, a month of 20 days is not', [BackupManager::isDue($noon + 12, 'monthly', $noon + 30 * 86400), BackupManager::isDue($noon, 'monthly', $noon + 20 * 86400)], [true, false]);
+
 // ---- words for a result
 check('failed', BackupManager::status(['ok' => false]), 'failed');
 check('success', BackupManager::status(['ok' => true, 'status' => 'success']), 'success');
@@ -135,19 +143,20 @@ check('the same one is not repeated', count($notes->recent(10)), 3);
 
 // ---- the schedule
 $before = count($service->list());
-$m->runIfDue();
-check('off: nothing runs', [count($service->list()), $lastRuns], [$before, []]);
+$offResult = $m->runIfDue();
+check('off: nothing runs', [count($service->list()), $lastRuns, $offResult], [$before, [], 'off']);
 $settings['backup']['auto'] = ['enabled' => true, 'schedule' => 'hourly', 'last_run' => ''];
-$m->runIfDue();
-check('an unknown schedule does not run', count($service->list()), $before);
+$unknown = $m->runIfDue();
+check('an unknown schedule does not run', [count($service->list()), $unknown], [$before, 'off']);
 $settings['backup']['auto'] = ['enabled' => true, 'schedule' => 'daily', 'last_run' => ''];
 sleep(1);
-$m->runIfDue();
-check('due: a scheduled backup is made, the time stored, the run recorded', [count($service->list()) > 0, count($lastRuns), $runs->recent(1)[0]['status']], [true, 1, 'success']);
+check('due, asked without doing: the schedule says so', $m->isRunDue(), true);
+$ran = $m->runIfDue();
+check('due: a scheduled backup is made, the time stored, the run recorded', [count($service->list()) > 0, count($lastRuns), $runs->recent(1)[0]['status'], $ran], [true, 1, 'success', 'ok']);
 check('and it says it was scheduled', $service->list()[0]['reason'], 'scheduled');
 $count = count($service->list());
-$m->runIfDue();
-check('just ran: not due again', [count($service->list()), count($lastRuns)], [$count, 1]);
+$again = $m->runIfDue();
+check('just ran: not due again', [count($service->list()), count($lastRuns), $again, $m->isRunDue()], [$count, 1, 'not due', false]);
 $settings['backup']['auto']['last_run'] = date('c', time() - 2 * 86400);
 $lock = fopen($dir . '/storage/backups/.auto-backup.lock', 'c');
 flock($lock, LOCK_EX);

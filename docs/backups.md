@@ -18,6 +18,16 @@ The database is copied with SQLite `VACUUM INTO`, so the archive holds one clean
 
 Archives made before manifests existed show a **No checksums** badge. They can still be restored after an explicit acknowledgement.
 
+## When a scheduled backup runs
+
+Settings > Backup chooses a schedule (daily, weekly or monthly). A PHP site has no clock of its own, so a scheduled backup is taken when something asks for it:
+
+- **After a visit to the public site**, once the page has been sent (so the visitor never waits for it), when a backup is due. This needs PHP-FPM or LiteSpeed (`fastcgi_finish_request`); on other setups a visit does not start it.
+- **When someone opens the admin**, on any server.
+- **From a cron job**, which does not depend on visits at all: `php /path/to/site/src/cron-backup.php`, once a day (for example `0 3 * * * …`). It prints `off`, `not due`, `busy`, `ok` or `failed`, and does nothing when no backup is due, so running it more often does no harm. Backups > Policy shows the line with the real path.
+
+A site that nobody visits, on a server without FPM and with no cron job, takes no scheduled backups: that is the case for a quiet site, and why the cron job is advised. A backup is due when the last one is older than the interval, less two hours, so a job that runs at the same time every day is not found a few seconds early. Only one run goes at a time (a lock in the backups folder).
+
 ## Retention and remote copies
 
 - `Settings > Backups > Keep local` limits how many archives stay in `storage/backups/` (all types together). Pre-restore safety snapshots never trigger pruning, so the archive being restored cannot be deleted by it.
