@@ -3074,11 +3074,14 @@ final class App
         $this->redirectOrRemember404();
         http_response_code(404);
         $lang = $this->currentLang ?: ($this->settings['languages']['default'] ?? 'en');
+        // The site's own menus, as on every other page; without them the header falls back to the theme's sample links.
+        $menus = $this->menus()->forTheme($lang, '');
         if ($this->theme->hasTemplate('templates/404.twig')) {
             $this->render('templates/404.twig', [
                 'lang' => $lang,
                 'lang_prefix' => $this->langPrefix($lang),
                 'current_lang' => $lang,
+                'theme_menus' => $menus,
             ]);
             return;
         }
@@ -3093,6 +3096,7 @@ final class App
             'lang' => $lang,
             'lang_prefix' => $this->langPrefix($lang),
             'current_lang' => $lang,
+            'theme_menus' => $menus,
         ]);
     }
 
