@@ -1,0 +1,30 @@
+label: Banner
+description: An announcement or highlight, as a slim strip or a boxed callout with an optional button. Visitors can dismiss it if you allow that.
+category: Openers
+variants:
+  strip: Slim strip
+  callout: Boxed callout
+tone: accent
+spacing: compact
+fields:
+  icon:
+    type: icon
+    label: Icon
+    default: megaphone
+  title:
+    type: text
+    label: Title
+  text:
+    type: textarea
+    label: Text
+  link_label:
+    type: text
+    label: Link text
+  url:
+    type: link
+    label: Link
+  dismissible:
+    type: toggle
+    label: Let visitors dismiss it
+    help: The choice is remembered in the visitor's browser for 30 days, and shown again if you change the text.
+    default: false

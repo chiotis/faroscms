@@ -1,0 +1,36 @@
+label: Downloads
+description: Documents to download, each with its kind of file and size. Pick the files from the media library; the size is read from the file.
+category: Content
+variants:
+  list: List
+  cards: Cards
+fields:
+  eyebrow:
+    type: text
+    label: Eyebrow
+  heading:
+    type: text
+    label: Heading
+  intro:
+    type: textarea
+    label: Introduction
+  columns:
+    type: select
+    label: Columns
+    default: '2'
+    options: { '1': '1', '2': '2', '3': '3' }
+    when: { variant: cards }
+  button_label:
+    type: text
+    label: Button text
+    placeholder: Download
+  items:
+    type: repeater
+    label: Files
+    item_label: File
+    max: 30
+    fields:
+      title: { type: text, label: Title, help: Leave empty to use the file name. }
+      description: { type: textarea, label: Short description }
+      file: { type: file, label: File }
+      size: { type: text, label: Size, placeholder: 2.4 MB, help: Leave empty to read it from the file. }

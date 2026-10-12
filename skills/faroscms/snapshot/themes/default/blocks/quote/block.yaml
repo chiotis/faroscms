@@ -1,0 +1,26 @@
+label: Quote
+description: One large quotation, with who said it and an optional photo.
+category: Content
+variants:
+  centered: Centered
+  bar: Left, with a bar
+  photo: Photo beside the quote
+fields:
+  quote:
+    type: textarea
+    label: Quote
+  name:
+    type: text
+    label: Name
+  role:
+    type: text
+    label: Role or source
+    placeholder: CEO, Example Ltd
+  image:
+    type: image
+    label: Photo
+    when: { variant: photo }
+  mark:
+    type: toggle
+    label: Show the quotation mark
+    default: true

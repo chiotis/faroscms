@@ -1,0 +1,8 @@
+kind: page
+label: { el: 'Νομική σελίδα', en: 'Legal page' }
+description: { el: 'Κείμενο με λίστα περιεχομένων στο πλάι, φτιαγμένη από τους τίτλους ## του κειμένου. Για όρους χρήσης, απόρρητο, cookies.', en: 'Text with a contents list beside it, made from the ## headings of the text. For terms, privacy, and cookies.' }
+blocks:
+  el:
+    - { type: text, variant: contents, body: "Τελευταία ενημέρωση: ημερομηνία.\n\n## 1. Ποιοι είμαστε\n\nΟνομασία, διεύθυνση και στοιχεία επικοινωνίας του υπευθύνου.\n\n## 2. Τι δεδομένα συλλέγουμε\n\nΠεριγράψτε ποια δεδομένα και σε ποιες περιπτώσεις.\n\n## 3. Πώς τα χρησιμοποιούμε\n\nΣκοπός και νομική βάση της επεξεργασίας.\n\n## 4. Πόσο τα κρατάμε\n\nΧρόνος διατήρησης για κάθε κατηγορία.\n\n## 5. Τα δικαιώματά σας\n\nΠρόσβαση, διόρθωση, διαγραφή, εναντίωση και πώς να τα ασκήσετε.\n\n## 6. Επικοινωνία\n\nΠώς μπορείτε να μας γράψετε για ό,τι αφορά τα δεδομένα σας." }
+  en:
+    - { type: text, variant: contents, body: "Last updated: date.\n\n## 1. Who we are\n\nName, address, and contact details of the controller.\n\n## 2. What data we collect\n\nDescribe which data, and in which cases.\n\n## 3. How we use it\n\nThe purpose and legal basis of the processing.\n\n## 4. How long we keep it\n\nRetention time for each category.\n\n## 5. Your rights\n\nAccess, correction, deletion, objection, and how to use them.\n\n## 6. Contact\n\nHow to write to us about anything concerning your data." }

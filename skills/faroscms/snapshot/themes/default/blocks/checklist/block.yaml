@@ -1,0 +1,37 @@
+label: Checklist
+description: A list of points marked with a tick or an icon. What is included, what you get, why choose us.
+category: Content
+variants:
+  plain: Plain list
+  cards: Cards
+  split: Heading beside the list
+fields:
+  eyebrow:
+    type: text
+    label: Eyebrow
+  heading:
+    type: text
+    label: Heading
+  intro:
+    type: textarea
+    label: Introduction
+  columns:
+    type: select
+    label: Columns
+    default: '2'
+    options: { '1': '1', '2': '2', '3': '3' }
+  icon:
+    type: icon
+    label: Mark
+    default: check
+    help: The mark in front of each point. A point can choose its own.
+  items:
+    type: repeater
+    label: Points
+    item_label: Point
+    max: 40
+    fields:
+      text: { type: text, label: Point }
+      note: { type: textarea, label: Detail, help: A line or two under the point. }
+      icon: { type: icon, label: Mark, help: Leave empty for the block's mark. }
+      excluded: { type: toggle, label: Not included, help: Shown muted with a cross. }

@@ -1,0 +1,10 @@
+kind: section
+label: { el: 'Κείμενο και εικόνα εναλλάξ', en: 'Alternating text and image' }
+description: { el: 'Δύο ενότητες κειμένου με εικόνα, μία δεξιά και μία αριστερά, για να δείξετε οφέλη.', en: 'Two text sections with an image, one on each side, to show benefits.' }
+blocks:
+  el:
+    - { type: text-image, variant: image-right, eyebrow: 'Όφελος', heading: 'Πρώτο βασικό όφελος', body: "Περιγράψτε το όφελος σε δύο-τρεις προτάσεις.\n\n- Πρώτο σημείο\n- Δεύτερο σημείο\n- Τρίτο σημείο" }
+    - { type: text-image, variant: image-left, tone: muted, eyebrow: 'Όφελος', heading: 'Δεύτερο βασικό όφελος', body: "Περιγράψτε το όφελος σε δύο-τρεις προτάσεις.\n\n- Πρώτο σημείο\n- Δεύτερο σημείο" }
+  en:
+    - { type: text-image, variant: image-right, eyebrow: 'Benefit', heading: 'First key benefit', body: "Describe the benefit in two or three sentences.\n\n- First point\n- Second point\n- Third point" }
+    - { type: text-image, variant: image-left, tone: muted, eyebrow: 'Benefit', heading: 'Second key benefit', body: "Describe the benefit in two or three sentences.\n\n- First point\n- Second point" }

@@ -1,0 +1,39 @@
+label: Table
+description: A data table with a header row. Type one row to a line, or paste a range copied from a spreadsheet.
+category: Content
+variants:
+  lines: Lines
+  striped: Striped rows
+  boxed: Boxed
+fields:
+  eyebrow:
+    type: text
+    label: Eyebrow
+  heading:
+    type: text
+    label: Heading
+  intro:
+    type: textarea
+    label: Introduction
+  head:
+    type: text
+    label: Column titles
+    placeholder: Plan | Users | Price
+    help: Divided by |. Leave empty for a table without a header row.
+  rows:
+    type: textarea
+    label: Rows
+    help: One row to a line, cells divided by | (or paste from a spreadsheet). **bold** and [links](/contact) work in a cell.
+    placeholder: "Starter | 3 | €9\nTeam | 20 | €29"
+  caption:
+    type: text
+    label: Note under the table
+    placeholder: Prices exclude VAT.
+  first_column:
+    type: toggle
+    label: First column as row titles
+    default: true
+  align_numbers:
+    type: toggle
+    label: Align columns of figures to the right
+    default: true

@@ -1,0 +1,8 @@
+kind: section
+label: { el: 'Βίντεο σε μεγάλο παράθυρο', en: 'Video in a large viewer' }
+description: { el: 'Ένα βίντεο με εικόνα προεπισκόπησης που ανοίγει σε μεγάλο παράθυρο. Προσθέστε τον σύνδεσμο YouTube ή Vimeo.', en: 'A video with a preview image that opens in a large viewer. Add your YouTube or Vimeo link.' }
+blocks:
+  el:
+    - { type: video, variant: featured, eyebrow: 'Βίντεο', heading: 'Δείτε πώς δουλεύουμε', intro: 'Ένα σύντομο βίντεο για να μας γνωρίσετε.', videos: [{ title: 'Παρουσίαση', caption: 'Προσθέστε εδώ τον σύνδεσμο του βίντεο.' }] }
+  en:
+    - { type: video, variant: featured, eyebrow: 'Video', heading: 'See how we work', intro: 'A short video to get to know us.', videos: [{ title: 'Introduction', caption: 'Add your video link here.' }] }

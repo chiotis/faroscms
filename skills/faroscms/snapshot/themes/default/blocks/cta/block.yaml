@@ -1,0 +1,28 @@
+label: Call to action
+description: A short, focused invitation with one or two buttons.
+category: Convert
+variants:
+  band: Full-width band
+  card: Contained card
+  split: Text beside the buttons
+tone: accent
+fields:
+  eyebrow:
+    type: text
+    label: Eyebrow
+  heading:
+    type: text
+    label: Heading
+    required: true
+  text:
+    type: textarea
+    label: Text
+  actions:
+    type: repeater
+    label: Buttons
+    item_label: Button
+    max: 2
+    fields:
+      label: { type: text, label: Label }
+      url: { type: link, label: Link }
+      style: { type: select, label: Style, default: primary, options: { primary: Primary, secondary: Secondary } }

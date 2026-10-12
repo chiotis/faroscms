@@ -1,0 +1,31 @@
+label: Marquee
+description: A band that scrolls by itself, with big words or logos. It stops for people who ask for less motion, and has a pause button.
+category: Showcase
+spacing: compact
+variants:
+  text: Big words
+  logos: Logos
+fields:
+  heading:
+    type: text
+    label: Small heading
+    placeholder: Trusted by
+  speed:
+    type: select
+    label: Speed
+    default: normal
+    options: { slow: Slow, normal: Normal, fast: Fast }
+  direction:
+    type: select
+    label: Direction
+    default: left
+    options: { left: Left, right: Right }
+  items:
+    type: repeater
+    label: Items
+    item_label: Item
+    max: 30
+    fields:
+      text: { type: text, label: Text, help: 'The word, or the name of the logo (used when there is no image).' }
+      image: { type: image, label: Logo image }
+      url: { type: link, label: Link }

@@ -1,0 +1,8 @@
+kind: section
+label: { el: 'Τελευταία άρθρα σε στυλ περιοδικού', en: 'Latest posts, magazine style' }
+description: { el: 'Ένα μεγάλο κύριο άρθρο και κάρτες από κάτω. Ενημερώνεται μόνο του με κάθε νέο άρθρο.', en: 'A large lead story with cards below. Updates by itself with every new post.' }
+blocks:
+  el:
+    - { type: latest, variant: magazine, eyebrow: 'Νέα', heading: 'Τελευταία άρθρα', link_label: 'Όλα τα άρθρα', link_url: posts, limit: 4 }
+  en:
+    - { type: latest, variant: magazine, eyebrow: 'News', heading: 'Latest posts', link_label: 'All posts', link_url: posts, limit: 4 }

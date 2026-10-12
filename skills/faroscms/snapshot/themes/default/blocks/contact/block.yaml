@@ -1,0 +1,32 @@
+label: Contact
+description: Contact details (phone, email, address, hours) with an optional form beside them.
+category: Convert
+variants:
+  split: Details beside the form
+  cards: Details as cards
+tone: default
+fields:
+  eyebrow:
+    type: text
+    label: Eyebrow
+  heading:
+    type: text
+    label: Heading
+  intro:
+    type: textarea
+    label: Introduction
+  items:
+    type: repeater
+    label: Details
+    item_label: Detail
+    max: 8
+    fields:
+      icon: { type: icon, label: Icon }
+      label: { type: text, label: Label, placeholder: Phone }
+      value: { type: textarea, label: Value }
+      url: { type: link, label: Link, help: 'e.g. tel:+302100000000 or mailto:hello@example.com' }
+  form:
+    type: select
+    label: Form
+    default: ''
+    options_from: forms

@@ -1,0 +1,16 @@
+kind: page
+label: { el: 'Σχετικά με εμάς', en: 'About us' }
+description: { el: 'Εισαγωγή, η ιστορία σε χρονολόγιο, αριθμοί, η ομάδα και κάλεσμα.', en: 'Introduction, the story as a timeline, numbers, the team, and a call to action.' }
+blocks:
+  el:
+    - { type: text, variant: lead, body: 'Μία παράγραφος που λέει ποιοι είστε, τι πιστεύετε και για ποιους δουλεύετε.' }
+    - { type: timeline, variant: alternating, tone: muted, eyebrow: 'Η διαδρομή μας', heading: 'Πώς φτάσαμε εδώ', items: [{ label: 'Έτος', title: 'Η αρχή', text: 'Πώς ξεκινήσατε.' }, { label: 'Έτος', title: 'Ένα ορόσημο', text: 'Τι άλλαξε.' }, { label: 'Σήμερα', title: 'Πού βρισκόμαστε', text: 'Τι κάνετε σήμερα.' }] }
+    - { type: stats, variant: cards, items: [{ value: '10+', label: 'Χρόνια' }, { value: '12', label: 'Άτομα' }, { value: '200+', label: 'Έργα' }] }
+    - { type: team, variant: grid, columns: '4', eyebrow: 'Η ομάδα', heading: 'Οι άνθρωποι πίσω από τη δουλειά', members: [{ name: 'Όνομα Επώνυμο', role: 'Ρόλος' }, { name: 'Όνομα Επώνυμο', role: 'Ρόλος' }, { name: 'Όνομα Επώνυμο', role: 'Ρόλος' }, { name: 'Όνομα Επώνυμο', role: 'Ρόλος' }] }
+    - { type: cta, variant: split, tone: contrast, heading: 'Θέλετε να δουλέψουμε μαζί;', actions: [{ label: 'Επικοινωνία', url: contact }] }
+  en:
+    - { type: text, variant: lead, body: 'One paragraph that says who you are, what you believe, and who you work for.' }
+    - { type: timeline, variant: alternating, tone: muted, eyebrow: 'Our story', heading: 'How we got here', items: [{ label: 'Year', title: 'The beginning', text: 'How you started.' }, { label: 'Year', title: 'A milestone', text: 'What changed.' }, { label: 'Today', title: 'Where we are', text: 'What you do today.' }] }
+    - { type: stats, variant: cards, items: [{ value: '10+', label: 'Years' }, { value: '12', label: 'People' }, { value: '200+', label: 'Projects' }] }
+    - { type: team, variant: grid, columns: '4', eyebrow: 'The team', heading: 'The people behind the work', members: [{ name: 'First Last', role: 'Role' }, { name: 'First Last', role: 'Role' }, { name: 'First Last', role: 'Role' }, { name: 'First Last', role: 'Role' }] }
+    - { type: cta, variant: split, tone: contrast, heading: 'Want to work together?', actions: [{ label: 'Contact us', url: contact }] }

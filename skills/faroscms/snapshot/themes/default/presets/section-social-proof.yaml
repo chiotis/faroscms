@@ -1,0 +1,10 @@
+kind: section
+label: { el: 'Αριθμοί και σχόλια πελατών', en: 'Numbers and client quotes' }
+description: { el: 'Βασικά νούμερα και τρία σχόλια πελατών για να χτίσετε εμπιστοσύνη.', en: 'Key figures and three client quotes to build trust.' }
+blocks:
+  el:
+    - { type: stats, variant: row, eyebrow: 'Με λίγα λόγια', heading: 'Αποτελέσματα που μετράνε', items: [{ value: '10+', label: 'Χρόνια εμπειρίας' }, { value: '200+', label: 'Ολοκληρωμένα έργα' }, { value: '95%', label: 'Ικανοποιημένοι πελάτες' }] }
+    - { type: testimonials, variant: grid, eyebrow: 'Σχόλια πελατών', heading: 'Τι λένε για εμάς', items: [{ quote: 'Γράψτε εδώ ένα πραγματικό σχόλιο πελάτη.', name: 'Όνομα Επώνυμο', role: 'Ρόλος, Εταιρεία' }, { quote: 'Γράψτε εδώ ένα πραγματικό σχόλιο πελάτη.', name: 'Όνομα Επώνυμο', role: 'Ρόλος, Εταιρεία' }, { quote: 'Γράψτε εδώ ένα πραγματικό σχόλιο πελάτη.', name: 'Όνομα Επώνυμο', role: 'Ρόλος, Εταιρεία' }] }
+  en:
+    - { type: stats, variant: row, eyebrow: 'In short', heading: 'Results that add up', items: [{ value: '10+', label: 'Years of experience' }, { value: '200+', label: 'Projects delivered' }, { value: '95%', label: 'Satisfied clients' }] }
+    - { type: testimonials, variant: grid, eyebrow: 'Client feedback', heading: 'What clients say', items: [{ quote: 'Write a real client quote here.', name: 'First Last', role: 'Role, Company' }, { quote: 'Write a real client quote here.', name: 'First Last', role: 'Role, Company' }, { quote: 'Write a real client quote here.', name: 'First Last', role: 'Role, Company' }] }
