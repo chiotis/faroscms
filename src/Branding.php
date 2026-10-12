@@ -159,6 +159,21 @@ final class Branding
         if ($uppercase && !isset(self::TRACKING[$tracking])) {
             $vars['--heading-tracking'] = '0.02em';
         }
+        // The colour of headings: the accent follows the palette and the mode; own colours are one for each mode (a mode left empty keeps the text).
+        $headingColor = (string)($design['heading_color'] ?? 'text');
+        $headingDark = null;
+        if ($headingColor === 'accent') {
+            $vars['--heading-color'] = 'var(--accent)';
+        } elseif ($headingColor === 'custom') {
+            $lightHeading = self::hex($design['heading_color_light'] ?? '');
+            $darkHeading = self::hex($design['heading_color_dark'] ?? '');
+            if ($lightHeading !== null) {
+                $vars['--heading-color'] = $lightHeading;
+            }
+            if ($lightHeading !== null || $darkHeading !== null) {
+                $headingDark = $darkHeading ?? 'initial';
+            }
+        }
         $headings = [];
         $leading = (string)($design['heading_leading'] ?? '');
         if (isset(self::LEADING[$leading])) {
@@ -257,6 +272,10 @@ final class Branding
                 $declarations .= $name . ':' . $value . ';';
             }
             $css .= self::ROOT . '{' . $declarations . '}';
+        }
+        if ($headingDark !== null) {
+            $rules[] = ':root.dark[data-theme][data-mode]{--heading-color:' . $headingDark . '}';
+            $rules[] = '@media(prefers-color-scheme:dark){:root[data-mode="system"]:not(.light)[data-theme]{--heading-color:' . $headingDark . '}}';
         }
         return $css . implode('', $rules);
     }

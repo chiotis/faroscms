@@ -42,7 +42,7 @@
   {% if contact.email|default('') %}<a href="mailto:{{ contact.email }}">{{ icon('mail') }}<span>{{ contact.email }}</span></a>{% endif %}
 {% endset %}
 
-{% set row_tone = hs.row_tone|default('default') in ['muted', 'soft', 'contrast', 'accent'] ? hs.row_tone : 'default' %}
+{% set row_tone = hs.row_tone|default('default') in ['muted', 'soft', 'fade-muted', 'fade-soft', 'contrast', 'accent'] ? hs.row_tone : 'default' %}
 {% set search_mode = hs.search|default('icon') in ['field', 'none'] ? hs.search : 'icon' %}
 {% set search_field = search_mode == 'field' %}
 {# A switch that is off is false, which Twig's default() would turn back into its default. #}

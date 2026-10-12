@@ -25,6 +25,7 @@
   var live = form.querySelector('[data-taxonomy-live]');
   var template = document.querySelector('[data-term-row-template]');
   var dialog = document.querySelector('[data-term-dialog]');
+  var dlgHero = dialog ? dialog.querySelector('[data-dialog-hero]') : null;
   var dialogForm = dialog.querySelector('[data-term-dialog-form]');
   var kind = form.getAttribute('data-kind') || 'tag';
   var defaultLang = form.getAttribute('data-default-language') || '';
@@ -84,6 +85,14 @@
       if (value === '') span.className = 'text-amber-700';
       others.appendChild(span);
     });
+
+    var heroField = field(row, 'hero_layout');
+    var heroNote = row.querySelector('[data-term-hero]');
+    if (heroNote) {
+      var chosen = heroField && dlgHero ? dlgHero.querySelector('option[value="' + heroField.value + '"]') : null;
+      heroNote.classList.toggle('hidden', !chosen || heroField.value === '');
+      if (chosen) heroNote.querySelector('[data-term-hero-label]').textContent = chosen.textContent;
+    }
 
     var text = field(row, 'description', defaultLang);
     var describe = text && text.value.trim() !== '' ? text.value.trim() : '';
@@ -290,6 +299,7 @@
       dialogInput('description', lang).value = row ? field(row, 'description', lang).value : '';
     });
     dlgSlug.value = row ? field(row, 'slug').value : '';
+    if (dlgHero) dlgHero.value = row && field(row, 'hero_layout') ? field(row, 'hero_layout').value : '';
     dlgTitle.textContent = row ? 'Edit term' : 'Add term';
     dlgSub.textContent = row ? 'Changes are applied when you press Save on the page.' : 'Give it a name in each language you use.';
     dlgApply.textContent = row ? 'Update term' : 'Add term';
@@ -330,6 +340,8 @@
       label.value = names[lang];
       text.value = descriptions[lang];
     });
+    var heroField = field(row, 'hero_layout');
+    if (heroField && dlgHero && heroField.value !== dlgHero.value) { heroField.value = dlgHero.value; changed = true; }
     var slugField = field(row, 'slug');
     var typed = dlgSlug.value.trim();
     if (slugField.value !== typed && (added || typed !== '')) changed = true;

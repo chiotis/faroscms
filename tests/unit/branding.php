@@ -81,6 +81,16 @@ check('heading weight, letter spacing, line height and case, and the line height
     has($css, '--heading-weight:800;'), has($css, '--heading-tracking:0.025em;'), has($css, 'h1,h2,h3,h4,h5,h6{line-height:1.35;text-transform:uppercase}'), has($css, 'body.theme-body{line-height:1.8}'),
 ], [true, true, true, true]);
 check('capitals without a letter spacing of their own get a little', has(Branding::css(['design' => ['heading_case' => 'uppercase']]), '--heading-tracking:0.02em;'), true);
+$css = Branding::css(['design' => ['heading_color' => 'accent']]);
+check('headings in the palette colour follow the accent of the mode', [has($css, '--heading-color:var(--accent);'), has($css, ':root.dark')], [true, false]);
+$css = Branding::css(['design' => ['heading_color' => 'custom', 'heading_color_light' => '#b00020', 'heading_color_dark' => '#ff8a80']]);
+check('own heading colours: one for light, one for the dark mode (chosen or system)', [has($css, '--heading-color:#b00020;'), has($css, ':root.dark[data-theme][data-mode]{--heading-color:#ff8a80}'), has($css, '@media(prefers-color-scheme:dark){:root[data-mode="system"]:not(.light)[data-theme]{--heading-color:#ff8a80}}')], [true, true, true]);
+$css = Branding::css(['design' => ['heading_color' => 'custom', 'heading_color_light' => '#b00020']]);
+check('a dark mode left empty keeps the text colour', has($css, ':root.dark[data-theme][data-mode]{--heading-color:initial}'), true);
+$css = Branding::css(['design' => ['heading_color' => 'custom', 'heading_color_dark' => '#ff8a80']]);
+check('and a light mode left empty keeps it too', [has($css, ':root[data-theme][data-mode]{'), has($css, '{--heading-color:#ff8a80}')], [false, true]);
+check('own colours without any colour, and the default, add nothing', [Branding::css(['design' => ['heading_color' => 'custom']]), Branding::css(['design' => ['heading_color' => 'text', 'heading_color_light' => '#b00020']])], ['', '']);
+check('a value that is not a colour is not written', has(Branding::css(['design' => ['heading_color' => 'custom', 'heading_color_light' => 'red;}body{display:none']]), 'display'), false);
 check('a weight or word that is not on the list is ignored', Branding::css(['design' => ['heading_weight' => '999', 'heading_tracking' => 'x', 'heading_leading' => 'y', 'button_weight' => '100']]), '');
 
 // ---- layout, spacing, corners, buttons, logo

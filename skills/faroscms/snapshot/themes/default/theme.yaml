@@ -80,6 +80,10 @@ single_layouts:
       type: toggle
       label: Excerpt
       default: true
+    breadcrumbs:
+      type: toggle
+      label: Breadcrumbs
+      default: false
     byline:
       type: toggle
       label: Date and terms
@@ -222,11 +226,13 @@ settings:
         type: select
         label: Header background
         default: default
-        help: The row with the logo. A solid colour, not a gradient.
+        help: The row with the logo. A fade goes from the colour down into the page background, so the header melts into the page.
         options:
           default: Page background
           muted: Muted (the soft surface colour)
           soft: Soft tint of the palette colour
+          fade-muted: Fades from the muted colour into the page
+          fade-soft: Fades from the soft tint into the page
           contrast: Dark
           accent: Palette colour
       search:
@@ -588,6 +594,17 @@ settings:
         options:
           auto: As typed
           uppercase: Capitals
+      heading_color:
+        type: select
+        label: Heading colour
+        default: text
+        help: Page titles, section titles and the headings of the text. Dark panels, the footer and headings over pictures keep their own colour.
+        options:
+          text: Same as the text
+          accent: The palette colour (the accent)
+          custom: Your own colours
+      heading_color_light: {type: color, hex: true, label: Headings, default: ''}
+      heading_color_dark: {type: color, hex: true, label: Headings, default: ''}
       container:
         type: number
         blank: true

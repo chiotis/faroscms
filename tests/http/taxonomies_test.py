@@ -197,6 +197,29 @@ f = next(f for f in root.forms('/admin/taxonomies?taxonomy=tags') if is_tax_form
 save(root, 'tags', {}, drop=['term_description[el][]', 'term_description[en][]'])
 check('a form sent without description boxes leaves them', 'About growth strategy' in pub.get('/en/tag/stratigiki')[2])
 
+# ---- a term chooses how its entries open
+st, _, html = root.get('/admin/taxonomies?taxonomy=tags')
+check('every row carries a title area, and the dialog offers the theme\'s styles', 'name="term_hero_layout[]"' in html and 'data-dialog-hero' in html and all(('value="%s"' % k) in html.split('data-dialog-hero')[1] for k in ('default', 'centered', 'split', 'cover', 'minimal')))
+st, _, html = pub.get('/en/rebrand-readiness-guide')
+check('without a choice the entry opens as its type says', 'single-hero-centered' not in html and 'single-hero-minimal' not in html, st)
+rows = terms_of('tags')
+hero = ['minimal' if i == 'strategy' else '' for i, s, l in rows]
+st, hdr, _ = save_terms(root, 'tags', [(i, s, l['el'], l['en']) for i, s, l in rows], {'term_hero_layout[]': hero})
+check('saving a title area for a term', 'saved=1' in loc(hdr), loc(hdr))
+st, _, html = root.get('/admin/taxonomies?taxonomy=tags')
+check('shows it in the row', 'Title area: <span data-term-hero-label>' in html and re.search(r'name="term_hero_layout\[\]" value="minimal"', html) is not None)
+st, _, html = pub.get('/en/rebrand-readiness-guide')
+check('and the entries filed under the term open with it', 'single-hero-minimal' in html, st)
+open('app/content/posts/rebrand-readiness-guide.en.md', 'a', encoding='utf-8').write('')
+src = open('app/content/posts/rebrand-readiness-guide.en.md', encoding='utf-8').read()
+open('app/content/posts/rebrand-readiness-guide.en.md', 'w', encoding='utf-8').write(src.replace("status: published\n", "status: published\nhero_layout: centered\n", 1))
+st, _, html = pub.get('/en/rebrand-readiness-guide')
+check('an entry\'s own choice wins over its term\'s', 'single-hero-centered' in html and 'single-hero-minimal' not in html, st)
+open('app/content/posts/rebrand-readiness-guide.en.md', 'w', encoding='utf-8').write(src)
+st, hdr, _ = save_terms(root, 'tags', [(i, s, l['el'], l['en']) for i, s, l in rows], {'term_hero_layout[]': ['' for _ in rows]})
+check('an empty choice takes it away', 'single-hero-minimal' not in pub.get('/en/rebrand-readiness-guide')[2])
+rows = terms_of('tags')
+
 # ---- removing a term
 rows = [(i, s, l['el'], l['en']) for i, s, l in terms_of('tags') if i != 'growth']
 st, hdr, _ = save_terms(root, 'tags', rows)

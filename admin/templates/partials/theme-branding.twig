@@ -25,6 +25,7 @@
   heading_tracking: {auto: 'Theme', tighter: 'Tighter', tight: 'Tight', normal: 'Normal', wide: 'Wide'},
   heading_leading: {auto: 'Theme', tight: 'Tight', normal: 'Normal', relaxed: 'Relaxed'},
   heading_case: {auto: 'As typed', uppercase: 'CAPITALS'},
+  heading_color: {text: 'Text', accent: 'Palette', custom: 'Own'},
   spacing: {auto: 'Theme', tight: 'Tight', airy: 'Airy', roomy: 'Roomy'},
   button_radius: {auto: 'Theme', pill: 'Pill', rounded: 'Rounded', square: 'Square'},
   shadows: {auto: 'Theme', none: 'None', strong: 'Strong'},
@@ -33,7 +34,7 @@
 } %}
 {% set known_a = ['mode', 'palette', 'font', 'glow', 'shape'] %}
 {% set known_b = ['logo', 'logo_dark', 'show_name', 'logo_height', 'logo_height_mobile', 'footer_logo_height', 'name_size', 'favicon', 'touch_icon', 'theme_color', 'share_image'] %}
-{% set known_d = ['light_accent', 'light_background', 'light_surface', 'light_text', 'light_muted', 'light_border', 'dark_accent', 'dark_background', 'dark_surface', 'dark_text', 'dark_muted', 'dark_border', 'ink', 'heading_font', 'body_font', 'font_file', 'base_size', 'line_height', 'scale', 'heading_weight', 'heading_tracking', 'heading_leading', 'heading_case', 'container', 'reading_width', 'gutter', 'section_space', 'header_height', 'spacing', 'radius', 'button_radius', 'shadows', 'button_height', 'button_pad', 'button_size', 'button_weight', 'button_case'] %}
+{% set known_d = ['light_accent', 'light_background', 'light_surface', 'light_text', 'light_muted', 'light_border', 'dark_accent', 'dark_background', 'dark_surface', 'dark_text', 'dark_muted', 'dark_border', 'ink', 'heading_font', 'body_font', 'font_file', 'base_size', 'line_height', 'scale', 'heading_weight', 'heading_tracking', 'heading_leading', 'heading_case', 'heading_color', 'heading_color_light', 'heading_color_dark', 'container', 'reading_width', 'gutter', 'section_space', 'header_height', 'spacing', 'radius', 'button_radius', 'shadows', 'button_height', 'button_pad', 'button_size', 'button_weight', 'button_case'] %}
 {% set roles = [['accent', 'Accent'], ['background', 'Background'], ['surface', 'Surface'], ['text', 'Text'], ['muted', 'Muted text'], ['border', 'Border']] %}
 
 <div class="bp" data-bp data-preview data-mode="css" data-endpoint="{{ url('admin/theme?preview=branding') }}">
@@ -110,9 +111,17 @@
                   <td colspan="2">{{ c.colour('Dark panels and footer', pd ~ 'ink]', vd.ink) }}</td>
                 </tr>
               {% endif %}
+              {% if d.heading_color_light is defined %}
+                <tr>
+                  <th scope="row">Headings</th>
+                  {% for mode in ['light', 'dark'] %}
+                    <td>{{ c.colour('Headings, ' ~ mode, pd ~ 'heading_color_' ~ mode ~ ']', vd['heading_color_' ~ mode]) }}</td>
+                  {% endfor %}
+                </tr>
+              {% endif %}
             </tbody>
           </table>
-          <p class="m-0 text-[11px] leading-4 text-slate-500">Empty keeps the palette’s colour. The hover and soft shades and the text colour on the accent are worked out from the accent you choose.</p>
+          <p class="m-0 text-[11px] leading-4 text-slate-500">Empty keeps the palette’s colour. The hover and soft shades and the text colour on the accent are worked out from the accent you choose. The colours of headings count when Heading colour (under Typography) is on “Own”.</p>
           <button type="button" class="bp-reset" data-bp-reset="colour">Back to the palette’s colours</button>
         </div>
       </details>
@@ -142,7 +151,7 @@
           </div>
           <dl class="m-0 space-y-2.5">
             {% if d.scale is defined %}{{ c.choice(d.scale, pd ~ 'scale]', vd.scale, 'select', {}) }}{% endif %}
-            {% for key in ['heading_weight', 'heading_tracking', 'heading_leading', 'heading_case'] %}
+            {% for key in ['heading_weight', 'heading_tracking', 'heading_leading', 'heading_case', 'heading_color'] %}
               {% if d[key] is defined %}{{ c.choice(d[key], pd ~ key ~ ']', vd[key], 'seg', short[key]) }}{% endif %}
             {% endfor %}
           </dl>

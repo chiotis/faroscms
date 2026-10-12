@@ -22,7 +22,7 @@
 {% endmacro %}
 
 {# One row. `term` is empty for the template JavaScript copies when a term is added. #}
-{% macro term_row(term, languages, default_language, kind, type_names, icon_btn, taxonomy) %}
+{% macro term_row(term, languages, default_language, kind, type_names, icon_btn, taxonomy, title_layouts) %}
   {% import _self as me %}
   {% set primary = term.labels[default_language]|default('') %}
   {% if primary == '' %}{% for text in term.labels %}{% if primary == '' and text != '' %}{% set primary = text %}{% endif %}{% endfor %}{% endif %}
@@ -50,12 +50,14 @@
               {% endif %}
             {% endfor %}
           </p>
+          <p data-term-hero class="mt-0.5 text-xs text-slate-500{% if term.hero_layout|default('') == '' %} hidden{% endif %}">Title area: <span data-term-hero-label>{{ title_layouts[term.hero_layout|default('')]|default(term.hero_layout|default('')) }}</span></p>
           <p data-term-description class="mt-1 line-clamp-1 max-w-xl text-xs text-slate-500">{{ term.descriptions[default_language]|default('') }}</p>
           <p data-term-removed-note class="mt-1 hidden text-xs font-medium text-rose-700"></p>
         </div>
       </div>
       <input type="hidden" name="term_id[]" value="{{ term.id|default('') }}" data-field="id">
       <input type="hidden" name="term_slug[]" value="{{ term.slug|default('') }}" data-field="slug">
+      {% if title_layouts|default([]) is not empty %}<input type="hidden" name="term_hero_layout[]" value="{{ term.hero_layout|default('') }}" data-field="hero_layout">{% endif %}
       {% for lang in languages %}
         <input type="hidden" name="term_label[{{ lang }}][]" value="{{ term.labels[lang]|default('') }}" data-field="label" data-lang="{{ lang }}">
         <input type="hidden" name="term_description[{{ lang }}][]" value="{{ term.descriptions[lang]|default('') }}" data-field="description" data-lang="{{ lang }}">
@@ -222,7 +224,7 @@
             </thead>
             <tbody data-term-rows class="divide-y divide-slate-100">
               {% for term in taxonomy_terms %}
-                {{ me.term_row(term, languages, default_language, taxonomy_kind, type_names, icon_btn, taxonomy) }}
+                {{ me.term_row(term, languages, default_language, taxonomy_kind, type_names, icon_btn, taxonomy, title_layouts) }}
               {% endfor %}
             </tbody>
           </table>
@@ -304,7 +306,7 @@
 
   {# What JavaScript copies when a term is added. #}
   <template data-term-row-template>
-    {{ me.term_row({id: '', slug: '', labels: {}, descriptions: {}}, languages, default_language, taxonomy_kind, type_names, icon_btn, taxonomy) }}
+    {{ me.term_row({id: '', slug: '', labels: {}, descriptions: {}, hero_layout: ''}, languages, default_language, taxonomy_kind, type_names, icon_btn, taxonomy, title_layouts) }}
   </template>
 
   {# The dialog for adding or editing one term. Its fields have no names, so they are never submitted: Apply copies them into the row. #}
@@ -341,6 +343,16 @@
           </div>
           <p class="hidden text-xs text-amber-700" data-dialog-slug-note>The old address <span class="font-mono" data-dialog-old-slug></span> will keep working and lead here.</p>
         </div>
+        {% if title_layouts is not empty %}
+          <div class="grid gap-1 border-t border-slate-100 pt-4">
+            <label for="term-dialog-hero" class="text-sm font-medium text-slate-700">Title area of its entries</label>
+            <select id="term-dialog-hero" data-dialog-hero class="{{ input_class }}">
+              <option value="">Follow each entry’s own type</option>
+              {% for key, label in title_layouts %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+            </select>
+            <p class="text-xs text-slate-500">How the entries filed under this term open, unless an entry chooses its own. When an entry is filed under several terms, the first one with a choice decides.</p>
+          </div>
+        {% endif %}
         <p class="hidden rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700" role="alert" data-dialog-error></p>
       </div>
       <div class="flex items-center justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-3">

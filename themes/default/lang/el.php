@@ -19,6 +19,7 @@ return [
     'nav.footer.terms' => 'Όροι Χρήσης',
     'nav.footer.cookies' => 'Cookies',
     'nav.footer.contact' => 'Επικοινωνία',
+    'breadcrumb.label' => 'Διαδρομή',
     'archive.suffix' => 'Αρχείο',
     'archive.subtitle' => 'Τελευταίες ενημερώσεις, ιδέες και ανακοινώσεις.',
     'archive.empty' => 'Δεν υπάρχει περιεχόμενο ακόμη.',

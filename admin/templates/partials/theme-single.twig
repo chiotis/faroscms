@@ -92,6 +92,7 @@
                 <dd class="m-0 flex flex-wrap gap-1.5">
                   {{ c.chip(name ~ '[image]', single_fields.image.label, v.image) }}
                   {{ c.chip(name ~ '[excerpt]', single_fields.excerpt.label, v.excerpt) }}
+                  {% if single_fields.breadcrumbs is defined %}{{ c.chip(name ~ '[breadcrumbs]', single_fields.breadcrumbs.label, v.breadcrumbs) }}{% endif %}
                   {% if card.byline %}{{ c.chip(name ~ '[byline]', single_fields.byline.label, v.byline) }}{% endif %}
                 </dd>
               </div>

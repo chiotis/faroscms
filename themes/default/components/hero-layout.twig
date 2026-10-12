@@ -5,12 +5,16 @@
     image(item, settings)        the picture of the title area, or nothing (none, or switched off for the content type)
     parallax(item, settings)     "1" when that picture moves slower than the page (default and cover title areas only)
   Each answers from the entry's own choice (front matter hero_layout / header_transparent), then the single layout of its
-  content type (Theme settings > Single Layouts, read with single_layout()), then the site default.
+  content type (Theme settings > Single Layouts, read with single_layout()), then the site default. The title layout also
+  hears the terms the entry is filed under (term_hero_layout(): a category or tag can choose how its entries open), after the
+  entry's own choice and before its content type's.
 #}
 {% macro layout(item, settings) -%}
   {%- set single = single_layout(item.type|default('pages')) -%}
   {%- set own = item.meta.hero_layout|default('') -%}
-  {%- set layout = own in ['default', 'centered', 'split', 'cover', 'minimal'] ? own : single.title|default('default') -%}
+  {%- set shown = ['default', 'centered', 'split', 'cover', 'minimal'] -%}
+  {%- set by_term = own in shown ? '' : term_hero_layout(item) -%}
+  {%- set layout = own in shown ? own : (by_term in shown ? by_term : single.title|default('default')) -%}
   {%- set image = item.meta.hero_image|default(item.meta.main_image|default('')) -%}
   {#- A cover needs a picture; without one the title area is the plain one. -#}
   {{- layout == 'cover' and (not image or single.image is same as(false)) ? 'default' : layout -}}

@@ -436,6 +436,8 @@ final class ContentTypes
             'title_layout' => ['type' => 'select', 'label' => 'Title area', 'default' => 'default', 'options' => self::TITLE_LAYOUTS],
             'title_image' => ['type' => 'image', 'label' => 'Picture of the title area', 'default' => ''],
             'title_parallax' => ['type' => 'toggle', 'label' => 'Parallax', 'default' => false],
+            // The trail above the title of the list: Home, then the list itself.
+            'breadcrumbs' => ['type' => 'toggle', 'label' => 'Breadcrumbs', 'default' => false],
         ]);
     }
 
@@ -486,7 +488,7 @@ final class ContentTypes
             ? $order
             : $defaults['order'];
         $submitted['per_page'] = FieldSchema::clean($schema['per_page'], $input['per_page'] ?? null);
-        foreach (['show_image', 'show_excerpt', 'show_date', 'show_meta', 'title_parallax'] as $key) {
+        foreach (['show_image', 'show_excerpt', 'show_date', 'show_meta', 'title_parallax', 'breadcrumbs'] as $key) {
             $submitted[$key] = FieldSchema::isTruthy($input[$key] ?? false);
         }
         $chosen = array_map('strval', is_array($input['taxonomies'] ?? null) ? $input['taxonomies'] : []);

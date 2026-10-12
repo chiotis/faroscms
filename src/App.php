@@ -2210,7 +2210,8 @@ final class App
             $languages,
             $default,
             $this->permissions->can($this->auth->user(), 'redirects.manage'),
-            fn(string $type): string => $this->contentTypes()->definition($type, 'en', $default)['label']
+            fn(string $type): string => $this->contentTypes()->definition($type, 'en', $default)['label'],
+            $this->singleLayouts()->titleChoices()
         ) + ['user' => $this->auth->user()]);
     }
 
@@ -2761,6 +2762,22 @@ final class App
         // What the page of one entry of a type does (Theme > Single Layouts): title style, header, parts, sidebar.
         $twig->addFunction(new TwigFunction('single_layout', function (string $type): array {
             return $this->singleLayouts()->forType($type, $this->themeSettings);
+        }));
+
+        // The title area a term asks for the entries filed under it (Admin > Taxonomies), for an entry that has no choice of its own.
+        $twig->addFunction(new TwigFunction('term_hero_layout', function (mixed $item): string {
+            if (!$item instanceof ContentItem) {
+                return '';
+            }
+            foreach ($this->taxonomies()->names() as $name) {
+                foreach (Format::list($item->meta[$name] ?? null) as $termId) {
+                    $layout = $this->taxonomies()->heroLayout($name, $termId);
+                    if ($layout !== '') {
+                        return $layout;
+                    }
+                }
+            }
+            return '';
         }));
 
         $twig->addFunction(new TwigFunction('content_type', function (string $type): array {

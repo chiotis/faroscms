@@ -65,9 +65,10 @@ final class TaxonomyEditor
      * @param array<string, mixed> $get the address's query (what just happened)
      * @param string[] $languages
      * @param \Closure(string): string $typeLabel the name of a content type
+     * @param array<string, string> $titleLayouts the styles of title area the theme offers (none: the term has no such choice)
      * @return array<string, mixed>
      */
-    public function screen(string $taxonomy, array $get, array $languages, string $defaultLang, bool $canRedirects, \Closure $typeLabel): array
+    public function screen(string $taxonomy, array $get, array $languages, string $defaultLang, bool $canRedirects, \Closure $typeLabel, array $titleLayouts = []): array
     {
         $names = $this->store->names();
         $current = $this->store->load($taxonomy);
@@ -118,6 +119,7 @@ final class TaxonomyEditor
             'removed' => (int)($get['removed'] ?? 0),
             'orphaned' => (int)($get['orphaned'] ?? 0),
             'can_redirects' => $canRedirects,
+            'title_layouts' => $titleLayouts,
             'error' => '',
         ];
     }
@@ -257,12 +259,12 @@ final class TaxonomyEditor
     }
 
     /**
-     * The terms of a submitted form, in the order they were sent. A description box that was not sent at all leaves
-     * the descriptions of the terms alone (null); one that was sent empty clears them.
+     * The terms of a submitted form, in the order they were sent. A description box (or a title area choice) that was not
+     * sent at all leaves those of the terms alone (null); one that was sent empty clears them.
      *
      * @param array<string, mixed> $post
      * @param string[] $languages
-     * @return array<int, array{id: string, slug: string, labels: array<string, string>, descriptions: array<string, string>|null}>
+     * @return array<int, array{id: string, slug: string, labels: array<string, string>, descriptions: array<string, string>|null, hero_layout: string|null}>
      */
     public function rowsFromPost(array $post, array $languages): array
     {
@@ -271,9 +273,10 @@ final class TaxonomyEditor
         $slugs = $list('term_slug');
         $labels = $list('term_label');
         $texts = $list('term_description');
+        $heroes = $list('term_hero_layout');
         $rows = [];
         for ($i = 0, $count = max(count($ids), count($slugs)); $i < $count; $i++) {
-            $row = ['id' => trim((string)($ids[$i] ?? '')), 'slug' => (string)($slugs[$i] ?? ''), 'labels' => [], 'descriptions' => $texts === [] ? null : []];
+            $row = ['id' => trim((string)($ids[$i] ?? '')), 'slug' => (string)($slugs[$i] ?? ''), 'labels' => [], 'descriptions' => $texts === [] ? null : [], 'hero_layout' => $heroes === [] ? null : trim((string)($heroes[$i] ?? ''))];
             foreach ($languages as $lang) {
                 $row['labels'][$lang] = trim((string)($labels[$lang][$i] ?? ''));
                 if ($texts !== []) {
