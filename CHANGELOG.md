@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.92 — 2026-10-12 — A page that is not found shows the site's menus
+- **The 404 page has the site's own menus.** A page that was not found was drawn without the site's menus, so its header fell back to the theme's sample links (Home, About, Services, Projects, News, Contact) and its footer menus were empty: on every site the 404 page had another menu. It now gets the menus of its language like every other page.
+- Tests: `tests/http/menu_editor_test.py` checks that a missing page has the same menu as the others.
+
 ## 0.1.91 — 2026-10-12 — The skill finds the WordPress importer for a site installed from the zip
 - **`skills/faroscms/references/importing.md`:** a site installed from the release zip has no `scripts/import-wordpress.php`. An assistant working in such a site is now told not to fall back to the skill's own scripts for a WordPress site, but to find a clone of the repository (or ask for its path, or clone it into a scratch folder), run the importer from there with every path of the site given (`--content`, `--uploads`, `--custom`, `--out`, because the defaults point at the clone's own folders), and never copy the script into the site.
 
