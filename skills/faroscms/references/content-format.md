@@ -66,7 +66,7 @@ Unknown keys are kept and ignored, so they never break anything, but they do not
 
 ### The body
 
-Markdown (CommonMark with tables, strikethrough and autolinks). Write headings from `##`: the title is already the `<h1>`. Extras: `[text](https://…){target=_blank}` opens a new tab; a line `{align=center}` before a paragraph or heading aligns it. Links to pages of the site are relative paths: `/about`, `/en/about`, `/projects/alpha`. A picture is `![description](/uploads/media/<id>.<ext>)`. A form is placed with `[form slug="contact"]` on its own line. Raw HTML in the body is allowed in files but is stripped when someone without the "raw HTML" permission saves the entry in the admin, so prefer Markdown and blocks.
+Markdown (CommonMark with tables, strikethrough and autolinks). Write headings from `##`: the title is already the `<h1>`. Extras: `[text](https://…){target=_blank}` opens a new tab; a line `{align=center}` before a paragraph or heading aligns it. Links to pages of the site are relative paths: `/about`, `/en/about`, `/projects/alpha`. A picture is `![description](/uploads/media/<id>.<ext>)`; `{align=left}` or `{align=right}` right after it puts it beside the text, which goes around it. A form is placed with `[form slug="contact"]` on its own line. Raw HTML in the body is allowed in files but is stripped when someone without the "raw HTML" permission saves the entry in the admin, so prefer Markdown and blocks.
 
 If the page has blocks, the body appears where a `content` block puts it, or right after an opening Hero, or first. A page built only from blocks needs no body.
 

@@ -633,8 +633,39 @@ hr {
 
 .prose,
 .prose-block {
+  display: flow-root;
   font-size: var(--step-0);
   line-height: 1.75;
+}
+
+/* A picture beside the text, in Markdown ![…](…){align=left} or {align=right}: the text goes around it. On a phone it takes the width. */
+.prose img[align="left"],
+.prose img[align="right"],
+.prose-block img[align="left"],
+.prose-block img[align="right"] {
+  float: left;
+  max-width: 45%;
+  height: auto;
+  margin: 0.35em 1.5rem 1rem 0;
+  border-radius: var(--radius-m);
+}
+
+.prose img[align="right"],
+.prose-block img[align="right"] {
+  float: right;
+  margin: 0.35em 0 1rem 1.5rem;
+}
+
+@media (max-width: 640px) {
+  .prose img[align="left"],
+  .prose img[align="right"],
+  .prose-block img[align="left"],
+  .prose-block img[align="right"] {
+    float: none;
+    display: block;
+    max-width: 100%;
+    margin: 0 0 1rem;
+  }
 }
 
 .prose > :first-child,
