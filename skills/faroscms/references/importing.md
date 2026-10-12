@@ -9,6 +9,8 @@
 | **Another website** that is not WordPress | Read its pages, keep the text structure (headings, lists, links, images), drop navigation, footers, cookie banners, scripts and styles, then proceed as above. Respect copyright: the person must own or be licensed to use the material. |
 | A **CSV from FarosCMS itself** (Admin > Content > type > Export) | Edit and import it back (`importing` below). Columns: `content_type, language, slug, title, status, visible, date, author, tags, categories, translation_id, main_image, excerpt, body, updated_at` plus `meta.*` for the rest of the front matter (`meta.blocks` is a JSON list). |
 
+**When the site was installed from the release zip** (no `scripts/import-wordpress.php` in it), do not fall back to the scripts of this skill for a WordPress site. Look for a clone of the repository on the machine (a `faroscms` folder with `scripts/import-wordpress.php`), ask the person for its path, or clone it into a scratch folder (`git clone https://github.com/chiotis/faroscms`). Run the script from there and pass every path of the site, because its defaults point at the clone's own folders: `--content=<site>/content --uploads=<site>/public/uploads --custom=<site>/custom --out=<site>/storage/import`. Never copy the script into the site: an update would refuse a package that holds it.
+
 ## The steps for given material
 
 1. **Inventory.** List the items: what each is (page, post, project…), its language(s), title, its old address if any, its pictures, its place in the menu. Decide the content type for each (`pages` for standing pages, `posts` for dated articles, another type only if the site has it: `python3 scripts/site_info.py`).
