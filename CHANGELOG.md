@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.93 — 2026-10-12 — The roadmap: the second client site
+- **`ROADMAP.md`:** *Where we are* brought to this version (Footer Blocks, title areas, the WordPress importer, the skill, backups from cron, the first client site live). A new *Now* section for the second client site (apostolosdoxiadis.com), moved with the CMS as it is, and what it accepts for now. *Next* in a new order from what the move asked for: categories in a tree, nested repeaters, theme options (headings in the palette colour, a header gradient, slides of one height on phones, a title area per term, visible breadcrumbs, a picture beside the text), a second version of the importer; then form translation, places and routes, the runtime cache and search. Menu ordering by drag and drop is out of *Next* (done with the menu editor).
+
 ## 0.1.92 — 2026-10-12 — A page that is not found shows the site's menus
 - **The 404 page has the site's own menus.** A page that was not found was drawn without the site's menus, so its header fell back to the theme's sample links (Home, About, Services, Projects, News, Contact) and its footer menus were empty: on every site the 404 page had another menu. It now gets the menus of its language like every other page.
 - Tests: `tests/http/menu_editor_test.py` checks that a missing page has the same menu as the others.
