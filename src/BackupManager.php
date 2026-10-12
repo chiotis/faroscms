@@ -12,6 +12,9 @@ namespace FarosCMS;
  */
 final class BackupManager
 {
+    /** How early a backup may be taken, in seconds: a job at the same time each day has the last run a little after that time. */
+    public const SLACK = 7200;
+
     /**
      * @param callable(): array<string, mixed> $settings the site settings, read each time (the last run changes them)
      * @param callable(): object $updates the update service (its version and commit go into every archive)
@@ -36,36 +39,53 @@ final class BackupManager
         return ($this->settings)();
     }
 
-    public function runIfDue(): void
+    /** @return string `off` (no schedule, or no database to keep the last run in), `not due` or `due` */
+    private function scheduleState(): string
     {
         if (!$this->database->isAvailable()) {
             // Without SQLite the last run cannot be persisted, so every request would start a new backup.
-            return;
+            return 'off';
         }
         $auto = $this->settings()['backup']['auto'] ?? [];
         if (!is_array($auto) || !Format::isTruthy($auto['enabled'] ?? false)) {
-            return;
+            return 'off';
         }
         $schedule = strtolower((string)($auto['schedule'] ?? 'daily'));
         if (!in_array($schedule, ['daily', 'weekly', 'monthly'], true)) {
-            return;
+            return 'off';
         }
-
         $lastRun = trim((string)($auto['last_run'] ?? ''));
-        $lastTimestamp = $lastRun !== '' ? (int)strtotime($lastRun) : 0;
-        if (!self::isDue($lastTimestamp, $schedule)) {
-            return;
+        return self::isDue($lastRun !== '' ? (int)strtotime($lastRun) : 0, $schedule) ? 'due' : 'not due';
+    }
+
+    /** Whether the schedule is on and a backup is due now (a settings read only: nothing is done). */
+    public function isRunDue(): bool
+    {
+        return $this->scheduleState() === 'due';
+    }
+
+    /**
+     * Takes the scheduled backup when it is due. Called from the admin, from a visit to the public site (after the response is sent),
+     * and from the command line (src/cron-backup.php, for a cron job); only one run at a time.
+     *
+     * @return string `off` (no schedule), `not due`, `busy` (another run has it), `ok` or `failed`
+     */
+    public function runIfDue(): string
+    {
+        $state = $this->scheduleState();
+        if ($state !== 'due') {
+            return $state;
         }
 
         $this->backups->ensureDirectory();
         $lockPath = $this->backups->directory() . '/.auto-backup.lock';
         $lockHandle = @fopen($lockPath, 'c');
         if (!$lockHandle) {
-            return;
+            return 'busy';
         }
         if (!@flock($lockHandle, LOCK_EX | LOCK_NB)) {
             fclose($lockHandle);
-            return;
+            return 'busy';
         }
 
         $result = $this->createSnapshot('scheduled');
@@ -77,9 +97,14 @@ final class BackupManager
 
         @flock($lockHandle, LOCK_UN);
         fclose($lockHandle);
+        return ($result['ok'] ?? false) === true ? 'ok' : 'failed';
     }
 
-    public static function isDue(int $lastTimestamp, string $schedule): bool
+    /**
+     * Whether a scheduled backup is due: the time since the last one has reached the interval, less a little slack so a job that runs
+     * at the same time every day (a cron job: the last run was a few seconds after that time) is not found a few seconds early.
+     */
+    public static function isDue(int $lastTimestamp, string $schedule, ?int $now = null): bool
     {
         if ($lastTimestamp <= 0) {
             return true;
@@ -90,7 +115,7 @@ final class BackupManager
             'monthly' => 2592000,
             default => PHP_INT_MAX,
         };
-        return (time() - $lastTimestamp) >= $interval;
+        return $interval !== PHP_INT_MAX && (($now ?? time()) - $lastTimestamp) >= $interval - self::SLACK;
     }
 
     /**
