@@ -21,10 +21,10 @@
 {% set has_image = block.image and variant != 'minimal' and not has_video %}
 {% set has_picture = has_image or has_video %}
 {# The opening hero image is the largest thing on screen: load it first, never lazily. #}
-{% set is_cover = variant == 'cover' or variant == 'steps' %}
+{% set is_cover = variant in ['cover', 'cover-centered', 'steps', 'steps-centered'] %}
 {% set media_sizes = variant == 'split' ? '(min-width: 960px) 46vw, 92vw' : (is_cover ? '100vw' : '(min-width: 1280px) 1216px, 92vw') %}
-{# Over a picture the text can be centred (the choice of the layout; split, centred and minimal have their own alignment). #}
-{% set centred_cover = is_cover and block.align|default('left') == 'center' %}
+{# The two centred layouts over a picture (split, centered and minimal have their own alignment). #}
+{% set centred_cover = variant in ['cover-centered', 'steps-centered'] %}
 {% if is_cover and has_picture %}
   <div class="hero-cover-media{{ centred_cover ? ' is-centered' : '' }}">
     {% if has_video %}
@@ -50,7 +50,7 @@
     {% endif %}
   </div>
   {% set steps = block.items|default([])|filter(step => step.title or step.text) %}
-  {% if variant == 'steps' and steps is not empty %}
+  {% if variant in ['steps', 'steps-centered'] and steps is not empty %}
     <ol class="hero-steps" role="list">
       {% for step in steps %}
         {% set href = link_url(step.link|default(''), lang_prefix|default('')) %}

@@ -346,9 +346,11 @@ final class EntryForm
     private function blockEditorJson(array $blocks, string $lang): string
     {
         $settings = ($this->settings)();
+        $registry = ($this->blocks)();
         return (string)json_encode([
-            'definitions' => ($this->blocks)()->editorDefinitions(),
-            'blocks' => $blocks,
+            'definitions' => $registry->editorDefinitions(),
+            // A block saved in a layout that has since become another is shown as the layout it is now.
+            'blocks' => array_map(static fn(mixed $block): mixed => is_array($block) ? $registry->migrate($block) : $block, $blocks),
             'presets' => ($this->presets)()->forEditor($lang, (string)($settings['languages']['default'] ?? 'en')),
             'presets_url' => rtrim((string)($settings['base_url'] ?? ''), '/') . '/admin/block-presets',
             'lang' => $lang,

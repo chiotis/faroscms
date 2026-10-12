@@ -211,6 +211,17 @@
   justify-content: center;
 }
 
+/* The steps keep the width of the block (a centred grid item would shrink to one column), each centred under its line. */
+.block-hero.block--steps .is-centered .hero-steps {
+  width: 100%;
+  justify-self: stretch;
+}
+
+.block-hero.block--steps .is-centered .hero-step {
+  align-items: center;
+  text-align: center;
+}
+
 .hero-cover-media.is-centered::after {
   background:
     linear-gradient(180deg, rgb(var(--ink-rgb) / 0.35) 0%, rgb(var(--ink-rgb) / 0.5) 45%, rgb(var(--ink-rgb) / 0.82) 100%);

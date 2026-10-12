@@ -104,6 +104,32 @@ final class BlockRegistry
     }
 
     /**
+     * A block as its definition means it now: one saved in a layout that has since become another (the hero's text alignment of
+     * 0.1.86, now two layouts) is moved to it. Anything else is returned as it is.
+     *
+     * @param array<string, mixed> $raw
+     * @return array<string, mixed>
+     */
+    public function migrate(array $raw): array
+    {
+        $definition = is_string($raw['type'] ?? null) ? $this->get($raw['type']) : null;
+        foreach ($definition['variant_migrations'] ?? [] as $migration) {
+            $matches = true;
+            foreach ($migration['when'] as $key => $wanted) {
+                $matches = $matches && is_scalar($raw[$key] ?? null) && (string)$raw[$key] === $wanted;
+            }
+            if ($matches && $migration['when'] !== []) {
+                $raw['variant'] = $migration['to'];
+                foreach ($migration['drop'] as $key) {
+                    unset($raw[$key]);
+                }
+                break;
+            }
+        }
+        return $raw;
+    }
+
+    /**
      * Blocks as they should be written to front matter: known blocks keep only defined fields,
      * checked, with values that equal the field default left out; unknown block types (for
      * example from a removed custom block) are kept unchanged so no content is lost.
@@ -123,6 +149,7 @@ final class BlockRegistry
                 $blocks[] = $raw;
                 continue;
             }
+            $raw = $this->migrate($raw);
             $block = ['type' => $raw['type']];
             foreach ([$definition['common'], $definition['fields']] as $fields) {
                 foreach ($fields as $key => $field) {
@@ -183,6 +210,24 @@ final class BlockRegistry
                 $variantWhen[(string)$variant] = $checked;
             }
         }
+        // A layout that is a variant of another (a centred cover): its section also carries the other's class, so the styles of that one apply.
+        $variantExtends = [];
+        foreach (is_array($raw['variant_extends'] ?? null) ? $raw['variant_extends'] : [] as $variant => $base) {
+            if (isset($variants[(string)$variant], $variants[(string)$base]) && (string)$variant !== (string)$base) {
+                $variantExtends[(string)$variant] = (string)$base;
+            }
+        }
+        // A layout that used to be a layout plus a choice that is gone: `when` says which blocks, `to` the layout they are now, `drop` what to remove.
+        $variantMigrations = [];
+        foreach (is_array($raw['variant_migrations'] ?? null) ? $raw['variant_migrations'] : [] as $migration) {
+            if (is_array($migration) && is_array($migration['when'] ?? null) && isset($variants[(string)($migration['to'] ?? '')])) {
+                $variantMigrations[] = [
+                    'when' => array_map('strval', array_filter($migration['when'], 'is_scalar')),
+                    'to' => (string)$migration['to'],
+                    'drop' => array_values(array_map('strval', is_array($migration['drop'] ?? null) ? $migration['drop'] : [])),
+                ];
+            }
+        }
         $tone = (string)($raw['tone'] ?? 'default');
         $spacing = (string)($raw['spacing'] ?? 'default');
         $fields = FieldSchema::withIcons(FieldSchema::normalize($this->expandFields(is_array($raw['fields'] ?? null) ? $raw['fields'] : [])), $this->theme->iconNames());
@@ -201,6 +246,8 @@ final class BlockRegistry
             'preview' => self::previewMarkup((string)@file_get_contents(dirname($file) . '/preview.svg')),
             'variants' => $variants,
             'variant_when' => $variantWhen,
+            'variant_extends' => $variantExtends,
+            'variant_migrations' => $variantMigrations,
             'variant_previews' => self::variantPreviews(dirname($file) . '/variants', array_keys($variants), $designFields, $fields),
             'design_fields' => $designFields,
             'fields' => $fields,

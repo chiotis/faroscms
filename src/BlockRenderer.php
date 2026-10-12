@@ -81,6 +81,8 @@ final class BlockRenderer
                 'block_uid' => $uid,
                 'block_index' => $index,
                 'block_first' => $isFirst,
+                // A layout that is a variant of another also carries the other's class (a centred cover is a cover).
+                'block_extra_class' => isset($definition['variant_extends'][(string)$values['variant']]) ? 'block--' . $definition['variant_extends'][(string)$values['variant']] : '',
                 // The hero that opens the page is the page title; everything else is a section.
                 'heading_tag' => $isFirst && $type === 'hero' ? 'h1' : 'h2',
                 // Items sit one level below their block's heading; a block without a heading has none to sit under.
@@ -206,6 +208,7 @@ final class BlockRenderer
             if ($definition === null) {
                 continue;
             }
+            $raw = $this->registry->migrate($raw);
             $values = FieldSchema::resolve($definition['common'], array_intersect_key($raw, $definition['common']));
             if ($values['hidden'] === true) {
                 continue;
