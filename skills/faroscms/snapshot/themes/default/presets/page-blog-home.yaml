@@ -1,0 +1,14 @@
+kind: page
+label: { el: 'Αρχική ιστολογίου (magazine)', en: 'Blog home (magazine)' }
+description: { el: 'Τα πρόσφατα άρθρα σε μορφή περιοδικού: ένα κύριο, πλέγμα με τα υπόλοιπα και κάλεσμα για εγγραφή.', en: 'Recent posts as a magazine: a featured one, a grid of the rest, and a call to subscribe.' }
+blocks:
+  el:
+    - { type: hero, variant: minimal, eyebrow: 'Ιστολόγιο', heading: 'Ιδέες, νέα και οδηγοί', text: 'Ό,τι μαθαίνουμε στη δουλειά μας, με απλά λόγια.' }
+    - { type: latest, variant: featured, source: posts, limit: 3, eyebrow: 'Πρόσφατα' }
+    - { type: latest, variant: magazine, tone: muted, source: posts, limit: 6, heading: 'Περισσότερα άρθρα', link_label: 'Όλα τα άρθρα', link_url: posts }
+    - { type: cta, variant: band, heading: 'Μην χάνετε νέα άρθρα', text: 'Γράψτε μας για να σας ενημερώνουμε όταν δημοσιεύουμε.', actions: [{ label: 'Εγγραφή', url: contact }] }
+  en:
+    - { type: hero, variant: minimal, eyebrow: Journal, heading: 'Ideas, news and guides', text: 'What we learn at work, in plain words.' }
+    - { type: latest, variant: featured, source: posts, limit: 3, eyebrow: Latest }
+    - { type: latest, variant: magazine, tone: muted, source: posts, limit: 6, heading: 'More stories', link_label: 'All articles', link_url: posts }
+    - { type: cta, variant: band, heading: 'Never miss a story', text: 'Write to us and we will let you know when we publish.', actions: [{ label: Subscribe, url: contact }] }

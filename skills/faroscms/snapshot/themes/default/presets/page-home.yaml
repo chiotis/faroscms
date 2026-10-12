@@ -1,0 +1,24 @@
+kind: page
+label: { el: 'Αρχική εταιρείας', en: 'Company home page' }
+description: { el: 'Hero, λογότυπα, υπηρεσίες, όφελος με εικόνα, αριθμοί, πρόσφατα έργα, σχόλια, ερωτήσεις και κάλεσμα.', en: 'Hero, logos, services, a benefit with image, numbers, recent work, quotes, questions, and a call to action.' }
+blocks:
+  el:
+    - { type: hero, variant: split, eyebrow: 'Η εταιρεία σας', heading: 'Μια πρόταση που λέει καθαρά τι κάνετε και για ποιον', text: 'Μία ή δύο προτάσεις για το όφελος του πελάτη.', actions: [{ label: 'Επικοινωνία', url: contact }, { label: 'Υπηρεσίες', url: services, style: secondary }] }
+    - { type: logos, heading: 'Μας εμπιστεύονται', items: [{ name: 'Πελάτης Α' }, { name: 'Πελάτης Β' }, { name: 'Πελάτης Γ' }, { name: 'Πελάτης Δ' }] }
+    - { type: features, variant: cards, eyebrow: 'Υπηρεσίες', heading: 'Τι κάνουμε για εσάς', columns: '3', items: [{ icon: compass, title: 'Πρώτη υπηρεσία', text: 'Ποιο πρόβλημα λύνει.' }, { icon: layers, title: 'Δεύτερη υπηρεσία', text: 'Ποιο πρόβλημα λύνει.' }, { icon: shield, title: 'Τρίτη υπηρεσία', text: 'Ποιο πρόβλημα λύνει.' }] }
+    - { type: text-image, variant: image-right, tone: muted, eyebrow: 'Γιατί εμάς', heading: 'Το βασικό σας πλεονέκτημα', body: "Δύο-τρεις προτάσεις για το τι σας κάνει διαφορετικούς.\n\n- Πρώτο σημείο\n- Δεύτερο σημείο" }
+    - { type: stats, variant: row, items: [{ value: '10+', label: 'Χρόνια εμπειρίας' }, { value: '200+', label: 'Έργα' }, { value: '95%', label: 'Ικανοποιημένοι πελάτες' }] }
+    - { type: cards, source: projects, limit: 3, eyebrow: 'Έργα', heading: 'Πρόσφατη δουλειά', link_label: 'Όλα τα έργα', link_url: projects }
+    - { type: testimonials, variant: featured, items: [{ quote: 'Ένα πραγματικό σχόλιο πελάτη που λέει τι άλλαξε για εκείνον.', name: 'Όνομα Επώνυμο', role: 'Ρόλος, Εταιρεία' }] }
+    - { type: faq, variant: split, eyebrow: 'Συχνές ερωτήσεις', heading: 'Πριν ξεκινήσουμε', items: [{ question: 'Πρώτη συχνή ερώτηση;', answer: 'Σύντομη απάντηση.' }, { question: 'Δεύτερη συχνή ερώτηση;', answer: 'Σύντομη απάντηση.' }] }
+    - { type: cta, variant: card, tone: contrast, heading: 'Έχετε ένα έργο στο μυαλό σας;', text: 'Πείτε μας τι θέλετε να πετύχετε.', actions: [{ label: 'Επικοινωνία', url: contact }] }
+  en:
+    - { type: hero, variant: split, eyebrow: 'Your company', heading: 'One sentence that says clearly what you do and for whom', text: 'One or two sentences about the benefit your client gets.', actions: [{ label: 'Contact us', url: contact }, { label: 'Services', url: services, style: secondary }] }
+    - { type: logos, heading: 'Trusted by', items: [{ name: 'Client A' }, { name: 'Client B' }, { name: 'Client C' }, { name: 'Client D' }] }
+    - { type: features, variant: cards, eyebrow: 'Services', heading: 'What we do for you', columns: '3', items: [{ icon: compass, title: 'First service', text: 'Which problem it solves.' }, { icon: layers, title: 'Second service', text: 'Which problem it solves.' }, { icon: shield, title: 'Third service', text: 'Which problem it solves.' }] }
+    - { type: text-image, variant: image-right, tone: muted, eyebrow: 'Why us', heading: 'Your key advantage', body: "Two or three sentences about what makes you different.\n\n- First point\n- Second point" }
+    - { type: stats, variant: row, items: [{ value: '10+', label: 'Years of experience' }, { value: '200+', label: 'Projects' }, { value: '95%', label: 'Satisfied clients' }] }
+    - { type: cards, source: projects, limit: 3, eyebrow: 'Projects', heading: 'Recent work', link_label: 'All projects', link_url: projects }
+    - { type: testimonials, variant: featured, items: [{ quote: 'A real client quote that says what changed for them.', name: 'First Last', role: 'Role, Company' }] }
+    - { type: faq, variant: split, eyebrow: 'FAQ', heading: 'Before we start', items: [{ question: 'First common question?', answer: 'A short answer.' }, { question: 'Second common question?', answer: 'A short answer.' }] }
+    - { type: cta, variant: card, tone: contrast, heading: 'Have a project in mind?', text: 'Tell us what you want to achieve.', actions: [{ label: 'Contact us', url: contact }] }

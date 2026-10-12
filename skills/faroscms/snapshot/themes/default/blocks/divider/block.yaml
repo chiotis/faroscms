@@ -1,0 +1,32 @@
+label: Divider
+description: Space between two sections, or a line, optionally with a short label in the middle.
+category: Content
+spacing: compact
+variants:
+  space: Empty space
+  line: Line
+  label: Line with a label
+fields:
+  label:
+    type: text
+    label: Label
+    placeholder: Our work
+    when: { variant: label }
+  height:
+    type: select
+    label: Height
+    default: m
+    options: { s: Small, m: Medium, l: Large, xl: Extra large }
+    when: { variant: space }
+  style:
+    type: select
+    label: Line
+    default: solid
+    options: { solid: Solid, dashed: Dashed, dotted: Dotted }
+    when: { variant: [line, label] }
+  width:
+    type: select
+    label: Width
+    default: narrow
+    options: { page: Page, narrow: Text, short: Short }
+    when: { variant: [line, label] }

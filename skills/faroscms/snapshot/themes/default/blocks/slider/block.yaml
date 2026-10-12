@@ -1,0 +1,63 @@
+label: Slider
+description: Slides you scroll through, with previous and next buttons. Works by swiping, with the keyboard, and without JavaScript. Never moves by itself unless you turn that on.
+category: Media
+variants:
+  full: One large slide at a time
+  banner: Wide banner, a text panel over the picture
+  multi: Several slides at once
+tone: default
+fields:
+  eyebrow:
+    type: text
+    label: Eyebrow
+  heading:
+    type: text
+    label: Heading
+  intro:
+    type: textarea
+    label: Introduction
+  width:
+    type: select
+    label: Width
+    default: contained
+    options:
+      contained: 'Within the page width'
+      full: 'Full width of the screen'
+    help: 'Full width runs the slides edge to edge; the text inside stays in line with the page. Set the block spacing to None to sit against the header. A full width slider that opens the page also sits behind a transparent header (Theme > Header), and then the page has no title area of its own.'
+  navigation:
+    type: select
+    label: Arrows and dots
+    default: below
+    options:
+      below: 'Below the slides'
+      inside: 'Over the slides'
+  per_view:
+    type: select
+    label: Slides visible at once (several)
+    default: '3'
+    options: { '2': '2', '3': '3', '4': '4' }
+  autoplay:
+    type: select
+    label: Move by itself
+    default: 'off'
+    options:
+      'off': No
+      '5': 'Every 5 seconds'
+      '8': 'Every 8 seconds'
+    help: A pause button is shown, and visitors who prefer reduced motion never get automatic movement.
+  items:
+    type: repeater
+    label: Slides
+    item_label: Slide
+    max: 12
+    fields:
+      image: { type: image, label: Image }
+      eyebrow: { type: text, label: Label }
+      title: { type: text, label: Title }
+      text: { type: textarea, label: Text }
+      link_label: { type: text, label: Link text }
+      url: { type: link, label: Link }
+      link_label_2: { type: text, label: Second link text, help: 'Shown as buttons beside the first in the Wide banner layout.' }
+      url_2: { type: link, label: Second link }
+      link_label_3: { type: text, label: Third link text }
+      url_3: { type: link, label: Third link }

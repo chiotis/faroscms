@@ -1,0 +1,22 @@
+label: Form
+description: One of the site's forms (Admin > Forms) with a heading and introduction.
+category: Convert
+variants:
+  split: Text beside the form
+  stacked: Form below the text
+tone: muted
+fields:
+  eyebrow:
+    type: text
+    label: Eyebrow
+  heading:
+    type: text
+    label: Heading
+  intro:
+    type: textarea
+    label: Introduction
+  form:
+    type: select
+    label: Form
+    default: ''
+    options_from: forms

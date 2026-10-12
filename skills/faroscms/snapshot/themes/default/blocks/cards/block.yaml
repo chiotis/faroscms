@@ -1,0 +1,50 @@
+label: Cards
+description: Latest posts, projects, or any content type, or hand-picked cards with an image, text, and link.
+category: Showcase
+variants:
+  grid: Grid
+  list: Compact list
+fields:
+  eyebrow:
+    type: text
+    label: Eyebrow
+  heading:
+    type: text
+    label: Heading
+  intro:
+    type: textarea
+    label: Introduction
+  source:
+    type: select
+    label: Show
+    default: manual
+    options: { manual: Cards entered below }
+    options_from: content_types
+  limit:
+    type: number
+    label: Number of items
+    default: 3
+    min: 1
+    max: 12
+  columns:
+    type: select
+    label: Columns
+    default: '3'
+    options: { '2': '2', '3': '3', '4': '4' }
+  items:
+    type: repeater
+    label: Cards
+    item_label: Card
+    max: 12
+    fields:
+      title: { type: text, label: Title }
+      text: { type: textarea, label: Text }
+      meta: { type: text, label: Label, placeholder: e.g. Case study }
+      image: { type: image, label: Image }
+      url: { type: link, label: Link }
+  link_label:
+    type: text
+    label: "'View all' text"
+  link_url:
+    type: link
+    label: "'View all' link"

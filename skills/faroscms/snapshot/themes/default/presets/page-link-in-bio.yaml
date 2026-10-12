@@ -1,0 +1,11 @@
+kind: page
+template: landing
+label: { el: 'Link in bio', en: 'Link in bio' }
+description: { el: 'Μια σελίδα με λίγους συνδέσμους, για το προφίλ σε κοινωνικό δίκτυο. Χρησιμοποιεί το template Landing.', en: 'A page of a few links, for a social media profile. Uses the Landing template.' }
+blocks:
+  el:
+    - { type: text, variant: default, align: center, spacing: compact, eyebrow: 'Ακολουθήστε μας', heading: 'Όνομα ή επωνυμία', body: 'Μία πρόταση που λέει ποιοι είστε.' }
+    - { type: cards, variant: list, spacing: compact, columns: '2', items: [{ title: 'Η ιστοσελίδα μας', meta: 'Κύρια σελίδα', url: contact }, { title: 'Τελευταίο άρθρο', meta: 'Ιστολόγιο', url: contact }, { title: 'Κλείστε ραντεβού', meta: 'Επικοινωνία', url: contact }, { title: 'Εγγραφή στο newsletter', meta: 'Ενημερώσεις', url: contact }] }
+  en:
+    - { type: text, variant: default, align: center, spacing: compact, eyebrow: 'Follow us', heading: 'Name or brand', body: 'One sentence that says who you are.' }
+    - { type: cards, variant: list, spacing: compact, columns: '2', items: [{ title: 'Our website', meta: 'Main page', url: contact }, { title: 'Latest article', meta: Journal, url: contact }, { title: 'Book a call', meta: Contact, url: contact }, { title: 'Newsletter sign-up', meta: Updates, url: contact }] }

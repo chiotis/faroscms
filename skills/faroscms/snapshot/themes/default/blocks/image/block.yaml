@@ -1,0 +1,40 @@
+label: Image
+description: One image with a caption, an optional link, and the shape you choose.
+category: Media
+spacing: compact
+variants:
+  wide: Page width
+  narrow: Text width
+  full: Edge to edge
+fields:
+  image:
+    type: image
+    label: Image
+  alt:
+    type: text
+    label: Description
+    help: What the image shows. Leave empty to use the media library text.
+  caption:
+    type: text
+    label: Caption
+  link:
+    type: link
+    label: Link
+    help: Makes the image a link.
+  new_tab:
+    type: toggle
+    label: Open the link in a new tab
+  ratio:
+    type: select
+    label: Shape
+    default: original
+    options: { original: Original, landscape: 'Landscape (16:9)', classic: 'Classic (4:3)', square: Square, portrait: 'Portrait (4:5)', panorama: 'Panorama (21:9)' }
+  rounded:
+    type: toggle
+    label: Rounded corners
+    default: true
+  caption_align:
+    type: select
+    label: Caption alignment
+    default: left
+    options: { left: Left, center: Center }

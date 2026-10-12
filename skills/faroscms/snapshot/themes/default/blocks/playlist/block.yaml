@@ -1,0 +1,101 @@
+label: YouTube playlist
+description: The videos of a YouTube playlist, drawn by the site as a grid, a list, a strip, or a player with the list beside it. Nothing is loaded from YouTube until a visitor plays a video. The playlist must be public or unlisted.
+category: Media
+variants:
+  grid: Grid of videos
+  list: List with descriptions
+  featured: Player with the list beside it
+  strip: Scrolling strip
+fields:
+  eyebrow:
+    type: text
+    label: Eyebrow
+  heading:
+    type: text
+    label: Heading
+  use_title:
+    type: toggle
+    label: Use the playlist's own title when the heading is empty
+    default: false
+  intro:
+    type: textarea
+    label: Introduction
+  playlist:
+    type: text
+    label: Playlist
+    required: true
+    placeholder: https://www.youtube.com/playlist?list=PL…
+    help: The address of the playlist (or its id). Without a YouTube key in Settings > APIs the 15 newest videos are shown; with one, up to 50, with their lengths.
+  limit:
+    type: number
+    label: Number of videos
+    default: 6
+    min: 1
+    max: 50
+  order:
+    type: select
+    label: Order
+    default: playlist
+    options:
+      playlist: As in the playlist
+      newest: Newest first
+      oldest: Oldest first
+      views: Most viewed first
+  columns:
+    type: select
+    label: Columns
+    default: '3'
+    options: { '2': '2', '3': '3', '4': '4' }
+    when: { variant: grid }
+  ratio:
+    type: select
+    label: Picture shape
+    default: wide
+    options:
+      wide: 'Widescreen (16:9)'
+      cinema: 'Cinema (21:9)'
+      classic: 'Classic (4:3)'
+    when: { variant: [grid, strip, featured] }
+  play:
+    type: select
+    label: When a video is played
+    default: lightbox
+    options:
+      lightbox: Open in a large viewer
+      inline: Play in place
+      youtube: Go to YouTube
+    when: { variant: [grid, list, strip] }
+  thumbs:
+    type: select
+    label: Pictures
+    default: site
+    options:
+      site: Kept on this site (YouTube is asked nothing until a video is played)
+      youtube: From YouTube
+    help: Showing the pictures from YouTube sends every visitor's address to Google when the page opens.
+  show_description:
+    type: toggle
+    label: Show descriptions
+    default: true
+  show_duration:
+    type: toggle
+    label: Show the length
+    default: true
+  show_views:
+    type: toggle
+    label: Show the views
+    default: false
+  show_date:
+    type: toggle
+    label: Show the date
+    default: false
+  show_numbers:
+    type: toggle
+    label: Number the videos
+    default: false
+    when: { variant: [list, featured] }
+  link_label:
+    type: text
+    label: Link to the playlist
+    placeholder: Watch the playlist on YouTube
+    help: Leave empty for no link.

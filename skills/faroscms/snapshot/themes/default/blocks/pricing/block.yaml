@@ -1,0 +1,56 @@
+label: Pricing
+description: Plans or price lists, as cards side by side or as clean rows. One plan can be highlighted.
+category: Convert
+variants:
+  cards: Plan cards
+  list: Price list
+fields:
+  eyebrow:
+    type: text
+    label: Eyebrow
+  heading:
+    type: text
+    label: Heading
+  intro:
+    type: textarea
+    label: Introduction
+  note:
+    type: text
+    label: Note below the plans
+    placeholder: Prices exclude VAT.
+  billing_switch:
+    type: toggle
+    label: Monthly / yearly switch
+    help: Visitors choose whether prices are shown per month or per year. Give each plan a yearly price below.
+  monthly_label:
+    type: text
+    label: Monthly button
+    placeholder: Monthly
+    when: { billing_switch: ['1', 'true'] }
+  yearly_label:
+    type: text
+    label: Yearly button
+    placeholder: Yearly
+    when: { billing_switch: ['1', 'true'] }
+  yearly_note:
+    type: text
+    label: Note on the yearly button
+    placeholder: Save 20%
+    when: { billing_switch: ['1', 'true'] }
+  items:
+    type: repeater
+    label: Plans
+    item_label: Plan
+    max: 8
+    fields:
+      name: { type: text, label: Name }
+      badge: { type: text, label: Badge, placeholder: Most popular }
+      price: { type: text, label: Price, placeholder: '€490' }
+      period: { type: text, label: Period or unit, placeholder: per month }
+      yearly_price: { type: text, label: Yearly price, placeholder: '€470', help: Shown when the visitor chooses yearly. Leave empty to keep the same price. }
+      yearly_period: { type: text, label: Yearly period, placeholder: per year, help: Leave empty for "per year". }
+      description: { type: textarea, label: Short description }
+      features: { type: textarea, label: Included, help: One item per line. }
+      button_label: { type: text, label: Button text }
+      button_url: { type: link, label: Button link }
+      highlight: { type: toggle, label: Highlight this plan }

@@ -1,0 +1,14 @@
+kind: page
+label: { el: 'Πηγές και λήψεις', en: 'Resources and downloads' }
+description: { el: 'Έγγραφα προς λήψη σε κάρτες και σε λίστα. Επιλέξτε τα αρχεία από τη βιβλιοθήκη πολυμέσων.', en: 'Documents to download as cards and as a list. Pick the files from the media library.' }
+blocks:
+  el:
+    - { type: hero, variant: minimal, eyebrow: 'Πηγές', heading: 'Οδηγοί και έγγραφα προς λήψη', text: 'Επιλέξτε τα αρχεία από τη βιβλιοθήκη πολυμέσων· το μέγεθος διαβάζεται αυτόματα.' }
+    - { type: downloads, variant: cards, columns: '2', heading: 'Οδηγοί', items: [{ title: 'Οδηγός για αρχάριους', description: 'Σύντομη περιγραφή του εγγράφου.' }, { title: 'Λίστα ελέγχου', description: 'Σύντομη περιγραφή του εγγράφου.' }, { title: 'Πρότυπο εγγράφου', description: 'Σύντομη περιγραφή του εγγράφου.' }, { title: 'Μελέτη αγοράς', description: 'Σύντομη περιγραφή του εγγράφου.' }] }
+    - { type: downloads, variant: list, tone: muted, heading: 'Επίσημα έγγραφα', items: [{ title: 'Ετήσια έκθεση', description: '' }, { title: 'Όροι χρήσης', description: '' }, { title: 'Πολιτική απορρήτου', description: '' }] }
+    - { type: cta, variant: band, heading: 'Χρειάζεστε κάτι άλλο;', text: 'Πείτε μας και θα το ετοιμάσουμε.', actions: [{ label: 'Επικοινωνία', url: contact }] }
+  en:
+    - { type: hero, variant: minimal, eyebrow: Resources, heading: 'Guides and documents to download', text: 'Pick the files from the media library; the size is read automatically.' }
+    - { type: downloads, variant: cards, columns: '2', heading: Guides, items: [{ title: 'Beginner’s guide', description: 'A short description of the document.' }, { title: Checklist, description: 'A short description of the document.' }, { title: 'Document template', description: 'A short description of the document.' }, { title: 'Market study', description: 'A short description of the document.' }] }
+    - { type: downloads, variant: list, tone: muted, heading: 'Official documents', items: [{ title: 'Annual report', description: '' }, { title: 'Terms of use', description: '' }, { title: 'Privacy policy', description: '' }] }
+    - { type: cta, variant: band, heading: 'Need something else?', text: 'Tell us and we will prepare it.', actions: [{ label: 'Contact us', url: contact }] }

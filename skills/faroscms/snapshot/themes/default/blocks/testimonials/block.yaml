@@ -1,0 +1,27 @@
+label: Testimonials
+description: Quotes from clients or partners, with name, role, and an optional photo.
+category: Showcase
+variants:
+  grid: Grid of quotes
+  featured: One large quote
+tone: muted
+fields:
+  eyebrow:
+    type: text
+    label: Eyebrow
+  heading:
+    type: text
+    label: Heading
+  intro:
+    type: textarea
+    label: Introduction
+  items:
+    type: repeater
+    label: Quotes
+    item_label: Quote
+    max: 9
+    fields:
+      quote: { type: textarea, label: Quote }
+      name: { type: text, label: Name }
+      role: { type: text, label: Role or company }
+      image: { type: image, label: Photo, help: Optional. Initials are shown without a photo. }
