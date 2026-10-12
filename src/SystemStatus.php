@@ -27,6 +27,7 @@ final class SystemStatus
      * @param callable(): string $mailProvider 'none' when no email service is set up
      * @param callable(): array{available: bool, stale?: bool, rows?: int} $contentIndex the state of the content index, rebuilt first when it is small and out of date
      * @param callable(): array{label: string, value: string, status: string} $backupSchedule the check for scheduled backups
+     * @param (callable(): array{label: string, value: string, status: string})|null $cronJob the check for the cron job (CronStatus)
      */
     public function __construct(
         private string $basePath,
@@ -34,7 +35,8 @@ final class SystemStatus
         private SystemDatabase $database,
         private $mailProvider,
         private $contentIndex,
-        private $backupSchedule
+        private $backupSchedule,
+        private $cronJob = null
     ) {
     }
 
@@ -64,6 +66,7 @@ final class SystemStatus
             ['label' => 'Disk free', 'value' => (string)$storage['disk_free_human'], 'status' => ((int)$storage['percent']) > 90 ? 'warning' : 'ok'],
             $this->contentIndexCheck(),
             ($this->backupSchedule)(),
+            ...($this->cronJob !== null ? [($this->cronJob)()] : []),
         ];
     }
 

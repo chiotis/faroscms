@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.89 — 2026-10-12 — The System screen tells about the cron job
+- **A *Cron job* card in Admin > System:** the entry to add (every day at 03:00, with the real path of the site's `src/cron-backup.php`), the status, when the cron job was last seen, and whether this server starts due work after a visit (PHP-FPM, LiteSpeed) or not (mod_php, the built-in server). With short notes on adding it in cPanel and on using the full path of the right PHP.
+- **A *Cron job* line in the health checks** (so also on the dashboard): *running, last …* when it was seen in the last 36 hours; a warning, while scheduled backups are on, when it has not been seen for longer (*stopped?*) or when it was never set up on a server where a visit cannot start due work (they would wait for someone to open the admin); otherwise a note. The cron script records the time it ran for this.
+- The *Scheduled tasks* text no longer says there is no cron requirement: due tasks start after a visit or in the admin, and a cron job makes them run on time on a quiet site.
+- Tests: the states and the line (`tests/unit/cron-status.php`), the check in the list (`tests/unit/system-status.php`), and the screen before and after the script runs (`tests/http/backup_schedule_test.py`). Looked at in Chromium.
+
 ## 0.1.88 — 2026-10-12 — Scheduled backups no longer wait for the admin
 - **Found on a live site:** the daily backup was only taken on days someone opened the admin, because the schedule was checked only there. A site that nobody opens the admin of went days without one.
 - **A scheduled backup now also starts after a visit to the public site** (once the page has been sent, so the visitor does not wait; PHP-FPM and LiteSpeed), and **from a cron job**: `php src/cron-backup.php`, once a day. It prints `off`, `not due`, `busy`, `ok` or `failed` and does nothing when no backup is due. Backups > Policy shows the line to add, with the site's real path. Where the page cannot be finished before the work starts (mod_php, the built-in server), a visit does not start it, and the cron job is the way.

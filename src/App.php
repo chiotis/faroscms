@@ -203,7 +203,7 @@ final class App
             if (!$this->backupManager()->isRunDue()) {
                 return;
             }
-            $finish = function_exists('fastcgi_finish_request') ? 'fastcgi_finish_request' : (function_exists('litespeed_finish_request') ? 'litespeed_finish_request' : null);
+            $finish = CronStatus::finishFunction();
             if ($finish === null) {
                 return;
             }
@@ -221,7 +221,10 @@ final class App
     /** For the command line (src/cron-backup.php): the scheduled backup when it is due, and what became of it. */
     public function runScheduledBackup(): string
     {
-        return $this->backupManager()->runIfDue();
+        $result = $this->backupManager()->runIfDue();
+        // The System screen says when the cron job was last seen.
+        $this->systemMeta->set(CronStatus::META_KEY, date('c'));
+        return $result;
     }
 
     private function contentEditor(): ContentEditor
@@ -2390,8 +2393,9 @@ final class App
             'index' => $this->contentIndex->status($this->content->getTypes()),
             'extensions' => SystemStatus::extensions(),
             'environment' => $this->systemStatus()->environment($this->updates()->currentVersion(), $this->updates()->currentGitCommit(), $this->isHttpsRequest()),
+            'cron' => $this->cronStatus(),
             'tasks' => [
-                ['name' => 'Automatic backups', 'schedule' => Format::isTruthy($auto['enabled'] ?? false) ? (string)($auto['schedule'] ?? 'daily') : 'off', 'last' => (string)($auto['last_run'] ?? ''), 'how' => 'Runs on the first admin page view after it is due.'],
+                ['name' => 'Automatic backups', 'schedule' => Format::isTruthy($auto['enabled'] ?? false) ? (string)($auto['schedule'] ?? 'daily') : 'off', 'last' => (string)($auto['last_run'] ?? ''), 'how' => 'Taken by the cron job when it is set up; otherwise after a visit to the site (where the server allows it) or at the first admin page view after it is due.'],
                 ['name' => 'Update check', 'schedule' => 'every 12 hours', 'last' => (string)($update['checked_at'] ?? ''), 'how' => 'Runs on an admin page view for users who manage updates.'],
                 ['name' => 'Content index', 'schedule' => 'on change', 'last' => (string)($this->contentIndex->status($this->content->getTypes())['last_indexed_at'] ?? ''), 'how' => 'Updated on save, delete, bulk actions, imports, and restores; rebuilt automatically when files change outside the admin.'],
                 ['name' => 'Sign-in attempt cleanup', 'schedule' => 'continuous', 'last' => '', 'how' => 'Entries older than a day are removed while new attempts are recorded.'],
@@ -3252,6 +3256,13 @@ final class App
         return $this->siteLimitsService ??= new SiteLimits($this->systemMeta, $this->basePath, $this->contentDir, fn(): array => $this->settings);
     }
 
+    /** What the System screen says about the cron job (see CronStatus). @return array<string, mixed> */
+    private function cronStatus(): array
+    {
+        $auto = is_array($this->settings['backup']['auto'] ?? null) ? $this->settings['backup']['auto'] : [];
+        return CronStatus::info($this->basePath, (string)($this->systemMeta->get(CronStatus::META_KEY) ?? ''), Format::isTruthy($auto['enabled'] ?? false));
+    }
+
     private function systemStatus(): SystemStatus
     {
         return $this->systemStatusService ??= new SystemStatus(
@@ -3260,7 +3271,8 @@ final class App
             $this->systemDatabase,
             fn(): string => $this->mailer()->provider(),
             fn(): array => $this->ensureContentIndexFresh(),
-            fn(): array => $this->backupManager()->scheduleStatus()
+            fn(): array => $this->backupManager()->scheduleStatus(),
+            fn(): array => $this->cronStatus()['check']
         );
     }
 
