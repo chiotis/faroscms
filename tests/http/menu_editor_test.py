@@ -58,6 +58,10 @@ nav = re.search(r'<nav id="site-menu".*?</nav>', html, re.S)
 nav = nav.group(0) if nav else ''
 check('the site shows the labels in the language of the page, the new tab and the button class', '>About</a>' in nav and 'nav-cta' in nav and 'target="_blank"' in nav and '>Careers</a>' in nav, nav[:400])
 check('a hidden item is not shown, nor what is under it', 'Company' not in nav and 'Hidden child' not in nav, nav[:400])
+st, _, html = pub.get('/en/no-such-page')
+nav404 = re.search(r'<nav id="site-menu".*?</nav>', html, re.S)
+nav404 = nav404.group(0) if nav404 else ''
+check('a page that is not found has the same menu as the others, not the theme\'s sample links', st == 404 and '>Careers</a>' in nav404 and 'Company' not in nav404 and '/services' not in nav404, (st, nav404[:400]))
 st, _, html = pub.get('/')
 nav = re.search(r'<nav id="site-menu".*?</nav>', html, re.S)
 check('and the default language has its own labels', nav is not None and 'Σχετικά' in nav.group(0))
