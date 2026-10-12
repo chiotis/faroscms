@@ -6,6 +6,7 @@
     hero_subtitle  text under the title (default: the excerpt; nothing when there is none)
     hero_meta      small line above the title, as HTML
     hero_meta_inline  the same line worded for the centred layouts (default: hero_meta)
+  The trail above the title (Home, the list of its type, the entry) is drawn when the content type's single layout asks for breadcrumbs.
 #}
 {% import 'components/hero-layout.twig' as opening %}
 {% set layout = opening.layout(item, theme_settings)|trim %}
@@ -16,4 +17,12 @@
 {% set hero_text = single.excerpt is same as(false) ? '' : (hero_subtitle is defined ? hero_subtitle : item.meta.excerpt|default('')) %}
 {% set meta_html = single.byline is same as(false) ? '' : hero_meta|default('') %}
 {% set meta_inline = single.byline is same as(false) ? '' : (hero_meta_inline|default('')|trim ? hero_meta_inline : meta_html) %}
-{% include 'components/title-area.twig' with {layout: layout, title: item.meta.title, hero_text: hero_text, meta_html: meta_html, meta_inline: meta_inline, hero_image: hero_image, hero_bg: hero_bg, hero_parallax: hero_parallax} only %}
+{# The trail (Single Layouts > Breadcrumbs): Home, the list of its type, the entry. #}
+{% set crumbs = [] %}
+{% if single.breadcrumbs|default(false) %}
+  {% set trail_prefix = lang_prefix|default('') %}
+  {% set crumbs = [{label: t('nav.main.home', 'Home'), url: '/' ~ trail_prefix}] %}
+  {% if item.type|default('pages') != 'pages' %}{% set crumbs = crumbs|merge([{label: t('type.' ~ item.type, item.type|title), url: '/' ~ trail_prefix ~ item.type}]) %}{% endif %}
+  {% set crumbs = crumbs|merge([{label: item.meta.title, url: ''}]) %}
+{% endif %}
+{% include 'components/title-area.twig' with {layout: layout, title: item.meta.title, hero_text: hero_text, meta_html: meta_html, meta_inline: meta_inline, hero_image: hero_image, hero_bg: hero_bg, hero_parallax: hero_parallax, crumbs: crumbs} only %}

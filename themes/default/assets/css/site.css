@@ -321,6 +321,15 @@ h6 {
   text-wrap: balance;
 }
 
+/* Headings in the colour Design chooses (--heading-color; without it they take the colour of the text around them). Only on the page
+   itself: the text, section titles and the titles of a page or list. Dark panels reset it, and headings over pictures are not here. */
+.prose :is(h1, h2, h3, h4, h5, h6),
+.prose-block :is(h1, h2, h3, h4, h5, h6),
+.section-title,
+.single-hero:not(.has-image, .single-hero-cover) h1 {
+  color: var(--heading-color, inherit);
+}
+
 h1 { font-size: var(--step-5); line-height: 1.04; }
 h2 { font-size: var(--step-4); line-height: 1.08; }
 h3 { font-size: var(--step-2); }
@@ -441,6 +450,7 @@ hr {
 .tone-contrast,
 .tone-accent {
   color-scheme: dark;
+  --heading-color: initial;
   --color-bg: var(--d-bg);
   --color-surface: var(--d-surface);
   --color-surface-2: var(--d-surface-2);
@@ -623,8 +633,39 @@ hr {
 
 .prose,
 .prose-block {
+  display: flow-root;
   font-size: var(--step-0);
   line-height: 1.75;
+}
+
+/* A picture beside the text, in Markdown ![…](…){align=left} or {align=right}: the text goes around it. On a phone it takes the width. */
+.prose img[align="left"],
+.prose img[align="right"],
+.prose-block img[align="left"],
+.prose-block img[align="right"] {
+  float: left;
+  max-width: 45%;
+  height: auto;
+  margin: 0.35em 1.5rem 1rem 0;
+  border-radius: var(--radius-m);
+}
+
+.prose img[align="right"],
+.prose-block img[align="right"] {
+  float: right;
+  margin: 0.35em 0 1rem 1.5rem;
+}
+
+@media (max-width: 640px) {
+  .prose img[align="left"],
+  .prose img[align="right"],
+  .prose-block img[align="left"],
+  .prose-block img[align="right"] {
+    float: none;
+    display: block;
+    max-width: 100%;
+    margin: 0 0 1rem;
+  }
 }
 
 .prose > :first-child,
@@ -846,6 +887,23 @@ ul.checklist li::before {
 
 .site-header.row-soft {
   --header-bg: var(--accent-soft);
+}
+
+/* A fade: the colour at the top, melting into the page background at the bottom. The sticky and transparent states below replace the
+   background with their own, so a fixed header is a plain tint and one over a hero is clear. */
+.site-header.row-fade-muted,
+.site-header.row-fade-soft {
+  border-bottom-color: transparent;
+}
+
+.site-header.row-fade-muted {
+  --header-bg: var(--color-surface);
+  background-image: linear-gradient(180deg, var(--color-surface), var(--color-bg));
+}
+
+.site-header.row-fade-soft {
+  --header-bg: var(--accent-soft);
+  background-image: linear-gradient(180deg, var(--accent-soft), var(--color-bg));
 }
 
 .header-spacer {
@@ -2126,6 +2184,57 @@ body.has-transparent-header:not(.header-solid) .site-header.is-on-dark[data-stic
 .single-hero.has-image .single-hero-subtitle,
 .single-hero.has-image .single-hero-meta {
   color: rgb(248 250 252 / 0.9);
+}
+
+/* Breadcrumbs: the trail above a title (Single Layouts and Archive Layouts > Breadcrumbs). It takes the colour of the area, so it
+   reads over a picture too, and is centred where the title is. */
+.crumbs {
+  font-size: var(--step--1);
+  color: var(--color-muted);
+}
+
+.single-hero.has-image .crumbs,
+.single-hero-cover .crumbs {
+  color: rgb(248 250 252 / 0.9);
+}
+
+.crumbs ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.crumbs li + li::before {
+  content: "›";
+  margin-right: 0.5rem;
+  opacity: 0.6;
+}
+
+.crumbs a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.crumbs a:hover,
+.crumbs a:focus-visible {
+  text-decoration: underline;
+}
+
+.crumbs [aria-current="page"] {
+  color: var(--color-text);
+}
+
+.single-hero.has-image .crumbs [aria-current="page"],
+.single-hero-cover .crumbs [aria-current="page"] {
+  color: inherit;
+}
+
+.single-hero-centered .crumbs ol,
+.single-hero-minimal .crumbs ol {
+  justify-content: center;
 }
 
 .single-hero-meta {

@@ -21,6 +21,17 @@ check('an address word belongs to its taxonomy: category(ies), tag(s), or the na
 $row = fn(string $id, string $slug, string $el, string $en = '') => ['id' => $id, 'slug' => $slug, 'labels' => ['el' => $el, 'en' => $en]];
 $term = fn(array $p, string $id) => array_values(array_filter($p['terms'], fn($x) => $x['id'] === $id))[0] ?? null;
 
+// ---- the title area a term asks for
+$t->save('industries', 'Industries', [['id' => 'retail', 'slug' => 'retail', 'labels' => ['el' => 'Λιανική', 'en' => 'Retail'], 'hero_layout' => 'centered'], ['id' => 'food', 'slug' => 'food', 'labels' => ['el' => 'Φαγητό', 'en' => 'Food'], 'hero_layout' => 'not a word!']]);
+check('a term can ask for a title area, and a value that is not a word is dropped', [$t->heroLayout('industries', 'retail'), $t->heroLayout('industries', 'food'), $t->heroLayout('industries', 'nothing'), $t->heroLayout('nothing', 'retail')], ['centered', '', '', '']);
+check('it is written to the file only when there is one', [str_contains((string)file_get_contents("$dir/taxonomies/industries.yaml"), 'hero_layout: centered'), substr_count((string)file_get_contents("$dir/taxonomies/industries.yaml"), 'hero_layout')], [true, 1]);
+$p = $t->prepare('industries', [['id' => 'retail', 'slug' => 'retail', 'labels' => ['el' => 'Λιανική', 'en' => 'Retail']]], 'el');
+check('a form that did not send the choice leaves the term\'s own', $p['terms'][0]['hero_layout'], 'centered');
+$p = $t->prepare('industries', [['id' => 'retail', 'slug' => 'retail', 'labels' => ['el' => 'Λιανική', 'en' => 'Retail'], 'hero_layout' => 'split'], ['id' => '', 'slug' => '', 'labels' => ['el' => 'Νέος', 'en' => ''], 'hero_layout' => 'cover']], 'el');
+check('one that did changes it, also for a new term', [$p['terms'][0]['hero_layout'], $p['terms'][1]['hero_layout']], ['split', 'cover']);
+$p = $t->prepare('industries', [['id' => 'retail', 'slug' => 'retail', 'labels' => ['el' => 'Λιανική', 'en' => 'Retail'], 'hero_layout' => '']], 'el');
+check('and an empty one clears it', $p['terms'][0]['hero_layout'], '');
+
 // ---- new terms get an address from their name
 $p = $t->prepare('tags', [$row('news', 'news', 'Νέα', 'News'), $row('design', 'design', 'Σχεδιασμός', 'Design'), $row('', '', 'Ελληνική κουζίνα', 'Greek cuisine')], 'el');
 check('a new term gets a Latin address made from its name', [$term($p, 'elliniki-kouzina')['slug'] ?? null], ['elliniki-kouzina']);

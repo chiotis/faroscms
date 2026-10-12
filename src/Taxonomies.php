@@ -104,7 +104,7 @@ final class Taxonomies
         }
     }
 
-    /** @return array{title: string, terms: array<int, array{id: string, slug: string, labels: array<string, string>, descriptions: array<string, string>}>, archive: array<string, mixed>} */
+    /** @return array{title: string, terms: array<int, array{id: string, slug: string, labels: array<string, string>, descriptions: array<string, string>, hero_layout: string}>, archive: array<string, mixed>} */
     public function load(string $name): array
     {
         $name = Slug::plain($name) ?: 'tags';
@@ -149,6 +149,9 @@ final class Taxonomies
                 if (implode('', $term['descriptions']) === '') {
                     unset($term['descriptions']);
                 }
+                if ($term['hero_layout'] === '') {
+                    unset($term['hero_layout']);
+                }
                 return $term;
             }, $this->normalizeTerms($terms)),
         ];
@@ -178,7 +181,7 @@ final class Taxonomies
         $this->cache = [];
     }
 
-    /** @return array<int, array{id: string, slug: string, labels: array<string, string>, descriptions: array<string, string>}> */
+    /** @return array<int, array{id: string, slug: string, labels: array<string, string>, descriptions: array<string, string>, hero_layout: string}> */
     private function normalizeTerms(mixed $terms): array
     {
         if (!is_array($terms)) {
@@ -205,13 +208,13 @@ final class Taxonomies
                 $labels[(string)$lang] = trim((string)($source[(string)$lang] ?? ''));
                 $descriptions[(string)$lang] = trim(str_replace("\r\n", "\n", (string)($texts[(string)$lang] ?? '')));
             }
-            $rows[] = ['id' => $id, 'slug' => $slug, 'labels' => $labels, 'descriptions' => $descriptions];
+            $rows[] = ['id' => $id, 'slug' => $slug, 'labels' => $labels, 'descriptions' => $descriptions, 'hero_layout' => self::heroChoice($term['hero_layout'] ?? '')];
             $seen[$id] = true;
         }
         return $rows;
     }
 
-    /** @return array{id: string, slug: string, labels: array<string, string>, descriptions: array<string, string>}|null */
+    /** @return array{id: string, slug: string, labels: array<string, string>, descriptions: array<string, string>, hero_layout: string}|null */
     public function findBySlug(string $name, string $slug): ?array
     {
         $slug = Slug::plain($slug);
@@ -263,6 +266,25 @@ final class Taxonomies
         return '';
     }
 
+    /** A title area a term asks for, as a word of the theme's list (checked where it is used); '' for none. */
+    private static function heroChoice(mixed $value): string
+    {
+        $value = is_string($value) ? trim($value) : '';
+        return preg_match('/^[a-z][a-z0-9_-]{0,23}$/', $value) === 1 ? $value : '';
+    }
+
+    /** The style of title area the entries filed under a term open with (their own choice still wins), or '' to follow their type. */
+    public function heroLayout(string $name, string $termId): string
+    {
+        $termId = Slug::plain($termId);
+        foreach ($this->load($name)['terms'] as $term) {
+            if ($term['id'] === $termId) {
+                return $term['hero_layout'];
+            }
+        }
+        return '';
+    }
+
     public function slug(string $name, string $termId): string
     {
         $termId = Slug::plain($termId);
@@ -304,7 +326,7 @@ final class Taxonomies
      * converted to Latin) unless one was typed; a term whose address field is empty keeps the one it has.
      *
      * @param string $name the taxonomy
-     * @param array<int, array{id: string, slug: string, labels: array<string, string>, descriptions?: array<string, string>|null}> $rows in form order, `id` empty for a new term; `descriptions` left out (or null) keeps what the term has
+     * @param array<int, array{id: string, slug: string, labels: array<string, string>, descriptions?: array<string, string>|null, hero_layout?: string|null}> $rows in form order, `id` empty for a new term; `descriptions` and `hero_layout` left out (or null) keep what the term has
      * @return array{terms: array<int, array{id: string, slug: string, labels: array<string, string>, descriptions: array<string, string>}>, moved: array<int, array{id: string, from: string, to: string}>, removed: string[], added: string[]}
      */
     public function prepare(string $name, array $rows, string $defaultLang): array
@@ -363,7 +385,8 @@ final class Taxonomies
                 $added[] = $id;
             }
             $descriptions = is_array($row['descriptions'] ?? null) ? $row['descriptions'] : ($existing['descriptions'] ?? []);
-            $terms[] = ['id' => $id, 'slug' => $slug, 'labels' => $row['labels'], 'descriptions' => $descriptions];
+            $hero = is_string($row['hero_layout'] ?? null) ? self::heroChoice($row['hero_layout']) : ($existing['hero_layout'] ?? '');
+            $terms[] = ['id' => $id, 'slug' => $slug, 'labels' => $row['labels'], 'descriptions' => $descriptions, 'hero_layout' => $hero];
         }
         $kept = array_column($terms, 'id');
         // An address another term still uses is not gone, so nobody is sent away from it.

@@ -19,6 +19,7 @@ return [
     'nav.footer.terms' => 'Terms of Use',
     'nav.footer.cookies' => 'Cookies',
     'nav.footer.contact' => 'Contact',
+    'breadcrumb.label' => 'Breadcrumb',
     'archive.suffix' => 'Archive',
     'archive.subtitle' => 'Latest updates, insights, and announcements.',
     'archive.empty' => 'No content yet.',

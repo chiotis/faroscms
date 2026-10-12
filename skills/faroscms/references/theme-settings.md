@@ -1,4 +1,4 @@
-# Theme settings of this installation (FarosCMS 0.1.90)
+# Theme settings of this installation (FarosCMS 0.1.95)
 
 Set with `python3 scripts/site_settings.py set theme section.field=value`. A text marked *translatable* takes a plain text or a map `{default: …, en: …}`.
 
@@ -24,7 +24,7 @@ Set with `python3 scripts/site_settings.py set theme section.field=value`. A tex
 | `nav_style` | select; one of `soft`, `underline`, `plain` | soft | Menu links |
 | `sticky` | select; one of `on_scroll`, `always`, `smart`, `off` | on_scroll | Sticky |
 | `shrink` | toggle | false | Shrinks once the page is scrolled. Works with the header that stays at the top. |
-| `row_tone` | select; one of `default`, `muted`, `soft`, `contrast`, `accent` | default | Header background. The row with the logo. A solid colour, not a gradient. |
+| `row_tone` | select; one of `default`, `muted`, `soft`, `fade-muted`, `fade-soft`, `contrast`, `accent` | default | Header background. The row with the logo. A fade goes from the colour down into the page background, so the header melts into the page. |
 | `search` | select; one of `icon`, `field`, `none` | icon | Search |
 | `show_language` | toggle | true | Language switcher |
 | `show_mode` | toggle | true | Dark mode switch |
@@ -95,6 +95,9 @@ Set with `python3 scripts/site_settings.py set theme section.field=value`. A tex
 | `heading_tracking` | select; one of `auto`, `tighter`, `tight`, `normal`, `wide` | auto | Heading letter spacing |
 | `heading_leading` | select; one of `auto`, `tight`, `normal`, `relaxed` | auto | Heading line height |
 | `heading_case` | select; one of `auto`, `uppercase` | auto | Heading case |
+| `heading_color` | select; one of `text`, `accent`, `custom` | text | Heading colour. Page titles, section titles and the headings of the text. Dark panels, the footer and headings over pictures keep their own colour. |
+| `heading_color_light` | color | (empty) | Headings |
+| `heading_color_dark` | color | (empty) | Headings |
 | `container` | number; 640 to 2400 | (empty) | Content width |
 | `reading_width` | number; 480 to 1200 | (empty) | Reading width. Narrow pages and text. |
 | `gutter` | number; 16 to 160 | (empty) | Side margin. A phone keeps 20. |

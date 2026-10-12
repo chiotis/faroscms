@@ -123,7 +123,19 @@
     if (/[\s()<>]/.test(src)) { src = '<' + src.replace(/[<>]/g, encodeURIComponent) + '>'; }
     var alt = (node.getAttribute('alt') || '').replace(/([\[\]\\])/g, '\\$1');
     var title = node.getAttribute('title');
-    return '![' + alt + '](' + src + (title ? ' "' + title.replace(/"/g, '\\"') + '"' : '') + ')';
+    var side = floatOf(node);
+    return '![' + alt + '](' + src + (title ? ' "' + title.replace(/"/g, '\\"') + '"' : '') + ')' + (side !== '' ? '{align=' + side + '}' : '');
+  }
+
+  /** Which side a picture sits on beside the text, left or right; nothing for one in the line of text. Read from align, a WordPress class, or a float. */
+  function floatOf(node) {
+    var value = (node.getAttribute('align') || '').toLowerCase();
+    if (value !== 'left' && value !== 'right') {
+      var cls = ' ' + (node.getAttribute('class') || '').toLowerCase() + ' ';
+      var match = /(?:^|;)\s*float:\s*(left|right)/i.exec(node.getAttribute('style') || '');
+      value = /\salignleft\s/.test(cls) ? 'left' : (/\salignright\s/.test(cls) ? 'right' : (match ? match[1].toLowerCase() : ''));
+    }
+    return value === 'left' || value === 'right' ? value : '';
   }
 
   function inlineNode(node) {
@@ -620,7 +632,18 @@
     var keep = function (e) { e.preventDefault(); };
     var edit = el('button', { type: 'button', class: 'ed-text', text: 'Edit', title: 'Change the address or the description', onmousedown: keep, onclick: function () { rememberRange(); editPicture(img, edit); } });
     var remove = el('button', { type: 'button', class: 'ed-text is-danger', text: 'Remove picture', onmousedown: keep, onclick: function () { removePicture(img); } });
-    pictureBar = el('div', { class: 'ed-picturebar', role: 'toolbar', 'aria-label': 'Picture' }, [edit, remove]);
+    // Beside the text: the picture floats to one side and the text goes around it (Markdown: ![…](…){align=left}).
+    var sides = [['', 'In the text', 'The picture stays in the line of text'], ['left', 'Left', 'The picture sits on the left, the text goes around it'], ['right', 'Right', 'The picture sits on the right, the text goes around it']].map(function (choice) {
+      var button = el('button', { type: 'button', class: 'ed-text', text: choice[1], title: choice[2], 'aria-pressed': floatOf(img) === choice[0] ? 'true' : 'false', 'data-side': choice[0], onmousedown: keep, onclick: function () {
+        if (choice[0] === '') { img.removeAttribute('align'); } else { img.setAttribute('align', choice[0]); }
+        img.removeAttribute('style');
+        img.classList.remove('alignleft', 'alignright');
+        Array.prototype.forEach.call(pictureBar.querySelectorAll('[data-side]'), function (other) { other.setAttribute('aria-pressed', other === button ? 'true' : 'false'); });
+        changed();
+      } });
+      return button;
+    });
+    pictureBar = el('div', { class: 'ed-picturebar', role: 'toolbar', 'aria-label': 'Picture' }, sides.concat([edit, remove]));
     box.appendChild(pictureBar);
     var at = img.getBoundingClientRect(), host = box.getBoundingClientRect();
     pictureBar.style.top = Math.max(0, at.top - host.top + 6) + 'px';
@@ -757,7 +780,7 @@
           return;
         case 'IMG':
           var src = safeUrl(node.getAttribute('src') || '');
-          if (src && !/^data:/i.test(src)) { into.push('<img src="' + escapeHtml(src) + '" alt="' + escapeHtml(node.getAttribute('alt') || '') + '">'); }
+          if (src && !/^data:/i.test(src)) { var side = floatOf(node); into.push('<img src="' + escapeHtml(src) + '" alt="' + escapeHtml(node.getAttribute('alt') || '') + '"' + (side !== '' ? ' align="' + side + '"' : '') + '>'); }
           return;
         case 'TABLE': case 'THEAD': case 'TBODY': case 'TR': case 'TH': case 'TD':
           into.push('<' + tag.toLowerCase() + '>' + children() + '</' + tag.toLowerCase() + '>');

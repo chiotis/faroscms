@@ -1295,6 +1295,12 @@ html.dark .en-crumb a { color: #93c5fd; }
 .ed-surface img { max-width: 100%; height: auto; border-radius: .25rem; }
 .ed-surface img { cursor: pointer; }
 .ed-surface img.is-picked { outline: 2px solid #2563eb; outline-offset: 2px; }
+/* A picture beside the text: the text goes around it, as on the site. */
+.ed-surface img[align="left"], .ed-surface img[align="right"] { max-width: 45%; margin-bottom: .5rem; }
+.ed-surface img[align="left"] { float: left; margin-right: 1rem; }
+.ed-surface img[align="right"] { float: right; margin-left: 1rem; }
+.ed-surface::after { content: ""; display: table; clear: both; }
+.ed-picturebar .ed-text[aria-pressed="true"] { background: #dbeafe; color: #1e40af; }
 .ed-picturebar { position: absolute; z-index: 15; display: flex; gap: .125rem; padding: .25rem; border: 1px solid #e2e8f0; border-radius: .5rem; background: #fff; box-shadow: 0 4px 14px rgba(15, 23, 42, .15); }
 .ed-surface hr { margin: 1rem 0; border: 0; border-top: 1px solid #cbd5e1; }
 .ed-surface table { width: 100%; margin: .75rem 0; border-collapse: collapse; font-size: .875rem; }

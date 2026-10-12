@@ -185,6 +185,23 @@ async function page(drawn) {
   Array.from(t.window.document.querySelectorAll('.ed-pop button')).find((b) => /Remove picture/.test(b.textContent)).click();
   check('and the form has Remove picture as well', !t.surface.contains(first) && t.$('.ed-pop') === null);
 
+  // beside the text
+  t = await page(WITH_PICTURES);
+  const beside = t.surface.querySelectorAll('img')[0];
+  t.click(beside);
+  const sides = Array.from(t.window.document.querySelectorAll('.ed-picturebar [data-side]'));
+  check('a picked picture can be put in the text, on the left or on the right, and says which it is on', sides.map((b) => b.getAttribute('data-side')).join() === ',left,right' && sides[0].getAttribute('aria-pressed') === 'true' && sides[1].getAttribute('aria-pressed') === 'false', sides.map((b) => b.outerHTML));
+  sides[1].click();
+  check('Left floats it: the picture has align=left and the button is pressed', beside.getAttribute('align') === 'left' && t.window.document.querySelector('.ed-picturebar [data-side=left]').getAttribute('aria-pressed') === 'true' && beside.classList.contains('is-picked'), beside.outerHTML);
+  await wait(400);
+  check('and the Markdown says so', t.$('textarea').value.includes('![A cat](/uploads/media/a.png){align=left}') && t.$('textarea').value.includes('Words ![B](/uploads/media/b.png) in a line'), JSON.stringify(t.$('textarea').value));
+  t.window.document.querySelector('.ed-picturebar [data-side=right]').click();
+  await wait(400);
+  check('Right moves it to the other side', beside.getAttribute('align') === 'right' && t.$('textarea').value.includes('![A cat](/uploads/media/a.png){align=right}'), JSON.stringify(t.$('textarea').value));
+  t.window.document.querySelector('.ed-picturebar [data-side=""]').click();
+  await wait(400);
+  check('and In the text puts it back, with nothing left in the Markdown', !beside.hasAttribute('align') && t.$('textarea').value.includes('![A cat](/uploads/media/a.png)') && !t.$('textarea').value.includes('{align=right}'), JSON.stringify(t.$('textarea').value));
+
   // a picked picture does not make its block be written again
   t = await page(WITH_PICTURES);
   t.click(t.surface.querySelectorAll('img')[1]);

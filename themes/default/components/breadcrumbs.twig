@@ -1,0 +1,11 @@
+{#
+  The trail above a title: where the page sits in the site. crumbs is a list of {label, url}; the last one is the page itself
+  (no link, aria-current). The title area draws it when a single layout or an archive layout asks for breadcrumbs.
+#}
+<nav class="crumbs" aria-label="{{ t('breadcrumb.label', 'Breadcrumb') }}">
+  <ol>
+    {% for crumb in crumbs %}
+      <li>{% if crumb.url|default('') and not loop.last %}<a href="{{ crumb.url }}">{{ crumb.label }}</a>{% else %}<span{% if loop.last %} aria-current="page"{% endif %}>{{ crumb.label }}</span>{% endif %}</li>
+    {% endfor %}
+  </ol>
+</nav>

@@ -57,7 +57,7 @@ labels = re.findall(r'role="tab"[^>]*data-tab="([a-z_]+)"[^>]*>([^<]+)</button>'
 check('Branding is the first tab and replaces Appearance and Brand', st == 200 and labels[0] == ('branding', 'Branding') and not any(k in ('appearance', 'brand', 'design') for k, _ in labels), labels)
 check('it is open first', re.search(r'class="[^"]*\bactive\b[^"]*" data-tab="branding"', html) is not None and 'name="active_tab" value="branding"' in html)
 for key in ('light_accent', 'light_background', 'light_surface', 'light_text', 'light_muted', 'light_border', 'dark_accent', 'dark_background', 'dark_surface', 'dark_text', 'dark_muted', 'dark_border', 'ink',
-            'heading_font', 'body_font', 'font_file', 'base_size', 'line_height', 'scale', 'heading_weight', 'heading_tracking', 'heading_leading', 'heading_case',
+            'heading_font', 'body_font', 'font_file', 'base_size', 'line_height', 'scale', 'heading_weight', 'heading_tracking', 'heading_leading', 'heading_case', 'heading_color',
             'container', 'reading_width', 'gutter', 'section_space', 'header_height', 'spacing', 'radius', 'button_radius', 'shadows', 'button_height', 'button_pad', 'button_size', 'button_weight', 'button_case'):
     if ('name="theme_settings[design][%s]"' % key) not in html:
         check('a field for ' + key, False)
@@ -117,6 +117,20 @@ check('a word that is not on the list keeps the last choice', '--font-heading:Av
 sheet = asset('css')
 check('the stylesheet reads the tokens: type, spacing, sections, buttons, logo', all(x in sheet for x in ('--type-scale', '--space-scale', '--section-scale', 'var(--header-min', 'var(--btn-height', 'var(--btn-pad-x', 'var(--btn-case', 'var(--logo-h)', 'var(--footer-logo-height', 'var(--brand-name-size')))
 check('and shows the logo for dark backgrounds where the header or the mode is dark', '.logo-on-dark' in sheet and ':root.dark .logo-on-light' in sheet and '.site-header.tone-contrast .logo-on-dark' in sheet and 'is-on-dark:not([data-sticky="always"]) .logo-on-dark' in sheet)
+
+# ---- the colour of headings
+st, _, html = root.get('/admin/theme')
+check('the screen has the choice of the colour of headings and one colour for each mode', all(('name="theme_settings[design][%s]"' % k) in html for k in ('heading_color', 'heading_color_light', 'heading_color_dark')))
+(res, hdr, _), _ = post_theme(d(heading_color='accent'))
+css = style(page())
+check('headings in the palette colour', '--heading-color:var(--accent);' in css, css[:300])
+(res, hdr, _), _ = post_theme(d(heading_color='custom', heading_color_light='#b00020', heading_color_dark='#ff8a80'))
+css = style(page())
+check('headings in colours of their own, light and dark', '--heading-color:#b00020;' in css and ':root.dark[data-theme][data-mode]{--heading-color:#ff8a80}' in css, css[:500])
+sheet = asset('css')
+check('the style sheet gives them to the text, the section titles and the title of a page, and not to a dark panel', '.section-title' in sheet and 'var(--heading-color, inherit)' in sheet and re.search(r'\.tone-contrast,\s*\.tone-accent \{[^}]*--heading-color: initial', sheet) is not None)
+(res, hdr, _), _ = post_theme(d(heading_color='text'))
+check('and back to the colour of the text', '--heading-color' not in style(page()))
 
 # ---- everything back to the theme
 (res, hdr, _), _ = post_theme({**d(heading_font='pairing', body_font='pairing', base_size='', scale='auto', line_height='', heading_weight='auto', heading_tracking='auto', heading_leading='auto', heading_case='auto',
