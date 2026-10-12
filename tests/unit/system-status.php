@@ -26,6 +26,8 @@ $by = fn(array $checks) => array_column($checks, null, 'label');
 
 $checks = $by($status->checks($storage));
 check('every check is named', array_keys($checks), ['PHP', 'Upload limit', 'Memory limit', 'SQLite', 'Content directory', 'Storage directory', 'Uploads directory', 'Email provider', 'Disk free', 'Content index', 'Scheduled backups']);
+$withCron = new SystemStatus($dir, "$dir/content", $db, function () use (&$mail) { return $mail; }, function () use (&$index) { return ['available' => true, 'stale' => false, 'rows' => 12]; }, fn() => $schedule, fn() => ['label' => 'Cron job', 'value' => 'running, last 2026-10-12 03:00', 'status' => 'ok']);
+check('a cron job check is the last one when it is given, and absent when not', [array_column($withCron->checks(['disk_free_human' => '1 GB', 'percent' => 1]), 'label')[11] ?? null, count($withCron->checks(['disk_free_human' => '1 GB', 'percent' => 1])) - count($status->checks(['disk_free_human' => '1 GB', 'percent' => 1]))], ['Cron job', 1]);
 check('PHP is ok', [$checks['PHP']['value'], $checks['PHP']['status']], [PHP_VERSION, 'ok']);
 check('the database is available', [$checks['SQLite']['value'], $checks['SQLite']['status']], ['available', 'ok']);
 check('folders that can be written are ok', [$checks['Content directory']['status'], $checks['Storage directory']['status'], $checks['Uploads directory']['status']], ['ok', 'ok', 'ok']);

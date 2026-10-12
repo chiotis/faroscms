@@ -42,7 +42,7 @@
       <div class="rounded-lg border border-slate-200 bg-white">
         <div class="border-b border-slate-200 px-4 py-3">
           <h2 class="text-sm font-semibold text-slate-900">Scheduled tasks</h2>
-          <p class="mt-0.5 text-xs text-slate-400">FarosCMS has no cron requirement: tasks run during normal admin requests when they are due.</p>
+          <p class="mt-0.5 text-xs text-slate-400">FarosCMS needs no cron job to work: due tasks start after a visit to the site (where the server allows it) or when the admin is opened. A cron job makes them run on time on a quiet site.</p>
         </div>
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
@@ -66,6 +66,33 @@
               {% endfor %}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      <div class="rounded-lg border border-slate-200 bg-white" id="cron">
+        <div class="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+          <div>
+            <h2 class="text-sm font-semibold text-slate-900">Cron job</h2>
+            <p class="mt-0.5 text-xs text-slate-400">Recommended: one entry on the server, once a day.</p>
+          </div>
+          {{ ui.status_badge(cron.check.status) }}
+        </div>
+        <div class="space-y-3 px-4 py-3 text-sm">
+          <dl class="space-y-2">
+            <div class="flex justify-between gap-3"><dt class="text-slate-500">Status</dt><dd class="text-right font-medium text-slate-900">{{ cron.check.value }}</dd></div>
+            <div class="flex justify-between gap-3"><dt class="text-slate-500">Last seen</dt><dd class="font-medium text-slate-900">{{ cron.last_seen ? cron.last_seen|date('Y-m-d H:i') : 'never' }}</dd></div>
+            <div class="flex justify-between gap-3"><dt class="text-slate-500">A visit starts due work</dt><dd class="text-right font-medium text-slate-900">{{ cron.after_visit ? 'yes (' ~ cron.sapi ~ ')' : 'no (' ~ cron.sapi ~ ')' }}</dd></div>
+          </dl>
+          <div>
+            <p class="mb-1 text-xs font-medium text-slate-600">The entry to add (every day at 03:00)</p>
+            <code class="block break-all rounded bg-slate-100 px-2 py-1.5 text-[11px] text-slate-700" data-cron-line>{{ cron.line }}</code>
+          </div>
+          <ul class="list-disc space-y-1 pl-5 text-xs leading-5 text-slate-500">
+            <li>It takes the scheduled backup when one is due and does nothing otherwise, so running it more often does no harm. It prints <code>off</code>, <code>not due</code>, <code>busy</code>, <code>ok</code> or <code>failed</code>.</li>
+            <li>In cPanel or a similar panel, add it under <em>Cron Jobs</em> as a <em>Custom</em> command. If <code>php</code> is not the right PHP, give the full path to the PHP of this site (for example <code>/usr/local/bin/php</code>).</li>
+            <li>{% if cron.after_visit %}This server can start due work right after a visit, so a site with visitors takes its backups without a cron job; the cron job covers the quiet days.{% else %}This server cannot start due work after a visit ({{ cron.sapi }}), so without a cron job a scheduled backup waits until someone opens the admin.{% endif %}</li>
+            <li>Without a schedule on, there is nothing for the cron job to do yet: the backup schedule is in Settings > Backup.</li>
+          </ul>
         </div>
       </div>
 
