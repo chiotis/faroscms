@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.91 — 2026-10-12 — The skill finds the WordPress importer for a site installed from the zip
+- **`skills/faroscms/references/importing.md`:** a site installed from the release zip has no `scripts/import-wordpress.php`. An assistant working in such a site is now told not to fall back to the skill's own scripts for a WordPress site, but to find a clone of the repository (or ask for its path, or clone it into a scratch folder), run the importer from there with every path of the site given (`--content`, `--uploads`, `--custom`, `--out`, because the defaults point at the clone's own folders), and never copy the script into the site.
+
 ## 0.1.90 — 2026-10-12 — Hero: two centred layouts over a picture
 - **Two new Hero layouts, in the layout choice with their own drawings:** *Centered text over a full-width image* and *Centered text over a full-width image, with numbered steps*, next to the ones they follow. They replace the *Text alignment* field of 0.1.86 (a layout is easier to see than a hidden choice); a hero saved with that field becomes the matching layout when it is shown, edited or saved, and nothing else changes.
 - Centred, the text sits in the middle of the picture (with the steps, at the bottom as before), buttons and highlights are centred, the shade does not favour a side, and the steps stay in a row of the block's width, each centred under its line.
