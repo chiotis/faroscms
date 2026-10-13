@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.105 — 2026-10-13 — Omni on PHP 8.1 to 8.3
+- **Fixed: a site on PHP 8.1, 8.2 or 8.3 could not connect to an Omni** ("No Omni answered at …"), since 0.1.103. The status of Omni's answers was read in a way only PHP 8.4 and later fill in, so every answer looked like none. `OmniClient` now reads it from the stream's own metadata, which every PHP version gives (and which is not deprecated in PHP 8.5).
+- Found by the test suite on PHP 8.1 and 8.3 (`tests/http/omni_test.py`), which now passes there.
+
 ## 0.1.104 — 2026-10-13 — Long text no longer widens block rows
 - **In the block editor, a long summary stays on one line and is cut with an ellipsis.** A slider slide, or any repeater row, block card or block body, with long text in it used to grow past its container and push the move and remove buttons out. The block list, the rows of a repeater and a block's content and design columns now never grow wider than the editor (`public/assets/css/app.css`).
 
