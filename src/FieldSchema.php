@@ -62,6 +62,10 @@ final class FieldSchema
             if ($type === 'select' || $type === 'icon') {
                 $field['options'] = self::normalizeOptions($definition['options'] ?? []);
             }
+            // A choice the editor draws as small pictures: `drawn: true` takes variants/<value>.svg of the block, `drawn: hero` those of that block.
+            if ($type === 'select' && isset($definition['drawn'])) {
+                $field['drawn'] = $definition['drawn'] === true ? '*' : (is_string($definition['drawn']) && preg_match('/^[a-z][a-z0-9-]*$/', $definition['drawn']) ? $definition['drawn'] : '');
+            }
             if ($type === 'file') {
                 // Which files the Library offers for it: all of them, or only route files (GPX, KML, GeoJSON).
                 $field['kind'] = ($definition['kind'] ?? '') === 'track' ? 'track' : 'all';

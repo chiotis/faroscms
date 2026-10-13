@@ -217,7 +217,18 @@
       el('label', { class: 'bk-label', for: id, text: labelText })
     ]);
 
-    if ((type === 'select') && isShortChoice(field)) {
+    if (type === 'select' && field.drawings && Object.keys(field.drawings).length) {
+      // A choice drawn as small pictures (the layout of a slide in the hero slider), like the layouts of a block.
+      control = choiceButtons(field, value == null ? field['default'] : value, onChange, 'bk-choices bk-vtiles', function (button, pair) {
+        button.appendChild(thumb(field.drawings[pair[0]]));
+        button.appendChild(el('span', { text: pair[1] }));
+      });
+      control.id = id;
+      wrapper.querySelector('label').removeAttribute('for');
+      wrapper.querySelector('label').setAttribute('id', id + '-label');
+      control.setAttribute('aria-labelledby', id + '-label');
+      wrapper.appendChild(control);
+    } else if ((type === 'select') && isShortChoice(field)) {
       control = choiceButtons(field, value == null ? '' : value, onChange, 'bk-seg');
       control.id = id;
       wrapper.querySelector('label').removeAttribute('for');

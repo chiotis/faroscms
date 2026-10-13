@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.107 — 2026-10-13 — The layout of a hero slide shows the hero's drawings
+- **In the Hero slider, the Layout of each slide is a row of small drawings**, the same as the layout picker of the Hero block, instead of a plain menu.
+- **A choice field can be drawn:** `drawn: true` on a `select` in `block.yaml` (also inside a repeater) takes `variants/<option>.svg` of the block, and `drawn: hero` those of another block, so the Hero slider reuses the Hero's drawings and they cannot drift apart.
+
 ## 0.1.106 — 2026-10-13 — Hero slider
 - **New block: Hero slider.** A slider whose every slide is a Hero. Each slide picks its own hero layout (text and image side by side, centered, text over a full-width image, centered over an image, the two with numbered steps, or a large heading) and has everything a Hero has: eyebrow, heading, text, two buttons with a style, three highlights, up to four steps, and an image or a video behind the text. A slide looks exactly like that hero, on a phone too, instead of the Slider's own layouts. Arrows and dots go below or over the slides; it can move by itself (5, 8 or 12 seconds) with a pause button.
 - The hero's content moved into one component (`components/hero-content.twig`) that the Hero block and each slide use, so they cannot drift apart. The Hero block's output is unchanged. When every slide is a cover over a picture and the block opens the page, the header sits over it like over an opening hero.

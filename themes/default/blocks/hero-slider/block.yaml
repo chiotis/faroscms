@@ -31,6 +31,8 @@ fields:
         type: select
         label: Layout
         default: split
+        drawn: hero
+        span: full
         options:
           split: 'Text and image side by side'
           centered: 'Centered text, wide image below'
