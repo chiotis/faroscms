@@ -1449,6 +1449,11 @@ html.dark .bk-vtiles button[aria-pressed="true"] .bk-pthumb { border-color: #60a
 .bk-thumb.has-image .bk-thumb-empty { display: none; }
 .bk-thumb-empty svg { width: 1rem; height: 1rem; }
 .bk-rep { padding: .5rem; border: 1px solid #e2e8f0; border-radius: .5rem; background: #f8fafc; }
+.bk-inline-rows { display: grid; grid-template-columns: minmax(0, 1fr); gap: .375rem .5rem; align-items: center; }
+@media (min-width: 640px) { .bk-inline-rows { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.bk-inline-rows .bk-add { align-self: stretch; margin-top: 0; }
+.bk-inline-item { display: flex; min-width: 0; align-items: center; gap: .125rem; }
+.bk-inline-item .lc-input { min-width: 0; flex: 1; }
 .bk-rep-head { display: flex; align-items: center; gap: .5rem; margin-bottom: .375rem; }
 .bk-rep-head .bk-link { margin-left: auto; }
 .bk-count { padding: 0 .4rem; border-radius: 99px; background: #e2e8f0; color: #475569; font-size: .6875rem; font-weight: 600; line-height: 1.125rem; }

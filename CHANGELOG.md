@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.114 — 2026-10-13 — The Hero's highlights are three boxes in a row
+- **In the block editor, the highlights of a Hero are three text boxes in one row**, each with a button to remove it and an "Add highlight" button in the place of the next one, as the highlights of a Hero slider slide are. A list of one short text can be shown this way with `inline: true` on a repeater in `block.yaml`; what is saved does not change.
+
 ## 0.1.113 — 2026-10-13 — Three fields to a row in the block editor
 - **A field can take a third of the row** (`span: third` in `block.yaml`; the fields of a block are still two to a row by default, and `span: full` takes the whole row). The Hero slider uses it: the text, link and style of each button are on one row, so are the three highlights, and each step's title, link and link text (its text below).
 

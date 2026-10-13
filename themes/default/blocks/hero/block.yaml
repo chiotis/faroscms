@@ -40,6 +40,7 @@ fields:
     type: repeater
     label: Highlights
     item_label: Highlight
+    inline: true
     max: 3
     fields:
       text: { type: text, label: Text }
