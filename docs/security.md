@@ -26,6 +26,7 @@ Roles are defined in `PermissionService` (the super admin can adjust them, see b
 | Activity and email logs, notifications | yes | yes | no | no |
 | Backups, updates, import, export | yes | yes | no | no |
 | Users and roles | yes | no | no | no |
+| Omni (what the site reports to it) | yes | no | no | no |
 | Own profile and password | yes | yes | yes | yes |
 
 An editor's dashboard shows only content: the user count, backups, system checks, storage, logs, and notifications are not sent to them. Forms are out of their reach entirely (they hold visitors' personal data and decide where notifications go), including by address, bulk actions, and search. Every refused request is written to the activity log.

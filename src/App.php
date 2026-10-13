@@ -871,6 +871,7 @@ final class App
         'email-logs' => 'handleEmailLogs',
         'backups' => 'handleBackups',
         'updates' => 'handleUpdates',
+        'omni' => 'handleOmni',
         'notification-read' => 'handleNotificationRead',
         'notifications-read-all' => 'handleNotificationsReadAll',
         'menus' => 'handleMenusList',
@@ -2447,6 +2448,44 @@ final class App
             'admin_section' => 'system',
             'current_type' => 'pages',
         ]);
+    }
+
+    /** Admin > Omni: what this site would report to an Omni (docs/omni-protocol.md). Super admin only. */
+    private function handleOmni(): void
+    {
+        $report = $this->omniReport();
+        $this->render('@admin/omni.twig', [
+            'title' => 'Omni',
+            'report' => $report->build(),
+            'report_json' => $report->json(true),
+            'storage_label' => (string)$this->siteLimits()->summary()['label'],
+            'types' => $this->content->getTypes(),
+            'user' => $this->auth->user(),
+            'admin_section' => 'omni',
+            'current_type' => 'pages',
+        ]);
+    }
+
+    private function omniReport(): OmniReport
+    {
+        return new OmniReport(
+            fn(): array => $this->settings,
+            fn(): array => [
+                'name' => (string)($this->settings['title'] ?? ''),
+                'url' => $this->buildAbsoluteUrl('/'),
+                'admin_url' => $this->buildAbsoluteUrl('/admin'),
+            ],
+            fn(): array => ['version' => $this->updates()->currentVersion(), 'commit' => $this->updates()->currentGitCommit()],
+            fn(): array => ['summary' => $this->siteLimits()->summary(), 'measurement' => $this->siteLimits()->measurement()],
+            fn(int $limit): array => $this->backupRuns->recent($limit),
+            fn(): array => $this->cronStatus(),
+            fn(): ?array => $this->updates()->cachedStatus(),
+            fn(): array => [
+                'checks' => $this->systemStatus()->checks($this->siteLimits()->summary()),
+                'extensions' => SystemStatus::extensions(),
+                'environment' => $this->systemStatus()->environment($this->updates()->currentVersion(), $this->updates()->currentGitCommit(), $this->isHttpsRequest()),
+            ]
+        );
     }
 
     private function handleFormsList(): void
