@@ -191,23 +191,23 @@ All sizes are bytes (integers) and all times are ISO 8601 in UTC. A value that t
 |---|---|---|
 | `site.*` | site settings, the request's base URL | `admin_url` is the link Omni shows |
 | `faros.version`, `faros.commit` | `UpdateService::currentVersion()`, `currentGitCommit()` | `commit` is `""` outside git |
-| `storage.*` | `SiteLimits::summary()` and the stored measurement | `limit` is `0` when the site has no limit; `percent_of_limit` is then `null`; `level` is `ok`, `warn` or `danger` |
+| `storage.*` | `SiteLimits::summary()` and `measurement()` | `limit` is `0` when the site has no limit; `percent_of_limit` is then `null`; `level` is `ok`, `warn` or `danger`; `disk_free` is `null` when the host does not say |
 | `backups.scheduled`, `schedule` | `backup.auto` settings | `schedule` is `daily`, `weekly`, `monthly`, or `null` when scheduled backups are off |
-| `backups.remote`, `keep_local` | `backup.remote` settings | |
-| `backups.last` | `BackupRunRepository::recent(1)` | `status` is `success`, `warning` (made, but the remote upload failed) or `failed`; `null` when no backup was ever run |
-| `backups.last_success_at` | the latest run with `success` | `null` when none |
+| `backups.remote`, `keep_local` | `backup.remote` settings | without remote storage `keep_local` is `true`: every archive stays on the server |
+| `backups.last` | `BackupRunRepository::recent()`, the newest | `status` is `success`, `warning` (made, but the remote upload failed) or `failed`; `null` when no backup was ever run |
+| `backups.last_success_at` | the latest run with `success`, among the last 100 | `null` when none |
 | `backups.failed_last_7_days` | runs with `failed` in the last 7 days | |
-| `backups.cron` | `CronStatus::info()` | `state` is `fresh`, `stale` or `never` |
+| `backups.cron` | `CronStatus::info()` | `state` is `fresh`, `stale` or `never`; never the command or a path |
 | `analytics.enabled` | `AnalyticsSettings::from()` | `false` when the mode is `off` |
 | `analytics.mode` | `AnalyticsSettings::from()` | `off` (no tracking), `custom` (the site's own tracking code) or `platform` (FarosCMS analytics) |
-| `updates.*` | `UpdateService::status()`, from its cache | sending a report never triggers a fresh version check; `source_status` is `ok` or `unreachable` |
+| `updates.*` | `UpdateService::status()`, from its cache | sending a report never triggers a fresh version check; `source_status` is `ok`, `unreachable` or `not_configured`; before the first check only `current` is known and the rest is `null` |
 | `system.summary`, `checks` | `SystemStatus::summarize()`, `checks()` | `status` is `ok`, `warning` or `error` |
 | `system.extensions` | `SystemStatus::extensions()` | without the `purpose` column |
 | `system.environment` | `SystemStatus::environment()` | label to value, as on Admin > System |
 
 ### What is never sent
 
-A report holds no content, no user names or email addresses, no form submissions, no visitor figures of any kind, and no secrets of any kind: no keys for remote storage, mail or Google sign-in, no tracking code or tag IDs, and no file paths outside what the health checks already show. Omni gets enough to say whether a site is healthy, not to read it.
+A report holds no content, no user names or email addresses, no form submissions, no visitor figures, and no secrets of any kind: no keys for remote storage, mail or Google sign-in, no tracking code or tag IDs, and no file paths outside what the health checks already show. Omni gets enough to say whether a site is healthy, not to read it.
 
 ## When a site reports
 
@@ -245,15 +245,14 @@ Errors use the HTTP status and a JSON body:
 
 ## On the site
 
-The site's side will be built as follows:
-
-- **Settings > Omni** is for superadmins only. It shows:
-  - the Omni address, filled in with `https://omni.faroscms.com` and editable,
-  - the connection code,
+- **Admin > Omni** is for superadmins only (the `omni.manage` permission, which cannot be given to another role). It shows:
+  - the Omni address, filled in with `https://omni.faroscms.com` and editable (to come),
+  - the connection code (to come),
   - the state of the connection, the last report sent and the last error,
-  - **Preview report** (the exact JSON that would be sent), **Send report now** and **Disconnect**.
-- `OmniReport` builds the report from the services listed above.
-- `OmniClient` handles ping, connect, report and disconnect, including the signing.
+  - what Omni would see (health, storage, the last backup, analytics, the version) and the exact JSON that would be sent,
+  - **Send report now** and **Disconnect**.
+- `OmniReport` builds the report from the services listed above (`tests/unit/omni-report.php`, `tests/http/omni_test.py`).
+- `OmniClient` (to come) handles ping, connect, report and disconnect, including the signing.
 
 ## On Omni
 

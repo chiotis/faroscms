@@ -1,0 +1,69 @@
+{% extends '@admin/base.twig' %}
+{% set page_heading = 'Omni' %}
+{% import '@admin/partials/ui.twig' as ui %}
+
+{% block content %}
+  {% set tone = {'ok': 'green', 'success': 'green', 'warn': 'amber', 'warning': 'amber', 'danger': 'red', 'error': 'red', 'failed': 'red'} %}
+  {% set modes = {'off': 'Off', 'custom': 'Own tracking code', 'platform': 'FarosCMS analytics'} %}
+
+  <header class="mb-4 border-b border-slate-200 pb-4">
+    <p class="text-xs text-slate-400">Omni is a separate app where one person follows many FarosCMS sites: health, storage, backups and updates, with a link to each admin. The public one is omni.faroscms.com; anyone can run their own.</p>
+  </header>
+
+  <div class="space-y-4">
+    <div class="rounded-lg border border-slate-200 bg-white">
+      <div class="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+        <h2 class="text-sm font-semibold text-slate-900">Connection</h2>
+        {{ ui.badge('Not connected', 'slate') }}
+      </div>
+      <p class="px-4 py-3 text-sm text-slate-600">This site does not report to any Omni. Below is exactly what it would send: the state of the site, never its content, users, form submissions, visitor figures or keys.</p>
+    </div>
+
+    <div class="rounded-lg border border-slate-200 bg-white" data-omni-summary>
+      <div class="border-b border-slate-200 px-4 py-3">
+        <h2 class="text-sm font-semibold text-slate-900">What Omni would see</h2>
+      </div>
+      <dl class="grid grid-cols-1 divide-y divide-slate-50 text-sm sm:grid-cols-2 sm:divide-y-0 lg:grid-cols-5">
+        <div class="flex items-center justify-between gap-2 px-4 py-2.5 lg:flex-col lg:items-start">
+          <dt class="text-xs font-medium text-slate-400">Health</dt>
+          <dd class="whitespace-nowrap">{{ ui.badge(report.system.summary.label, tone[report.system.summary.status] ?? 'slate') }}</dd>
+        </div>
+        <div class="flex items-center justify-between gap-2 px-4 py-2.5 lg:flex-col lg:items-start">
+          <dt class="text-xs font-medium text-slate-400">Storage</dt>
+          <dd class="whitespace-nowrap">{{ ui.badge(storage_label ~ (report.storage.percent_of_limit is not null ? ' · ' ~ report.storage.percent_of_limit ~ '%' : ''), tone[report.storage.level] ?? 'slate') }}</dd>
+        </div>
+        <div class="flex items-center justify-between gap-2 px-4 py-2.5 lg:flex-col lg:items-start">
+          <dt class="text-xs font-medium text-slate-400">Last backup</dt>
+          <dd>
+            {% if report.backups.last %}
+              {{ ui.badge(report.backups.last.status|capitalize ~ ' · ' ~ report.backups.last.at|date('Y-m-d H:i'), tone[report.backups.last.status] ?? 'slate') }}
+            {% else %}
+              {{ ui.badge('None yet', report.backups.scheduled ? 'amber' : 'slate') }}
+            {% endif %}
+          </dd>
+        </div>
+        <div class="flex items-center justify-between gap-2 px-4 py-2.5 lg:flex-col lg:items-start">
+          <dt class="text-xs font-medium text-slate-400">Analytics</dt>
+          <dd>{{ ui.badge(modes[report.analytics.mode] ?? report.analytics.mode, report.analytics.enabled ? 'green' : 'slate') }}</dd>
+        </div>
+        <div class="flex items-center justify-between gap-2 px-4 py-2.5 lg:flex-col lg:items-start">
+          <dt class="text-xs font-medium text-slate-400">Version</dt>
+          <dd>
+            {% if report.updates.has_update %}
+              {{ ui.badge(report.updates.current ~ ' → ' ~ report.updates.latest, 'blue') }}
+            {% else %}
+              {{ ui.badge(report.updates.current, report.updates.has_update is same as(false) ? 'green' : 'slate') }}
+            {% endif %}
+          </dd>
+        </div>
+      </dl>
+    </div>
+
+    <details class="rounded-lg border border-slate-200 bg-white" data-omni-preview>
+      <summary class="cursor-pointer px-4 py-3 text-sm font-semibold text-slate-900">Report preview <span class="font-normal text-slate-400">· protocol v{{ report.protocol }}, JSON</span></summary>
+      <div class="border-t border-slate-200 p-4">
+        <pre class="max-h-[32rem] overflow-auto rounded-md bg-slate-950 p-3 text-xs leading-relaxed text-slate-100">{{ report_json }}</pre>
+      </div>
+    </details>
+  </div>
+{% endblock %}

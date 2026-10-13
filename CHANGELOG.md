@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.101 — 2026-10-13 — What a site would report to Omni
+- **Admin > Omni** (super admin only): what this site would send to an Omni, as `docs/omni-protocol.md` fixes it. A row of chips shows what Omni would see (health, storage against the limit, the last backup, analytics, the version) and *Report preview* opens the exact JSON. The site is not connected to anything yet and sends nothing; connecting comes next.
+- **`OmniReport`** builds the report from what the site already knows: `SiteLimits` (sizes in bytes, now readable through `measurement()`), the backup runs and settings, `CronStatus`, the cached update check (sending never checks again), `AnalyticsSettings` (only whether visits are counted and how) and `SystemStatus`. Times are UTC, a value the site cannot know is `null`, and it holds no content, users, submissions, visitor figures, keys, tracking code or paths.
+- **A new permission, `omni.manage`**, which only the super admin has and which cannot be given to another role (Admin > Roles shows it as super admin only).
+- The protocol page says what changed while it was built: `disk_free` is `null` when the host hides it, `keep_local` is `true` without remote storage, and `source_status` can also be `not_configured`.
+- Tests: the report's shape and every value, the cases with nothing to say, and that no secret from the settings gets in (`tests/unit/omni-report.php`); the screen, its JSON, the sidebar link, and that an administrator can neither open nor see it (`tests/http/omni_test.py`); the screen is in the accessibility audit. Looked at in Chromium at computer and phone width.
+
 ## 0.1.100 — 2026-10-13 — The Omni protocol
 - **`docs/omni-protocol.md`** is the contract between a FarosCMS site and Omni, a separate app where one person sees every site connected to it (storage, backups, analytics, updates, health checks, a link to each admin). The public Omni is `https://omni.faroscms.com`; anyone can run their own, so the address is a setting of each site.
 - The site always calls Omni, never the other way, so a site opens no new public endpoint. It joins with a one-time connection code (24 hours), gets a secret of its own, and signs every report (HMAC-SHA256 with a timestamp and a nonce). Omni has four endpoints: `ping`, `connect`, `report` and `disconnect`.

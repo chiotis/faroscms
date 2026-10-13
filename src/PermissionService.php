@@ -49,6 +49,7 @@ final class PermissionService
             'backups.manage',
             'backups.restore',
             'updates.manage',
+            'omni.manage',
         ],
         'admin' => [
             'admin.access',
@@ -228,6 +229,7 @@ final class PermissionService
             'users.manage' => $c('System', 'Users', 'Creates users and sets their roles. Super admin only.', 'critical', false),
             'roles.manage' => $c('System', 'Roles and permissions', 'Changes what each role can do. Super admin only.', 'critical', false),
             'limits.manage' => $c('System', 'Site limits', 'Sets how much storage the site may use. Super admin only.', 'critical', false),
+            'omni.manage' => $c('System', 'Omni', 'Connects the site to an Omni, which then sees its health, storage, backups and updates. Super admin only.', 'critical', false),
         ];
     }
 
@@ -353,6 +355,7 @@ final class PermissionService
             'notification-read', 'notifications-read-all' => 'notifications.manage',
             'backups' => 'backups.manage',
             'updates' => 'updates.manage',
+            'omni' => 'omni.manage',
             'users', 'users-delete' => 'users.manage',
             'roles' => 'roles.manage',
             'redirects' => 'redirects.manage',

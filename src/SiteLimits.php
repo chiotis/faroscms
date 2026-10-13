@@ -202,11 +202,11 @@ final class SiteLimits
 
     /**
      * The size of uploads, content and the system folder, from the copy kept while it is younger than twelve hours,
-     * otherwise measured again (and kept).
+     * otherwise measured again (and kept). In bytes, where summary() has them for reading.
      *
      * @return array{parts: array{uploads: int, content: int, system: int}, measured_at: int}
      */
-    private function measurement(): array
+    public function measurement(): array
     {
         $kept = $this->meta->getJson('storage_usage');
         $keys = ['uploads', 'content', 'system'];
