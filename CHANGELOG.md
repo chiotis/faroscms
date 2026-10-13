@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.104 — 2026-10-13 — Long text no longer widens block rows
+- **In the block editor, a long summary stays on one line and is cut with an ellipsis.** A slider slide, or any repeater row, block card or block body, with long text in it used to grow past its container and push the move and remove buttons out. The block list, the rows of a repeater and a block's content and design columns now never grow wider than the editor (`public/assets/css/app.css`).
+
 ## 0.1.103 — 2026-10-13 — Connect the site to an Omni
 - **Admin > Omni connects the site** (super admin only). Enter the address of an Omni and the connection code it gave for this site. The address is filled in with `https://omni.faroscms.com`; any other works, over https, or http for a local one. **Connect** first checks that an Omni answers there, then trades the code for the site's id and secret, then sends the first report. Each refusal says what to do: no Omni at that address, a code that is wrong, used or expired, too many attempts, or another protocol.
 - **While connected**, the screen shows the Omni, the site id, the last report, how often it reports, and the last problem with when it tries again. It has **Send report now** and **Disconnect**: the site tells Omni it leaves, and forgets its secret even when Omni cannot be told. Connecting and disconnecting go to the activity log. When Omni's owner removes the site, the next report learns it (`410`): the secret is forgotten and the form comes back.
