@@ -44,31 +44,31 @@ fields:
       eyebrow: { type: text, label: Eyebrow }
       heading: { type: text, label: Heading }
       text: { type: textarea, label: Text }
-      label: { type: text, label: Button text }
-      url: { type: link, label: Button link, help: 'A page ("contact"), a path ("/en/contact"), a full URL, #anchor, mailto: or tel:' }
-      style: { type: select, label: Button style, default: primary, options: { primary: Primary, secondary: Secondary } }
-      label_2: { type: text, label: Second button text }
-      url_2: { type: link, label: Second button link }
-      style_2: { type: select, label: Second button style, default: secondary, options: { primary: Primary, secondary: Secondary } }
-      highlight_1: { type: text, label: 'Highlight 1' }
-      highlight_2: { type: text, label: 'Highlight 2' }
-      highlight_3: { type: text, label: 'Highlight 3' }
-      step_1_title: { type: text, label: 'Step 1 title', when: { layout: [steps, steps-centered] } }
+      label: { type: text, label: Button text, span: third }
+      url: { type: link, label: Button link, help: 'A page ("contact"), a path ("/en/contact"), a full URL, #anchor, mailto: or tel:', span: third }
+      style: { type: select, label: Button style, default: primary, options: { primary: Primary, secondary: Secondary }, span: third }
+      label_2: { type: text, label: Second button text, span: third }
+      url_2: { type: link, label: Second button link, span: third }
+      style_2: { type: select, label: Second button style, default: secondary, options: { primary: Primary, secondary: Secondary }, span: third }
+      highlight_1: { type: text, label: 'Highlight 1', span: third }
+      highlight_2: { type: text, label: 'Highlight 2', span: third }
+      highlight_3: { type: text, label: 'Highlight 3', span: third }
+      step_1_title: { type: text, label: 'Step 1 title', span: third, when: { layout: [steps, steps-centered] } }
+      step_1_link: { type: link, label: 'Step 1 link', span: third, when: { layout: [steps, steps-centered] } }
+      step_1_link_label: { type: text, label: 'Step 1 link text', placeholder: Learn more, span: third, when: { layout: [steps, steps-centered] } }
       step_1_text: { type: textarea, label: 'Step 1 text', when: { layout: [steps, steps-centered] } }
-      step_1_link: { type: link, label: 'Step 1 link', when: { layout: [steps, steps-centered] } }
-      step_1_link_label: { type: text, label: 'Step 1 link text', placeholder: Learn more, when: { layout: [steps, steps-centered] } }
-      step_2_title: { type: text, label: 'Step 2 title', when: { layout: [steps, steps-centered] } }
+      step_2_title: { type: text, label: 'Step 2 title', span: third, when: { layout: [steps, steps-centered] } }
+      step_2_link: { type: link, label: 'Step 2 link', span: third, when: { layout: [steps, steps-centered] } }
+      step_2_link_label: { type: text, label: 'Step 2 link text', placeholder: Learn more, span: third, when: { layout: [steps, steps-centered] } }
       step_2_text: { type: textarea, label: 'Step 2 text', when: { layout: [steps, steps-centered] } }
-      step_2_link: { type: link, label: 'Step 2 link', when: { layout: [steps, steps-centered] } }
-      step_2_link_label: { type: text, label: 'Step 2 link text', placeholder: Learn more, when: { layout: [steps, steps-centered] } }
-      step_3_title: { type: text, label: 'Step 3 title', when: { layout: [steps, steps-centered] } }
+      step_3_title: { type: text, label: 'Step 3 title', span: third, when: { layout: [steps, steps-centered] } }
+      step_3_link: { type: link, label: 'Step 3 link', span: third, when: { layout: [steps, steps-centered] } }
+      step_3_link_label: { type: text, label: 'Step 3 link text', placeholder: Learn more, span: third, when: { layout: [steps, steps-centered] } }
       step_3_text: { type: textarea, label: 'Step 3 text', when: { layout: [steps, steps-centered] } }
-      step_3_link: { type: link, label: 'Step 3 link', when: { layout: [steps, steps-centered] } }
-      step_3_link_label: { type: text, label: 'Step 3 link text', placeholder: Learn more, when: { layout: [steps, steps-centered] } }
-      step_4_title: { type: text, label: 'Step 4 title', when: { layout: [steps, steps-centered] } }
+      step_4_title: { type: text, label: 'Step 4 title', span: third, when: { layout: [steps, steps-centered] } }
+      step_4_link: { type: link, label: 'Step 4 link', span: third, when: { layout: [steps, steps-centered] } }
+      step_4_link_label: { type: text, label: 'Step 4 link text', placeholder: Learn more, span: third, when: { layout: [steps, steps-centered] } }
       step_4_text: { type: textarea, label: 'Step 4 text', when: { layout: [steps, steps-centered] } }
-      step_4_link: { type: link, label: 'Step 4 link', when: { layout: [steps, steps-centered] } }
-      step_4_link_label: { type: text, label: 'Step 4 link text', placeholder: Learn more, when: { layout: [steps, steps-centered] } }
       background:
         type: select
         label: Picture

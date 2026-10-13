@@ -1,4 +1,4 @@
-# Blocks of this installation (FarosCMS 0.1.112)
+# Blocks of this installation (FarosCMS 0.1.113)
 
 ## Fields every block has
 
@@ -316,21 +316,21 @@ Slides that each are a Hero. Every slide picks its own Hero layout (including th
 | &nbsp;&nbsp;`items[].highlight_2` | text |  |
 | &nbsp;&nbsp;`items[].highlight_3` | text |  |
 | &nbsp;&nbsp;`items[].step_1_title` | text; only when `layout` is `steps` or `steps-centered` |  |
-| &nbsp;&nbsp;`items[].step_1_text` | text (several lines); only when `layout` is `steps` or `steps-centered` |  |
 | &nbsp;&nbsp;`items[].step_1_link` | link; only when `layout` is `steps` or `steps-centered` |  |
 | &nbsp;&nbsp;`items[].step_1_link_label` | text; only when `layout` is `steps` or `steps-centered` |  |
+| &nbsp;&nbsp;`items[].step_1_text` | text (several lines); only when `layout` is `steps` or `steps-centered` |  |
 | &nbsp;&nbsp;`items[].step_2_title` | text; only when `layout` is `steps` or `steps-centered` |  |
-| &nbsp;&nbsp;`items[].step_2_text` | text (several lines); only when `layout` is `steps` or `steps-centered` |  |
 | &nbsp;&nbsp;`items[].step_2_link` | link; only when `layout` is `steps` or `steps-centered` |  |
 | &nbsp;&nbsp;`items[].step_2_link_label` | text; only when `layout` is `steps` or `steps-centered` |  |
+| &nbsp;&nbsp;`items[].step_2_text` | text (several lines); only when `layout` is `steps` or `steps-centered` |  |
 | &nbsp;&nbsp;`items[].step_3_title` | text; only when `layout` is `steps` or `steps-centered` |  |
-| &nbsp;&nbsp;`items[].step_3_text` | text (several lines); only when `layout` is `steps` or `steps-centered` |  |
 | &nbsp;&nbsp;`items[].step_3_link` | link; only when `layout` is `steps` or `steps-centered` |  |
 | &nbsp;&nbsp;`items[].step_3_link_label` | text; only when `layout` is `steps` or `steps-centered` |  |
+| &nbsp;&nbsp;`items[].step_3_text` | text (several lines); only when `layout` is `steps` or `steps-centered` |  |
 | &nbsp;&nbsp;`items[].step_4_title` | text; only when `layout` is `steps` or `steps-centered` |  |
-| &nbsp;&nbsp;`items[].step_4_text` | text (several lines); only when `layout` is `steps` or `steps-centered` |  |
 | &nbsp;&nbsp;`items[].step_4_link` | link; only when `layout` is `steps` or `steps-centered` |  |
 | &nbsp;&nbsp;`items[].step_4_link_label` | text; only when `layout` is `steps` or `steps-centered` |  |
+| &nbsp;&nbsp;`items[].step_4_text` | text (several lines); only when `layout` is `steps` or `steps-centered` |  |
 | &nbsp;&nbsp;`items[].background` | choice; one of `image`, `video`; default `image`; only when `layout` is `split` or `centered` or `cover` or `cover-centered` or `steps` or `steps-centered` |  |
 | &nbsp;&nbsp;`items[].image` | image; only when `background` is `i` or `m` or `a` or `g` or `e` and `layout` is `split` or `centered` or `cover` or `cover-centered` or `steps` or `steps-centered` |  |
 | &nbsp;&nbsp;`items[].image_alt` | text; only when `background` is `i` or `m` or `a` or `g` or `e` and `layout` is `split` or `centered` or `cover` or `cover-centered` or `steps` or `steps-centered` | What the image shows, for people who cannot see it. Leave empty if it is purely decorative. |

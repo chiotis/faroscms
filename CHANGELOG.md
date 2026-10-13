@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.113 — 2026-10-13 — Three fields to a row in the block editor
+- **A field can take a third of the row** (`span: third` in `block.yaml`; the fields of a block are still two to a row by default, and `span: full` takes the whole row). The Hero slider uses it: the text, link and style of each button are on one row, so are the three highlights, and each step's title, link and link text (its text below).
+
 ## 0.1.112 — 2026-10-13 — A hero slider that starts with a plain slide has a dark header
 - **Fixed: a Hero slider whose first slide is not a picture (split, centered, minimal) opened the page with light header text** over a light slide, so the header could not be read until the slider moved. The header now starts as the first slide needs it. Found by `tests/http/hero_layouts_test.py`.
 
