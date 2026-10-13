@@ -1,4 +1,4 @@
-# Theme settings of this installation (FarosCMS 0.1.95)
+# Theme settings of this installation (FarosCMS 0.1.96)
 
 Set with `python3 scripts/site_settings.py set theme section.field=value`. A text marked *translatable* takes a plain text or a map `{default: …, en: …}`.
 

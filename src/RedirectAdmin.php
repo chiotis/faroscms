@@ -122,8 +122,29 @@ final class RedirectAdmin
         }
 
         if ($do === 'missing_delete') {
-            $this->repo->deleteNotFound((string)($post['path'] ?? ''));
+            $this->repo->ignoreNotFound((string)($post['path'] ?? ''));
             $result['location'] = '/admin/redirects?tab=missing&done=ignored';
+            return $result;
+        }
+
+        if ($do === 'missing_ignore_all') {
+            $q = trim((string)($post['q'] ?? ''));
+            $count = $this->repo->ignoreAllNotFound($q);
+            $this->log('redirects.missing_ignore_all', 'info', 'redirect', 'not_found_log', 'Missing addresses ignored.', ['count' => $count, 'search' => $q]);
+            $result['location'] = '/admin/redirects?tab=missing&done=ignored_all&n=' . $count;
+            return $result;
+        }
+
+        if ($do === 'missing_restore') {
+            $this->repo->restoreNotFound((string)($post['path'] ?? ''));
+            $result['location'] = '/admin/redirects?tab=missing&show=ignored&done=restored';
+            return $result;
+        }
+
+        if ($do === 'missing_restore_all') {
+            $count = $this->repo->restoreAllNotFound(trim((string)($post['q'] ?? '')));
+            $this->log('redirects.missing_restore_all', 'info', 'redirect', 'not_found_log', 'Ignored addresses listed again.', ['count' => $count]);
+            $result['location'] = '/admin/redirects?tab=missing&done=restored_all&n=' . $count;
             return $result;
         }
 
@@ -198,15 +219,16 @@ final class RedirectAdmin
     }
 
     /**
-     * The addresses visitors asked for that do not exist, each with the existing address that looks most like it.
+     * The addresses visitors asked for that do not exist, each with the existing address that looks most like it
+     * (or, with $ignored, the ones chosen to be ignored).
      *
      * @return array<int, array<string, mixed>>
      */
-    public function missing(string $q, int $limit = 200): array
+    public function missing(string $q, int $limit = 200, bool $ignored = false): array
     {
         $known = $this->paths->map();
         $rows = [];
-        foreach ($this->repo->notFound($q, $limit) as $row) {
+        foreach ($this->repo->notFound($q, $limit, $ignored) as $row) {
             $row['suggestion'] = PublicPaths::suggest((string)$row['path'], $known);
             $rows[] = $row;
         }

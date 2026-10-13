@@ -907,6 +907,8 @@ html.dark .ct-field.is-removed { background: #2a1215; }
 .rd-bulk { padding: .15rem .7rem; border: 1px solid #fecaca; border-radius: .375rem; background: #fff; color: #b91c1c; font-size: .75rem; font-weight: 500; line-height: 1.25rem; cursor: pointer; }
 .rd-bulk:hover { background: #fef2f2; }
 .rd-bulk[hidden] { display: none; }
+.rd-bulk-neutral { border-color: #cbd5e1; color: #334155; }
+.rd-bulk-neutral:hover { background: #f8fafc; }
 .rd-check { display: flex; flex: none; align-items: center; }
 .rd-check input { width: .9375rem; height: .9375rem; accent-color: #2563eb; }
 .rd-list { margin: 0; padding: 0; list-style: none; }
@@ -953,6 +955,8 @@ html.dark .rd-chip.is-temp, html.dark .rd-chip.is-warn { background: #422006; co
 html.dark .rd-chip.is-auto { background: #172554; color: #bfdbfe; }
 html.dark .rd-chip.is-bad { background: #450a0a; color: #fecaca; }
 html.dark .rd-bulk { border-color: #7f1d1d; background: #0f172a; color: #fca5a5; }
+html.dark .rd-bulk-neutral { border-color: #334155; color: #cbd5e1; }
+html.dark .rd-bulk-neutral:hover { background: #1e293b; }
 html.dark .rd-empty, html.dark .rd-report { border-color: #334155; background: #0f172a; }
 html.dark .rd-create { border-color: #1e40af !important; background: #172554; color: #bfdbfe !important; }
 html.dark .rd-delete:hover { background: #2a1215; color: #fca5a5; }

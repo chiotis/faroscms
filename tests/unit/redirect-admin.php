@@ -123,7 +123,36 @@ $missing = $admin->missing('');
 check('missed addresses come with the closest existing one', array_column($missing, 'suggestion', 'path'), ['en/abuot' => '/about', 'completely-unknown' => '']);
 $admin->apply(['do' => 'missing_delete', 'path' => '/en/abuot'], 'tester');
 check('one can be ignored', count($admin->missing('')), 1);
-check('and the list cleared', [$admin->apply(['do' => 'missing_clear'], 'tester')['location'], count($admin->missing(''))], ['/admin/redirects?tab=missing&done=cleared', 0]);
+check('an ignored address is kept apart, not lost', [count($admin->missing('', 200, true)), $repo->notFoundCount(), $repo->notFoundIgnoredCount()], [1, 1, 1]);
+$repo->recordNotFound('/en/abuot', '');
+check('and it stays hidden when asked for again, though still counted', [count($admin->missing('')), (int)$admin->missing('', 200, true)[0]['hits']], [1, 2]);
+$admin->apply(['do' => 'missing_restore', 'path' => '/en/abuot'], 'tester');
+check('it can be listed again', [count($admin->missing('')), count($admin->missing('', 200, true))], [2, 0]);
+$repo->recordNotFound('/wp-login.php', '');
+$repo->recordNotFound('/wp-admin/setup', '');
+$repo->recordNotFound('/xmlrpc.php', '');
+$r = $admin->apply(['do' => 'missing_ignore_all', 'q' => 'wp-'], 'tester');
+check('ignoring all that match a search leaves the others', [$r['location'], $names = array_column($admin->missing(''), 'path') ?: [], count($admin->missing('', 200, true))], ['/admin/redirects?tab=missing&done=ignored_all&n=2', $names, 2]);
+$r = $admin->apply(['do' => 'missing_ignore_all'], 'tester');
+sort($names);
+check('the ones that did not match are still listed', $names, ['completely-unknown', 'en/abuot', 'xmlrpc.php']);
+check('ignoring all hides every address on the list', [$r['location'], count($admin->missing('')), $repo->notFoundCount(), $repo->notFoundIgnoredCount()], ['/admin/redirects?tab=missing&done=ignored_all&n=3', 0, 0, 5]);
+$repo->recordNotFound('/wp-login.php', '');
+check('and they do not come back when visitors ask again', [count($admin->missing('')), $repo->notFoundCount()], [0, 0]);
+$repo->recordNotFound('/new-miss', '');
+check('a new address is listed', array_column($admin->missing(''), 'path'), ['new-miss']);
+check('clearing the list keeps what was ignored', [$admin->apply(['do' => 'missing_clear'], 'tester')['location'], count($admin->missing('')), $repo->notFoundIgnoredCount()], ['/admin/redirects?tab=missing&done=cleared', 0, 5]);
+check('all ignored can be listed again', [$admin->apply(['do' => 'missing_restore_all'], 'tester')['location'], $repo->notFoundCount(), $repo->notFoundIgnoredCount()], ['/admin/redirects?tab=missing&done=restored_all&n=5', 5, 0]);
+$admin->apply(['do' => 'missing_ignore_all'], 'tester');
+$admin->apply(['do' => 'missing_restore_all', 'q' => 'wp-login'], 'tester');
+check('or only the ones matching a search', array_column($admin->missing(''), 'path'), ['wp-login.php']);
+$repo->clearNotFound();
+$repo->create('xmlrpc.php', '/about', 301, 'manual', '', 'tester');
+check('making a redirect for an ignored address removes it too', $repo->notFoundIgnoredCount(), 3);
+foreach (['completely-unknown', 'en/abuot', 'wp-admin/setup', 'wp-login.php'] as $gone) {
+    $repo->deleteNotFound($gone);
+}
+check('the log can be emptied', [$repo->notFoundCount(), $repo->notFoundIgnoredCount()], [0, 0]);
 check('an unknown action does nothing', [$admin->apply(['do' => 'whatever'], 't')['location'], $admin->apply([], 't')['error']], [null, '']);
 
 // ---- the list
@@ -152,7 +181,7 @@ $offId = (int)$repo->findBySource('off-one', false)['id'];
 $tempId = (int)$repo->findBySource('from-2')['id']; // 302
 check('only permanent redirects that are on qualify, each to the end of its chain', $admin->linkFixes([$fixId, $chainId, $offId, $tempId, 9999]), ['to-page' => '/about', 'chain-start' => '/about']);
 
-check('every action was written to the activity log', array_values(array_unique($log)), ['redirects.create', 'redirects.update', 'redirects.import', 'redirects.delete', 'redirects.missing_clear']);
+check('every action was written to the activity log', array_values(array_unique($log)), ['redirects.create', 'redirects.update', 'redirects.import', 'redirects.delete', 'redirects.missing_ignore_all', 'redirects.missing_clear', 'redirects.missing_restore_all']);
 
 exec('rm -rf ' . escapeshellarg($dir));
 echo $fail === 0 ? "\nALL PASSED\n" : "\n$fail FAILED\n";
