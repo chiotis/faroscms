@@ -65,7 +65,7 @@ Omni answers `200`:
 - `secret` is shown only in this response. The site keeps it in the system database (`system_meta`, never in the settings YAML, which can end up in git or in exports). Omni keeps it encrypted at rest, because it needs the secret itself to check signatures.
 - `report_every` is how often Omni wants a report, in seconds (see [When a site reports](#when-a-site-reports)).
 
-Errors use the shape described in [Responses and errors](#responses-and-errors): `invalid_code` (the code is unknown, already used or expired), `unsupported_protocol`, or `rate_limited`. Omni allows 10 attempts per IP address per hour.
+Errors use the shape described in [Responses and errors](#responses-and-errors): `403 invalid_code` (the code is unknown, already used or expired, or its site was removed), `400 invalid_request` (no code, or no `site.url` that is http or https), `426 unsupported_protocol`, or `429 rate_limited` with `Retry-After`. Omni allows 10 attempts per IP address per hour, whatever their outcome. Omni takes the code in any case, with or without its dashes.
 
 Connecting again with a new code replaces the old secret. This is also how a site recovers if it loses its secret, for example after a restore to another server.
 
@@ -98,7 +98,7 @@ A signed request carries four headers:
 | `X-Omni-Site` | the `site_id` from connect |
 | `X-Omni-Timestamp` | Unix time in seconds when the request was signed |
 | `X-Omni-Nonce` | 16 random bytes, hex encoded (32 characters) |
-| `X-Omni-Signature` | `v1=` followed by the hex HMAC-SHA256 of the string to sign, keyed with the secret |
+| `X-Omni-Signature` | `v1=` followed by the hex HMAC-SHA256 of the string to sign, keyed with the secret exactly as connect returned it (the 43 characters, not the bytes they encode) |
 
 The string to sign is these five lines joined by `\n`:
 
@@ -256,13 +256,13 @@ Errors use the HTTP status and a JSON body:
 
 ## On Omni
 
-Omni will be a separate repository (`faros-omni`) on the same stack (PHP 8.1+, SQLite, no framework) and with the same admin look. It has:
+Omni is a separate repository (`faros-omni`, 0.1.0) on a plain stack (PHP 8.1+, SQLite, libsodium, no framework and no Composer, compiled Tailwind) with the same admin look. It has:
 
-- a single owner account,
-- the list of sites with chips for storage, backups, updates and health, and a "last heard" time,
-- a page per site with the full latest report and the link to its admin,
-- connection codes,
-- the four endpoints above.
+- a single owner account, made on the first visit (the page closes once it exists),
+- the list of sites with a state (healthy, warnings, needs attention, silent, waiting to connect, disconnected), chips for health, storage, the last backup, the version and analytics, and a "last heard" time,
+- a page per site with what to look at, the full latest report and the link to its admin,
+- connection codes, shown once,
+- the four endpoints above, and its own tests (`tests/run.sh`).
 
 Later, and outside this version of the protocol:
 

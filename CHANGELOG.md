@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.102 — 2026-10-13 — The Omni protocol, as Omni was built
+- `docs/omni-protocol.md` says what building Omni 0.1.0 made exact. The signature is keyed with the secret exactly as `connect` returned it (its 43 characters, not the bytes they encode). `connect` answers `403 invalid_code`, `400 invalid_request` (no code, or no http(s) `site.url`), `426` or `429` with `Retry-After`; every attempt counts towards the 10 an hour, and the code is taken in any case, with or without dashes.
+- The section on Omni describes the app as it now is (the `faros-omni` repository): the owner's account made on the first visit, the states and chips of the list, the page per site, and its tests.
+- Documentation only.
+
 ## 0.1.101 — 2026-10-13 — What a site would report to Omni
 - **Admin > Omni** (super admin only): what this site would send to an Omni, as `docs/omni-protocol.md` fixes it. A row of chips shows what Omni would see (health, storage against the limit, the last backup, analytics, the version) and *Report preview* opens the exact JSON. The site is not connected to anything yet and sends nothing; connecting comes next.
 - **`OmniReport`** builds the report from what the site already knows: `SiteLimits` (sizes in bytes, now readable through `measurement()`), the backup runs and settings, `CronStatus`, the cached update check (sending never checks again), `AnalyticsSettings` (only whether visits are counted and how) and `SystemStatus`. Times are UTC, a value the site cannot know is `null`, and it holds no content, users, submissions, visitor figures, keys, tracking code or paths.
