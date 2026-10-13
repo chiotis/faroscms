@@ -285,7 +285,7 @@ check('the header button and the top bar message follow the language', 'Own butt
 css = asset('css')
 m = re.search(r'\.is-on-dark:not\(\[data-sticky="always"\]\) :is\(\.nav-list-2, \.nav-list-3\)[^{]*\{([^}]*)\}', css)
 check('a dropdown over the picture has a dark, nearly solid panel (the header has no background there)', m is not None and 'rgb(var(--ink-rgb) / 0.9' in m.group(1) and 'blur' in m.group(1), m and m.group(1)[:200])
-for what, needle in (('a hero that covers', '.block-hero:is(.block--cover, .block--steps):first-child .hero-cover-media::after'), ('a cover title area', '.single-hero-cover:first-child .single-hero-cover-media::after'), ('a slider', '.block-slider:first-of-type .slide-media::after')):
+for what, needle in (('a hero that covers', '.block-hero:is(.block--cover, .block--steps):first-child .hero-cover-media::after'), ('a cover title area', '.single-hero-cover:first-child .single-hero-cover-media::after')):
     i = css.find('.has-transparent-header .main-shell > ' + needle)
     check('the top of %s is darker under the transparent header' % what, i >= 0 and 'linear-gradient(180deg, rgb(var(--ink-rgb) / 0.5' in css[i:i + 700], css[i:i + 200] if i >= 0 else 'missing')
 

@@ -105,13 +105,17 @@ final class BlockRegistry
 
     /**
      * A block as its definition means it now: one saved in a layout that has since become another (the hero's text alignment of
-     * 0.1.86, now two layouts) is moved to it. Anything else is returned as it is.
+     * 0.1.86, now two layouts) is moved to it, and a Slider block (gone in 0.1.110) becomes a Hero slider. Anything else is
+     * returned as it is.
      *
      * @param array<string, mixed> $raw
      * @return array<string, mixed>
      */
     public function migrate(array $raw): array
     {
+        if (($raw['type'] ?? null) === 'slider' && $this->get('slider') === null && $this->get('hero-slider') !== null) {
+            return self::slideToHeroSlider($raw);
+        }
         $definition = is_string($raw['type'] ?? null) ? $this->get($raw['type']) : null;
         foreach ($definition['variant_migrations'] ?? [] as $migration) {
             $matches = true;
@@ -130,6 +134,46 @@ final class BlockRegistry
     }
 
     /**
+     * The Slider block of before 0.1.110 as the Hero slider it became: its layouts are slide layouts (the large slide and the
+     * banner are a text over a picture, the cards a picture beside the text), a slide's first two links are its buttons, and the
+     * arrows, the automatic movement and what every block has (background, spacing, anchor, hidden) stay. The third link of a
+     * slide, the heading and introduction above the slider, and its width have no place in a Hero slider and are left out.
+     *
+     * @param array<string, mixed> $raw
+     * @return array<string, mixed>
+     */
+    private static function slideToHeroSlider(array $raw): array
+    {
+        $layout = ($raw['variant'] ?? 'full') === 'multi' ? 'split' : 'cover';
+        $block = ['type' => 'hero-slider'];
+        foreach (['tone', 'spacing', 'anchor', 'hidden', 'navigation', 'autoplay'] as $key) {
+            if (array_key_exists($key, $raw)) {
+                $block[$key] = $raw[$key];
+            }
+        }
+        $items = [];
+        foreach (is_array($raw['items'] ?? null) ? $raw['items'] : [] as $slide) {
+            if (!is_array($slide)) {
+                continue;
+            }
+            $item = ['layout' => $layout];
+            foreach (['image', 'eyebrow', 'text', 'url', 'url_2'] as $key) {
+                if (array_key_exists($key, $slide)) {
+                    $item[$key] = $slide[$key];
+                }
+            }
+            foreach (['title' => 'heading', 'link_label' => 'label', 'link_label_2' => 'label_2'] as $from => $to) {
+                if (array_key_exists($from, $slide)) {
+                    $item[$to] = $slide[$from];
+                }
+            }
+            $items[] = $item;
+        }
+        $block['items'] = $items;
+        return $block;
+    }
+
+    /**
      * Blocks as they should be written to front matter: known blocks keep only defined fields,
      * checked, with values that equal the field default left out; unknown block types (for
      * example from a removed custom block) are kept unchanged so no content is lost.
@@ -144,12 +188,12 @@ final class BlockRegistry
             if (!is_array($raw) || !is_string($raw['type'] ?? null) || !preg_match('/^[a-z][a-z0-9-]*$/', $raw['type'])) {
                 continue;
             }
+            $raw = $this->migrate($raw);
             $definition = $this->get($raw['type']);
             if ($definition === null) {
                 $blocks[] = $raw;
                 continue;
             }
-            $raw = $this->migrate($raw);
             $block = ['type' => $raw['type']];
             foreach ([$definition['common'], $definition['fields']] as $fields) {
                 foreach ($fields as $key => $field) {

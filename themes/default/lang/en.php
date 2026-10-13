@@ -90,7 +90,6 @@ return [
     'playlist.views' => 'views',
     'playlist.opens_youtube' => 'opens YouTube',
     'video.default_title' => 'Video',
-    'slider.label' => 'Slides',
     'hero_slider.label' => 'Highlights',
     'slider.carousel' => 'carousel',
     'slider.slide' => 'slide',

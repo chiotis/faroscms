@@ -1920,7 +1920,7 @@ body.header-solid .site-header.is-floating[data-sticky="always"] {
   fill: currentColor;
 }
 
-/* A header over the opening section of the page (a hero, a slider, a title area) takes no space of its own: transparent when the
+/* A header over the opening section of the page (a hero, a hero slider, a title area) takes no space of its own: transparent when the
    page asks for it, or floating (it keeps its own background and its place detached from the edges). The section makes room. */
 .has-header-overlay .site-header {
   position: absolute;
@@ -1999,30 +1999,6 @@ body.has-transparent-header:not(.header-solid) .site-header.is-on-dark[data-stic
 
 .has-header-overlay .main-shell > .block-hero:is(.block--cover, .block--steps):first-child {
   padding-top: calc(var(--header-height, 4.5rem) + clamp(5rem, 10vw, 9rem));
-}
-
-/* A slider that opens the page (only the visually hidden title can come before it) sits behind the header: no space above it, the slide is taller by the height of the header, its
-   text clears the header, and a flat dark tint over the picture keeps the light header readable. */
-.has-header-overlay .main-shell > .block-slider:first-of-type {
-  padding-top: 0;
-}
-
-.has-header-overlay .main-shell > .block-slider:first-of-type .slider-full .slide {
-  min-height: calc(clamp(22rem, 12rem + 34vw, 34rem) + var(--header-height, 4.5rem));
-}
-
-.has-header-overlay .main-shell > .block-slider:first-of-type .slider-banner .slide {
-  min-height: calc(clamp(16rem, 9rem + 24vw, 26rem) + var(--header-height, 4.5rem));
-  padding-top: var(--header-height, 4.5rem);
-}
-
-.has-transparent-header .main-shell > .block-slider:first-of-type .slide-media::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(180deg, rgb(var(--ink-rgb) / 0.5), transparent calc(var(--header-height, 4.5rem) + 5rem)),
-    rgb(var(--ink-rgb) / 0.32);
 }
 
 /* The top of a picture under the transparent header is darker: the header's light text and its dropdowns read on any picture. */

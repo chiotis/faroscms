@@ -114,9 +114,9 @@ final class BlockRenderer
         if (isset($types['playlist']) && !isset($types['video'])) {
             array_unshift($assetTypes, 'video');
         }
-        // The hero slider draws its slides with the hero's styles and moves them with the slider's script.
+        // The hero slider draws its slides with the hero's styles and plays their videos with the hero's script.
         if (isset($types['hero-slider'])) {
-            $assetTypes = array_values(array_unique(array_merge(['slider', 'hero'], array_diff($assetTypes, ['slider', 'hero']))));
+            $assetTypes = array_values(array_unique(array_merge(['hero'], array_diff($assetTypes, ['hero']))));
         }
         $stylesheet = $this->theme->blockStylesheetUrl($this->baseUrl, $assetTypes);
         $styles = $stylesheet !== '' ? [$stylesheet] : [];
@@ -204,18 +204,14 @@ final class BlockRenderer
     }
 
     /**
-     * A slider that runs edge to edge opens the page the way a hero does: the header can sit over it, it has no title area
-     * above it, and the text of the page comes after it.
+     * A hero slider opens the page the way a hero does, whatever its slides are: the header can sit over it, it has no title
+     * area above it, and the text of the page comes after it. The header follows the slide that shows.
      *
      * @param array<string, mixed> $values
      */
     private static function isOpeningSlider(string $type, array $values): bool
     {
-        if ($type === 'hero-slider') {
-            // Like a hero, it opens the page whatever its slides are; the header follows the slide that shows (see opensDark).
-            return self::heroSlides($values) !== [];
-        }
-        return $type === 'slider' && ($values['width'] ?? '') === 'full' && in_array($values['variant'] ?? '', ['full', 'banner'], true);
+        return $type === 'hero-slider' && self::heroSlides($values) !== [];
     }
 
     /**
@@ -233,12 +229,12 @@ final class BlockRenderer
             if (!is_array($raw)) {
                 continue;
             }
+            $raw = $this->registry->migrate($raw);
             $type = (string)($raw['type'] ?? '');
             $definition = $this->registry->get($type);
             if ($definition === null) {
                 continue;
             }
-            $raw = $this->registry->migrate($raw);
             $values = FieldSchema::resolve($definition['common'], array_intersect_key($raw, $definition['common']));
             if ($values['hidden'] === true) {
                 continue;
@@ -349,10 +345,6 @@ final class BlockRenderer
                 $slide['_video'] = ($slide['background'] ?? 'image') === 'video' ? self::backgroundVideo((string)($slide['video'] ?? '')) : null;
                 return $slide;
             }, array_filter($values['items'], static fn(array $slide): bool => $slide['image'] !== '' || $slide['heading'] !== '' || $slide['text'] !== '' || $slide['video'] !== '')));
-            $values['_empty'] = $values['items'] === [];
-        }
-        if ($type === 'slider') {
-            $values['items'] = array_values(array_filter($values['items'], static fn(array $slide): bool => $slide['image'] !== '' || $slide['title'] !== '' || $slide['text'] !== ''));
             $values['_empty'] = $values['items'] === [];
         }
         if (($type === 'form' || $type === 'contact') && isset($this->providers['form'])) {

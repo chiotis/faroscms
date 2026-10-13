@@ -205,7 +205,7 @@ $profile = [
     'slides' => ['items' => "//div[@id='homeslider']/div[contains(@class,'content')]", 'background' => 'style', 'title' => './/h1', 'text' => ".//div[contains(@class,'slide-text')]/p[1]", 'buttons' => ".//span[contains(@class,'button')]//a"],
     'menus' => ['main' => ['list' => "//ul[contains(@class,'sf-menu')]"]],
     'logo' => "//h1[@id='logo']//img/@src",
-    'home' => ['blocks' => [['type' => 'slider', 'variant' => 'banner', 'items' => '@slides'], ['type' => 'text-image', 'image' => '@image', 'body' => '@body'], ['type' => 'columns', 'items' => [['title' => '@page:books:the-novel:title', 'url' => '@page:books:the-novel:address', 'image' => '@page:books:the-novel:image', 'text' => '@page:books:the-novel:excerpt'], ['title' => '@page:books:nothing:title']]]]],
+    'home' => ['blocks' => [['type' => 'hero-slider', 'items' => '@slides'], ['type' => 'text-image', 'image' => '@image', 'body' => '@body'], ['type' => 'columns', 'items' => [['title' => '@page:books:the-novel:title', 'url' => '@page:books:the-novel:address', 'image' => '@page:books:the-novel:image', 'text' => '@page:books:the-novel:excerpt'], ['title' => '@page:books:nothing:title']]]]],
 ];
 $scraper = new WordPressScraper(new WordPressReader($SITE, $get), $profile);
 check('the scraper finds the pages of a custom type from the sitemap', array_map(fn($e) => $e['slug'], $scraper->entries()), ['the-novel', 'no-tabs']);
@@ -234,8 +234,8 @@ check('a tab\'s text is Markdown', $book['blocks'][1]['items'][1]['text'], '[Buy
 $noTabs = $front("$root/content/books/no-tabs.md");
 check('a page without tabs has only the description', array_column($noTabs['blocks'], 'type'), ['text-image']);
 $home = $front("$root/content/pages/index.md");
-check('the home page is blocks over a landing page', [$home['template'], array_column($home['blocks'], 'type'), $home['blocks'][0]['variant']], ['landing', ['slider', 'text-image', 'columns'], 'banner']);
-check('a slide has its picture, text and buttons', [$home['blocks'][0]['items'][0]['title'], str_starts_with($home['blocks'][0]['items'][0]['image'], '/uploads/media/'), array_intersect_key($home['blocks'][0]['items'][1], array_flip(['link_label', 'url', 'link_label_2', 'url_2']))], ['First', true, ['link_label' => 'Shop A', 'url' => 'https://shop.example/a', 'link_label_2' => 'About', 'url_2' => '/about']]);
+check('the home page is blocks over a landing page', [$home['template'], array_column($home['blocks'], 'type'), $home['blocks'][0]['items'][0]['layout']], ['landing', ['hero-slider', 'text-image', 'columns'], 'cover']);
+check('a slide has its picture, text and buttons', [$home['blocks'][0]['items'][0]['heading'], str_starts_with($home['blocks'][0]['items'][0]['image'], '/uploads/media/'), array_intersect_key($home['blocks'][0]['items'][1], array_flip(['label', 'url', 'label_2', 'url_2']))], ['First', true, ['label' => 'Shop A', 'url' => 'https://shop.example/a', 'label_2' => 'About', 'url_2' => '/about']]);
 check('and the home text goes to the block with the picture split off', [$home['blocks'][1]['body'], $home['blocks'][1]['image']], ['Welcome. [About](/about), [old home](/).', '']);
 check('with the menus option the menu is written, addresses on the new site', [array_keys($menusWritten), array_map(fn($r) => $r['url'], $menusWritten['main']['items']), $menusWritten['main']['items'][1]['children'][0]['url']], [['main'], ['/', '/books', 'https://elsewhere.test/'], '/category/news']);
 $cols = $home['blocks'][2]['items'];
