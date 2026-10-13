@@ -41,6 +41,9 @@
   {% if done == 'deleted' %}{{ ui.flash(done_count ~ ' ' ~ (done_count == 1 ? 'redirect' : 'redirects') ~ ' deleted.', 'success') }}{% endif %}
   {% if done == 'ignored' %}{{ ui.flash('Removed from the list.', 'success') }}{% endif %}
   {% if done == 'cleared' %}{{ ui.flash('List cleared.', 'success') }}{% endif %}
+  {% if done == 'ignored_all' %}{{ ui.flash(done_count ~ ' ' ~ (done_count == 1 ? 'address' : 'addresses') ~ ' ignored. They stay hidden, even when visitors ask for them again.', 'success') }}{% endif %}
+  {% if done == 'restored' %}{{ ui.flash('Listed again.', 'success') }}{% endif %}
+  {% if done == 'restored_all' %}{{ ui.flash(done_count ~ ' ' ~ (done_count == 1 ? 'address' : 'addresses') ~ ' listed again.', 'success') }}{% endif %}
   {% if error and messages[error] is defined %}{{ ui.flash(messages[error], 'error') }}{% endif %}
 
   {% if tab == 'redirects' %}
@@ -187,7 +190,7 @@
       </div>
     {% endif %}
   {% else %}
-    <p class="mb-3 text-xs text-slate-500">Addresses visitors asked for that do not exist, most asked first. Broken links from other websites or old bookmarks show up here. Add a redirect to send them somewhere useful, or remove the ones that are only noise (bots probing for files, for example).</p>
+    <p class="mb-3 text-xs text-slate-500">Addresses visitors asked for that do not exist, most asked first. Broken links from other websites or old bookmarks show up here. Add a redirect to send them somewhere useful, or ignore the ones that are only noise (bots probing for files, for example): an ignored address stays hidden even when it is asked for again.</p>
     <div class="rd-tools">
       <form method="get" action="{{ url('admin/redirects') }}" role="search" class="tr-search">
         <span class="sr-only">Search the addresses</span>
@@ -195,12 +198,33 @@
         <input type="hidden" name="tab" value="missing">
         <input type="search" name="q" value="{{ filters.q }}" placeholder="Search by address" class="lc-input" aria-label="Search by address">
       </form>
-      {% if missing_total > 0 %}
-        <form method="post" action="{{ url('admin/redirects?tab=missing') }}" class="ml-auto">
-          {{ csrf_field() }}<input type="hidden" name="do" value="missing_clear">
-          <button type="submit" class="rd-bulk is-visible" data-confirm="Clear the whole list? It fills up again as visitors hit missing addresses." data-confirm-button="Clear">Clear the list</button>
-        </form>
-      {% endif %}
+      <div class="ml-auto flex flex-wrap items-center gap-2">
+        {% if show_ignored %}
+          <a href="{{ url('admin/redirects?tab=missing') }}" class="{{ link }} text-xs">Back to the list</a>
+          {% if missing %}
+            <form method="post" action="{{ url('admin/redirects?tab=missing') }}" class="m-0">
+              {{ csrf_field() }}<input type="hidden" name="do" value="missing_restore_all"><input type="hidden" name="q" value="{{ filters.q }}">
+              <button type="submit" class="rd-bulk is-visible rd-bulk-neutral">List {{ filters.q ? 'these' : 'all' }} again</button>
+            </form>
+          {% endif %}
+        {% else %}
+          {% if missing_ignored_total > 0 %}
+            <a href="{{ url('admin/redirects?tab=missing&show=ignored') }}" class="{{ link }} text-xs">Show ignored ({{ missing_ignored_total }})</a>
+          {% endif %}
+          {% if missing %}
+            <form method="post" action="{{ url('admin/redirects?tab=missing') }}" class="m-0">
+              {{ csrf_field() }}<input type="hidden" name="do" value="missing_ignore_all"><input type="hidden" name="q" value="{{ filters.q }}">
+              <button type="submit" class="rd-bulk is-visible rd-bulk-neutral" data-confirm="{{ filters.q ? 'Ignore every address matching this search? They stay hidden, even when visitors ask for them again.' : 'Ignore every address on the list? They stay hidden, even when visitors ask for them again. You can still see them under Show ignored.' }}" data-confirm-button="Ignore all">Ignore all</button>
+            </form>
+          {% endif %}
+          {% if missing_total > 0 %}
+            <form method="post" action="{{ url('admin/redirects?tab=missing') }}" class="m-0">
+              {{ csrf_field() }}<input type="hidden" name="do" value="missing_clear">
+              <button type="submit" class="rd-bulk is-visible" data-confirm="Clear the whole list? It fills up again as visitors hit missing addresses." data-confirm-button="Clear">Clear the list</button>
+            </form>
+          {% endif %}
+        {% endif %}
+      </div>
     </div>
     {% if missing %}
       <section class="lc-card rounded-xl border border-slate-200 bg-white" aria-label="Addresses not found">
@@ -217,9 +241,9 @@
               <div class="rd-use"><b>{{ m.hits|number_format }}</b><small>{{ m.hits == 1 ? 'time' : 'times' }} · {{ m.last_seen_at|slice(0, 10) }}</small></div>
               <div class="rd-actions">
                 <a class="ct-pill rd-create" href="{{ url('admin/redirects?' ~ {source: m.path, target: m.suggestion}|url_encode) }}#add">Create redirect<span class="sr-only"> from /{{ m.path }}</span></a>
-                <form method="post" action="{{ url('admin/redirects?tab=missing') }}" class="m-0">
-                  {{ csrf_field() }}<input type="hidden" name="do" value="missing_delete"><input type="hidden" name="path" value="{{ m.path }}">
-                  <button type="submit" class="ct-pill cursor-pointer">Ignore<span class="sr-only"> /{{ m.path }}</span></button>
+                <form method="post" action="{{ url('admin/redirects?tab=missing' ~ (show_ignored ? '&show=ignored' : '')) }}" class="m-0">
+                  {{ csrf_field() }}<input type="hidden" name="do" value="{{ show_ignored ? 'missing_restore' : 'missing_delete' }}"><input type="hidden" name="path" value="{{ m.path }}">
+                  <button type="submit" class="ct-pill cursor-pointer">{{ show_ignored ? 'List again' : 'Ignore' }}<span class="sr-only"> /{{ m.path }}</span></button>
                 </form>
               </div>
             </li>
@@ -227,7 +251,7 @@
         </ul>
       </section>
     {% else %}
-      <div class="rd-empty">Nothing here. Addresses that visitors could not find will be listed as they happen.</div>
+      <div class="rd-empty">{% if filters.q %}No addresses match this search.{% elseif show_ignored %}No ignored addresses.{% else %}Nothing here. Addresses that visitors could not find will be listed as they happen.{% endif %}</div>
     {% endif %}
   {% endif %}
   <script src="{{ asset('js/admin-redirects.js') }}" defer></script>

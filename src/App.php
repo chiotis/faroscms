@@ -1189,6 +1189,7 @@ final class App
         $admin = $this->redirectAdmin();
         $repo = $this->redirects;
         $tab = (string)($_GET['tab'] ?? '') === 'missing' ? 'missing' : 'redirects';
+        $showIgnored = $tab === 'missing' && (string)($_GET['show'] ?? '') === 'ignored';
         $form = $admin->blankForm();
         $error = '';
         $importReport = null;
@@ -1232,7 +1233,9 @@ final class App
         $this->render('@admin/redirects.twig', [
             'tab' => $tab,
             'rows' => $rows,
-            'missing' => $tab === 'missing' ? $admin->missing(trim((string)($_GET['q'] ?? ''))) : [],
+            'missing' => $tab === 'missing' ? $admin->missing(trim((string)($_GET['q'] ?? '')), 200, $showIgnored) : [],
+            'show_ignored' => $showIgnored,
+            'missing_ignored_total' => $repo->notFoundIgnoredCount(),
             'stats' => $repo->stats(),
             'missing_total' => $repo->notFoundCount(),
             'filters' => $filters,

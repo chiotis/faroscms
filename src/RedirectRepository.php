@@ -411,25 +411,33 @@ final class RedirectRepository
         $stmt->execute(['path' => $path, 'now' => $now, 'ref' => $referrer !== '' ? mb_substr($referrer, 0, 200) : null]);
 
         // Never let random requests grow this table without limit: the oldest entries go first.
-        if (random_int(1, 25) === 1 && $this->notFoundCount() > self::NOT_FOUND_LIMIT) {
+        if (random_int(1, 25) === 1 && (int)$this->pdo()->query('SELECT COUNT(*) FROM not_found_log')->fetchColumn() > self::NOT_FOUND_LIMIT) {
             $this->pdo()->exec('DELETE FROM not_found_log WHERE path IN (SELECT path FROM not_found_log ORDER BY last_seen_at ASC LIMIT 100)');
         }
     }
 
+    /** How many addresses are listed (the ones chosen to be ignored are not counted). */
     public function notFoundCount(): int
     {
-        return $this->isAvailable() ? (int)$this->pdo()->query('SELECT COUNT(*) FROM not_found_log')->fetchColumn() : 0;
+        return $this->isAvailable() ? (int)$this->pdo()->query('SELECT COUNT(*) FROM not_found_log WHERE ignored = 0')->fetchColumn() : 0;
     }
 
-    /** @return array<int, array<string, mixed>> */
-    public function notFound(string $q = '', int $limit = 100): array
+    public function notFoundIgnoredCount(): int
+    {
+        return $this->isAvailable() ? (int)$this->pdo()->query('SELECT COUNT(*) FROM not_found_log WHERE ignored = 1')->fetchColumn() : 0;
+    }
+
+    /** @return array<int, array<string, mixed>> the listed addresses, or (with $ignored) the ones chosen to be ignored */
+    public function notFound(string $q = '', int $limit = 100, bool $ignored = false): array
     {
         if (!$this->isAvailable()) {
             return [];
         }
-        $sql = 'SELECT * FROM not_found_log' . ($q !== '' ? ' WHERE path LIKE :q ESCAPE \'\\\'' : '') . ' ORDER BY hits DESC, last_seen_at DESC LIMIT ' . max(1, min(500, $limit));
-        $stmt = $this->pdo()->prepare($sql);
-        $stmt->execute($q !== '' ? ['q' => '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], mb_strtolower($q, 'UTF-8')) . '%'] : []);
+        $stmt = $this->pdo()->prepare(
+            'SELECT * FROM not_found_log WHERE ignored = :ignored' . ($q !== '' ? ' AND path LIKE :q ESCAPE \'\\\'' : '')
+            . ' ORDER BY hits DESC, last_seen_at DESC LIMIT ' . max(1, min(500, $limit))
+        );
+        $stmt->execute(['ignored' => $ignored ? 1 : 0] + ($q !== '' ? ['q' => self::likePattern($q)] : []));
         return $stmt->fetchAll() ?: [];
     }
 
@@ -440,11 +448,61 @@ final class RedirectRepository
         }
     }
 
+    /** Hides an address from the list for good: it is still counted when asked for, but it does not come back. */
+    public function ignoreNotFound(string $path): void
+    {
+        $this->setIgnored(self::normalizePath($path), '', true);
+    }
+
+    /** Hides every listed address (only those matching $q when it is given) and returns how many. */
+    public function ignoreAllNotFound(string $q = ''): int
+    {
+        return $this->setIgnored(null, $q, true);
+    }
+
+    /** Lists an ignored address again. */
+    public function restoreNotFound(string $path): void
+    {
+        $this->setIgnored(self::normalizePath($path), '', false);
+    }
+
+    /** Lists every ignored address again (only those matching $q when it is given) and returns how many. */
+    public function restoreAllNotFound(string $q = ''): int
+    {
+        return $this->setIgnored(null, $q, false);
+    }
+
+    /** Empties the list; the addresses chosen to be ignored are kept so they stay hidden. */
     public function clearNotFound(): void
     {
         if ($this->isAvailable()) {
-            $this->pdo()->exec('DELETE FROM not_found_log');
+            $this->pdo()->exec('DELETE FROM not_found_log WHERE ignored = 0');
         }
+    }
+
+    /** @param ?string $path one address, or null for all that are in the other state (narrowed by $q) */
+    private function setIgnored(?string $path, string $q, bool $ignored): int
+    {
+        if (!$this->isAvailable()) {
+            return 0;
+        }
+        $sql = 'UPDATE not_found_log SET ignored = :new WHERE ignored = :old';
+        $params = ['new' => $ignored ? 1 : 0, 'old' => $ignored ? 0 : 1];
+        if ($path !== null) {
+            $sql .= ' AND path = :path';
+            $params['path'] = $path;
+        } elseif ($q !== '') {
+            $sql .= ' AND path LIKE :q ESCAPE \'\\\'';
+            $params['q'] = self::likePattern($q);
+        }
+        $stmt = $this->pdo()->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->rowCount();
+    }
+
+    private static function likePattern(string $q): string
+    {
+        return '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], mb_strtolower($q, 'UTF-8')) . '%';
     }
 
     private function pdo(): PDO

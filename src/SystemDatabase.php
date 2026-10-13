@@ -101,6 +101,19 @@ final class SystemDatabase
         $this->applyMigration($pdo, '202609290001_redirects', fn(PDO $db) => $this->createRedirectTables($db));
         $this->applyMigration($pdo, '202609290002_content_revisions', fn(PDO $db) => $this->createRevisionTable($db));
         $this->applyMigration($pdo, '202610030001_analytics', fn(PDO $db) => $this->createAnalyticsTables($db));
+        $this->applyMigration($pdo, '202610130001_not_found_ignored', fn(PDO $db) => $this->addNotFoundIgnoredColumn($db));
+    }
+
+    /** Addresses the owner chose to ignore stay in the log (their visits are still counted) but are no longer listed. */
+    private function addNotFoundIgnoredColumn(PDO $pdo): void
+    {
+        $columns = [];
+        foreach ($pdo->query('PRAGMA table_info(not_found_log)') as $row) {
+            $columns[] = (string)$row['name'];
+        }
+        if (!in_array('ignored', $columns, true)) {
+            $pdo->exec('ALTER TABLE not_found_log ADD COLUMN ignored INTEGER NOT NULL DEFAULT 0');
+        }
     }
 
     private function addContentIndexSearchColumns(PDO $pdo): void

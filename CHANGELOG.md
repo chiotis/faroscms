@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.96 — 2026-10-13 — Ignore the addresses that are only noise
+- **Admin > Redirects > Not found has an *Ignore all* button** next to *Clear the list* (issue #9). Bots keep asking for old WordPress addresses and the list filled up with them again after every clearing. An ignored address is now kept in the log (its visits are still counted) but hidden for good: it does not come back when it is asked for again, and it is not counted in the tab, the SEO check or the dashboard.
+- **Ignore is lasting for one address too** (it used to delete the row, which returned with the next visit). With a search typed, *Ignore all* ignores only the addresses that match it.
+- **Show ignored (N)** lists them with their visit counts, each with *List again*, and *List all again* (or *List these again*, for a search) brings them back. *Clear the list* empties the list and keeps what was ignored; making a redirect for an address still removes it from the log.
+- A new migration adds the `ignored` column to `not_found_log`. The log stays capped at 1000 addresses, ignored ones included (the ones not asked for the longest go first).
+- Tests: ignoring one and all, with and without a search, staying hidden after another visit, listing again, clearing, and the screens (`tests/unit/redirect-admin.php`, `tests/http/redirects_test.py`).
+
 ## 0.1.95 — 2026-10-12 — Theme options the second site asked for
 - **Headings in colour** (Branding > Typography > *Heading colour*): the colour of the text (the usual), the palette colour (the accent, following the mode), or colours of your own for light and dark (Branding > Colour, a *Headings* row). It colours the headings of the text, section titles and the title of a page or a list; dark panels, the footer and headings over pictures keep their own colour (`--heading-color`).
 - **A header that fades into the page** (Theme > Header > *Background*): *Fade* goes from the muted colour, *Fade tint* from the soft tint of the palette colour, down into the page background (the line under the header goes). A fixed header is a plain tint, and one over a hero is clear, as with the other backgrounds.
