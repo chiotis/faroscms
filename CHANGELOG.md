@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.111 — 2026-10-13 — check-blocks knows the old Slider
+- `scripts/check-blocks.php` checks a block as what it is now, so a page that still has a Slider block is no longer reported as an unknown block type; it is a Hero slider.
+
 ## 0.1.110 — 2026-10-13 — The old Slider is gone; smaller text in the hero on a phone
 - **The Slider block is removed; the Hero slider takes its place.** A page saved with a Slider block is shown, edited and saved as a Hero slider, so nothing breaks: the large slide and the banner become cover slides, the cards become split slides, a slide's title, text, picture and first two links come along (as heading, text, image and two buttons), and so do the arrows, the automatic movement, the background, spacing and anchor. What a Hero slider has no place for is dropped: a slide's third link, the heading and introduction above the slider, and its width (a Hero slider always runs edge to edge). The home page the WordPress importer builds is a Hero slider too (`docs/wordpress-profiles/themelio.yaml`).
 - The strip, arrows and dots of the old Slider now belong to the Hero slider (`blocks/hero-slider`); the Slider's own files, styles and texts are gone, and so is its example in the starter page.
