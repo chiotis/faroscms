@@ -1,4 +1,4 @@
-# Blocks of this installation (FarosCMS 0.1.109)
+# Blocks of this installation (FarosCMS 0.1.110)
 
 ## Fields every block has
 
@@ -516,32 +516,6 @@ One large quotation, with who said it and an optional photo.
 | `role` | text |  |
 | `image` | image; only when `variant` is `p` or `h` or `o` or `t` or `o` |  |
 | `mark` | true / false; default `true` |  |
-
-### `slider` — Slider
-Slides you scroll through, with previous and next buttons. Works by swiping, with the keyboard, and without JavaScript. Never moves by itself unless you turn that on.
-
-**Layouts** (`variant`): `full` (One large slide at a time), `banner` (Wide banner, a text panel over the picture), `multi` (Several slides at once). First is the default.
-
-| field | kind and choices | notes |
-|---|---|---|
-| `eyebrow` | text |  |
-| `heading` | text |  |
-| `intro` | text (several lines) |  |
-| `width` | choice; one of `contained`, `full`; default `contained` | Full width runs the slides edge to edge; the text inside stays in line with the page. Set the block spacing to None to sit against the header. A full width slider that opens the page also sits behind a transparent header (Theme > Header), and then the page has no title area of its own. |
-| `navigation` | choice; one of `below`, `inside`; default `below` |  |
-| `per_view` | choice; one of `2`, `3`, `4`; default `3` |  |
-| `autoplay` | choice; one of `off`, `5`, `8`; default `off` | A pause button is shown, and visitors who prefer reduced motion never get automatic movement. |
-| `items` | list of rows; at most 12 rows |  |
-| &nbsp;&nbsp;`items[].image` | image |  |
-| &nbsp;&nbsp;`items[].eyebrow` | text |  |
-| &nbsp;&nbsp;`items[].title` | text |  |
-| &nbsp;&nbsp;`items[].text` | text (several lines) |  |
-| &nbsp;&nbsp;`items[].link_label` | text |  |
-| &nbsp;&nbsp;`items[].url` | link |  |
-| &nbsp;&nbsp;`items[].link_label_2` | text | Shown as buttons beside the first in the Wide banner layout. |
-| &nbsp;&nbsp;`items[].url_2` | link |  |
-| &nbsp;&nbsp;`items[].link_label_3` | text |  |
-| &nbsp;&nbsp;`items[].url_3` | link |  |
 
 ### `stats` — Stats
 Key numbers with a short label, e.g. years of experience or completed projects.

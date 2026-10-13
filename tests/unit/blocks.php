@@ -13,7 +13,7 @@ function check(string $label, $actual, $expected) { global $fail; $ok = $actual 
 $theme = new Theme($root, 'default');
 $registry = new BlockRegistry($theme, ['content_types' => fn() => ['posts' => 'Posts', 'projects' => 'Projects'], 'forms' => fn() => ['' => '—']]);
 check('at least the 25 shipped blocks', count($registry->all()) >= 25, true);
-foreach (['banner', 'latest', 'pricing', 'slider', 'tabs', 'video', 'compare', 'before-after'] as $t) check("$t registered", $registry->get($t) !== null, true);
+foreach (['banner', 'latest', 'pricing', 'hero-slider', 'tabs', 'video', 'compare', 'before-after'] as $t) check("$t registered", $registry->get($t) !== null, true);
 check('latest variants', array_keys($registry->get('latest')['variants']), ['cards', 'list', 'compact', 'overlay', 'strip', 'featured', 'magazine', 'editorial']);
 check('latest source options', array_keys($registry->get('latest')['fields']['source']['options']), ['posts', 'projects']);
 check('latest source default', $registry->get('latest')['fields']['source']['default'], 'posts');
@@ -37,18 +37,24 @@ check('the kinds are the ones the picker orders', array_values(array_unique(arra
 check('some examples', [$kinds['hero'], $kinds['text'], $kinds['gallery'], $kinds['team'], $kinds['pricing']], ['Openers', 'Content', 'Media', 'Showcase', 'Convert']);
 check('the editor gets the wireframe with the definition', str_contains((string)array_column($registry->editorDefinitions(), 'preview', 'type')['hero'], '<rect'), true);
 
-check('slider is contained with its arrows below by default', [$registry->get('slider')['fields']['width']['default'], $registry->get('slider')['fields']['navigation']['default']], ['contained', 'below']);
-check('slider width and arrows only take their own values', [FieldSchema::resolve($registry->get('slider')['fields'], ['width' => 'huge', 'navigation' => 'left'])['width'], FieldSchema::resolve($registry->get('slider')['fields'], ['width' => 'full', 'navigation' => 'inside'])['navigation']], ['contained', 'inside']);
-check('slider autoplay default off', $registry->get('slider')['fields']['autoplay']['default'], 'off');
+check('the hero slider has its arrows below by default, and only takes its own values', [$registry->get('hero-slider')['fields']['navigation']['default'], FieldSchema::resolve($registry->get('hero-slider')['fields'], ['navigation' => 'left'])['navigation'], FieldSchema::resolve($registry->get('hero-slider')['fields'], ['navigation' => 'inside'])['navigation']], ['below', 'below', 'inside']);
+check('hero slider autoplay default off', $registry->get('hero-slider')['fields']['autoplay']['default'], 'off');
+check('the old Slider block is gone', $registry->get('slider'), null);
 check('banner default tone', $registry->get('banner')['common']['tone']['default'], 'accent');
 check('banner icon default', $registry->get('banner')['fields']['icon']['default'], 'megaphone');
 check('at least the 34 shipped icons', count($theme->iconNames()) >= 34, true);
 foreach (['play', 'pause', 'chevron-left', 'chevron-right', 'info', 'megaphone', 'x'] as $i) check("icon $i", $theme->icon($i) !== '', true);
 
 // Tampered values
-$r = FieldSchema::resolve($registry->get('slider')['fields'], ['autoplay' => '1', 'per_view' => '9']);
-check('slider bad autoplay -> off', $r['autoplay'], 'off');
-check('slider bad per_view -> 3', $r['per_view'], '3');
+$r = FieldSchema::resolve($registry->get('hero-slider')['fields'], ['autoplay' => '1']);
+check('hero slider bad autoplay -> off', $r['autoplay'], 'off');
+$slides = FieldSchema::resolve($registry->get('hero-slider')['fields'], ['items' => [['layout' => 'evil', 'heading' => 'H', 'background' => 'x']]])['items'][0];
+check('a slide only takes its own layout and picture', [$slides['layout'], $slides['background']], ['split', 'image']);
+// A Slider block of before 0.1.110 is a Hero slider now.
+$old = $registry->migrate(['type' => 'slider', 'variant' => 'banner', 'width' => 'full', 'navigation' => 'inside', 'autoplay' => '8', 'tone' => 'muted', 'heading' => 'Gone', 'items' => [['image' => '/a.jpg', 'eyebrow' => 'E', 'title' => 'T', 'text' => 'X', 'link_label' => 'Go', 'url' => 'contact', 'link_label_2' => 'More', 'url_2' => '/m', 'link_label_3' => 'Third', 'url_3' => '/t']]]);
+check('an old Slider becomes a Hero slider with its slides as cover slides', [$old['type'], $old['navigation'], $old['autoplay'], $old['tone'], $old['items'][0]], ['hero-slider', 'inside', '8', 'muted', ['layout' => 'cover', 'image' => '/a.jpg', 'eyebrow' => 'E', 'text' => 'X', 'url' => 'contact', 'url_2' => '/m', 'heading' => 'T', 'label' => 'Go', 'label_2' => 'More']]);
+check('the cards of an old Slider are split slides', $registry->migrate(['type' => 'slider', 'variant' => 'multi', 'items' => [['title' => 'T']]])['items'][0]['layout'], 'split');
+check('it is stored as a Hero slider', array_column($registry->sanitizeForStorage([['type' => 'slider', 'variant' => 'full', 'items' => [['title' => 'T']]]]), 'type'), ['hero-slider']);
 $r = FieldSchema::resolve($registry->get('latest')['fields'], ['limit' => 99, 'source' => 'evil', 'term' => "a\nb", 'show_image' => 'no']);
 check('latest limit capped', $r['limit'], 12);
 check('latest source invalid -> posts', $r['source'], 'posts');
@@ -163,7 +169,7 @@ $lat = array_values(array_filter($once, fn($b) => $b['type'] === 'latest'));
 check('latest default variant omitted from storage', array_key_exists('variant', $lat[0]), false);
 check('latest posts source omitted', array_key_exists('source', $lat[0]), false);
 $edit = array_map(fn($d) => $d['type'], $registry->editorDefinitions());
-check('editor gets new blocks', count(array_intersect($edit, ['banner', 'latest', 'pricing', 'slider', 'tabs', 'video'])), 6);
+check('editor gets new blocks', count(array_intersect($edit, ['banner', 'latest', 'pricing', 'hero-slider', 'tabs', 'video'])), 6);
 $compare = array_values(array_filter($once, fn($b) => $b['type'] === 'compare'))[0];
 check('compare keeps its columns and rows', [count($compare['columns']), count($compare['rows']), $compare['rows'][1]['v1']], [3, 6, 'ναι']);
 check('compare has at most four columns', $registry->get('compare')['fields']['columns']['max'], 4);

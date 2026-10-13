@@ -174,7 +174,7 @@ def check_file(root, path, ctx):
             hero_count = sum(1 for b in blocks if isinstance(b, dict) and b.get("type") == "hero")
             if hero_count > 1:
                 add("WARN", "more than one Hero block: only the first one is the page's <h1> and opening section")
-            if first.get("type") not in ("hero", "slider", None) and meta.get("template") == "landing":
+            if first.get("type") not in ("hero", "hero-slider", None) and meta.get("template") == "landing":
                 add("WARN", "a landing page has no title area: start it with a hero block so the page has an <h1>")
     for address in ([] if snapshot or not inside else sorted(set(uploads_in(meta) + uploads_in(body)))):
         clean_address = address.split("?")[0].split("#")[0].rstrip(".,;")

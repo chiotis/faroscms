@@ -62,11 +62,8 @@ logo: "//h1[@id='logo']//img/@src"
 # in, and @page:<content type>:<old address>:<title|text|image|address|excerpt> takes a field of a page read above.
 home:
   blocks:
-    - type: slider
-      variant: banner
-      width: full
+    - type: hero-slider
       navigation: inside
-      spacing: none
       autoplay: '8'
       items: '@slides'
     - type: columns

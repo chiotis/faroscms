@@ -411,3 +411,39 @@
 .hero-video-toggle[aria-pressed="true"] .i-play {
   display: block;
 }
+
+/* On a phone the heading and the text are smaller, so a long text and the buttons fit the screen with the heading, and a
+   heading of two or three words does not fill it. The same for each slide of the hero slider. */
+@media (max-width: 620px) {
+  .hero-title {
+    font-size: calc(clamp(1.75rem, 1.2rem + 3.6vw, 2.3rem) * var(--type-scale));
+    line-height: 1.1;
+  }
+
+  .block-hero.block--minimal .hero-title {
+    font-size: calc(clamp(2.1rem, 1.3rem + 4.5vw, 2.8rem) * var(--type-scale));
+  }
+
+  .hero-text {
+    margin-top: var(--space-s);
+    font-size: var(--step-0);
+    line-height: 1.55;
+  }
+
+  .hero-highlights {
+    margin-top: var(--space-m);
+    gap: 0.4rem 1.1rem;
+  }
+
+  .hero-step-number {
+    font-size: var(--step-2);
+  }
+
+  .hero-step-title {
+    font-size: var(--step-0);
+  }
+
+  .hero-step-text {
+    font-size: var(--step--1);
+  }
+}

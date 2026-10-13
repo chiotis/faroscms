@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.110 — 2026-10-13 — The old Slider is gone; smaller text in the hero on a phone
+- **The Slider block is removed; the Hero slider takes its place.** A page saved with a Slider block is shown, edited and saved as a Hero slider, so nothing breaks: the large slide and the banner become cover slides, the cards become split slides, a slide's title, text, picture and first two links come along (as heading, text, image and two buttons), and so do the arrows, the automatic movement, the background, spacing and anchor. What a Hero slider has no place for is dropped: a slide's third link, the heading and introduction above the slider, and its width (a Hero slider always runs edge to edge). The home page the WordPress importer builds is a Hero slider too (`docs/wordpress-profiles/themelio.yaml`).
+- The strip, arrows and dots of the old Slider now belong to the Hero slider (`blocks/hero-slider`); the Slider's own files, styles and texts are gone, and so is its example in the starter page.
+- **Smaller text on a phone in the Hero and the Hero slider.** The heading is about 32 px instead of 38 and the text 16 px instead of 18, the highlights and the steps are a size down, so a long text and its buttons fit the screen with the heading. With the arrows over the slides, a phone no longer takes 68 px each side of the text for them: the arrows sit along the bottom edge beside the dots and the text has the whole width.
+
 ## 0.1.109 — 2026-10-13 — Videos in the hero slider play only on the slide that shows
 - **A slide of the Hero slider can have a video behind its text** (Picture > Video, as in the Hero: a file from the library, or a YouTube or Vimeo link, with a still image and a pause button). Before, every video slide loaded and played at once, also the ones off screen. Now a video starts when its slide shows and stops when the slide goes (a YouTube or Vimeo frame is removed, a video file is paused), so a slider with several videos asks the visitor's device for one at a time. A visitor who paused a video keeps it paused.
 - The slider tells its slides which one shows through `slider:change`, which the video script of the Hero uses.

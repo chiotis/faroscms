@@ -337,41 +337,38 @@ blocks:
       - url: 'https://www.youtube.com/watch?v=aqz-KE-bpKQ'
         title: Case study
         poster: /uploads/media/faros-demo-trees.jpg
-  - type: slider
-    variant: full
+  - type: hero-slider
     anchor: slider
-    eyebrow: 'Slider · full'
-    heading: Έργα σε μεγάλη προβολή
     items:
-      - image: /uploads/media/faros-demo-lake.jpg
+      - layout: cover
+        image: /uploads/media/faros-demo-lake.jpg
         eyebrow: Ξενοδοχεία
-        title: Ανακαίνιση με θέα
+        heading: Ανακαίνιση με θέα
         text: Ένας χώρος που ανοίγει προς το τοπίο.
-        link_label: Δείτε το έργο
+        label: Δείτε το έργο
         url: projects
-      - image: /uploads/media/faros-demo-path.jpg
+      - layout: split
+        image: /uploads/media/faros-demo-path.jpg
         eyebrow: Γραφεία
-        title: Χώροι που εμπνέουν
+        heading: Χώροι που εμπνέουν
         text: Φως, υλικά και ροή για την καθημερινότητα της ομάδας.
-        link_label: Δείτε το έργο
+        label: Δείτε το έργο
         url: projects
-      - image: /uploads/media/faros-demo-trees.jpg
+        label_2: Επικοινωνία
+        url_2: contact
+        highlight_1: Μελέτη
+        highlight_2: Υλοποίηση
+      - layout: cover-centered
+        image: /uploads/media/faros-demo-trees.jpg
         eyebrow: Λιανική
-        title: Εμπειρία καταστήματος
+        heading: Εμπειρία καταστήματος
         text: Από την πρώτη ματιά μέχρι το ταμείο.
-        link_label: Δείτε το έργο
+        label: Δείτε το έργο
         url: projects
-  - type: slider
-    variant: multi
-    tone: muted
-    eyebrow: 'Slider · several'
-    heading: Πολλές κάρτες, μία κίνηση
-    items:
-      - { image: /uploads/media/faros-demo-lake.jpg, eyebrow: Μελέτη, title: Στρατηγική χώρου, text: Πώς αποφασίζουμε τι χρειάζεται πραγματικά ένας χώρος. }
-      - { image: /uploads/media/faros-demo-path.jpg, eyebrow: Σχεδιασμός, title: Από το σκίτσο στο έργο, text: Οι τρεις φάσεις που ακολουθούμε σε κάθε πρότζεκτ. }
-      - { image: /uploads/media/faros-demo-rocks.jpg, eyebrow: Υλοποίηση, title: Έλεγχος εργοταξίου, text: Τακτική ενημέρωση και ξεκάθαρος προγραμματισμός. }
-      - { image: /uploads/media/faros-demo-trees.jpg, eyebrow: Παράδοση, title: Παράδοση και υποστήριξη, text: Το έργο δεν τελειώνει με την τελευταία επιθεώρηση. }
-      - { eyebrow: Χωρίς εικόνα, title: Και μια κάρτα μόνο με κείμενο, text: Ένα slide δεν χρειάζεται πάντα φωτογραφία. }
+      - layout: minimal
+        eyebrow: Χωρίς εικόνα
+        heading: Και ένα slide μόνο με κείμενο
+        text: Ένα slide δεν χρειάζεται πάντα φωτογραφία.
   - type: pricing
     variant: cards
     anchor: pricing

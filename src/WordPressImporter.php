@@ -531,16 +531,16 @@ final class WordPressImporter
         return ['front' => $front, 'body' => '', 'notes' => $converter->notes()];
     }
 
-    /** @return array<int, array<string, mixed>> the slides of the home page as items of a slider block */
+    /** @return array<int, array<string, mixed>> the slides of the home page as items of a hero slider block: text over a picture, with up to two buttons */
     private function slideItems(): array
     {
         $items = [];
         foreach ($this->slides as $slide) {
-            $item = ['image' => $slide['image'] !== '' ? $this->resolve($slide['image'], 'image') : '', 'title' => $slide['title'], 'text' => $slide['text']];
-            // A slide has room for three buttons: the first is the slide's link, the others are its second and third.
-            foreach (array_slice($slide['buttons'], 0, 3) as $number => $button) {
-                $suffix = $number === 0 ? '' : '_' . ($number + 1);
-                $item['link_label' . $suffix] = $button['label'];
+            $item = ['layout' => 'cover', 'image' => $slide['image'] !== '' ? $this->resolve($slide['image'], 'image') : '', 'heading' => $slide['title'], 'text' => $slide['text']];
+            // A slide of a hero slider has two buttons: the first two of the old slide.
+            foreach (array_slice($slide['buttons'], 0, 2) as $number => $button) {
+                $suffix = $number === 0 ? '' : '_2';
+                $item['label' . $suffix] = $button['label'];
                 $item['url' . $suffix] = $this->resolve($button['url'], 'link');
             }
             $items[] = $item;
