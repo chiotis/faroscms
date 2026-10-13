@@ -91,6 +91,7 @@ return [
     'playlist.opens_youtube' => 'ανοίγει το YouTube',
     'video.default_title' => 'Βίντεο',
     'slider.label' => 'Διαφάνειες',
+    'hero_slider.label' => 'Βασικά σημεία',
     'slider.carousel' => 'καρουζέλ',
     'slider.slide' => 'διαφάνεια',
     'slider.previous' => 'Προηγούμενη διαφάνεια',

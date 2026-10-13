@@ -1,0 +1,97 @@
+label: Hero slider
+description: Slides that each are a Hero. Every slide picks its own Hero layout (including the ones with numbered steps) and has everything a Hero has - heading, text, buttons, highlights, and an image or a video behind the text - styled exactly like it, on a phone too. Previous and next buttons, dots, swiping and the keyboard work; it never moves by itself unless you turn that on.
+category: Openers
+tone: default
+fields:
+  navigation:
+    type: select
+    label: Arrows and dots
+    default: below
+    options:
+      below: 'Below the slides'
+      inside: 'Over the slides'
+    help: 'Over the slides suits slides that are all full-width pictures.'
+  autoplay:
+    type: select
+    label: Move by itself
+    default: 'off'
+    options:
+      'off': No
+      '5': 'Every 5 seconds'
+      '8': 'Every 8 seconds'
+      '12': 'Every 12 seconds'
+    help: A pause button is shown, and visitors who prefer reduced motion never get automatic movement.
+  items:
+    type: repeater
+    label: Slides
+    item_label: Slide
+    max: 8
+    fields:
+      layout:
+        type: select
+        label: Layout
+        default: split
+        options:
+          split: 'Text and image side by side'
+          centered: 'Centered text, wide image below'
+          cover: 'Text over a full-width image'
+          cover-centered: 'Centered text over a full-width image'
+          steps: 'Text over a full-width image, with numbered steps'
+          steps-centered: 'Centered text over a full-width image, with numbered steps'
+          minimal: 'Large heading, no image'
+      eyebrow: { type: text, label: Eyebrow }
+      heading: { type: text, label: Heading }
+      text: { type: textarea, label: Text }
+      label: { type: text, label: Button text }
+      url: { type: link, label: Button link, help: 'A page ("contact"), a path ("/en/contact"), a full URL, #anchor, mailto: or tel:' }
+      style: { type: select, label: Button style, default: primary, options: { primary: Primary, secondary: Secondary } }
+      label_2: { type: text, label: Second button text }
+      url_2: { type: link, label: Second button link }
+      style_2: { type: select, label: Second button style, default: secondary, options: { primary: Primary, secondary: Secondary } }
+      highlight_1: { type: text, label: 'Highlight 1' }
+      highlight_2: { type: text, label: 'Highlight 2' }
+      highlight_3: { type: text, label: 'Highlight 3' }
+      step_1_title: { type: text, label: 'Step 1 title', when: { layout: [steps, steps-centered] } }
+      step_1_text: { type: textarea, label: 'Step 1 text', when: { layout: [steps, steps-centered] } }
+      step_1_link: { type: link, label: 'Step 1 link', when: { layout: [steps, steps-centered] } }
+      step_1_link_label: { type: text, label: 'Step 1 link text', placeholder: Learn more, when: { layout: [steps, steps-centered] } }
+      step_2_title: { type: text, label: 'Step 2 title', when: { layout: [steps, steps-centered] } }
+      step_2_text: { type: textarea, label: 'Step 2 text', when: { layout: [steps, steps-centered] } }
+      step_2_link: { type: link, label: 'Step 2 link', when: { layout: [steps, steps-centered] } }
+      step_2_link_label: { type: text, label: 'Step 2 link text', placeholder: Learn more, when: { layout: [steps, steps-centered] } }
+      step_3_title: { type: text, label: 'Step 3 title', when: { layout: [steps, steps-centered] } }
+      step_3_text: { type: textarea, label: 'Step 3 text', when: { layout: [steps, steps-centered] } }
+      step_3_link: { type: link, label: 'Step 3 link', when: { layout: [steps, steps-centered] } }
+      step_3_link_label: { type: text, label: 'Step 3 link text', placeholder: Learn more, when: { layout: [steps, steps-centered] } }
+      step_4_title: { type: text, label: 'Step 4 title', when: { layout: [steps, steps-centered] } }
+      step_4_text: { type: textarea, label: 'Step 4 text', when: { layout: [steps, steps-centered] } }
+      step_4_link: { type: link, label: 'Step 4 link', when: { layout: [steps, steps-centered] } }
+      step_4_link_label: { type: text, label: 'Step 4 link text', placeholder: Learn more, when: { layout: [steps, steps-centered] } }
+      background:
+        type: select
+        label: Picture
+        default: image
+        options:
+          image: Image
+          video: Video that plays behind the text
+        when: { layout: [split, centered, cover, cover-centered, steps, steps-centered] }
+      image:
+        type: image
+        label: Image
+        when: { background: image, layout: [split, centered, cover, cover-centered, steps, steps-centered] }
+      image_alt:
+        type: text
+        label: Image description
+        help: What the image shows, for people who cannot see it. Leave empty if it is purely decorative.
+        when: { background: image, layout: [split, centered, cover, cover-centered, steps, steps-centered] }
+      video:
+        type: video
+        label: Video
+        placeholder: https://www.youtube.com/watch?v=…
+        help: 'Choose a video from the media library (.mp4 or .webm), or paste a YouTube or Vimeo link, or the address of a video file elsewhere. It plays silently, in a loop, with a pause button.'
+        when: { background: video, layout: [split, centered, cover, cover-centered, steps, steps-centered] }
+      video_poster:
+        type: image
+        label: Still image
+        help: Shown while the video loads, when the visitor has asked their device for less motion, and under a video that is paused.
+        when: { background: video, layout: [split, centered, cover, cover-centered, steps, steps-centered] }

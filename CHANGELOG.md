@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.106 — 2026-10-13 — Hero slider
+- **New block: Hero slider.** A slider whose every slide is a Hero. Each slide picks its own hero layout (text and image side by side, centered, text over a full-width image, centered over an image, the two with numbered steps, or a large heading) and has everything a Hero has: eyebrow, heading, text, two buttons with a style, three highlights, up to four steps, and an image or a video behind the text. A slide looks exactly like that hero, on a phone too, instead of the Slider's own layouts. Arrows and dots go below or over the slides; it can move by itself (5, 8 or 12 seconds) with a pause button.
+- The hero's content moved into one component (`components/hero-content.twig`) that the Hero block and each slide use, so they cannot drift apart. The Hero block's output is unchanged. When every slide is a cover over a picture and the block opens the page, the header sits over it like over an opening hero.
+- The existing Slider is unchanged, so pages that use it stay as they are.
+
 ## 0.1.105 — 2026-10-13 — Omni on PHP 8.1 to 8.3
 - **Fixed: a site on PHP 8.1, 8.2 or 8.3 could not connect to an Omni** ("No Omni answered at …"), since 0.1.103. The status of Omni's answers was read in a way only PHP 8.4 and later fill in, so every answer looked like none. `OmniClient` now reads it from the stream's own metadata, which every PHP version gives (and which is not deprecated in PHP 8.5).
 - Found by the test suite on PHP 8.1 and 8.3 (`tests/http/omni_test.py`), which now passes there.

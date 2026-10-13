@@ -1,81 +1,19 @@
-{% import 'components/ui.twig' as ui %}
-{# The picture behind the text: a video when the block asks for one the site can play (block._video), otherwise its image. #}
-{% macro video(video, poster, sizes, priority) %}
-  <div class="hero-video" data-hero-video data-provider="{{ video.provider }}"{% if video.provider != 'file' %} data-embed="{{ video.src }}"{% endif %}
-       data-label-pause="{{ t('hero.pause_video', 'Pause the background video') }}" data-label-play="{{ t('hero.play_video', 'Play the background video') }}">
-    {% if poster %}{{ image(poster, {alt: '', sizes: sizes, priority: priority}) }}{% endif %}
-    {% if video.provider == 'file' %}
-      <video muted loop playsinline autoplay preload="metadata" aria-hidden="true" tabindex="-1"><source src="{{ video.src }}"{% if video.type %} type="{{ video.type }}"{% endif %}></video>
-    {% endif %}
-  </div>
-{% endmacro %}
-{% macro toggle(in_cover) %}
-  <button type="button" class="hero-video-toggle{{ in_cover ? ' is-in-cover' : '' }}" data-hero-video-toggle aria-pressed="false" aria-label="{{ t('hero.pause_video', 'Pause the background video') }}" hidden>
-    {{ icon('pause', 'i-pause') }}{{ icon('play', 'i-play') }}
-  </button>
-{% endmacro %}
-{% import _self as hero %}
-{% set variant = block.variant %}
-{% set video = block._video|default(null) %}
-{% set has_video = video is not null and variant != 'minimal' %}
-{% set has_image = block.image and variant != 'minimal' and not has_video %}
-{% set has_picture = has_image or has_video %}
-{# The opening hero image is the largest thing on screen: load it first, never lazily. #}
-{% set is_cover = variant in ['cover', 'cover-centered', 'steps', 'steps-centered'] %}
-{% set media_sizes = variant == 'split' ? '(min-width: 960px) 46vw, 92vw' : (is_cover ? '100vw' : '(min-width: 1280px) 1216px, 92vw') %}
-{# The two centred layouts over a picture (split, centered and minimal have their own alignment). #}
-{% set centred_cover = variant in ['cover-centered', 'steps-centered'] %}
-{% if is_cover and has_picture %}
-  <div class="hero-cover-media{{ centred_cover ? ' is-centered' : '' }}">
-    {% if has_video %}
-      {{ hero.video(video, block.video_poster, media_sizes, block_first) }}
-    {% else %}
-      {{ image(block.image, {alt: block.image_alt, sizes: media_sizes, priority: block_first}) }}
-    {% endif %}
-  </div>
-{% endif %}
-<div class="container hero-inner{% if not has_picture %} no-media{% endif %}{{ centred_cover ? ' is-centered' : '' }}">
-  <div class="hero-content">
-    {% if block.eyebrow %}<p class="eyebrow">{{ block.eyebrow }}</p>{% endif %}
-    <{{ heading_tag }} class="hero-title" id="{{ block_uid }}-title">{{ block.heading }}</{{ heading_tag }}>
-    {% if block.text %}<p class="hero-text">{{ block.text|nl2br }}</p>{% endif %}
-    {{ ui.actions(block.actions, lang_prefix|default('')) }}
-    {% set highlights = block.highlights|filter(h => h.text) %}
-    {% if highlights is not empty %}
-      <ul class="hero-highlights" role="list">
-        {% for highlight in highlights %}
-          <li>{{ icon('check-circle', 'hero-highlight-icon') }}<span>{{ highlight.text }}</span></li>
-        {% endfor %}
-      </ul>
-    {% endif %}
-  </div>
-  {% set steps = block.items|default([])|filter(step => step.title or step.text) %}
-  {% if variant in ['steps', 'steps-centered'] and steps is not empty %}
-    <ol class="hero-steps" role="list">
-      {% for step in steps %}
-        {% set href = link_url(step.link|default(''), lang_prefix|default('')) %}
-        <li class="hero-step{% if href %} has-link{% endif %}">
-          <span class="hero-step-number" aria-hidden="true">{{ '%02d'|format(loop.index) }}</span>
-          {% if step.title %}
-            <{{ item_heading_tag }} class="hero-step-title">{% if href %}<a href="{{ href }}">{{ step.title }}</a>{% else %}{{ step.title }}{% endif %}</{{ item_heading_tag }}>
-          {% elseif href %}
-            <a class="hero-step-title" href="{{ href }}">{{ step.link_label ?: t('blocks.learn_more', 'Learn more') }}</a>
-          {% endif %}
-          {% if step.text %}<p class="hero-step-text">{{ step.text|nl2br }}</p>{% endif %}
-          {% if href %}<span class="hero-step-more" aria-hidden="true">{{ step.link_label ?: t('blocks.learn_more', 'Learn more') }}{{ icon('arrow-right', 'btn-icon') }}</span>{% endif %}
-        </li>
-      {% endfor %}
-    </ol>
-  {% endif %}
-  {% if has_picture and not is_cover %}
-    <div class="hero-media media-frame">
-      {% if has_video %}
-        {{ hero.video(video, block.video_poster, media_sizes, block_first) }}
-        {{ hero.toggle(false) }}
-      {% else %}
-        {{ image(block.image, {alt: block.image_alt, sizes: media_sizes, priority: block_first}) }}
-      {% endif %}
-    </div>
-  {% endif %}
-</div>
-{% if is_cover and has_video %}{{ hero.toggle(true) }}{% endif %}
+{% import 'components/hero-content.twig' as parts %}
+{{ parts.body({
+  variant: block.variant,
+  eyebrow: block.eyebrow,
+  heading: block.heading,
+  heading_tag: heading_tag,
+  heading_id: block_uid ~ '-title',
+  text: block.text,
+  actions: block.actions,
+  highlights: block.highlights,
+  steps: block.items,
+  image: block.image,
+  image_alt: block.image_alt,
+  video: block._video|default(null),
+  video_poster: block.video_poster,
+  first: block_first,
+  item_heading_tag: item_heading_tag,
+  prefix: lang_prefix|default('')
+}) }}
