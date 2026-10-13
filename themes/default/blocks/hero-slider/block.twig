@@ -1,0 +1,47 @@
+{% import 'components/hero-content.twig' as parts %}
+{# Each slide is a Hero: the same markup and styles (components/hero-content, blocks/hero), one layout per slide. #}
+{% set prefix = lang_prefix|default('') %}
+{% set slides = block.items %}
+{% set total = slides|length %}
+{% set autoplay = block.autoplay in ['5', '8', '12'] ? block.autoplay : '' %}
+{% set label = t('hero_slider.label', 'Highlights') %}
+{% set layouts = ['split', 'centered', 'cover', 'cover-centered', 'steps', 'steps-centered', 'minimal'] %}
+<div class="slider slider-hero{% if block.navigation == 'inside' %} nav-inside{% endif %}" data-slider{% if autoplay %} data-autoplay="{{ autoplay }}"{% endif %}
+     role="group" aria-roledescription="{{ t('slider.carousel', 'carousel') }}" aria-label="{{ label }}"
+     data-label-prev="{{ t('slider.previous', 'Previous slide') }}" data-label-next="{{ t('slider.next', 'Next slide') }}"
+     data-label-pause="{{ t('slider.pause', 'Pause automatic movement') }}" data-label-play="{{ t('slider.play', 'Start automatic movement') }}"
+     data-label-goto="{{ t('slider.goto', 'Go to slide') }}">
+  <div class="slider-track" role="group" tabindex="0" aria-label="{{ label }}">
+    {% for slide in slides %}
+      {% set layout = slide.layout in layouts ? slide.layout : 'split' %}
+      {% set steps = [] %}
+      {% for n in 1..4 %}
+        {% set steps = steps|merge([{title: attribute(slide, 'step_' ~ n ~ '_title'), text: attribute(slide, 'step_' ~ n ~ '_text'), link: attribute(slide, 'step_' ~ n ~ '_link'), link_label: attribute(slide, 'step_' ~ n ~ '_link_label')}]) %}
+      {% endfor %}
+      <div class="slider-slide" role="group" aria-roledescription="{{ t('slider.slide', 'slide') }}" aria-label="{{ loop.index }} / {{ total }}">
+        <div class="slide-hero block-hero block--{{ layout }}{% if layout == 'cover-centered' %} block--cover{% elseif layout == 'steps-centered' %} block--steps{% endif %}">
+          {{ parts.body({
+            variant: layout,
+            eyebrow: slide.eyebrow,
+            heading: slide.heading,
+            heading_tag: heading_tag,
+            text: slide.text,
+            actions: [
+              {label: slide.label, url: slide.url, style: slide.style},
+              {label: slide.label_2, url: slide.url_2, style: slide.style_2}
+            ],
+            highlights: [{text: slide.highlight_1}, {text: slide.highlight_2}, {text: slide.highlight_3}],
+            steps: steps,
+            image: slide.image,
+            image_alt: slide.image_alt,
+            video: slide._video|default(null),
+            video_poster: slide.video_poster,
+            first: loop.first and block_first,
+            item_heading_tag: item_heading_tag,
+            prefix: prefix
+          }) }}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</div>

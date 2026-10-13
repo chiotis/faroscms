@@ -1,4 +1,4 @@
-# Blocks of this installation (FarosCMS 0.1.103)
+# Blocks of this installation (FarosCMS 0.1.106)
 
 ## Fields every block has
 
@@ -291,6 +291,51 @@ Opening section with a strong heading, supporting text, buttons, and an image or
 | `image_alt` | text; only when `background` is `i` or `m` or `a` or `g` or `e` | What the image shows, for people who cannot see it. Leave empty if it is purely decorative. |
 | `video` | video; only when `background` is `v` or `i` or `d` or `e` or `o` | Choose a video from the media library (.mp4 or .webm), or paste a YouTube or Vimeo link, or the address of a video file elsewhere. It plays silently, in a loop, with a pause button. A YouTube or Vimeo video is loaded from them when the page opens. |
 | `video_poster` | image; only when `background` is `v` or `i` or `d` or `e` or `o` | Shown while the video loads, when the visitor has asked their device for less motion, and under a video that is paused. Recommended, and it is the share image of the page when it has none. |
+
+### `hero-slider` — Hero slider
+Slides that each are a Hero. Every slide picks its own Hero layout (including the ones with numbered steps) and has everything a Hero has - heading, text, buttons, highlights, and an image or a video behind the text - styled exactly like it, on a phone too. Previous and next buttons, dots, swiping and the keyboard work; it never moves by itself unless you turn that on.
+
+**Layouts** (`variant`): `default` (Default). First is the default.
+
+| field | kind and choices | notes |
+|---|---|---|
+| `navigation` | choice; one of `below`, `inside`; default `below` | Over the slides suits slides that are all full-width pictures. |
+| `autoplay` | choice; one of `off`, `5`, `8`, `12`; default `off` | A pause button is shown, and visitors who prefer reduced motion never get automatic movement. |
+| `items` | list of rows; at most 8 rows |  |
+| &nbsp;&nbsp;`items[].layout` | choice; one of `split`, `centered`, `cover`, `cover-centered`, `steps`, `steps-centered`, `minimal`; default `split` |  |
+| &nbsp;&nbsp;`items[].eyebrow` | text |  |
+| &nbsp;&nbsp;`items[].heading` | text |  |
+| &nbsp;&nbsp;`items[].text` | text (several lines) |  |
+| &nbsp;&nbsp;`items[].label` | text |  |
+| &nbsp;&nbsp;`items[].url` | link | A page ("contact"), a path ("/en/contact"), a full URL, #anchor, mailto: or tel: |
+| &nbsp;&nbsp;`items[].style` | choice; one of `primary`, `secondary`; default `primary` |  |
+| &nbsp;&nbsp;`items[].label_2` | text |  |
+| &nbsp;&nbsp;`items[].url_2` | link |  |
+| &nbsp;&nbsp;`items[].style_2` | choice; one of `primary`, `secondary`; default `secondary` |  |
+| &nbsp;&nbsp;`items[].highlight_1` | text |  |
+| &nbsp;&nbsp;`items[].highlight_2` | text |  |
+| &nbsp;&nbsp;`items[].highlight_3` | text |  |
+| &nbsp;&nbsp;`items[].step_1_title` | text; only when `layout` is `steps` or `steps-centered` |  |
+| &nbsp;&nbsp;`items[].step_1_text` | text (several lines); only when `layout` is `steps` or `steps-centered` |  |
+| &nbsp;&nbsp;`items[].step_1_link` | link; only when `layout` is `steps` or `steps-centered` |  |
+| &nbsp;&nbsp;`items[].step_1_link_label` | text; only when `layout` is `steps` or `steps-centered` |  |
+| &nbsp;&nbsp;`items[].step_2_title` | text; only when `layout` is `steps` or `steps-centered` |  |
+| &nbsp;&nbsp;`items[].step_2_text` | text (several lines); only when `layout` is `steps` or `steps-centered` |  |
+| &nbsp;&nbsp;`items[].step_2_link` | link; only when `layout` is `steps` or `steps-centered` |  |
+| &nbsp;&nbsp;`items[].step_2_link_label` | text; only when `layout` is `steps` or `steps-centered` |  |
+| &nbsp;&nbsp;`items[].step_3_title` | text; only when `layout` is `steps` or `steps-centered` |  |
+| &nbsp;&nbsp;`items[].step_3_text` | text (several lines); only when `layout` is `steps` or `steps-centered` |  |
+| &nbsp;&nbsp;`items[].step_3_link` | link; only when `layout` is `steps` or `steps-centered` |  |
+| &nbsp;&nbsp;`items[].step_3_link_label` | text; only when `layout` is `steps` or `steps-centered` |  |
+| &nbsp;&nbsp;`items[].step_4_title` | text; only when `layout` is `steps` or `steps-centered` |  |
+| &nbsp;&nbsp;`items[].step_4_text` | text (several lines); only when `layout` is `steps` or `steps-centered` |  |
+| &nbsp;&nbsp;`items[].step_4_link` | link; only when `layout` is `steps` or `steps-centered` |  |
+| &nbsp;&nbsp;`items[].step_4_link_label` | text; only when `layout` is `steps` or `steps-centered` |  |
+| &nbsp;&nbsp;`items[].background` | choice; one of `image`, `video`; default `image`; only when `layout` is `split` or `centered` or `cover` or `cover-centered` or `steps` or `steps-centered` |  |
+| &nbsp;&nbsp;`items[].image` | image; only when `background` is `i` or `m` or `a` or `g` or `e` and `layout` is `split` or `centered` or `cover` or `cover-centered` or `steps` or `steps-centered` |  |
+| &nbsp;&nbsp;`items[].image_alt` | text; only when `background` is `i` or `m` or `a` or `g` or `e` and `layout` is `split` or `centered` or `cover` or `cover-centered` or `steps` or `steps-centered` | What the image shows, for people who cannot see it. Leave empty if it is purely decorative. |
+| &nbsp;&nbsp;`items[].video` | video; only when `background` is `v` or `i` or `d` or `e` or `o` and `layout` is `split` or `centered` or `cover` or `cover-centered` or `steps` or `steps-centered` | Choose a video from the media library (.mp4 or .webm), or paste a YouTube or Vimeo link, or the address of a video file elsewhere. It plays silently, in a loop, with a pause button. |
+| &nbsp;&nbsp;`items[].video_poster` | image; only when `background` is `v` or `i` or `d` or `e` or `o` and `layout` is `split` or `centered` or `cover` or `cover-centered` or `steps` or `steps-centered` | Shown while the video loads, when the visitor has asked their device for less motion, and under a video that is paused. |
 
 ### `image` — Image
 One image with a caption, an optional link, and the shape you choose.

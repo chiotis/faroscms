@@ -111,6 +111,10 @@ final class BlockRenderer
         if (isset($types['playlist']) && !isset($types['video'])) {
             array_unshift($assetTypes, 'video');
         }
+        // The hero slider draws its slides with the hero's styles and moves them with the slider's script.
+        if (isset($types['hero-slider'])) {
+            $assetTypes = array_values(array_unique(array_merge(['slider', 'hero'], array_diff($assetTypes, ['slider', 'hero']))));
+        }
         $stylesheet = $this->theme->blockStylesheetUrl($this->baseUrl, $assetTypes);
         $styles = $stylesheet !== '' ? [$stylesheet] : [];
         $script = $this->theme->blockScriptUrl($this->baseUrl, $assetTypes);
@@ -185,6 +189,17 @@ final class BlockRenderer
      */
     private static function isOpeningSlider(string $type, array $values): bool
     {
+        if ($type === 'hero-slider') {
+            // Only slides over a full-width picture can sit behind the header; one with the text on a plain background cannot.
+            $slides = array_filter($values['items'] ?? [], static fn(array $slide): bool => ($slide['image'] ?? '') !== '' || ($slide['heading'] ?? '') !== '' || ($slide['text'] ?? '') !== '' || ($slide['video'] ?? '') !== '');
+            foreach ($slides as $slide) {
+                $picture = ($slide['background'] ?? 'image') === 'video' ? ($slide['video'] ?? '') : ($slide['image'] ?? '');
+                if (!in_array($slide['layout'] ?? '', ['cover', 'cover-centered', 'steps', 'steps-centered'], true) || $picture === '') {
+                    return false;
+                }
+            }
+            return $slides !== [];
+        }
         return $type === 'slider' && ($values['width'] ?? '') === 'full' && in_array($values['variant'] ?? '', ['full', 'banner'], true);
     }
 
@@ -312,6 +327,14 @@ final class BlockRenderer
         if ($type === 'banner') {
             // A changed announcement gets a new key, so a visitor who dismissed the old one sees it again.
             $values['key'] = substr(sha1($values['title'] . '|' . $values['text'] . '|' . $values['url']), 0, 10);
+        }
+        if ($type === 'hero-slider') {
+            // Each slide is a hero: a video behind its text when its Picture is one the site can play.
+            $values['items'] = array_values(array_map(static function (array $slide): array {
+                $slide['_video'] = ($slide['background'] ?? 'image') === 'video' ? self::backgroundVideo((string)($slide['video'] ?? '')) : null;
+                return $slide;
+            }, array_filter($values['items'], static fn(array $slide): bool => $slide['image'] !== '' || $slide['heading'] !== '' || $slide['text'] !== '' || $slide['video'] !== '')));
+            $values['_empty'] = $values['items'] === [];
         }
         if ($type === 'slider') {
             $values['items'] = array_values(array_filter($values['items'], static fn(array $slide): bool => $slide['image'] !== '' || $slide['title'] !== '' || $slide['text'] !== ''));

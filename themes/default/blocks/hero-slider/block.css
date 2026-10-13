@@ -1,0 +1,72 @@
+/* Hero slider: every slide is a Hero (blocks/hero styles it); this file only seats the heroes in the slider's strip. */
+.block-hero-slider {
+  padding-block: 0;
+}
+
+/* The slides sit edge to edge, like the heroes they are. */
+.slider-hero .slider-track {
+  gap: 0;
+  border-radius: 0;
+}
+
+/* Slides of different layouts have different heights: they all take the tallest, and each hero centres its content in it. */
+.slider-hero .slider-slide {
+  display: flex;
+}
+
+.slider-hero .slide-hero {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  /* What a block section sets for a hero: the cover layouts change --color-text to white. */
+  color: var(--color-text);
+}
+
+.slider-hero .slide-hero:not(.block--cover, .block--steps) {
+  display: grid;
+  align-content: center;
+  background: var(--section-bg, var(--color-bg));
+}
+
+/* A cover is as tall as the screen in a hero; in a strip of slides a little less keeps the next section in view. */
+.slider-hero .slide-hero:is(.block--cover, .block--steps) {
+  min-height: min(80vh, 46rem);
+}
+
+/* Arrows and dots below the slides. */
+.slider-hero .slider-controls {
+  padding-bottom: var(--section-space);
+}
+
+.slider-hero.nav-inside .slider-controls {
+  padding-bottom: 0;
+}
+
+/* Arrows over the slides: the text keeps clear of them, and of the dots along the bottom edge. */
+.slider-hero.nav-inside .hero-inner {
+  padding-inline: max(var(--gutter), var(--nav-room));
+  padding-bottom: 3.75rem;
+}
+
+/* A pause button for a video sits clear of the slider's own controls. */
+.slider-hero.nav-inside .hero-video-toggle,
+.slider-hero.nav-inside .hero-video-toggle.is-in-cover {
+  bottom: 3.5rem;
+}
+
+/* Opening the page behind the header (slides that are all covers): the heroes clear the header, like the opening hero does. */
+.has-header-overlay .main-shell > .block-hero-slider:first-child {
+  padding-top: 0;
+}
+
+.has-header-overlay .main-shell > .block-hero-slider:first-child .slide-hero:is(.block--cover, .block--steps) {
+  min-height: calc(min(80vh, 46rem) + var(--header-height, 4.5rem));
+  padding-top: calc(var(--header-height, 4.5rem) + clamp(5rem, 10vw, 9rem));
+}
+
+.has-transparent-header .main-shell > .block-hero-slider:first-child .hero-cover-media::after {
+  background:
+    linear-gradient(180deg, rgb(var(--ink-rgb) / 0.55), transparent calc(var(--header-height, 4.5rem) + 5rem)),
+    linear-gradient(90deg, rgb(var(--ink-rgb) / 0.55) 0%, rgb(var(--ink-rgb) / 0.15) 65%, transparent 100%),
+    linear-gradient(180deg, rgb(var(--ink-rgb) / 0.25) 0%, rgb(var(--ink-rgb) / 0.35) 40%, rgb(var(--ink-rgb) / 0.88) 100%);
+}
