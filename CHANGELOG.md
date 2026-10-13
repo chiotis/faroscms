@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.112 — 2026-10-13 — A hero slider that starts with a plain slide has a dark header
+- **Fixed: a Hero slider whose first slide is not a picture (split, centered, minimal) opened the page with light header text** over a light slide, so the header could not be read until the slider moved. The header now starts as the first slide needs it. Found by `tests/http/hero_layouts_test.py`.
+
 ## 0.1.111 — 2026-10-13 — check-blocks knows the old Slider
 - `scripts/check-blocks.php` checks a block as what it is now, so a page that still has a Slider block is no longer reported as an unknown block type; it is a Hero slider.
 
