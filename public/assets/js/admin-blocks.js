@@ -213,7 +213,8 @@
 
     var labelText = field.label + (type === 'markdown' ? ' (Markdown)' : '') + (field.required ? ' *' : '');
     var wide = field.span === 'full' || WIDE[type] === 1;
-    var wrapper = el('div', { class: 'bk-field' + (wide ? ' is-wide' : '') }, [
+    // A field with `span: third` shares its row with two others (a button's text, link and style).
+    var wrapper = el('div', { class: 'bk-field' + (wide ? ' is-wide' : (field.span === 'third' ? ' is-third' : '')) }, [
       el('label', { class: 'bk-label', for: id, text: labelText })
     ]);
 

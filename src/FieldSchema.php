@@ -37,7 +37,7 @@ final class FieldSchema
                 'label' => (string)($definition['label'] ?? ucfirst(str_replace('_', ' ', $key))),
                 'help' => (string)($definition['help'] ?? ''),
                 'placeholder' => (string)($definition['placeholder'] ?? ''),
-                'span' => ($definition['span'] ?? '') === 'full' ? 'full' : '',
+                'span' => in_array($definition['span'] ?? '', ['full', 'third'], true) ? $definition['span'] : '',
                 'hidden' => ($definition['hidden'] ?? false) === true,
                 'required' => ($definition['required'] ?? false) === true,
             ];

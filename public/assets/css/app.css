@@ -1414,7 +1414,12 @@ html.dark .ed-pop-row { color: #cbd5e1; }
 .bk-desc { margin: 0 0 .5rem; color: #5f6f85; font-size: .6875rem; line-height: 1rem; }
 .bk-content, .bk-design { display: grid; grid-template-columns: minmax(0, 1fr); gap: .625rem; }
 .bk-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: .5rem .75rem; }
-@media (min-width: 640px) { .bk-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 640px) {
+  .bk-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .bk-grid > * { grid-column: span 3; }
+  .bk-grid > .is-third { grid-column: span 2; }
+  .bk-grid > .is-wide { grid-column: 1 / -1; }
+}
 .bk-field { display: grid; align-content: start; gap: .125rem; min-width: 0; }
 .bk-field.is-wide { grid-column: 1 / -1; }
 .bk-label { color: #4d5d73; font-size: .6875rem; font-weight: 500; line-height: 1rem; }
