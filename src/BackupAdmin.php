@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace FarosCMS;
 
 /**
- * What the Backups screens do: verifying, creating (a full one or the database alone), and deleting an archive, the
+ * What the Backups screens do: verifying, creating (a full one or the database alone), deleting and fetching from remote storage an archive, the
  * restore (only after a safety snapshot of what is there now, and only of the areas chosen), the verified backup made
  * before an update, and the data of the screens. The screens, the permission checks, and the redirects are the caller's.
  */
@@ -66,6 +66,12 @@ final class BackupAdmin
             $this->manager->notify($result, false);
             return '/admin/backups?' . http_build_query(['backup' => BackupManager::queryStatus($result), 'backup_msg' => (string)($result['message'] ?? '')]);
         }
+        if ($action === 'fetch_remote') {
+            $result = $this->manager->fetchRemote($filename);
+            $ok = $result['ok'];
+            $this->log($ok ? 'backup.fetch_success' : 'backup.fetch_failure', $ok ? 'info' : 'error', 'backup', $filename, $result['message'], ['filename' => $filename]);
+            return '/admin/backups?' . http_build_query(['backup' => $ok ? 'ok' : 'fail', 'backup_msg' => $result['message']]);
+        }
         if ($action === 'delete') {
             $result = $this->backups->delete($filename);
             $ok = ($result['ok'] ?? false);
@@ -73,6 +79,16 @@ final class BackupAdmin
             return '/admin/backups?' . http_build_query(['deleted' => $ok ? 'ok' : 'fail', 'backup_msg' => (string)($result['message'] ?? '')]);
         }
         return null;
+    }
+
+    /**
+     * The archives in remote storage, read from the bucket now.
+     *
+     * @return array{ok: bool, message: string, backups: array<int, array<string, mixed>>}
+     */
+    public function remoteBackups(): array
+    {
+        return $this->manager->remoteBackups();
     }
 
     /**

@@ -1555,3 +1555,7 @@ html.dark .btn-attention { border-color: #f59e0b; background: #fbbf24; color: #4
 html.dark .release-item code { background: #1e293b; color: #e2e8f0; }
 html.dark .release-item strong { color: #f1f5f9; }
 html.dark .release-item a { color: #93c5fd; }
+
+/* Backups > Remote storage: the columns that can wait on a phone, so the Fetch button stays in view. */
+.bk-wide { display: none; }
+@media (min-width: 640px) { .bk-wide { display: table-cell; } }

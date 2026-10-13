@@ -29,12 +29,27 @@ $updates = new class { function currentVersion(): string { return '9.9.9'; } fun
 $lastRuns = [];
 $remoteCalls = [];
 $remoteBehaviour = ['upload' => ['ok' => true, 'message' => 'sent', 'object_key' => 'site/x.zip'], 'prune' => ['ok' => true, 'deleted' => 2], 'test' => ['ok' => true, 'message' => 'connected']];
-$storage = function (array $config) use (&$remoteCalls, &$remoteBehaviour) {
-    return new class($config, $remoteCalls, $remoteBehaviour) {
-        function __construct(public array $config, private array &$calls, private array $behaviour) {}
+$remoteFiles = []; // name => ['source' => a file to send, 'modified' => ISO time, 'size' => listed size, 'fail' => message]
+$storage = function (array $config) use (&$remoteCalls, &$remoteBehaviour, &$remoteFiles) {
+    return new class($config, $remoteCalls, $remoteBehaviour, $remoteFiles) {
+        function __construct(public array $config, private array &$calls, private array $behaviour, private array &$files) {}
         function upload(string $path, string $filename): array { $this->calls[] = ['upload', $filename, is_file($path)]; return $this->behaviour['upload']; }
         function prune(int $keep): array { $this->calls[] = ['prune', $keep]; return $this->behaviour['prune']; }
         function testConnection(): array { $this->calls[] = ['test']; return $this->behaviour['test']; }
+        function listBackups(): array {
+            $this->calls[] = ['list'];
+            if (isset($this->behaviour['list_error'])) { return ['ok' => false, 'message' => $this->behaviour['list_error']]; }
+            $objects = [];
+            foreach ($this->files as $name => $f) { $objects[] = ['key' => 'site/' . $name, 'modified' => $f['modified'], 'size' => $f['size']]; }
+            return ['ok' => true, 'message' => 'listed', 'objects' => $objects];
+        }
+        function download(string $filename, string $destination): array {
+            $this->calls[] = ['download', $filename];
+            $f = $this->files[$filename] ?? null;
+            if ($f === null || isset($f['fail'])) { return ['ok' => false, 'message' => $f['fail'] ?? 'Download failed: not there.']; }
+            copy($f['source'], $destination);
+            return ['ok' => true, 'message' => 'Remote download completed.', 'size' => filesize($destination)];
+        }
     };
 };
 $m = new BackupManager($service, $db, $runs, $notes, function () use (&$settings) { return $settings; }, fn() => $updates, function (string $iso) use (&$lastRuns, &$settings) { $lastRuns[] = $iso; $settings['backup']['auto']['last_run'] = $iso; }, $storage);
@@ -130,6 +145,47 @@ check('a failed upload is a warning, the archive is kept', [$w['ok'], $w['status
 check('and says why', str_contains($w['message'], 'Saved locally, but remote upload failed: no route'), true);
 check('testing the remote asks the storage', $m->testRemote(), ['ok' => true, 'message' => 'connected']);
 $settings['backup']['remote'] = ['enabled' => false];
+
+// ---- fetching from remote storage (an archive that lives only there is brought back to the server, never restored by it)
+$settings['backup']['remote'] = ['enabled' => true, 'keep' => 5, 'bucket' => 'b'];
+sleep(1);
+$stash = $m->createSnapshot('manual', false, false); // a real archive to play the remote copy
+$stashPath = $dir . '/storage/backups/' . $stash['filename'];
+$goodName = 'my-site-backup-20260101-120000-aaaaaa.zip';
+copy($stashPath, $dir . '/good.bin');
+file_put_contents($dir . '/garbage.bin', str_repeat('this is not a zip file', 50));
+$remoteFiles = [
+    $goodName => ['source' => $dir . '/good.bin', 'modified' => '2026-01-01T12:00:00.000Z', 'size' => filesize($dir . '/good.bin')],
+    'my-site-backup-20260102-120000-bbbbbb.zip' => ['source' => $dir . '/garbage.bin', 'modified' => '2026-01-02T12:00:00.000Z', 'size' => filesize($dir . '/garbage.bin')],
+    'my-site-backup-20260103-120000-cccccc.zip' => ['source' => $dir . '/good.bin', 'modified' => '2026-01-03T12:00:00.000Z', 'size' => filesize($dir . '/good.bin') + 1],
+    'my-site-backup-20260104-120000-dddddd.zip' => ['source' => $dir . '/good.bin', 'modified' => '2026-01-04T12:00:00.000Z', 'size' => filesize($dir . '/good.bin'), 'fail' => 'Download failed: S3 returned HTTP 403 (Access Denied)'],
+    'my-site-database-backup-20260105-120000-eeeeee.zip' => ['source' => $dir . '/good.bin', 'modified' => '2026-01-05T12:00:00.000Z', 'size' => filesize($dir . '/good.bin')],
+];
+unlink($stashPath);
+$listed = $m->remoteBackups();
+check('the remote archives are listed with type, size and whether they are here', [$listed['ok'], array_column($listed['backups'], 'type', 'filename')[$goodName], array_column($listed['backups'], 'type', 'filename')['my-site-database-backup-20260105-120000-eeeeee.zip'], $listed['backups'][0]['size'] > 0, $listed['backups'][0]['local']], [true, 'full', 'database', true, false]);
+$settings['backup']['remote']['enabled'] = false;
+check('with remote storage off there is nothing to list or fetch', [$m->remoteBackups()['ok'], $m->fetchRemote($goodName)['message']], [false, 'Remote storage is not turned on.']);
+$settings['backup']['remote']['enabled'] = true;
+$remoteCalls = [];
+$f = $m->fetchRemote($goodName);
+check('an archive is fetched into the backups folder, verified, and named for what it is', [$f['ok'], $f['filename'], is_file($dir . '/storage/backups/' . $goodName), $service->verify($goodName)['ok']], [true, $goodName, true, true]);
+check('it keeps the date it was made, so it sorts where it belongs', filemtime($dir . '/storage/backups/' . $goodName), strtotime('2026-01-01T12:00:00Z'));
+check('no temporary file is left behind', glob($dir . '/storage/backups/.fetch-*'), []);
+check('and it is now listed as on this server', array_column($m->remoteBackups()['backups'], 'local', 'filename')[$goodName], true);
+check('fetching it again says it is already here, and downloads nothing', [$m->fetchRemote($goodName)['message'], array_count_values(array_column($remoteCalls, 0))['download']], [$goodName . ' is already on this server.', 1]);
+$g = $m->fetchRemote('my-site-backup-20260102-120000-bbbbbb.zip');
+check('a file that is not a backup is discarded', [$g['ok'], str_starts_with($g['message'], 'The downloaded file is not a valid backup, so it was discarded'), is_file($dir . '/storage/backups/my-site-backup-20260102-120000-bbbbbb.zip'), glob($dir . '/storage/backups/.fetch-*')], [false, true, false, []]);
+$g = $m->fetchRemote('my-site-backup-20260103-120000-cccccc.zip');
+check('a download that is not the size listed is discarded', [$g['ok'], $g['message'], is_file($dir . '/storage/backups/my-site-backup-20260103-120000-cccccc.zip')], [false, 'The download was incomplete, so it was discarded. Try again.', false]);
+$g = $m->fetchRemote('my-site-backup-20260104-120000-dddddd.zip');
+check('a refused download says what the storage said', [$g['ok'], $g['message']], [false, 'Download failed: S3 returned HTTP 403 (Access Denied)']);
+check('a name that is not in the bucket is not fetched', [$m->fetchRemote('other-backup-20260101-000000-ffffff.zip')['message'], $m->fetchRemote('../../etc/passwd')['message'], $m->fetchRemote('')['message']], ['other-backup-20260101-000000-ffffff.zip was not found in remote storage.', 'Choose a backup to fetch.', 'Choose a backup to fetch.']);
+$remoteBehaviour['list_error'] = 'S3 returned HTTP 403 (Access Denied)';
+check('when the bucket cannot be read, both say so', [$m->remoteBackups(), $m->fetchRemote('my-site-database-backup-20260105-120000-eeeeee.zip')['message']], [['ok' => false, 'message' => 'S3 returned HTTP 403 (Access Denied)', 'backups' => []], 'S3 returned HTTP 403 (Access Denied)']);
+unset($remoteBehaviour['list_error']);
+$settings['backup']['remote'] = ['enabled' => false];
+unlink($dir . '/storage/backups/' . $goodName);
 
 // ---- the notification
 $m->notify(['ok' => true, 'status' => 'success', 'message' => 'done', 'filename' => 'x.zip'], true);
