@@ -231,6 +231,7 @@ final class BlockRegistry
         $tone = (string)($raw['tone'] ?? 'default');
         $spacing = (string)($raw['spacing'] ?? 'default');
         $fields = FieldSchema::withIcons(FieldSchema::normalize($this->expandFields(is_array($raw['fields'] ?? null) ? $raw['fields'] : [])), $this->theme->iconNames());
+        $fields = $this->withDrawings($fields, $type, dirname($file));
         // Fields of the block that the editor shows beside its layout (in the Design tab) because they change how the layout looks.
         $designFields = array_values(array_filter(
             array_map('strval', is_array($raw['design_fields'] ?? null) ? $raw['design_fields'] : []),
@@ -296,6 +297,39 @@ final class BlockRegistry
             }
         }
         return $previews;
+    }
+
+    /**
+     * Gives every choice that is drawn (`drawn` in block.yaml, also inside repeaters) the small pictures of its options: the files
+     * variants/<option>.svg of the block (`drawn: true`) or of another block (`drawn: hero`), read like the layout previews.
+     *
+     * @param array<string, array<string, mixed>> $fields normalized definitions
+     * @return array<string, array<string, mixed>>
+     */
+    private function withDrawings(array $fields, string $type, string $dir): array
+    {
+        foreach ($fields as $key => $field) {
+            if ($field['type'] === 'repeater') {
+                $fields[$key]['fields'] = $this->withDrawings($field['fields'], $type, $dir);
+            } elseif (($field['drawn'] ?? '') !== '') {
+                $dirs = [$dir . '/variants'];
+                if ($field['drawn'] !== '*' && $field['drawn'] !== $type) {
+                    $dirs = array_map(static fn(string $root): string => $root . '/' . $field['drawn'] . '/variants', array_values($this->theme->blockRoots()));
+                }
+                $drawings = [];
+                foreach (array_keys($field['options'] ?? []) as $value) {
+                    foreach ($dirs as $variants) {
+                        $markup = preg_match('/^[a-z0-9-]+$/', (string)$value) ? self::previewMarkup((string)@file_get_contents($variants . '/' . $value . '.svg')) : '';
+                        if ($markup !== '') {
+                            $drawings[(string)$value] = $markup;
+                            break;
+                        }
+                    }
+                }
+                $fields[$key]['drawings'] = $drawings;
+            }
+        }
+        return $fields;
     }
 
     private const PREVIEW_TAGS = ['g', 'path', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon'];
