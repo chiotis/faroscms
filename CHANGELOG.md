@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.108 — 2026-10-13 — The hero slider works with "Transparent over an opening hero"
+- **A Hero slider that opens the page sits under a transparent header, whatever its slides are.** Before, it did only when every slide was a cover over a picture. Now it opens the page like a Hero does (Theme settings > Header, or the entry's own "Transparent over an opening hero"), the page has no title area of its own, and every slide clears the header: a cover by the measure of an opening cover hero, any other layout by the measure of an opening hero.
+- **The header follows the slide that shows.** Light text over a slide that is a picture (cover and steps layouts), dark text over the others. The page draws it for the first slide, and the script changes it as the slides move (arrows, dots, swipe, automatic movement). The Slider block now says when its slide changes (`slider:change` on the slider).
+
 ## 0.1.107 — 2026-10-13 — The layout of a hero slide shows the hero's drawings
 - **In the Hero slider, the Layout of each slide is a row of small drawings**, the same as the layout picker of the Hero block, instead of a plain menu.
 - **A choice field can be drawn:** `drawn: true` on a `select` in `block.yaml` (also inside a repeater) takes `variants/<option>.svg` of the block, and `drawn: hero` those of another block, so the Hero slider reuses the Hero's drawings and they cannot drift apart.

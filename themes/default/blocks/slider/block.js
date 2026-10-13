@@ -87,6 +87,8 @@
     }
 
     function update(i) {
+      // The hero slider follows the slide that shows (its header).
+      if (i !== current) root.dispatchEvent(new CustomEvent('slider:change', { detail: { index: i, slide: slides[i] } }));
       current = i;
       dotButtons.forEach(function (dot, n) {
         if (n === i) dot.setAttribute('aria-current', 'true'); else dot.removeAttribute('aria-current');
