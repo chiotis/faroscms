@@ -17,6 +17,9 @@
     var frame = null;
     var wanted = !(reduce || saveData);   // what the visitor wants: false once they paused it, or asked for less motion
     var visible = true;
+    var slide = box.closest('.slider-slide');   // a slide of the hero slider plays only while it is the one that shows
+    var sliderRoot = slide && slide.closest('[data-slider]');
+    var current = !slide || slide.previousElementSibling === null;
 
     function label(playing) {
       if (!toggle) return;
@@ -64,19 +67,29 @@
 
     if (provider === 'file' && video) {
       if (!wanted) { video.removeAttribute('autoplay'); video.pause(); label(false); } else { label(!video.paused); video.addEventListener('playing', function () { label(true); }); }
-    } else if (wanted) {
+    } else if (wanted && current) {
       play();
-    } else {
+    } else if (!wanted) {
       label(false);
     }
 
-    // It rests while it is not on screen (saves the battery and the data), and goes on when it is back.
+    // It rests while it is not on screen, or not the slide that shows (saves the battery and the data), and goes on when it is back.
+    function sync() {
+      if (!wanted) return;
+      if (visible && current) play(); else if (provider === 'file' || slide) stop();
+    }
+
     if ('IntersectionObserver' in window) {
       new IntersectionObserver(function (entries) {
         visible = entries[entries.length - 1].isIntersecting;
-        if (!wanted) return;
-        if (visible) play(); else if (provider === 'file') stop();
+        sync();
       }).observe(box);
+    }
+    if (sliderRoot) {
+      sliderRoot.addEventListener('slider:change', function (event) {
+        current = event.detail.slide === slide;
+        sync();
+      });
     }
   });
 })();
