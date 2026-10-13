@@ -54,17 +54,21 @@
   bottom: 3.5rem;
 }
 
-/* Opening the page behind the header (slides that are all covers): the heroes clear the header, like the opening hero does. */
-.has-header-overlay .main-shell > .block-hero-slider:first-child {
+/* Opening the page behind the header: the slides clear it, as the opening hero does (a cover and a plain slide each by their own measure). */
+.has-header-overlay .main-shell > .block-hero-slider:first-of-type {
   padding-top: 0;
 }
 
-.has-header-overlay .main-shell > .block-hero-slider:first-child .slide-hero:is(.block--cover, .block--steps) {
+.has-header-overlay .main-shell > .block-hero-slider:first-of-type .slide-hero {
+  padding-top: calc(var(--header-height, 4.5rem) + clamp(2.5rem, 1rem + 5vw, 6rem));
+}
+
+.has-header-overlay .main-shell > .block-hero-slider:first-of-type .slide-hero:is(.block--cover, .block--steps) {
   min-height: calc(min(80vh, 46rem) + var(--header-height, 4.5rem));
   padding-top: calc(var(--header-height, 4.5rem) + clamp(5rem, 10vw, 9rem));
 }
 
-.has-transparent-header .main-shell > .block-hero-slider:first-child .hero-cover-media::after {
+.has-transparent-header .main-shell > .block-hero-slider:first-of-type .hero-cover-media::after {
   background:
     linear-gradient(180deg, rgb(var(--ink-rgb) / 0.55), transparent calc(var(--header-height, 4.5rem) + 5rem)),
     linear-gradient(90deg, rgb(var(--ink-rgb) / 0.55) 0%, rgb(var(--ink-rgb) / 0.15) 65%, transparent 100%),

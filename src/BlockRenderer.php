@@ -36,7 +36,7 @@ final class BlockRenderer
     /**
      * @param array<int, mixed> $rawBlocks
      * @param array<string, mixed> $context template variables shared with every block (item, lang, lang_prefix, body_html, …)
-     * @return array{html: string, types: string[], styles: string[], scripts: string[], structured_data: array<int, array<string, mixed>>, leads_with_hero: bool, opens_with_slider: bool, lead: array{type: string, variant: string, tone: string}|null, count: int, image: string}
+     * @return array{html: string, types: string[], styles: string[], scripts: string[], structured_data: array<int, array<string, mixed>>, leads_with_hero: bool, opens_with_slider: bool, opens_with_dark_slide: bool, lead: array{type: string, variant: string, tone: string}|null, count: int, image: string}
      */
     public function render(array $rawBlocks, array $context): array
     {
@@ -46,6 +46,7 @@ final class BlockRenderer
         $faq = [];
         $leadsWithHero = false;
         $opensWithSlider = false;
+        $sliderDark = true;
         $firstImage = '';
         $lead = null;
 
@@ -57,6 +58,8 @@ final class BlockRenderer
             }
             if ($isFirst && self::isOpeningSlider($type, $values)) {
                 $opensWithSlider = true;
+                // A hero slider starts with the header the first slide needs; its script follows the slides after that.
+                $sliderDark = $type !== 'hero-slider' || self::darkSlide(self::heroSlides($values)[0]);
             }
             if ($isFirst) {
                 $lead = ['type' => $type, 'variant' => (string)$values['variant'], 'tone' => (string)$values['tone']];
@@ -131,6 +134,7 @@ final class BlockRenderer
             'structured_data' => $structuredData,
             'leads_with_hero' => $leadsWithHero,
             'opens_with_slider' => $opensWithSlider,
+            'opens_with_dark_slide' => $sliderDark,
             'lead' => $lead,
             'count' => count($blocks),
             'image' => $firstImage,
@@ -182,6 +186,24 @@ final class BlockRenderer
     }
 
     /**
+     * The slides of a hero slider that have something to show, as the block draws them.
+     *
+     * @param array<string, mixed> $values
+     * @return array<int, array<string, mixed>>
+     */
+    private static function heroSlides(array $values): array
+    {
+        return array_values(array_filter(is_array($values['items'] ?? null) ? $values['items'] : [], static fn(array $slide): bool => ($slide['image'] ?? '') !== '' || ($slide['heading'] ?? '') !== '' || ($slide['text'] ?? '') !== '' || ($slide['video'] ?? '') !== ''));
+    }
+
+    /** Whether a slide of a hero slider is a picture with light text on it, so the header over it has light text too. @param array<string, mixed> $slide */
+    private static function darkSlide(array $slide): bool
+    {
+        $picture = ($slide['background'] ?? 'image') === 'video' ? ($slide['video'] ?? '') : ($slide['image'] ?? '');
+        return $picture !== '' && in_array($slide['layout'] ?? '', ['cover', 'cover-centered', 'steps', 'steps-centered'], true);
+    }
+
+    /**
      * A slider that runs edge to edge opens the page the way a hero does: the header can sit over it, it has no title area
      * above it, and the text of the page comes after it.
      *
@@ -190,15 +212,8 @@ final class BlockRenderer
     private static function isOpeningSlider(string $type, array $values): bool
     {
         if ($type === 'hero-slider') {
-            // Only slides over a full-width picture can sit behind the header; one with the text on a plain background cannot.
-            $slides = array_filter($values['items'] ?? [], static fn(array $slide): bool => ($slide['image'] ?? '') !== '' || ($slide['heading'] ?? '') !== '' || ($slide['text'] ?? '') !== '' || ($slide['video'] ?? '') !== '');
-            foreach ($slides as $slide) {
-                $picture = ($slide['background'] ?? 'image') === 'video' ? ($slide['video'] ?? '') : ($slide['image'] ?? '');
-                if (!in_array($slide['layout'] ?? '', ['cover', 'cover-centered', 'steps', 'steps-centered'], true) || $picture === '') {
-                    return false;
-                }
-            }
-            return $slides !== [];
+            // Like a hero, it opens the page whatever its slides are; the header follows the slide that shows (see opensDark).
+            return self::heroSlides($values) !== [];
         }
         return $type === 'slider' && ($values['width'] ?? '') === 'full' && in_array($values['variant'] ?? '', ['full', 'banner'], true);
     }
