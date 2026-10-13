@@ -213,10 +213,10 @@ A report holds no content, no user names or email addresses, no form submissions
 
 - Right after connecting.
 - When scheduled work runs: the cron script (`src/cron-backup.php`), after a visit (`fastcgi_finish_request`), or when the admin is opened. A report is sent if the last one is older than `report_every`. The value is clamped to between 15 minutes and 24 hours, and is 6 hours by default.
-- Right after a backup run and after an update, whether it succeeded or not, so Omni sees the outcome without waiting.
+- Right after a backup run and after an update, whether it succeeded or not, so Omni sees the outcome without waiting. The site keeps a fingerprint of the newest backup run and its version with each report sent; when either has changed, a report is due at the next scheduled tick (in the same request for a scheduled backup, the cron script, and the admin page that follows a manual backup or an update).
 - When a superadmin presses **Send report now** in the site's Omni settings.
 
-A report is sent with a 10-second timeout and never delays a visitor. A failed send is retried at the next scheduled tick. The site keeps the time and the error of the last attempt, and its settings screen shows them.
+A report is sent with a 10-second timeout and never delays a visitor: after a visit only where the response can be finished first (PHP-FPM, LiteSpeed); after an admin page the same way where it can, otherwise before that page ends. After a failed send the next attempt waits 15 minutes (or as long as a `429`'s `Retry-After` says), so an Omni that is down slows an admin page at most once in that time. The site keeps the time and the error of the last attempt, and Admin > Omni shows them. Requests go through PHP's streams, with cURL only where streams cannot open addresses, and never follow a redirect.
 
 Omni marks a site as **silent** when it has not reported for twice its `report_every`, or for 48 hours, whichever is longer.
 
@@ -246,13 +246,13 @@ Errors use the HTTP status and a JSON body:
 ## On the site
 
 - **Admin > Omni** is for superadmins only (the `omni.manage` permission, which cannot be given to another role). It shows:
-  - the Omni address, filled in with `https://omni.faroscms.com` and editable (to come),
-  - the connection code (to come),
-  - the state of the connection, the last report sent and the last error,
+  - while not connected: the Omni address, filled in with `https://omni.faroscms.com` and editable, and the connection code (**Connect** first checks the address with `ping`, then sends the code, then the first report),
+  - while connected: the Omni, the site id, when it connected, the last report, how often it reports, and the last problem with when it will try again,
+  - after Omni removed the site: a note saying so, and the form to connect again,
   - what Omni would see (health, storage, the last backup, analytics, the version) and the exact JSON that would be sent,
   - **Send report now** and **Disconnect**.
 - `OmniReport` builds the report from the services listed above (`tests/unit/omni-report.php`, `tests/http/omni_test.py`).
-- `OmniClient` (to come) handles ping, connect, report and disconnect, including the signing.
+- `OmniClient` handles ping, connect, report and disconnect, the signing, and when a report is due (`tests/unit/omni-client.php`; `tests/http/omni_test.py` runs an Omni stand-in that checks every signature). What it keeps is in `system_meta` under `omni`. Connecting and disconnecting are written to the activity log.
 
 ## On Omni
 
