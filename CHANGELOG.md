@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.97 — 2026-10-13 — One scrollbar in the admin lists
+- **Fixed the double scrollbar on Admin > Redirects** (issue #10): the page scrolled in its content area and again in the window, far below the end of the content. Each row carries a hidden label for screen readers, placed with `position: absolute`; the content area (`<main>`) scrolls but was not itself positioned, so those labels were placed against the window and made it as tall as the longest list. The content area is now positioned, so it holds them. Any long list of the admin with such labels (the redirects and the not found list the most) was affected.
+- Tests: the content area is a positioned scroll area (`tests/http/redirects_test.py`). Looked at in Chromium on the redirects and not found lists at computer and phone width: the window is as tall as the screen and only the content area scrolls.
+
 ## 0.1.96 — 2026-10-13 — Ignore the addresses that are only noise
 - **Admin > Redirects > Not found has an *Ignore all* button** next to *Clear the list* (issue #9). Bots keep asking for old WordPress addresses and the list filled up with them again after every clearing. An ignored address is now kept in the log (its visits are still counted) but hidden for good: it does not come back when it is asked for again, and it is not counted in the tab, the SEO check or the dashboard.
 - **Ignore is lasting for one address too** (it used to delete the row, which returned with the next visit). With a search typed, *Ignore all* ignores only the addresses that match it.

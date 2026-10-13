@@ -318,7 +318,7 @@
         </div>
       </header>
 
-      <main class="scroll-thin flex-1 overflow-y-auto p-4 lg:p-6">
+      <main class="scroll-thin relative flex-1 overflow-y-auto p-4 lg:p-6">
         {% if admin_default_password|default(false) %}
           <div class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
             <span><strong class="font-semibold">Default password in use.</strong> This account still uses the password shipped with FarosCMS. Change it before this site is reachable by anyone else.</span>
