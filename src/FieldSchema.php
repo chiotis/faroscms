@@ -94,6 +94,8 @@ final class FieldSchema
                     static fn(array $sub): bool => $sub['type'] !== 'repeater'
                 );
                 $field['item_label'] = (string)($definition['item_label'] ?? 'Item');
+                // A list of one short text (the hero's highlights) is edited as a row of boxes, not as folding cards.
+                $field['inline'] = ($definition['inline'] ?? false) === true && count($field['fields']) === 1;
             }
             $field['default'] = self::clean($field, $definition['default'] ?? null, true);
             $fields[$key] = $field;

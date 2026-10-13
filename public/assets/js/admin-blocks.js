@@ -346,7 +346,43 @@
 
   var rowOpen = new WeakMap();
 
+  /** A list of one short text (`inline: true`): the texts in a row of boxes, three to a row, each with a button to remove it. */
+  function inlineRepeater(field, rows, onChange, id) {
+    var item = field.item_label || 'Item';
+    var sub = field.fields[0];
+    var grid = el('div', { class: 'bk-inline-rows' });
+    var wrapper = el('div', { class: 'bk-field bk-rep bk-rep-inline is-wide' }, [
+      el('div', { class: 'bk-rep-head' }, [el('span', { class: 'bk-label', text: field.label }), el('span', { class: 'bk-count', text: rows.length + (field.max ? ' / ' + field.max : '') })]),
+      grid
+    ]);
+    function commit() {
+      onChange(rows);
+      var fresh = inlineRepeater(field, rows, onChange, id);
+      wrapper.replaceWith(fresh);
+      return fresh;
+    }
+    rows.forEach(function (row, index) {
+      var input = el('input', { type: 'text', class: CLS.input, id: id + '-' + index, value: row[sub.key] == null ? '' : String(row[sub.key]), placeholder: sub.placeholder || '', 'aria-label': item + ' ' + (index + 1) });
+      input.addEventListener('input', function () { row[sub.key] = input.value; onChange(rows); });
+      var remove = el('button', { type: 'button', class: CLS.iconDanger, 'aria-label': 'Remove ' + item.toLowerCase() + ' ' + (index + 1), html: svg('trash') });
+      remove.addEventListener('click', function () { rows.splice(index, 1); commit(); });
+      grid.appendChild(el('div', { class: 'bk-inline-item' }, [input, remove]));
+    });
+    if (!field.max || rows.length < field.max) {
+      var add = el('button', { type: 'button', class: 'bk-add', html: svg('plus') + '<span>Add ' + item.toLowerCase() + '</span>' });
+      add.addEventListener('click', function () {
+        rows.push(defaultsFor(field.fields));
+        var fresh = commit();
+        var boxes = fresh.querySelectorAll('input');
+        if (boxes.length) boxes[boxes.length - 1].focus();
+      });
+      grid.appendChild(add);
+    }
+    return wrapper;
+  }
+
   function repeaterControl(field, rows, onChange, id) {
+    if (field.inline) return inlineRepeater(field, rows, onChange, id);
     var item = field.item_label || 'Item';
     var list = el('div', { class: 'bk-rows' });
     var count = el('span', { class: 'bk-count', text: rows.length + (field.max ? ' / ' + field.max : '') });
