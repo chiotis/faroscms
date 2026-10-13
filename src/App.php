@@ -86,6 +86,7 @@ final class App
     private ?MediaAdmin $mediaAdminService = null;
     private ?SiteLimits $siteLimitsService = null;
     private ?SystemStatus $systemStatusService = null;
+    private ?OmniClient $omniClientService = null;
     private ?DashboardData $dashboardDataService = null;
     private ?FormsAdmin $formsAdminService = null;
     private ?FormProcessor $formProcessorService = null;
@@ -201,7 +202,8 @@ final class App
     private function runScheduledAfterResponse(): void
     {
         try {
-            if (!$this->backupManager()->isRunDue()) {
+            $backupDue = $this->backupManager()->isRunDue();
+            if (!$backupDue && !$this->omniClient()->isDue()) {
                 return;
             }
             $finish = CronStatus::finishFunction();
@@ -213,9 +215,35 @@ final class App
             $finish();
             @ignore_user_abort(true);
             @set_time_limit(0);
-            $this->backupManager()->runIfDue();
+            if ($backupDue) {
+                $this->backupManager()->runIfDue();
+            }
+            // After the backup, so a report that is due tells Omni how it went.
+            $this->omniClient()->sendIfDue();
         } catch (\Throwable) {
             // A backup that could not run is told by its own run (Backups, notifications); a visit is never broken by it.
+        }
+    }
+
+    /**
+     * After an admin page: the report to Omni, when it is due. Where the response can be finished first nobody waits for it;
+     * elsewhere it is sent before the page ends (at most once in RETRY_AFTER_FAILURE when Omni does not answer).
+     */
+    private function sendOmniReportAfterResponse(): void
+    {
+        try {
+            if (!$this->omniClient()->isDue()) {
+                return;
+            }
+            $finish = CronStatus::finishFunction();
+            if ($finish !== null) {
+                @session_write_close();
+                $finish();
+                @ignore_user_abort(true);
+            }
+            $this->omniClient()->sendIfDue();
+        } catch (\Throwable) {
+            // What went wrong is kept with the connection and shown on Admin > Omni.
         }
     }
 
@@ -225,6 +253,11 @@ final class App
         $result = $this->backupManager()->runIfDue();
         // The System screen says when the cron job was last seen.
         $this->systemMeta->set(CronStatus::META_KEY, date('c'));
+        try {
+            $this->omniClient()->sendIfDue();
+        } catch (\Throwable) {
+            // Shown on Admin > Omni; the cron job's own answer is about the backup.
+        }
         return $result;
     }
 
@@ -937,6 +970,7 @@ final class App
 
         if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
             $this->backupManager()->runIfDue();
+            register_shutdown_function(fn() => $this->sendOmniReportAfterResponse());
         }
 
         if (isset(self::ADMIN_ROUTES[$action])) {
@@ -2450,12 +2484,41 @@ final class App
         ]);
     }
 
-    /** Admin > Omni: what this site would report to an Omni (docs/omni-protocol.md). Super admin only. */
+    /** Admin > Omni: the connection to an Omni and what the site reports to it (docs/omni-protocol.md). Super admin only. */
     private function handleOmni(): void
     {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+            $client = $this->omniClient();
+            $action = (string)($_POST['omni_action'] ?? '');
+            $before = $client->state();
+            $result = match ($action) {
+                'connect' => $client->connect((string)($_POST['omni_url'] ?? ''), (string)($_POST['omni_code'] ?? '')),
+                'send' => $client->send(),
+                'disconnect' => $client->disconnect(),
+                default => ['ok' => false, 'message' => 'Nothing to do.'],
+            };
+            if (in_array($action, ['connect', 'disconnect'], true) && $result['ok']) {
+                $this->logActivity('omni.' . $action, 'info', 'omni', (string)($action === 'connect' ? ($client->state()['site_id'] ?? '') : ($before['site_id'] ?? '')), $result['message'], ['url' => (string)($client->state()['url'] ?? ($before['url'] ?? ''))]);
+            }
+            $this->redirect('/admin/omni?' . http_build_query([
+                'done' => $result['ok'] ? 'ok' : 'fail',
+                'msg' => $result['message'],
+                // A refused code keeps the address that was typed.
+                'url' => $action === 'connect' && !$result['ok'] ? (string)($_POST['omni_url'] ?? '') : null,
+            ]));
+            return;
+        }
+
         $report = $this->omniReport();
+        $connection = $this->omniClient()->state();
+        unset($connection['secret']);
         $this->render('@admin/omni.twig', [
             'title' => 'Omni',
+            'connection' => $connection,
+            'connected' => $this->omniClient()->isConnected(),
+            'omni_url' => trim((string)($_GET['url'] ?? '')) ?: (string)($connection['url'] ?? '') ?: OmniClient::DEFAULT_URL,
+            'done' => (string)($_GET['done'] ?? ''),
+            'message' => trim((string)($_GET['msg'] ?? '')),
             'report' => $report->build(),
             'report_json' => $report->json(true),
             'storage_label' => (string)$this->siteLimits()->summary()['label'],
@@ -2464,6 +2527,26 @@ final class App
             'admin_section' => 'omni',
             'current_type' => 'pages',
         ]);
+    }
+
+    private function omniClient(): OmniClient
+    {
+        return $this->omniClientService ??= new OmniClient(
+            $this->systemMeta,
+            [OmniClient::class, 'request'],
+            fn(): string => $this->omniReport()->json(),
+            fn(): array => [
+                'name' => (string)($this->settings['title'] ?? ''),
+                'url' => $this->buildAbsoluteUrl('/'),
+                'admin_url' => $this->buildAbsoluteUrl('/admin'),
+                'version' => $this->updates()->currentVersion(),
+            ],
+            function (): string {
+                // A new backup run or another version sends a report at once.
+                $last = $this->backupRuns->recent(1)[0] ?? [];
+                return (string)($last['created_at'] ?? '') . '|' . (string)($last['status'] ?? '') . '|' . $this->updates()->currentVersion();
+            }
+        );
     }
 
     private function omniReport(): OmniReport

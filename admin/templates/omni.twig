@@ -1,27 +1,75 @@
 {% extends '@admin/base.twig' %}
 {% set page_heading = 'Omni' %}
 {% import '@admin/partials/ui.twig' as ui %}
+{% import '@admin/partials/form-rows.twig' as f %}
 
 {% block content %}
   {% set tone = {'ok': 'green', 'success': 'green', 'warn': 'amber', 'warning': 'amber', 'danger': 'red', 'error': 'red', 'failed': 'red'} %}
   {% set modes = {'off': 'Off', 'custom': 'Own tracking code', 'platform': 'FarosCMS analytics'} %}
+  {% set btn = 'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium shadow-sm' %}
+  {% set removed = connection.status|default('') == 'removed' %}
+
+  {{ ui.flash(message, done == 'ok' ? 'success' : 'error') }}
 
   <header class="mb-4 border-b border-slate-200 pb-4">
     <p class="text-xs text-slate-400">Omni is a separate app where one person follows many FarosCMS sites: health, storage, backups and updates, with a link to each admin. The public one is omni.faroscms.com; anyone can run their own.</p>
   </header>
 
   <div class="space-y-4">
-    <div class="rounded-lg border border-slate-200 bg-white">
+    <div class="rounded-lg border border-slate-200 bg-white" data-omni-connection>
       <div class="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
         <h2 class="text-sm font-semibold text-slate-900">Connection</h2>
-        {{ ui.badge('Not connected', 'slate') }}
+        {% if connected %}
+          {{ connection.last_error is defined ? ui.badge('Connected · last report failed', 'amber') : ui.badge('Connected', 'green') }}
+        {% elseif removed %}
+          {{ ui.badge('Removed by Omni', 'amber') }}
+        {% else %}
+          {{ ui.badge('Not connected', 'slate') }}
+        {% endif %}
       </div>
-      <p class="px-4 py-3 text-sm text-slate-600">This site does not report to any Omni. Below is exactly what it would send: the state of the site, never its content, users, form submissions, visitor figures or keys.</p>
+
+      {% if connected %}
+        <dl class="divide-y divide-slate-50 text-sm">
+          <div class="flex items-center justify-between gap-3 px-4 py-2.5"><dt class="text-slate-600">Omni</dt><dd class="truncate text-slate-800"><a href="{{ connection.url }}" target="_blank" rel="noopener noreferrer" class="hover:underline">{{ connection.url }}</a></dd></div>
+          <div class="flex items-center justify-between gap-3 px-4 py-2.5"><dt class="text-slate-600">Connected</dt><dd class="text-slate-800">{{ connection.connected_at|date('Y-m-d H:i') }} <span class="text-xs text-slate-400">· site id {{ connection.site_id }}</span></dd></div>
+          <div class="flex items-center justify-between gap-3 px-4 py-2.5"><dt class="text-slate-600">Last report</dt><dd class="text-slate-800" data-omni-last-sent>{{ connection.last_sent_at is defined ? connection.last_sent_at|date('Y-m-d H:i') : 'none yet' }}</dd></div>
+          <div class="flex items-center justify-between gap-3 px-4 py-2.5"><dt class="text-slate-600">Reports</dt><dd class="text-slate-800">every {{ (connection.report_every|default(21600) / 3600)|round(1) }} h, and at once after a backup or an update</dd></div>
+          {% if connection.last_error is defined %}
+            <div class="flex items-start justify-between gap-3 px-4 py-2.5" data-omni-error><dt class="text-slate-600">Last problem</dt><dd class="max-w-md text-right text-red-700">{{ connection.last_error }} <span class="block text-xs text-slate-400">{{ connection.last_error_at|date('Y-m-d H:i') }}{% if connection.retry_at is defined %} · next try after {{ connection.retry_at|date('H:i') }}{% endif %}</span></dd></div>
+          {% endif %}
+        </dl>
+        <div class="flex flex-wrap items-center gap-2 border-t border-slate-100 px-4 py-3">
+          <form method="post" action="{{ url('admin/omni') }}">
+            {{ csrf_field() }}
+            <button type="submit" name="omni_action" value="send" class="{{ btn }} border border-slate-300 bg-white text-slate-700 hover:bg-slate-50">Send report now</button>
+          </form>
+          <form method="post" action="{{ url('admin/omni') }}" data-confirm="Disconnect this site from {{ connection.url }}? Omni keeps its history; connecting again needs a new code." data-confirm-button="Disconnect">
+            {{ csrf_field() }}
+            <button type="submit" name="omni_action" value="disconnect" class="{{ btn }} border border-red-200 bg-white text-red-600 hover:bg-red-50">Disconnect</button>
+          </form>
+        </div>
+      {% else %}
+        <p class="px-4 pt-3 text-sm text-slate-600">
+          {% if removed %}
+            The owner of {{ connection.url }} removed this site on {{ connection.removed_at|date('Y-m-d') }}, so it no longer reports. To report again, ask for a new code.
+          {% else %}
+            In Omni, add this site to get a connection code, then enter the address of that Omni and the code here. The code works once, for 24 hours.
+          {% endif %}
+        </p>
+        <form method="post" action="{{ url('admin/omni') }}" class="mt-2" data-omni-connect>
+          {{ csrf_field() }}
+          {{ f.text('Omni address', 'omni_url', omni_url, 'https://omni.faroscms.com', 'Over https; http only for a local one (localhost, *.test).', 300) }}
+          {{ f.text('Connection code', 'omni_code', '', 'XXXX-XXXX-XXXX-XXXX', '', 40) }}
+          <div class="border-t border-slate-100 px-4 py-3">
+            <button type="submit" name="omni_action" value="connect" class="{{ btn }} bg-slate-900 font-semibold text-white hover:bg-slate-700">Connect</button>
+          </div>
+        </form>
+      {% endif %}
     </div>
 
     <div class="rounded-lg border border-slate-200 bg-white" data-omni-summary>
       <div class="border-b border-slate-200 px-4 py-3">
-        <h2 class="text-sm font-semibold text-slate-900">What Omni would see</h2>
+        <h2 class="text-sm font-semibold text-slate-900">What Omni {{ connected ? 'sees' : 'would see' }}</h2>
       </div>
       <dl class="grid grid-cols-1 divide-y divide-slate-50 text-sm sm:grid-cols-2 sm:divide-y-0 lg:grid-cols-5">
         <div class="flex items-center justify-between gap-2 px-4 py-2.5 lg:flex-col lg:items-start">
@@ -60,7 +108,7 @@
     </div>
 
     <details class="rounded-lg border border-slate-200 bg-white" data-omni-preview>
-      <summary class="cursor-pointer px-4 py-3 text-sm font-semibold text-slate-900">Report preview <span class="font-normal text-slate-400">· protocol v{{ report.protocol }}, JSON</span></summary>
+      <summary class="cursor-pointer px-4 py-3 text-sm font-semibold text-slate-900">Report preview <span class="font-normal text-slate-400">· protocol v{{ report.protocol }}, JSON; the state of the site, never its content, users, form submissions, visitor figures or keys</span></summary>
       <div class="border-t border-slate-200 p-4">
         <pre class="max-h-[32rem] overflow-auto rounded-md bg-slate-950 p-3 text-xs leading-relaxed text-slate-100">{{ report_json }}</pre>
       </div>

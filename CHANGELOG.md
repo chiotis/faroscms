@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.1.103 — 2026-10-13 — Connect the site to an Omni
+- **Admin > Omni connects the site** (super admin only). Enter the address of an Omni and the connection code it gave for this site. The address is filled in with `https://omni.faroscms.com`; any other works, over https, or http for a local one. **Connect** first checks that an Omni answers there, then trades the code for the site's id and secret, then sends the first report. Each refusal says what to do: no Omni at that address, a code that is wrong, used or expired, too many attempts, or another protocol.
+- **While connected**, the screen shows the Omni, the site id, the last report, how often it reports, and the last problem with when it tries again. It has **Send report now** and **Disconnect**: the site tells Omni it leaves, and forgets its secret even when Omni cannot be told. Connecting and disconnecting go to the activity log. When Omni's owner removes the site, the next report learns it (`410`): the secret is forgotten and the form comes back.
+- **The site reports by itself, signed** (HMAC-SHA256 with a timestamp and a nonce):
+  - every 6 hours, or what Omni asks for, kept between 15 minutes and a day;
+  - at once after a backup run or an update;
+  - from the work the site already does on a schedule: after a visit (only where the response is finished first, so no visitor waits), after an admin page, and from the cron script (`src/cron-backup.php`, whose answer is still about the backup).
+- **When Omni cannot be reached**, the next attempt waits 15 minutes (or what a `429` says), so an Omni that is down slows an admin page at most once in that time. Requests use PHP's streams, so they work where hosts switch `curl_exec` off, and never follow a redirect. The secret stays in the system database and is never shown.
+- **`OmniClient`** does the work; `docs/omni-protocol.md` says when a site reports and how.
+- **Tests:**
+  - `tests/unit/omni-client.php`: the addresses accepted, connecting and every refusal, when a report is due, every answer Omni can give, disconnecting, and the signature against a known value.
+  - `tests/http/omni_test.py` runs an Omni stand-in that checks every signature the way Omni does. It connects through the screen, then checks the reports sent after an admin page, after a backup and from the cron script, removal by Omni, disconnecting, and that an administrator can do none of it.
+  - Tried end to end against Omni 0.1.0 in Chromium.
+
 ## 0.1.102 — 2026-10-13 — The Omni protocol, as Omni was built
 - `docs/omni-protocol.md` says what building Omni 0.1.0 made exact. The signature is keyed with the secret exactly as `connect` returned it (its 43 characters, not the bytes they encode). `connect` answers `403 invalid_code`, `400 invalid_request` (no code, or no http(s) `site.url`), `426` or `429` with `Retry-After`; every attempt counts towards the 10 an hour, and the code is taken in any case, with or without dashes.
 - The section on Omni describes the app as it now is (the `faros-omni` repository): the owner's account made on the first visit, the states and chips of the list, the page per site, and its tests.
