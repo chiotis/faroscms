@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.109 — 2026-10-13 — Videos in the hero slider play only on the slide that shows
+- **A slide of the Hero slider can have a video behind its text** (Picture > Video, as in the Hero: a file from the library, or a YouTube or Vimeo link, with a still image and a pause button). Before, every video slide loaded and played at once, also the ones off screen. Now a video starts when its slide shows and stops when the slide goes (a YouTube or Vimeo frame is removed, a video file is paused), so a slider with several videos asks the visitor's device for one at a time. A visitor who paused a video keeps it paused.
+- The slider tells its slides which one shows through `slider:change`, which the video script of the Hero uses.
+
 ## 0.1.108 — 2026-10-13 — The hero slider works with "Transparent over an opening hero"
 - **A Hero slider that opens the page sits under a transparent header, whatever its slides are.** Before, it did only when every slide was a cover over a picture. Now it opens the page like a Hero does (Theme settings > Header, or the entry's own "Transparent over an opening hero"), the page has no title area of its own, and every slide clears the header: a cover by the measure of an opening cover hero, any other layout by the measure of an opening hero.
 - **The header follows the slide that shows.** Light text over a slide that is a picture (cover and steps layouts), dark text over the others. The page draws it for the first slide, and the script changes it as the slides move (arrows, dots, swipe, automatic movement). The Slider block now says when its slide changes (`slider:change` on the slider).
