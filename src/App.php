@@ -1455,6 +1455,10 @@ final class App
                 $this->handleBackupRestore();
                 return;
             }
+            if ($action === 'fetch_remote' && !$this->permissions->can($this->auth->user(), 'backups.restore')) {
+                $this->renderForbidden('Fetching backups from remote storage is limited to superadmins, as restoring is.');
+                return;
+            }
             $location = $this->backupAdmin()->apply($action, $_POST);
             if ($location !== null) {
                 $this->redirect($location);
@@ -1462,7 +1466,14 @@ final class App
             }
         }
 
+        // The bucket is only read when asked for (a link on the screen), and only for those who can restore from what it holds.
+        $remote = null;
+        if ((string)($_GET['remote'] ?? '') === '1' && $this->permissions->can($this->auth->user(), 'backups.restore')) {
+            $remote = $this->backupAdmin()->remoteBackups();
+        }
+
         $this->render('@admin/backups.twig', $this->backupAdmin()->overview() + [
+            'remote_listing' => $remote,
             'title' => 'Backups',
             'types' => $this->content->getTypes(),
             'user' => $this->auth->user(),

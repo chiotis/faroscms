@@ -25,7 +25,8 @@ final class S3BackupStorage
         if (!$this->isEnabled()) {
             return ['ok' => false, 'message' => 'Remote storage is disabled.'];
         }
-        if (!function_exists('curl_init')) {
+        // A host can switch curl_exec off while the extension is there; calling it then is a fatal error.
+        if (!function_exists('curl_init') || !function_exists('curl_exec')) {
             return ['ok' => false, 'message' => 'The PHP cURL extension is required for S3-compatible remote backups.'];
         }
 
@@ -135,6 +136,36 @@ final class S3BackupStorage
         return ['ok' => true, 'message' => 'Remote backups listed.', 'objects' => $objects];
     }
 
+    /**
+     * Streams one of FarosCMS's own archives from the bucket into $destination (a file this writes; it is removed again when the
+     * download fails). Only a name that listBackups() would list is accepted, so nothing else in the bucket can be fetched.
+     *
+     * @return array{ok: bool, message: string, size?: int}
+     */
+    public function download(string $filename, string $destination): array
+    {
+        $validation = $this->validate();
+        if (($validation['ok'] ?? false) !== true) {
+            return $validation;
+        }
+        if ($filename !== basename($filename) || !preg_match(self::BACKUP_FILENAME_PATTERN, $filename)) {
+            return ['ok' => false, 'message' => 'That is not a FarosCMS backup name.'];
+        }
+
+        $response = $this->request('GET', $this->objectKey($filename), '', [], [], null, $destination);
+        if (($response['ok'] ?? false) !== true) {
+            @unlink($destination);
+            return ['ok' => false, 'message' => 'Download failed: ' . (string)($response['message'] ?? 'Unknown S3 error.')];
+        }
+
+        $size = (int)(@filesize($destination) ?: 0);
+        if ($size === 0) {
+            @unlink($destination);
+            return ['ok' => false, 'message' => 'Download failed: the remote file is empty.'];
+        }
+        return ['ok' => true, 'message' => 'Remote download completed.', 'size' => $size];
+    }
+
     /** @return array{ok: bool, message: string, deleted?: int} */
     public function prune(int $keep): array
     {
@@ -164,8 +195,9 @@ final class S3BackupStorage
      * @param array<string, string> $headers
      * @param array<string, string> $query
      * @param string|null $bodyFile Streams this file as the request body instead of $body.
+     * @param string|null $sinkFile Streams the response into this file instead of returning it (the file holds the error text when the status is not a success).
      */
-    private function request(string $method, string $key, string $body = '', array $headers = [], array $query = [], ?string $bodyFile = null): array
+    private function request(string $method, string $key, string $body = '', array $headers = [], array $query = [], ?string $bodyFile = null, ?string $sinkFile = null): array
     {
         $method = strtoupper($method);
         $url = $this->objectUrl($key, $query);
@@ -242,18 +274,33 @@ final class S3BackupStorage
         } elseif (in_array($method, ['PUT', 'POST'], true)) {
             curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
         }
+        $sinkHandle = null;
+        if ($sinkFile !== null) {
+            $sinkHandle = fopen($sinkFile, 'wb');
+            if ($sinkHandle === false) {
+                return ['ok' => false, 'message' => 'Could not write the downloaded file.'];
+            }
+            curl_setopt($ch, CURLOPT_FILE, $sinkHandle);
+        }
         $responseBody = curl_exec($ch);
         $error = curl_error($ch);
         $status = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
         if (is_resource($fileHandle)) {
             fclose($fileHandle);
         }
+        if (is_resource($sinkHandle)) {
+            fclose($sinkHandle);
+        }
 
         if ($responseBody === false) {
             return ['ok' => false, 'message' => $error !== '' ? $error : 'S3 request failed.'];
         }
         if ($status < 200 || $status >= 300) {
-            return ['ok' => false, 'message' => 'S3 returned HTTP ' . $status . $this->extractS3Error((string)$responseBody)];
+            $errorBody = $sinkFile !== null ? (string)@file_get_contents($sinkFile, false, null, 0, 8192) : (string)$responseBody;
+            return ['ok' => false, 'message' => 'S3 returned HTTP ' . $status . $this->extractS3Error($errorBody)];
+        }
+        if ($sinkFile !== null) {
+            return ['ok' => true, 'message' => 'S3 request completed.'];
         }
 
         return ['ok' => true, 'message' => 'S3 request completed.', 'body' => (string)$responseBody];

@@ -214,6 +214,125 @@ final class BackupManager
         }
     }
 
+    /** @return array<string, mixed>|null the remote storage settings when remote storage is on, otherwise null */
+    private function remoteSettings(): ?array
+    {
+        $remote = $this->settings()['backup']['remote'] ?? [];
+        return is_array($remote) && Format::isTruthy($remote['enabled'] ?? false) ? $remote : null;
+    }
+
+    /**
+     * The archives in remote storage (read from the bucket now), newest first, each with whether it is already on this server.
+     *
+     * @return array{ok: bool, message: string, backups: array<int, array{filename: string, type: string, size: int, size_human: string, modified: int, created_at: string, local: bool}>}
+     */
+    public function remoteBackups(): array
+    {
+        $remote = $this->remoteSettings();
+        if ($remote === null) {
+            return ['ok' => false, 'message' => 'Remote storage is not turned on.', 'backups' => []];
+        }
+        $listing = ($this->storage)($remote)->listBackups();
+        if (($listing['ok'] ?? false) !== true) {
+            return ['ok' => false, 'message' => (string)($listing['message'] ?? 'Could not list remote backups.'), 'backups' => []];
+        }
+
+        $backups = [];
+        foreach ($listing['objects'] ?? [] as $object) {
+            $filename = basename((string)$object['key']);
+            $modified = (int)(strtotime((string)$object['modified']) ?: 0);
+            $backups[] = [
+                'filename' => $filename,
+                'type' => str_contains($filename, '-database-backup-') ? 'database' : 'full',
+                'size' => (int)$object['size'],
+                'size_human' => Format::bytes((int)$object['size']),
+                'modified' => $modified,
+                'created_at' => $modified > 0 ? date('Y-m-d H:i', $modified) : '',
+                'local' => $this->backups->pathFor($filename) !== null,
+            ];
+        }
+        return ['ok' => true, 'message' => 'Remote backups listed.', 'backups' => $backups];
+    }
+
+    /**
+     * Brings one archive from remote storage into the backups folder, where the Backups screen lists it and it can be restored like
+     * any other. The file is written under a temporary name, checked against its size in the bucket and then against its own
+     * checksums, and only then given its name; a file that fails is removed. Nothing here restores anything.
+     *
+     * @return array{ok: bool, message: string, filename: string}
+     */
+    public function fetchRemote(string $filename): array
+    {
+        $filename = $this->backups->sanitizeFilename($filename);
+        $fail = static fn(string $message): array => ['ok' => false, 'message' => $message, 'filename' => $filename];
+        if ($filename === '') {
+            return $fail('Choose a backup to fetch.');
+        }
+        $remote = $this->remoteSettings();
+        if ($remote === null) {
+            return $fail('Remote storage is not turned on.');
+        }
+        if ($this->backups->pathFor($filename) !== null) {
+            return $fail($filename . ' is already on this server.');
+        }
+
+        $storage = ($this->storage)($remote);
+        $listing = $storage->listBackups();
+        if (($listing['ok'] ?? false) !== true) {
+            return $fail((string)($listing['message'] ?? 'Could not list remote backups.'));
+        }
+        $object = null;
+        foreach ($listing['objects'] ?? [] as $candidate) {
+            if (basename((string)$candidate['key']) === $filename) {
+                $object = $candidate;
+                break;
+            }
+        }
+        if ($object === null) {
+            return $fail($filename . ' was not found in remote storage.');
+        }
+        $expected = (int)$object['size'];
+
+        $this->backups->ensureDirectory();
+        $directory = $this->backups->directory();
+        $free = function_exists('disk_free_space') ? @disk_free_space($directory) : false;
+        if ($free !== false && $expected > 0 && $free < $expected + 5 * 1048576) {
+            return $fail('There is not enough free disk space on this server for ' . Format::bytes($expected) . '.');
+        }
+
+        if (function_exists('set_time_limit')) {
+            @set_time_limit(0);
+        }
+        $temporary = $directory . '/.fetch-' . bin2hex(random_bytes(4)) . '.part';
+        $download = $storage->download($filename, $temporary);
+        if (($download['ok'] ?? false) !== true) {
+            @unlink($temporary);
+            return $fail((string)($download['message'] ?? 'Download failed.'));
+        }
+        if ($expected > 0 && (int)(@filesize($temporary) ?: 0) !== $expected) {
+            @unlink($temporary);
+            return $fail('The download was incomplete, so it was discarded. Try again.');
+        }
+
+        $path = $directory . '/' . $filename;
+        if (!@rename($temporary, $path)) {
+            @unlink($temporary);
+            return $fail('Could not save the downloaded file in the backups folder.');
+        }
+        $verification = $this->backups->verify($filename);
+        if (($verification['ok'] ?? false) !== true) {
+            @unlink($path);
+            return $fail('The downloaded file is not a valid backup, so it was discarded: ' . (string)($verification['message'] ?? ''));
+        }
+        // Keep the date it was made, so the list (and the local retention) order it where it belongs.
+        $modified = (int)(strtotime((string)$object['modified']) ?: 0);
+        if ($modified > 0) {
+            @touch($path, $modified);
+        }
+
+        return ['ok' => true, 'message' => 'Fetched ' . $filename . ' (' . Format::bytes((int)(filesize($path) ?: 0)) . ') from remote storage. It is now in Local backups: use Restore there.', 'filename' => $filename];
+    }
+
     /** @return array{ok: bool, message: string, object_key?: string, pruned?: int}|null */
     private function uploadRemote(string $path, string $filename): ?array
     {
