@@ -155,9 +155,8 @@ A report holds the state of the site at the time it was sent. Omni keeps the lat
     "cron": { "state": "fresh", "last_seen": "2026-10-13T03:00:05Z", "after_visit": true }
   },
   "analytics": {
-    "mode": "platform",
-    "visitors_last_30_days": 4210,
-    "views_last_30_days": 11873
+    "enabled": true,
+    "mode": "platform"
   },
   "updates": {
     "current": "0.1.99",
@@ -199,8 +198,8 @@ All sizes are bytes (integers) and all times are ISO 8601 in UTC. A value that t
 | `backups.last_success_at` | the latest run with `success` | `null` when none |
 | `backups.failed_last_7_days` | runs with `failed` in the last 7 days | |
 | `backups.cron` | `CronStatus::info()` | `state` is `fresh`, `stale` or `never` |
-| `analytics.mode` | `AnalyticsSettings::from()` | `off`, `custom` or `platform` |
-| `analytics.visitors_last_30_days`, `views_last_30_days` | `AnalyticsStore::range()` | only with `platform`, otherwise `null` |
+| `analytics.enabled` | `AnalyticsSettings::from()` | `false` when the mode is `off` |
+| `analytics.mode` | `AnalyticsSettings::from()` | `off` (no tracking), `custom` (the site's own tracking code) or `platform` (FarosCMS analytics) |
 | `updates.*` | `UpdateService::status()`, from its cache | sending a report never triggers a fresh version check; `source_status` is `ok` or `unreachable` |
 | `system.summary`, `checks` | `SystemStatus::summarize()`, `checks()` | `status` is `ok`, `warning` or `error` |
 | `system.extensions` | `SystemStatus::extensions()` | without the `purpose` column |
@@ -208,7 +207,7 @@ All sizes are bytes (integers) and all times are ISO 8601 in UTC. A value that t
 
 ### What is never sent
 
-A report holds no content, no user names or email addresses, no form submissions, no visitor data beyond the two 30-day totals, and no secrets of any kind: no keys for remote storage, mail or Google sign-in, no tracking code or tag IDs, and no file paths outside what the health checks already show. Omni gets enough to say whether a site is healthy, not to read it.
+A report holds no content, no user names or email addresses, no form submissions, no visitor figures of any kind, and no secrets of any kind: no keys for remote storage, mail or Google sign-in, no tracking code or tag IDs, and no file paths outside what the health checks already show. Omni gets enough to say whether a site is healthy, not to read it.
 
 ## When a site reports
 
