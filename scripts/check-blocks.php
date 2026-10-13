@@ -20,6 +20,8 @@ foreach ($files_list as $file) {
     $rel = str_replace("$root/", '', $file);
     foreach ($meta['blocks'] as $i => $block) {
         $blocksTotal++;
+        // A block saved in a layout or a block type that has since become another is checked as what it is now.
+        $block = is_array($block) ? $reg->migrate($block) : $block;
         $def = $reg->get($block['type'] ?? '');
         if (!$def) { echo "PROBLEM $rel #$i unknown block type " . ($block['type'] ?? '?') . "\n"; $problems++; continue; }
         $fields = $def['common'] + $def['fields'];
