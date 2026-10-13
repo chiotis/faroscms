@@ -343,8 +343,9 @@
               </select>
             </label>
             <label class="block">
-              <span class="mb-1 block text-sm font-medium text-slate-700">Retention</span>
-              <input type="number" min="1" name="backup_keep_local" value="{{ settings_form.backup_keep_local }}" class="{{ input_class }}">
+              <span class="mb-1 block text-sm font-medium text-slate-700">Backups to keep on this server</span>
+              <input type="number" min="1" name="backup_keep_local" value="{{ settings_form.backup_keep_local }}" class="{{ input_class }}" aria-describedby="backup-keep-local-help">
+              <span id="backup-keep-local-help" class="mt-1 block text-xs text-slate-400">The newest this many stay; older ones are deleted after each backup. A number of backups, not days. Remote storage has its own number.</span>
             </label>
           </div>
           <div class="mt-3 flex items-center justify-between gap-3 border-t border-slate-100 pt-3">
@@ -407,8 +408,9 @@
               <input type="text" name="backup_remote_prefix" value="{{ settings_form.backup_remote_prefix }}" placeholder="sites/main" class="{{ input_class }}">
             </label>
             <label class="block">
-              <span class="mb-1 block text-sm font-medium text-slate-700">Remote retention</span>
-              <input type="number" min="1" name="backup_remote_keep" value="{{ settings_form.backup_remote_keep }}" class="{{ input_class }}">
+              <span class="mb-1 block text-sm font-medium text-slate-700">Backups to keep in remote storage</span>
+              <input type="number" min="1" name="backup_remote_keep" value="{{ settings_form.backup_remote_keep }}" class="{{ input_class }}" aria-describedby="backup-keep-remote-help">
+              <span id="backup-keep-remote-help" class="mt-1 block text-xs text-slate-400">The newest this many stay in the bucket; older ones are deleted right after each upload, so a lower number takes effect with the next backup. A number of backups, not days. Separate from the number on this server.</span>
             </label>
           </div>
           <div class="mt-3 border-t border-slate-100 pt-3">

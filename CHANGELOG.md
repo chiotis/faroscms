@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.98 — 2026-10-13 — Two backup numbers that say what they count
+- **Settings > Backups:** the two retention fields are named for what they do. *Retention* is now *Backups to keep on this server* and *Remote retention* is *Backups to keep in remote storage*, each with a line saying that it is a number of backups (not days), that the newest ones stay, and that the other number is separate. The remote one says that older archives are deleted right after each upload, so a lower number takes effect with the next backup. The Backups screen uses the same words (*Keep on this server*, *Keep in remote storage*). Found with a site on Bunny storage (issue #13): the remote setting was working (it was left at the default of 20, so the bucket held 20 archives and the next backup deleted the oldest), but two fields that both said *retention* looked like one.
+- `docs/backups.md` says the same.
+
 ## 0.1.97 — 2026-10-13 — One scrollbar in the admin lists
 - **Fixed the double scrollbar on Admin > Redirects** (issue #10): the page scrolled in its content area and again in the window, far below the end of the content. Each row carries a hidden label for screen readers, placed with `position: absolute`; the content area (`<main>`) scrolls but was not itself positioned, so those labels were placed against the window and made it as tall as the longest list. The content area is now positioned, so it holds them. Any long list of the admin with such labels (the redirects and the not found list the most) was affected.
 - Tests: the content area is a positioned scroll area (`tests/http/redirects_test.py`). Looked at in Chromium on the redirects and not found lists at computer and phone width: the window is as tall as the screen and only the content area scrolls.
