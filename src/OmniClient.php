@@ -272,13 +272,18 @@ final class OmniClient
                 return true;
             });
             try {
-                $response = file_get_contents($url, false, $context);
+                $stream = fopen($url, 'rb', false, $context);
+                $response = $stream !== false ? stream_get_contents($stream) : false;
+                // The status and headers from the stream's own metadata: every PHP version fills it (the
+                // $http_response_header variable is only set where the code names it, and is deprecated from PHP 8.5).
+                $lines = $stream !== false ? (array)(stream_get_meta_data($stream)['wrapper_data'] ?? []) : [];
+                if ($stream !== false) {
+                    fclose($stream);
+                }
             } finally {
                 restore_error_handler();
             }
-            // PHP 8.4+ has a function for the headers; before it, they are only in a variable the call defines here.
-            $lines = function_exists('http_get_last_response_headers') ? (http_get_last_response_headers() ?? []) : (get_defined_vars()['http_response_header'] ?? []);
-            return self::parsed($lines, is_string($response) ? $response : '', $response === false ? ($error ?: 'no answer') : '');
+            return self::parsed(array_map('strval', $lines), is_string($response) ? $response : '', $response === false ? ($error ?: 'no answer') : '');
         }
         if (function_exists('curl_init') && function_exists('curl_exec')) {
             $lines = [];
