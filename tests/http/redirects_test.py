@@ -172,6 +172,8 @@ pub.request('/lost-page-xyz', data={'a': '1'})
 cx = rd_conn(); check('POST requests not logged', cx.execute("select hits from not_found_log where path='lost-page-xyz'").fetchone()[0] == 2); cx.close()
 st, _, html = root.get('/admin/redirects?tab=missing')
 check('not-found tab lists it', '/lost-page-xyz' in html and st == 200)
+# the admin's scroll area must hold the screen-reader labels of long lists (they are absolutely placed, and escape a scroll area that is not positioned: the window then scrolls as well as the page)
+check('admin main area is a positioned scroll area', re.search(r'<main class="[^"]*\brelative\b[^"]*\boverflow-y-auto\b', html) is not None)
 Client().request('/who-we-ar')
 st, _, html = root.get('/admin/redirects?tab=missing'); check('suggests the closest page', 'Looks like' in html and '/who-we-are' in html)
 # ignore: one, all, and it stays hidden
