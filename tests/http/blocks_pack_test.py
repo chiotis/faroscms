@@ -217,5 +217,16 @@ check('and the labels of the two new layouts', [o[1] for o in next(f for f in he
 app_css = root.get('/assets/css/app.css')[2]
 check('the admin style sheet has the drawn layout choice', '.bk-vtiles' in app_css)
 
+# ---- Columns: a picture with no text and no link has nothing to sit beside, so it takes the whole column
+st, _, html = page('cols-bare', {'type': 'columns', 'variant': 'image-side', 'items': [
+    {'title': 'Only a picture', 'image': '/uploads/a.png', 'image_alt': 'A'},
+    {'title': 'Picture and text', 'image': '/uploads/b.png', 'image_alt': 'B', 'text': 'Some words.'},
+]})
+c = section(html, 'columns')
+arts = re.findall(r'<article class="col[^"]*".*?</article>', c, re.S)
+check('a column with only a picture is marked and has no empty text area', len(arts) == 2 and 'is-bare' in arts[0] and 'col-body' not in arts[0], arts[:1])
+check('a column with a picture and text keeps the picture beside the text', 'is-bare' not in arts[1] and 'col-body' in arts[1], arts[1:])
+check('the narrow picture column applies only to columns that are not bare', ':not(.is-bare) .col-main' in open('app/themes/default/blocks/columns/block.css', encoding='utf-8').read())
+
 print('\nALL PASSED' if not fails else '\n%d FAILED: %s' % (len(fails), fails))
 sys.exit(1 if fails else 0)

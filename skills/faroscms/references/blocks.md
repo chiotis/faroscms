@@ -1,4 +1,4 @@
-# Blocks of this installation (FarosCMS 0.1.126)
+# Blocks of this installation (FarosCMS 0.1.127)
 
 ## Fields every block has
 

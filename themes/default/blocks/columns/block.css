@@ -62,15 +62,15 @@
   min-width: 0;
 }
 
-/* The picture beside the text */
+/* The picture beside the text (a column with a picture and nothing else keeps the whole width) */
 @media (min-width: 560px) {
-  .block--image-side .col.has-image .col-main {
+  .block--image-side .col.has-image:not(.is-bare) .col-main {
     grid-template-columns: minmax(7rem, 11rem) minmax(0, 1fr);
     align-items: start;
     gap: var(--space-m);
   }
 
-  .block--image-side .cols-2 .col.has-image:first-child .col-main {
+  .block--image-side .cols-2 .col.has-image:not(.is-bare):first-child .col-main {
     grid-template-columns: minmax(8rem, 14rem) minmax(0, 1fr);
   }
 }
