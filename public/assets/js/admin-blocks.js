@@ -59,8 +59,10 @@
 
 
   var ICONS = {
-    up: '<path d="m6 15 6-6 6 6"/>',
-    down: '<path d="m6 9 6 6 6-6"/>',
+    grip: '<circle cx="9" cy="6" r="1.3" fill="currentColor"/><circle cx="15" cy="6" r="1.3" fill="currentColor"/><circle cx="9" cy="12" r="1.3" fill="currentColor"/><circle cx="15" cy="12" r="1.3" fill="currentColor"/><circle cx="9" cy="18" r="1.3" fill="currentColor"/><circle cx="15" cy="18" r="1.3" fill="currentColor"/>',
+    more: '<circle cx="5" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="19" cy="12" r="1.5" fill="currentColor"/>',
+    top: '<path d="M6 5h12M6 15l6-6 6 6M12 9v10"/>',
+    bottom: '<path d="M6 19h12M6 9l6 6 6-6M12 15V5"/>',
     copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>',
     trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/>',
     plus: '<path d="M12 5v14M5 12h14"/>',
@@ -354,6 +356,77 @@
 
   var rowOpen = new WeakMap();
 
+  /* Reordering: a grip on each block and each row (drag it, or Space and the arrow keys), see admin-sortable.js ------------------ */
+
+  var Sortable = window.AdminSortable;
+  var HINT_ID = 'bk-sort-hint';
+
+  /** The grip button of an item: it is the handle the sortable lists look for. */
+  function grip(name) {
+    return el('button', {
+      type: 'button',
+      class: 'bk-grip',
+      'data-grip': '',
+      'aria-label': 'Reorder ' + name,
+      'aria-describedby': HINT_ID,
+      title: 'Drag to reorder',
+      html: svg('grip')
+    });
+  }
+
+  function sayMoved(name, to, total) {
+    if (Sortable) Sortable.announce(name + ' moved to position ' + (to + 1) + ' of ' + total);
+  }
+
+  /** The "…" menu of a block: a button that opens a short list of actions (arrow keys, Home and End to move, Enter to choose, Escape to close). */
+  function moreMenu(name, actions) {
+    var open = false;
+    var button = el('button', { type: 'button', class: CLS.icon, 'aria-label': 'More actions for ' + name, title: 'More', 'aria-haspopup': 'menu', 'aria-expanded': 'false', html: svg('more'), 'data-action': 'more' });
+    var menu = el('div', { class: 'bk-menu', role: 'menu', 'aria-label': 'Actions for ' + name, hidden: true });
+    var entries = actions.map(function (action) {
+      var item = el('button', { type: 'button', role: 'menuitem', tabindex: '-1', class: 'bk-menu-item', disabled: !!action.disabled, html: svg(action.icon) + '<span>' + action.label + '</span>' });
+      item.addEventListener('click', function () { close(false); action.run(); });
+      menu.appendChild(item);
+      return item;
+    });
+    function enabled() { return entries.filter(function (b) { return !b.disabled; }); }
+    function outside(event) { if (!wrap.contains(event.target)) close(false); }
+    function close(refocus) {
+      if (!open) return;
+      open = false;
+      menu.hidden = true;
+      button.setAttribute('aria-expanded', 'false');
+      document.removeEventListener('pointerdown', outside, true);
+      if (refocus) button.focus();
+    }
+    function show() {
+      open = true;
+      menu.hidden = false;
+      button.setAttribute('aria-expanded', 'true');
+      document.addEventListener('pointerdown', outside, true);
+      var first = enabled()[0];
+      if (first) first.focus();
+    }
+    button.addEventListener('click', function () { if (open) close(true); else show(); });
+    button.addEventListener('keydown', function (event) {
+      if (event.key === 'ArrowDown' && !open) { event.preventDefault(); show(); }
+    });
+    menu.addEventListener('keydown', function (event) {
+      var list = enabled();
+      var at = list.indexOf(document.activeElement);
+      var target = null;
+      if (event.key === 'ArrowDown') target = list[(at + 1) % list.length];
+      else if (event.key === 'ArrowUp') target = list[(at - 1 + list.length) % list.length];
+      else if (event.key === 'Home') target = list[0];
+      else if (event.key === 'End') target = list[list.length - 1];
+      else if (event.key === 'Escape') { event.preventDefault(); close(true); return; }
+      else if (event.key === 'Tab') { close(false); return; }
+      if (target) { event.preventDefault(); target.focus(); }
+    });
+    var wrap = el('span', { class: 'bk-menu-wrap' }, [button, menu]);
+    return wrap;
+  }
+
   /** A list of one short text (`inline: true`): the texts in a row of boxes, three to a row, each with a button to remove it. */
   function inlineRepeater(field, rows, onChange, id) {
     var item = field.item_label || 'Item';
@@ -374,8 +447,21 @@
       input.addEventListener('input', function () { row[sub.key] = input.value; onChange(rows); });
       var remove = el('button', { type: 'button', class: CLS.iconDanger, 'aria-label': 'Remove ' + item.toLowerCase() + ' ' + (index + 1), html: svg('trash') });
       remove.addEventListener('click', function () { rows.splice(index, 1); commit(); });
-      grid.appendChild(el('div', { class: 'bk-inline-item' }, [input, remove]));
+      grid.appendChild(el('div', { class: 'bk-inline-item' }, [rows.length > 1 ? grip(item.toLowerCase() + ' ' + (index + 1)) : null, input, remove]));
     });
+    if (Sortable && rows.length > 1) {
+      Sortable.create({
+        container: grid,
+        items: '.bk-inline-item',
+        handle: '.bk-grip',
+        label: function (node, at) { return item + ' ' + (at + 1); },
+        onSort: function (info) {
+          Sortable.reorder(rows, info.from, info.to);
+          var fresh = commit();
+          if (info.via === 'keyboard') { var g = fresh.querySelectorAll('.bk-grip')[info.to]; if (g) g.focus(); }
+        }
+      });
+    }
     if (!field.max || rows.length < field.max) {
       var add = el('button', { type: 'button', class: 'bk-add', html: svg('plus') + '<span>Add ' + item.toLowerCase() + '</span>' });
       add.addEventListener('click', function () {
@@ -433,7 +519,7 @@
       var first = (field.fields || [])[0];
       if (fileName && first && (typeof row[first.key] !== 'string' || row[first.key].trim() === '')) texts.unshift(fileName);
 
-      var head = el('button', { type: 'button', class: 'bk-row-toggle', 'aria-expanded': open ? 'true' : 'false', 'aria-controls': rowId + '-body' }, [
+      var head = el('button', { type: 'button', class: 'bk-row-toggle', 'data-drag-surface': '', 'aria-expanded': open ? 'true' : 'false', 'aria-controls': rowId + '-body' }, [
         el('span', { class: 'bk-chev' + (open ? ' is-open' : ''), html: svg('chevron', 'h-3.5 w-3.5') }),
         picture ? el('img', { class: 'bk-row-pic', src: picture, alt: '' }) : null,
         el('span', { class: 'bk-row-n', text: String(index + 1) }),
@@ -445,28 +531,14 @@
         commit();
       });
 
-      var moveUp = el('button', { type: 'button', class: CLS.icon, 'aria-label': 'Move ' + item.toLowerCase() + ' ' + (index + 1) + ' up', disabled: index === 0, html: svg('up') });
-      var moveDown = el('button', { type: 'button', class: CLS.icon, 'aria-label': 'Move ' + item.toLowerCase() + ' ' + (index + 1) + ' down', disabled: index === rows.length - 1, html: svg('down') });
       var remove = el('button', { type: 'button', class: CLS.iconDanger, 'aria-label': 'Remove ' + item.toLowerCase() + ' ' + (index + 1), html: svg('trash') });
-      moveUp.addEventListener('click', function () {
-        rows.splice(index - 1, 0, rows.splice(index, 1)[0]);
-        var fresh = commit();
-        var target = fresh.querySelectorAll('.bk-row')[index - 1];
-        if (target) { var b = target.querySelector('[aria-label$=" up"]:not([disabled])') || target.querySelector('.bk-row-toggle'); if (b) b.focus(); }
-      });
-      moveDown.addEventListener('click', function () {
-        rows.splice(index + 1, 0, rows.splice(index, 1)[0]);
-        var fresh = commit();
-        var target = fresh.querySelectorAll('.bk-row')[index + 1];
-        if (target) { var b = target.querySelector('[aria-label$=" down"]:not([disabled])') || target.querySelector('.bk-row-toggle'); if (b) b.focus(); }
-      });
       remove.addEventListener('click', function () {
         rows.splice(index, 1);
         commit();
       });
 
       var card = el('div', { class: 'bk-row' + (open ? ' is-open' : '') }, [
-        el('div', { class: 'bk-row-head' }, [head, el('span', { class: 'bk-row-actions' }, [moveUp, moveDown, remove])])
+        el('div', { class: 'bk-row-head' }, [rows.length > 1 ? grip(item.toLowerCase() + ' ' + (index + 1)) : null, head, el('span', { class: 'bk-row-actions' }, [remove])])
       ]);
       if (open) {
         var body = el('div', { id: rowId + '-body', class: 'bk-grid bk-row-body' });
@@ -495,6 +567,23 @@
       }
       list.appendChild(card);
     });
+
+    if (Sortable && rows.length > 1) {
+      Sortable.create({
+        container: list,
+        items: '.bk-row',
+        handle: '.bk-grip',
+        surface: '.bk-row-head',
+        surfaceActive: function (node) { return !node.classList.contains('is-open'); },
+        ghost: '.bk-row-head',
+        label: function (node, at) { return item + ' ' + (at + 1); },
+        onSort: function (info) {
+          Sortable.reorder(rows, info.from, info.to);
+          var fresh = commit();
+          if (info.via === 'keyboard') { var g = fresh.querySelectorAll('.bk-row .bk-grip')[info.to]; if (g) g.focus(); }
+        }
+      });
+    }
 
     var full = field.max && rows.length >= field.max;
     var add = el('button', { type: 'button', class: 'bk-add', disabled: !!full, html: svg('plus') + '<span>Add ' + item.toLowerCase() + '</span>' });
@@ -669,6 +758,7 @@
     var toggle = el('button', {
       type: 'button',
       class: 'bk-toggle',
+      'data-drag-surface': '',
       'aria-expanded': block._open ? 'true' : 'false',
       'aria-controls': idBase + '-body',
       html: '<span class="bk-chev' + (block._open ? ' is-open' : '') + '">' + svg('chevron', 'h-3.5 w-3.5') + '</span>'
@@ -694,8 +784,10 @@
 
     var actions = el('div', { class: 'bk-actions' });
     var eye = el('button', { type: 'button', class: CLS.icon, 'aria-label': block.hidden ? 'Show block on the page' : 'Hide block from the page', title: block.hidden ? 'Show on the page' : 'Hide from the page', 'aria-pressed': block.hidden ? 'true' : 'false', html: svg(block.hidden ? 'eyeOff' : 'eye'), disabled: !def, 'data-action': 'hide' });
-    var up = el('button', { type: 'button', class: CLS.icon, 'aria-label': 'Move block up', title: 'Move up', disabled: index === 0, html: svg('up'), 'data-action': 'up' });
-    var down = el('button', { type: 'button', class: CLS.icon, 'aria-label': 'Move block down', title: 'Move down', disabled: index === blocks.length - 1, html: svg('down'), 'data-action': 'down' });
+    var more = moreMenu(label, [
+      { label: 'Move to top', icon: 'top', disabled: index === 0, run: function () { move(index, 0, 'more'); sayMoved('Block ' + label, 0, blocks.length); } },
+      { label: 'Move to bottom', icon: 'bottom', disabled: index === blocks.length - 1, run: function () { move(index, blocks.length - 1, 'more'); sayMoved('Block ' + label, blocks.length - 1, blocks.length); } }
+    ]);
     var insert = el('button', { type: 'button', class: CLS.icon, 'aria-label': 'Add a block below', title: 'Add a block below', html: svg('plus'), 'data-action': 'insert' });
     var duplicate = el('button', { type: 'button', class: CLS.icon, 'aria-label': 'Duplicate block', title: 'Duplicate', html: svg('copy'), disabled: !def, 'data-action': 'duplicate' });
     var remove = el('button', { type: 'button', class: CLS.iconDanger, 'aria-label': 'Remove block', title: 'Remove', html: svg('trash'), 'data-action': 'remove' });
@@ -703,8 +795,6 @@
       block.hidden = !block.hidden;
       render(block._id, 'keep');
     });
-    up.addEventListener('click', function () { move(index, index - 1, 'up'); });
-    down.addEventListener('click', function () { move(index, index + 1, 'down'); });
     insert.addEventListener('click', function () { openPicker(index + 1, insert); });
     duplicate.addEventListener('click', function () {
       var copy = withId(block, true);
@@ -717,7 +807,7 @@
       render(null);
       showUndo(label);
     });
-    [eye, up, down, insert, duplicate, remove].forEach(function (b) { actions.appendChild(b); });
+    [eye, insert, duplicate, more, remove].forEach(function (b) { actions.appendChild(b); });
 
     var select = el('input', { type: 'checkbox', class: 'bk-select', 'aria-label': 'Select ' + label + ' to save as a section', title: 'Select to save as a section', checked: !!selected[block._id], disabled: !def });
     select.addEventListener('change', function () {
@@ -725,7 +815,7 @@
       else delete selected[block._id];
       syncSaveBar();
     });
-    card.appendChild(el('div', { class: 'bk-head' }, [select, toggle, actions]));
+    card.appendChild(el('div', { class: 'bk-head' }, [blocks.length > 1 ? grip('block ' + label) : null, select, toggle, actions]));
 
     if (block._open && def) {
       var body = el('div', { id: idBase + '-body', class: 'bk-body' });
@@ -763,14 +853,35 @@
     return card;
   }
 
-  function move(from, to, direction) {
-    if (to < 0 || to >= blocks.length) return;
+  function move(from, to, focusWhat) {
+    if (to < 0 || to >= blocks.length || from === to) return;
     var block = blocks.splice(from, 1)[0];
     blocks.splice(to, 0, block);
-    render(block._id, direction);
+    render(block._id, focusWhat);
   }
 
   var list = el('div', { class: 'bk-list', 'data-block-list': '' });
+  var sortHint = el('p', { id: HINT_ID, class: 'bk-sr', text: 'Drag the grip to reorder. With the keyboard, press Space to pick up, the arrow keys to move, Space to drop and Escape to cancel.' });
+  if (Sortable) {
+    Sortable.create({
+      container: list,
+      items: '.bk-card',
+      handle: '.bk-grip',
+      surface: '.bk-head',
+      surfaceActive: function (node) { return !node.classList.contains('is-open'); },
+      ghost: '.bk-head',
+      group: 'blocks',
+      label: function (node, at) {
+        var block = blocks[at];
+        var def = block && definitions[block.type];
+        return 'Block ' + (def ? def.label : (block ? block.type : ''));
+      },
+      onSort: function (info) {
+        // One flat list: blocks that share a row through their Width are drawn side by side, and dragging only changes the order.
+        move(info.from, info.to, info.via === 'keyboard' ? 'move' : '');
+      }
+    });
+  }
   var empty = el('div', { class: 'bk-empty' }, [
     el('p', { class: 'bk-empty-title', text: footerMode ? 'No blocks above the footer yet.' : 'This page has no blocks yet.' }),
     el('p', { class: 'bk-help', text: footerMode ? 'Add blocks such as a row of logos or a call to action; they show above the footer on every page.' : 'Without blocks the page shows its Markdown text as before. Add blocks to build the page from sections.' }),
@@ -872,8 +983,12 @@
       var card = list.querySelector('[data-block-card="' + focusId + '"]');
       if (!card) return;
       var target = null;
-      if (focusWhat === 'up' || focusWhat === 'down') {
-        target = card.querySelector('[data-action="' + focusWhat + '"]:not([disabled])') || card.querySelector('[aria-expanded]');
+      if (focusWhat === 'move') {
+        target = card.querySelector('[data-grip]') || card.querySelector('[aria-expanded]');
+        card.scrollIntoView({ block: 'nearest' });
+      } else if (focusWhat === 'more') {
+        target = card.querySelector('[data-action="more"]');
+        card.scrollIntoView({ block: 'nearest' });
       } else if (focusWhat === 'toggle') {
         target = card.querySelector('[aria-expanded]');
         card.scrollIntoView({ block: 'nearest' });
@@ -1203,6 +1318,7 @@
   root.appendChild(saveBar);
   root.appendChild(picker);
   root.appendChild(empty);
+  root.appendChild(sortHint);
   root.appendChild(list);
 
   flag.value = '1';

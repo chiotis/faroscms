@@ -10,7 +10,7 @@ tab, menus, forms, taxonomies, users, roles, redirects, translations, logs, back
 import, history) was scanned with axe-core (WCAG 2.0, 2.1 and 2.2 level A and AA, plus its best-practice rules) in light
 mode, in dark mode, and at phone width (375 px). The states that only exist after a click were scanned too: the icon
 picker, the image picker, the confirmation dialog, the message in the bottom bar, the phone sidebar, the block
-editor with every block open, and the Taxonomies screen (list, rows selected, a row removed, the term dialog, the
+editor with every block open (also while a block is carried by keyboard or dragged, with the "…" menu open, in light and dark, at phone width), and the Taxonomies screen (list, rows selected, a row removed, the term dialog, the
 settings tab). The result is zero violations.
 
 Not covered: screen readers and real assistive technology (run through it by hand before a release), and the text over
@@ -29,6 +29,7 @@ photos in the media grid, which a tool cannot judge.
 - **Tab bars** are ARIA tabs: `admin.js` (`enhanceTabs`) gives each `[data-tab]` button in a `role="tablist"` the roles,
   `aria-controls`, `aria-selected`, a roving tab stop, and the arrow, Home, and End keys. A screen only has to mark
   the panels with `data-panel` (or `data-tab-panel`) and toggle the `active` class.
+- **Reordering has a keyboard way** (`admin-sortable.js`): the grip of a block or row is a button named "Reorder block Text", described by a hint. Space or Enter picks the item up, the arrow keys, Home and End move it, Space or Enter drops it, Escape cancels, and leaving the grip cancels. Each step is said through a polite live region, and the block's "…" menu (a button with `aria-haspopup="menu"`, a `role="menu"` list, arrow keys, Escape back to the button) has *Move to top* and *Move to bottom*. The grip and the carried block are never marked by colour or opacity alone and keep their contrast while dragging (the carried block gets a tint and a dashed outline, not a lower opacity); the lifted copy is `aria-hidden` and `inert`. Touch targets are at least 24 px.
 - **Wide tables** that scroll sideways become keyboard-focusable when nothing inside them is (`makeScrollersFocusable`).
 - **Messages in the bottom bar** are announced by a live region; the visible layer is shown to assistive technology
   only while it is up, because its Dismiss button takes focus for an error.
