@@ -73,11 +73,11 @@ check('display name could be changed', 'Ed One' in html)
 tok = re.search(r'name="_csrf" value="([^"]+)"', ed.get('/admin')[2]).group(1)
 for path, data in (('/admin/settings', {'tab': 'general'}), ('/admin/users-delete', {'id': '1'}), ('/admin/content-types', {'action': 'create', 'name': 'hax', 'label': 'x'}),
                    ('/admin/translations', {'lang': 'en'}), ('/admin/menus-new', {'title': 'x'}), ('/admin/backups', {'action': 'create'}),
-                   ('/admin/save', {'type': 'forms', 'slug': 'contact', 'lang': 'en', 'title': 'Hacked'}), ('/admin/delete', {'type': 'forms', 'slug': 'contact', 'lang': 'en'})):
+                   ('/admin/save', {'type': 'forms', 'slug': 'contact', 'lang': 'el', 'title': 'Hacked'}), ('/admin/delete', {'type': 'forms', 'slug': 'contact', 'lang': 'el'})):
     st, _, _ = ed.request(path, data={**data, '_csrf': tok})
     check('editor POST refused: ' + path + ' ' + data.get('type', ''), st == 403, st)
 import os
-check('forms file untouched', 'Hacked' not in open('app/content/forms/contact.en.md').read())
+check('forms file untouched', 'Hacked' not in open('app/content/forms/contact.md').read())
 check('no rogue content type created', not os.path.isdir('app/content/hax'))
 
 # ---- raw HTML and script links written by an editor are neutralised

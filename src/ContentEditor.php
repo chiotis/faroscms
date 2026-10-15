@@ -77,6 +77,12 @@ final class ContentEditor
                 $formFieldsKeep = true;
             }
         }
+        // The translations of the form's own texts (button, messages, emails, title) come as one JSON object keyed by language.
+        $formTranslationsInput = null;
+        if (trim((string)($post['form_translations_json'] ?? '')) !== '' && strlen((string)$post['form_translations_json']) <= 600000) {
+            $decodedTranslations = json_decode((string)$post['form_translations_json'], true);
+            $formTranslationsInput = is_array($decodedTranslations) ? $decodedTranslations : null;
+        }
         $formNotificationsInput = $post['form_notifications'] ?? [];
         $formStoreSubmissions = isset($post['form_store_submissions']) && (string)($post['form_store_submissions']) === '1';
         $formSubmitLabel = trim((string)($post['form_submit_label'] ?? ''));
@@ -361,8 +367,17 @@ final class ContentEditor
         }
 
         if ($type === 'forms') {
+            $translationLanguages = array_values(array_diff(array_map('strval', $this->settings['languages']['available'] ?? []), [$defaultLang]));
+            if ($formTranslationsInput !== null) {
+                $formTranslations = FormTranslations::cleanForm($formTranslationsInput, $translationLanguages);
+                if ($formTranslations !== []) {
+                    $data['translations'] = $formTranslations;
+                } else {
+                    unset($data['translations']);
+                }
+            }
             if (!$formFieldsKeep) {
-                $fields = FormFields::parseInput($formFieldsInput);
+                $fields = FormFields::parseInput($formFieldsInput, $translationLanguages);
                 if (!empty($fields)) {
                     $data['fields'] = $fields;
                 } else {

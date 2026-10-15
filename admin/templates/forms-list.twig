@@ -22,6 +22,51 @@
     </div>
   </header>
 
+  {% if migration_report %}
+    <section class="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900" aria-labelledby="migration-title">
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div class="min-w-0">
+          <h2 id="migration-title" class="font-semibold">Forms in more than one language were merged</h2>
+          <p class="mt-0.5 text-xs">Each form is now built once, in {{ default_lang|upper }}, and the other languages are translations of it. Look through what could not be matched; the original files are kept in <code>storage/form-translation/copies</code>.</p>
+        </div>
+        <form method="post" action="{{ url('admin/forms') }}">
+          {{ csrf_field() }}
+          <button type="submit" name="dismiss_migration_report" value="1" class="rounded-md border border-amber-300 bg-white px-2.5 py-1 text-xs font-medium text-amber-900 hover:bg-amber-100">Dismiss</button>
+        </form>
+      </div>
+      <div class="mt-3 grid gap-3 lg:grid-cols-2">
+        {% if migration_report.unmatched %}
+          <div>
+            <h3 class="text-xs font-semibold uppercase tracking-wide">Texts without a field to go to ({{ migration_report.unmatched|length }})</h3>
+            <ul class="mt-1 grid gap-1 text-xs">
+              {% for row in migration_report.unmatched %}
+                <li class="rounded bg-white/70 px-2 py-1"><strong>{{ row.form }}</strong> · {{ row.lang|upper }} · <code>{{ row.field }}</code>{% if row.option is defined %} choice <code>{{ row.option }}</code>{% else %}: {{ [row.label|default(''), row.placeholder|default(''), row.help|default('')]|filter(t => t != '')|join(' / ') }}{% endif %}</li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% endif %}
+        {% if migration_report.differing %}
+          <div>
+            <h3 class="text-xs font-semibold uppercase tracking-wide">Settings that were different in a copy ({{ migration_report.differing|length }})</h3>
+            <ul class="mt-1 grid gap-1 text-xs">
+              {% for row in migration_report.differing %}
+                <li class="rounded bg-white/70 px-2 py-1"><strong>{{ row.form }}</strong> · {{ row.lang|upper }} · {{ row.setting }}: “{{ row.was is iterable ? '' : row.was }}” in the form, “{{ row.copy is iterable ? '' : row.copy }}” in the copy</li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% endif %}
+        {% if migration_report.skipped %}
+          <div>
+            <h3 class="text-xs font-semibold uppercase tracking-wide">Left as they are</h3>
+            <ul class="mt-1 grid gap-1 text-xs">
+              {% for row in migration_report.skipped %}<li class="rounded bg-white/70 px-2 py-1"><strong>{{ row.form }}</strong> · {{ row.lang|upper }}: {{ row.reason }}</li>{% endfor %}
+            </ul>
+          </div>
+        {% endif %}
+      </div>
+    </section>
+  {% endif %}
+
   <div id="formFilter" class="mb-4 rounded-lg border border-slate-200 bg-white p-4 {{ filters_active ? '' : 'hidden' }}">
     <form method="get" action="{{ url('admin/forms') }}" class="grid grid-cols-1 gap-3 sm:grid-cols-3">
       <label class="block">
@@ -77,7 +122,7 @@
   <div class="rounded-lg border border-slate-200 bg-white">
     <div class="flex items-center justify-between border-b border-slate-200 px-4 py-2.5">
       <span class="text-sm font-medium text-slate-700">{{ rows|length }} form{{ rows|length == 1 ? '' : 's' }}</span>
-      <span class="hidden text-xs text-slate-400 sm:inline">Submissions are shared by every language version of a form.</span>
+      <span class="hidden text-xs text-slate-400 sm:inline">A form is built once; the other languages are translations of it.</span>
     </div>
     {% if rows is empty %}
       {{ ui.empty_state(filters_active ? 'No forms match these filters' : 'No forms yet', filters_active ? 'Reset the filters to see every form.' : 'Create a form, then embed it on any page with its shortcode.') }}
@@ -118,12 +163,15 @@
                 </td>
                 <td class="px-4 py-2.5">
                   <div class="flex flex-wrap items-center gap-1">
-                    {% for code in row.languages %}
-                      <a href="{{ url('admin/edit?type=forms&slug=' ~ row.slug ~ '&lang=' ~ code) }}" class="inline-flex h-5 min-w-7 items-center justify-center rounded bg-emerald-50 px-1 text-[10px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200 hover:bg-emerald-100" title="Edit {{ code|upper }} version">{{ code|upper }}</a>
+                    <span class="inline-flex h-5 min-w-7 items-center justify-center rounded bg-slate-100 px-1 text-[10px] font-semibold text-slate-600" title="The language the form is built in">{{ row.lang|upper }}</span>
+                    {% for code, status in row.translations %}
+                      {% if status.missing == 0 %}
+                        <a href="{{ url('admin/edit?type=forms&slug=' ~ row.slug ~ '&lang=' ~ default_lang ~ '&translate=' ~ code) }}" class="inline-flex h-5 items-center gap-1 whitespace-nowrap rounded bg-emerald-50 px-1.5 text-[10px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200 hover:bg-emerald-100" title="{{ code|upper }} is fully translated">{{ code|upper }}</a>
+                      {% else %}
+                        <a href="{{ url('admin/edit?type=forms&slug=' ~ row.slug ~ '&lang=' ~ default_lang ~ '&translate=' ~ code) }}" class="inline-flex h-5 items-center gap-1 whitespace-nowrap rounded bg-amber-50 px-1.5 text-[10px] font-semibold text-amber-800 ring-1 ring-inset ring-amber-200 hover:bg-amber-100" title="{{ status.missing }} of {{ status.total }} texts still show the {{ default_lang|upper }} text in {{ code|upper }}">{{ code|upper }} <span class="font-medium">{{ status.missing }} missing</span></a>
+                      {% endif %}
                     {% endfor %}
-                    {% for code in row.missing_languages %}
-                      <a href="{{ url('admin/edit?type=forms&slug=' ~ row.slug ~ '&lang=' ~ code) }}" class="inline-flex h-5 min-w-7 items-center justify-center rounded border border-dashed border-slate-300 px-1 text-[10px] font-semibold text-slate-500 hover:border-slate-400 hover:text-slate-700" title="Create {{ code|upper }} version">{{ code|upper }}</a>
-                    {% endfor %}
+                    {% if row.copies %}<span class="text-[10px] font-medium text-amber-700" title="Older per-language copies of this form: they are folded into it when the site is next opened">{{ row.copies|length }} old {{ row.copies|length == 1 ? 'copy' : 'copies' }}</span>{% endif %}
                   </div>
                 </td>
                 <td class="px-4 py-2.5" data-sort-value="{{ row.status }}">{{ ui.status_badge(row.status) }}</td>
@@ -141,12 +189,12 @@
                     <a class="{{ icon_button }}" href="{{ url('admin/edit?type=forms&slug=' ~ row.slug ~ '&lang=' ~ row.lang) }}" title="Edit" aria-label="Edit {{ row.title }}">
                       <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
                     </a>
-                    <form method="post" action="{{ url('admin/delete') }}" data-confirm="Delete the {{ row.lang|upper }} version of “{{ row.title }}”? Other language versions and stored submissions are kept." data-confirm-button="Delete">
+                    <form method="post" action="{{ url('admin/delete') }}" data-confirm="Delete “{{ row.title }}” with all its translations? Its stored submissions are kept." data-confirm-button="Delete">
                       {{ csrf_field() }}
                       <input type="hidden" name="type" value="forms">
                       <input type="hidden" name="slug" value="{{ row.slug }}">
                       <input type="hidden" name="lang" value="{{ row.lang }}">
-                      <button type="submit" class="{{ icon_danger }}" title="Delete {{ row.lang|upper }} version" aria-label="Delete {{ row.title }}">
+                      <button type="submit" class="{{ icon_danger }}" title="Delete" aria-label="Delete {{ row.title }}">
                         <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V6"/></svg>
                       </button>
                     </form>

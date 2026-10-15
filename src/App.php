@@ -93,6 +93,7 @@ final class App
     private ?OmniClient $omniClientService = null;
     private ?DashboardData $dashboardDataService = null;
     private ?FormsAdmin $formsAdminService = null;
+    private ?FormTranslationMigration $formTranslationMigrationService = null;
     private ?FormProcessor $formProcessorService = null;
     private ?RoleAdmin $roleAdminService = null;
     private ?UserAdmin $userAdminService = null;
@@ -173,6 +174,13 @@ final class App
             header('Content-Type: text/html; charset=utf-8');
             echo MaintenanceMode::page();
             return;
+        }
+
+        // Forms that older versions kept as one copy for each language are folded into one form, once, the first time the site is opened after an update.
+        try {
+            $this->formTranslationMigration()->runOnce();
+        } catch (\Throwable $e) {
+            // The copies stay as they are and the site works as before; the next visit tries again.
         }
 
         if (str_starts_with($path, 'admin')) {
@@ -684,9 +692,11 @@ final class App
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['form_slug']) && ($segments[0] ?? '') !== 'forms') {
             $formSlug = Slug::plain((string)($_POST['form_slug'] ?? ''));
             if ($formSlug !== '') {
-                $formItem = $this->content->find('forms', $formSlug, $lang, $includeHidden, false);
+                $formItem = FormTranslations::find($this->content, $formSlug, $lang, $includeHidden)['form'];
                 if ($formItem) {
-                    $this->formStates[$formSlug] = $this->handleFormRequest($formItem, $lang, $path);
+                    // A page kept by a cache may still send the old address of a form: it is the same form.
+                    $_POST['form_slug'] = $formItem->slug;
+                    $this->formStates[$formItem->slug] = $this->handleFormRequest($formItem, $lang, $path);
                 }
             }
         }
@@ -750,7 +760,17 @@ final class App
                 return;
             }
 
-            $item = $this->content->find($type, $slug, $lang, $includeHidden, false);
+            if ($type === 'forms') {
+                // A form is one thing in every language: its address works in each, and an old address of one translated copy leads to it.
+                $found = FormTranslations::find($this->content, $slug, $lang, $includeHidden);
+                $item = $found['form'];
+                if ($item !== null && $found['alias_lang'] !== '') {
+                    header('Location: /' . ContentPaths::build('forms', $item->slug, $found['alias_lang'], $homeSlug, (string)($this->settings['languages']['default'] ?? 'en')), true, 301);
+                    exit;
+                }
+            } else {
+                $item = $this->content->find($type, $slug, $lang, $includeHidden, false);
+            }
             if (!$item) {
                 $this->render404();
                 return;
@@ -816,6 +836,7 @@ final class App
         $languageLinks = $this->languageAlternates()->languageLinks($type, $item);
         if ($type === 'forms') {
             $formState = $this->handleFormRequest($item, $lang, $path);
+            $item = $this->publicForms()->localized($item, $lang, fn(string $markdown): string => $this->applyShortcodes((string)$this->markdown->convert($markdown), $lang, $path));
             $this->render($this->resolveItemTemplate($item), [
                 'item' => $item,
                 'form_fields' => $formState['fields'],
@@ -1780,6 +1801,14 @@ final class App
         }
         $slug = Slug::plain((string)($_GET['slug'] ?? ''));
         $lang = Slug::plain((string)($_GET['lang'] ?? $this->defaultLanguage()));
+        if ($type === 'forms' && $slug === '') {
+            $lang = $this->defaultLanguage(); // a new form is built in the first language
+        } elseif ($type === 'forms' && $lang !== $this->defaultLanguage()) {
+            // A form is built once, in the first language; its other languages are translations edited in the same builder.
+            $query = ['type' => 'forms', 'slug' => $slug, 'lang' => $this->defaultLanguage(), 'translate' => $lang] + array_diff_key($_GET, ['type' => 1, 'slug' => 1, 'lang' => 1]);
+            $this->redirect('/admin/edit?' . http_build_query($query));
+            return;
+        }
         $this->render($type === 'forms' ? '@admin/form-edit.twig' : '@admin/edit.twig', $this->entryForm()->form($type, $slug, $lang, $_GET, $this->permissions->can($this->auth->user(), 'redirects.manage')) + ['user' => $this->auth->user()]);
     }
 
@@ -1951,6 +1980,7 @@ final class App
             'translations_renamed' => $result['translations_renamed'],
         ]);
         $this->redirect('/admin/edit?type=' . urlencode($type) . '&slug=' . urlencode($slug) . '&lang=' . urlencode($lang) . '&saved=1'
+            . ($type === 'forms' && Slug::plain((string)($_POST['translate_lang'] ?? '')) !== '' ? '&translate=' . urlencode(Slug::plain((string)$_POST['translate_lang'])) : '')
             . ($result['html_neutralized'] ? '&notice=html' : ($storageBlocked ? '&notice=storage' : ''))
             . ($result['moved'] ? '&address=changed' : '')
             . ($result['slug_taken'] !== '' ? '&address_taken=' . urlencode($result['slug_taken']) : ''));
@@ -2002,10 +2032,8 @@ final class App
     private function handleFormsNew(): void
     {
         $languages = array_map('strval', $this->settings['languages']['available'] ?? [$this->defaultLanguage()]);
-        $lang = Slug::plain((string)($_GET['lang'] ?? $this->defaultLanguage()));
-        if (!in_array($lang, $languages, true)) {
-            $lang = $this->defaultLanguage();
-        }
+        // A new form is built in the first language; the others are translations of it.
+        $lang = $this->defaultLanguage();
         $this->render('@admin/forms-new.twig', [
             'templates' => FormTemplates::all($lang),
             'lang' => $lang,
@@ -2410,9 +2438,9 @@ final class App
             return;
         }
 
-        $form = $this->content->find('forms', $slug, $lang, true, false);
+        $form = FormTranslations::find($this->content, $slug, $this->defaultLanguage(), true)['form'];
         if (!$form) {
-            $this->redirect('/admin/content?type=forms&lang=' . urlencode($lang));
+            $this->redirect('/admin/forms');
             return;
         }
 
@@ -2659,6 +2687,11 @@ final class App
 
     private function handleFormsList(): void
     {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && isset($_POST['dismiss_migration_report'])) {
+            $this->formTranslationMigration()->dismissReport();
+            $this->redirect('/admin/forms');
+            return;
+        }
         $defaultLang = (string)($this->settings['languages']['default'] ?? 'en');
         $languages = array_values(array_map('strval', $this->settings['languages']['available'] ?? [$defaultLang]));
         $filters = [
@@ -2677,6 +2710,7 @@ final class App
             'languages' => $languages,
             'default_lang' => $defaultLang,
             'deleted' => isset($_GET['deleted']),
+            'migration_report' => $this->formsAdmin()->migrationNote($this->formTranslationMigration()->report()),
             'types' => $this->content->getTypes(),
             'user' => $this->auth->user(),
             'admin_section' => 'forms',
@@ -2723,7 +2757,6 @@ final class App
                 'slug' => $slug,
                 'title' => (string)($form->meta['title'] ?? $slug),
                 'lang' => $form->lang,
-                'languages' => array_keys($versions),
             ],
             'rows' => $page['rows'],
             'filters' => $page['filters'],
@@ -2744,6 +2777,11 @@ final class App
             'admin_section' => 'forms',
             'current_type' => 'forms',
         ]);
+    }
+
+    private function formTranslationMigration(): FormTranslationMigration
+    {
+        return $this->formTranslationMigrationService ??= new FormTranslationMigration($this->content, $this->contentDir, $this->basePath . '/storage/form-translation', $this->settings);
     }
 
     private function formsAdmin(): FormsAdmin
@@ -3980,11 +4018,11 @@ final class App
 
     private function renderFormEmbedBySlug(string $slug, string $lang, string $currentPath): string
     {
-        $form = $this->content->find('forms', $slug, $lang, $this->auth->check(), true);
+        $form = FormTranslations::find($this->content, $slug, $lang, $this->auth->check())['form'];
         if (!$form) {
             return '';
         }
-        return $this->twig->render('components/form.twig', $this->publicForms()->embed($form, $currentPath, $this->formStates[$form->slug] ?? null, $_GET));
+        return $this->twig->render('components/form.twig', $this->publicForms()->embed($form, $currentPath, $this->formStates[$form->slug] ?? null, $_GET, $lang));
     }
 
     private function redirect(string $path): void

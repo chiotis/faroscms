@@ -24,13 +24,6 @@
       <p class="text-sm text-slate-500">Choose a form to start from. You can change everything afterwards.</p>
     </div>
     <div class="flex flex-wrap items-center gap-3">
-      {% if languages|length > 1 %}
-        <div class="inline-flex rounded-md border border-slate-300 bg-white p-0.5" role="group" aria-label="Language of the new form">
-          {% for code in languages %}
-            <a href="{{ url('admin/forms-new?lang=' ~ code) }}" class="rounded px-2.5 py-1 text-xs font-semibold no-underline {{ code == lang ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100' }}"{% if code == lang %} aria-current="true"{% endif %}>{{ code|upper }}</a>
-          {% endfor %}
-        </div>
-      {% endif %}
       <a class="{{ secondary_btn }}" href="{{ url('admin/forms') }}">
         <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
         Back to forms

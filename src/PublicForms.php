@@ -43,7 +43,10 @@ final class PublicForms
     {
         $settings = ($this->settings)();
         $paths = new ContentPaths($settings);
-        $fields = FormFields::normalize($form->meta['fields'] ?? []);
+        // The form is shown (and its submission recorded) in the language of the page; what has no translation is in the first language.
+        $default = (string)($settings['languages']['default'] ?? 'en');
+        $form = FormTranslations::localizeItem($form, $lang, $default);
+        $fields = FormTranslations::localizeFields(FormFields::normalize($form->meta['fields'] ?? []), $lang, $default);
         $values = $this->processor->defaults($fields);
         $errors = [];
         $message = (string)($form->meta['success_message'] ?? '');
@@ -95,7 +98,7 @@ final class PublicForms
         if (Format::isTruthy($form->meta['store_submissions'] ?? $settings['forms']['store_submissions'] ?? true)) {
             $this->submissions->store($form->slug, $this->processor->record($form, $values, $request['ip'], $request['agent']));
         }
-        $formUrl = ($this->absoluteUrl)($paths->publicPath('forms', $form->slug, $form->lang));
+        $formUrl = ($this->absoluteUrl)($paths->publicPath('forms', $form->slug, $lang));
         $siteMail = is_array($settings['forms']['notifications'] ?? null) ? $settings['forms']['notifications'] : [];
         foreach ($this->processor->emails($form, $values, $fields, $siteMail, $formUrl) as $mail) {
             ($this->send)($mail['to'], $mail['subject'], $mail['body'], $mail['headers']);
@@ -110,17 +113,30 @@ final class PublicForms
         return $result();
     }
 
+    /** The form as it is shown on a page in a language (its own page uses this too). */
+    public function localized(ContentItem $form, string $lang, ?\Closure $markdown = null): ContentItem
+    {
+        return FormTranslations::localizeItem($form, $lang, (string)((($this->settings)())['languages']['default'] ?? 'en'), $markdown);
+    }
+
     /**
      * What the form template needs to show a form inside a page.
      *
      * @param array<string, mixed>|null $state what handling this request found out about this form, if it was the one sent
      * @param array<string, mixed> $get the address's query
+     * @param string $lang the language of the page the form is shown in
      * @return array<string, mixed>
      */
-    public function embed(ContentItem $form, string $currentPath, ?array $state, array $get): array
+    public function embed(ContentItem $form, string $currentPath, ?array $state, array $get, string $lang = ''): array
     {
         $settings = ($this->settings)();
-        $fields = FormFields::normalize($form->meta['fields'] ?? []);
+        if ($lang !== '') {
+            $default = (string)($settings['languages']['default'] ?? 'en');
+            $form = FormTranslations::localizeItem($form, $lang, $default);
+            $fields = FormTranslations::localizeFields(FormFields::normalize($form->meta['fields'] ?? []), $lang, $default);
+        } else {
+            $fields = FormFields::normalize($form->meta['fields'] ?? []);
+        }
         $values = $this->processor->defaults($fields);
         $errors = [];
         $success = isset($get['sent']) && (string)($get['form'] ?? '') === $form->slug;

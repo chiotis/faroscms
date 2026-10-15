@@ -105,7 +105,7 @@ def heading_problems(p):
 
 root = Client(); root.login()
 PAGES = ['/admin', '/admin/content?type=pages', '/admin/content?type=posts', '/admin/edit?type=pages&slug=index&lang=en', '/admin/edit?type=posts&slug=&lang=en',
-         '/admin/edit?type=forms&slug=contact&lang=en', '/admin/forms-new', '/admin/media', '/admin/media?view=thumbs', '/admin/theme', '/admin/settings', '/admin/settings?tab=limits',
+         '/admin/edit?type=forms&slug=contact&lang=el', '/admin/forms-new', '/admin/media', '/admin/media?view=thumbs', '/admin/theme', '/admin/settings', '/admin/settings?tab=limits',
          '/admin/menus', '/admin/menus-edit?key=main', '/admin/forms', '/admin/taxonomies', '/admin/users', '/admin/users-edit?id=1', '/admin/roles', '/admin/redirects',
          '/admin/translations', '/admin/activity-logs', '/admin/email-logs', '/admin/backups', '/admin/updates', '/admin/omni', '/admin/system', '/admin/content-types',
          '/admin/content-types?type=posts', '/admin/import', '/admin/revisions',

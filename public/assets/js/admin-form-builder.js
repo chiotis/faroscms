@@ -10,6 +10,12 @@
  *   - names are made from the labels (Greek included) until the field has been saved; the Email tab offers each field as an
  *     answer to put in a subject or message, and as the address to reply to
  *   - Edit and Preview, Desktop and Phone; undo and redo; a warning before leaving with unsaved changes
+ *   - languages: the form is built in the first language only. A chip for each other language switches the builder to
+ *     translating: the canvas shows that language (what is not translated yet shows the first language and a badge), the
+ *     inspector edits the texts of the selected field (label, placeholder, help, the choices' labels), and the texts of
+ *     the form as a whole (the button, the messages, the emails) swap in the Settings, Email and Page tabs. Structure
+ *     cannot change while translating. Saving writes the translations next to the fields (form_fields_json) and the
+ *     form's own (form_translations_json).
  */
 (function () {
   'use strict';
@@ -43,9 +49,15 @@
   var notifyBox = root.querySelector('[data-fb-notify]');
   var notifyTo = root.querySelector('[data-fb-notify-to]');
   var notifyWarning = root.querySelector('[data-fb-notify-warning]');
+  var langBar = root.querySelector('[data-fb-langbar]');
+  var langChips = root.querySelector('[data-fb-chips-lang]');
+  var langNote = root.querySelector('[data-fb-lang-note]');
+  var transField = root.querySelector('[data-fb-translations-json]');
+  var translateField = root.querySelector('[data-fb-translate-lang]');
 
   var LAYOUT_EDIT = 'grid items-start gap-4 lg:grid-cols-[15rem_minmax(0,1fr)] xl:grid-cols-[15rem_minmax(0,1fr)_20rem]';
   var LAYOUT_PREVIEW = 'grid items-start gap-4 grid-cols-1';
+  var LAYOUT_TRANSLATE = 'grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]';
   var SPANS = { '': 6, 'two-thirds': 4, half: 3, third: 2 };
   var WIDTH_ORDER = ['third', 'half', 'two-thirds', ''];
   var WIDTH_NAMES = { '': 'Full', half: 'Half', third: 'Third', 'two-thirds': 'Two thirds' };
@@ -142,7 +154,10 @@
 
   var nextId = 1;
   var fields = [];
-  var state = { selected: 0, mode: 'edit', device: 'desktop' };
+  var state = { selected: 0, mode: 'edit', device: 'desktop', lang: '' };
+  var languages = data.languages || [];
+  var formTexts = {};     // language => { 'submit_label': text, 'notifications.subject': text, ... }
+  var defaultTexts = {};  // the first language's texts of the form, kept while a translation is shown in the inputs
   var undoStack = [];
   var redoStack = [];
   var lastKey = '';
@@ -171,7 +186,8 @@
       step: o.step || '',
       width: WIDTH_ORDER.indexOf(o.width || '') !== -1 ? (o.width || '') : '',
       saved: !!o.saved,
-      nameTouched: !!o.saved || !!o.nameTouched
+      nameTouched: !!o.saved || !!o.nameTouched,
+      tr: JSON.parse(JSON.stringify(o.translations && !Array.isArray(o.translations) ? o.translations : {}))
     };
     return f;
   }
@@ -179,8 +195,161 @@
   function plain(f) {
     return {
       type: f.type, name: f.name, label: f.label, required: f.required, placeholder: f.placeholder, help: f.help, 'default': f['default'],
-      options: f.options.map(function (o) { return { value: o.value, label: o.label }; }), rows: f.rows, min: f.min, max: f.max, step: f.step, width: f.width
+      options: f.options.map(function (o) { return { value: o.value, label: o.label }; }), rows: f.rows, min: f.min, max: f.max, step: f.step, width: f.width,
+      translations: cleanTranslations(f)
     };
+  }
+
+  /** The translations of a field without what is empty or belongs to a choice that is gone. */
+  function cleanTranslations(f) {
+    var out = {};
+    Object.keys(f.tr || {}).forEach(function (lang) {
+      var t = f.tr[lang] || {};
+      var row = {};
+      ['label', 'placeholder', 'help'].forEach(function (k) { if (String(t[k] || '').trim()) row[k] = String(t[k]).trim(); });
+      var options = {};
+      f.options.forEach(function (o) { var v = t.options && t.options[o.value]; if (v && String(v).trim()) options[o.value] = String(v).trim(); });
+      if (Object.keys(options).length) row.options = options;
+      if (Object.keys(row).length) out[lang] = row;
+    });
+    return out;
+  }
+
+  /* ---------- languages ---------- */
+
+  function filled(value) { return String(value === undefined || value === null ? '' : value).trim() !== ''; }
+
+  /** How many texts of a field the language still lacks (the same texts the server counts: what the first language has filled in). */
+  function fieldMissing(f, lang) {
+    var t = (f.tr && f.tr[lang]) || {};
+    var n = 0;
+    ['label', 'placeholder', 'help'].forEach(function (k) { if (filled(f[k]) && !filled(t[k])) n++; });
+    f.options.forEach(function (o) { if (filled(o.label) && !filled(t.options && t.options[o.value])) n++; });
+    return n;
+  }
+
+  /** The texts of the form as a whole in the first language, wherever they are now (in the boxes, or kept while a translation is in them). */
+  function defaultText(path) {
+    if (state.lang === '') {
+      var el = root.querySelector('[data-tr="' + path + '"]');
+      return el ? el.value : '';
+    }
+    return defaultTexts[path] || '';
+  }
+  function formText(lang, path) {
+    if (lang === state.lang && state.lang !== '') {
+      var el = root.querySelector('[data-tr="' + path + '"]');
+      return el ? el.value : '';
+    }
+    return (formTexts[lang] && formTexts[lang][path]) || '';
+  }
+  function formMissing(lang) {
+    var n = 0;
+    Array.prototype.forEach.call(root.querySelectorAll('[data-tr]'), function (el) {
+      var path = el.getAttribute('data-tr');
+      if (filled(defaultText(path)) && !filled(formText(lang, path))) n++;
+    });
+    return n;
+  }
+  function missingFor(lang) {
+    return fields.reduce(function (sum, f) { return sum + fieldMissing(f, lang); }, 0) + formMissing(lang);
+  }
+
+  /** The form's own translations as the server stores them. */
+  function nestedTexts() {
+    var out = {};
+    Object.keys(formTexts).forEach(function (lang) {
+      var row = {};
+      Object.keys(formTexts[lang]).forEach(function (path) {
+        var v = String(formTexts[lang][path] || '').trim();
+        if (!v) return;
+        var parts = path.split('.');
+        if (parts.length === 2) { row[parts[0]] = row[parts[0]] || {}; row[parts[0]][parts[1]] = v; } else row[path] = v;
+      });
+      if (Object.keys(row).length) out[lang] = row;
+    });
+    return out;
+  }
+
+  function langName(code) {
+    if (code === '') return data.default_name || data['default'];
+    var hit = languages.filter(function (l) { return l.code === code; })[0];
+    return hit ? hit.name : code;
+  }
+
+  /** Puts the texts of one language into the boxes of the form's own texts (title, button, messages, emails), keeping the others. */
+  function swapTexts(next) {
+    var boxes = root.querySelectorAll('[data-tr]');
+    var previous = state.lang;
+    Array.prototype.forEach.call(boxes, function (el) {
+      var path = el.getAttribute('data-tr');
+      if (!el.hasAttribute('data-orig-ph')) el.setAttribute('data-orig-ph', el.placeholder || '');
+      if (previous === '') defaultTexts[path] = el.value;
+      else { formTexts[previous] = formTexts[previous] || {}; formTexts[previous][path] = el.value; }
+    });
+    Array.prototype.forEach.call(boxes, function (el) {
+      var path = el.getAttribute('data-tr');
+      if (next === '') {
+        el.value = defaultTexts[path] || '';
+        el.placeholder = el.getAttribute('data-orig-ph');
+        el.classList.remove('ring-2', 'ring-amber-200');
+      } else {
+        el.value = (formTexts[next] && formTexts[next][path]) || '';
+        el.placeholder = defaultTexts[path] || el.getAttribute('data-orig-ph');
+        el.classList.add('ring-2', 'ring-amber-200');
+      }
+    });
+  }
+
+  function setLang(next) {
+    if (next === state.lang) return;
+    swapTexts(next);
+    state.lang = next;
+    if (next !== '') state.mode = 'edit';
+    Array.prototype.forEach.call(root.querySelectorAll('[data-default-only]'), function (el) { el.classList.toggle('hidden', next !== ''); });
+    var active = root.querySelector('.tab-button.active');
+    if (next !== '' && active && active.hasAttribute('data-default-only') && window.fbShowTab) window.fbShowTab('build');
+    if (translateField) translateField.value = next;
+    applyView();
+    refreshLangBar();
+    announce(next === '' ? 'Editing the form in ' + langName('') : 'Translating into ' + langName(next));
+  }
+
+  function refreshLangBar() {
+    if (!langBar) return;
+    langBar.classList.toggle('hidden', !languages.length);
+    langBar.classList.toggle('flex', languages.length > 0);
+    if (!languages.length) return;
+    langChips.textContent = '';
+    var all = [{ code: '', name: langName(''), short: data['default'] }].concat(languages.map(function (l) { return { code: l.code, name: l.name, short: l.code }; }));
+    all.forEach(function (l) {
+      var on = state.lang === l.code;
+      var missing = l.code === '' ? 0 : missingFor(l.code);
+      var kids = [h('span', { 'class': 'font-semibold uppercase' }, [l.short]), h('span', { 'class': 'hidden sm:inline' }, [l.name])];
+      if (l.code === '') kids.push(h('span', { 'class': 'rounded-full px-1.5 text-[10px] font-semibold ' + (on ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600') }, ['built here']));
+      else if (missing > 0) kids.push(h('span', { 'class': 'rounded-full px-1.5 text-[10px] font-semibold ' + (on ? 'bg-amber-300 text-slate-900' : 'bg-amber-100 text-amber-800') }, [missing + ' missing']));
+      else kids.push(h('span', { 'class': 'rounded-full px-1.5 text-[10px] font-semibold ' + (on ? 'bg-emerald-300 text-slate-900' : 'bg-emerald-100 text-emerald-800') }, ['done']));
+      langChips.appendChild(h('button', {
+        type: 'button',
+        'class': 'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ' + (on ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'),
+        'aria-pressed': on ? 'true' : 'false',
+        title: l.code === '' ? 'Build and edit the form' : 'Translate the form into ' + l.name,
+        onclick: function () { setLang(l.code); }
+      }, kids));
+    });
+    langNote.textContent = state.lang === ''
+      ? 'Fields, choices, order, validation and emails are built here, once, for every language. Pick another language to translate its texts.'
+      : 'Translating into ' + langName(state.lang) + '. Only texts change here; add, remove or reorder fields in ' + langName('') + '. A text left empty is shown in ' + langName('') + '.';
+  }
+
+  /** The field as the visitor sees it in the language being edited: translated texts where there are some, the first language's where not. */
+  function view(f) {
+    if (state.lang === '') return f;
+    var t = (f.tr && f.tr[state.lang]) || {};
+    var v = Object.assign({}, f);
+    ['label', 'placeholder', 'help'].forEach(function (k) { if (filled(t[k])) v[k] = t[k]; });
+    v.options = f.options.map(function (o) { return filled(t.options && t.options[o.value]) ? Object.assign({}, o, { label: t.options[o.value] }) : o; });
+    return v;
   }
   function serialize() { return JSON.stringify(fields.map(plain)); }
   function indexOf(id) { for (var i = 0; i < fields.length; i++) if (fields[i].id === id) return i; return -1; }
@@ -253,6 +422,7 @@
     if (redraw) { renderCanvas(); renderInspector(); }
     refreshAnswers();
     refreshDirty();
+    refreshLangBar();
   }
 
   function refreshDirty() {
@@ -312,7 +482,14 @@
   function buildCard(f) {
     var selected = state.mode === 'edit' && f.id === state.selected;
     var inEdit = state.mode === 'edit';
-    var bar = inEdit ? h('div', { 'class': 'fb-bar absolute -top-3 right-2 z-10 flex items-center gap-0.5 rounded-md border border-slate-200 bg-white p-0.5 shadow-sm' }, [
+    var translating = state.lang !== '';
+    var lacking = translating ? fieldMissing(f, state.lang) : 0;
+    var shown = view(f);
+    var badge = translating && inEdit ? h('span', {
+      'class': 'absolute -top-2.5 left-2 z-10 rounded-full px-2 py-0.5 text-[10px] font-semibold ' + (lacking ? 'bg-amber-100 text-amber-800 ring-1 ring-inset ring-amber-300' : 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200'),
+      'data-fb-badge': lacking ? 'missing' : 'done'
+    }, [lacking ? lacking + (lacking === 1 ? ' text to translate' : ' texts to translate') : 'Translated']) : null;
+    var bar = inEdit && !translating ? h('div', { 'class': 'fb-bar absolute -top-3 right-2 z-10 flex items-center gap-0.5 rounded-md border border-slate-200 bg-white p-0.5 shadow-sm' }, [
       h('button', {
         type: 'button',
         'class': 'fb-handle inline-flex h-7 w-6 cursor-grab touch-none select-none items-center justify-center rounded text-slate-500 hover:bg-slate-100 hover:text-slate-800 active:cursor-grabbing',
@@ -331,11 +508,11 @@
       'data-width': f.width,
       style: 'grid-column: span ' + SPANS[f.width] + ' / span ' + SPANS[f.width],
       tabindex: inEdit ? '0' : false,
-      'aria-label': inEdit ? summary(f) : false,
+      'aria-label': inEdit ? summary(shown) : false,
       'aria-current': selected ? 'true' : false,
       onclick: inEdit ? function () { select(f.id); } : false,
       onkeydown: inEdit ? function (e) { cardKey(e, f); } : false
-    }, [bar, h('div', { 'class': inEdit ? 'pointer-events-none' : '' }, fieldBody(f, !inEdit))]);
+    }, [badge, bar, h('div', { 'class': inEdit ? 'pointer-events-none' : '' }, fieldBody(shown, !inEdit))]);
     return li;
   }
 
@@ -346,8 +523,12 @@
     emptyEl.classList.toggle('hidden', fields.length > 0);
     emptyEl.classList.toggle('flex', fields.length === 0);
     countEl.textContent = String(fields.filter(function (f) { return !def(f.type).display; }).length || '');
-    submitPreview.textContent = (submitLabelInput && submitLabelInput.value.trim()) || 'Submit';
+    submitPreview.textContent = submitText();
     window.scrollTo(window.scrollX, y);
+  }
+
+  function submitText() {
+    return (submitLabelInput && submitLabelInput.value.trim()) || (state.lang !== '' && defaultTexts.submit_label) || 'Submit';
   }
 
   function refreshCard(f) {
@@ -393,9 +574,60 @@
     changed(false);
   }
 
+  /** While translating: the texts of the selected field, each with the first language's text under it. */
+  function renderTranslationInspector(f) {
+    var lang = state.lang;
+    var t = def(f.type);
+    inspectorTitle.textContent = t.label + ' · ' + lang.toUpperCase();
+    var items = [h('p', { 'class': 'rounded-md bg-slate-50 p-2.5 text-xs text-slate-600' }, ['Translating into ' + langName(lang) + '. The kind of field, its choices, width and order are the same in every language; change them in ' + langName('') + '.'])];
+
+    function text(key, labelText, multiline) {
+      var box = multiline ? h('textarea', { 'class': cls.input, rows: 3 }) : h('input', { type: 'text', 'class': cls.input });
+      box.value = (f.tr[lang] && f.tr[lang][key]) || '';
+      box.placeholder = f[key] || '';
+      box.setAttribute('lang', lang);
+      box.addEventListener('input', function () {
+        edit(f, 'tr:' + key + ':' + f.id, function () { f.tr[lang] = f.tr[lang] || {}; f.tr[lang][key] = box.value; });
+      });
+      return field(labelText, box, langName('') + ': ' + (f[key] || '—'));
+    }
+
+    items.push(text('label', f.type === 'heading' ? 'Heading' : (f.type === 'paragraph' ? 'Text' : 'Label'), f.type === 'paragraph'));
+    if (t.placeholder && filled(f.placeholder)) items.push(text('placeholder', 'Placeholder'));
+    if (!t.display && filled(f.help)) items.push(text('help', 'Help text'));
+    if (t.choice && f.options.length) {
+      var list = h('ul', { 'class': 'grid gap-2' }, f.options.map(function (o, i) {
+        var box = h('input', { type: 'text', 'class': cls.input + ' py-1.5', 'aria-label': 'Choice ' + (i + 1) + ' in ' + langName(lang), lang: lang });
+        box.value = (f.tr[lang] && f.tr[lang].options && f.tr[lang].options[o.value]) || '';
+        box.placeholder = o.label;
+        box.addEventListener('input', function () {
+          edit(f, 'tro:' + f.id + ':' + i, function () {
+            f.tr[lang] = f.tr[lang] || {};
+            f.tr[lang].options = f.tr[lang].options || {};
+            f.tr[lang].options[o.value] = box.value;
+          });
+        });
+        return h('li', { 'class': 'grid gap-0.5' }, [box, h('span', { 'class': 'text-xs text-slate-500' }, [langName('') + ': ' + o.label])]);
+      }));
+      items.push(h('div', { 'class': 'grid gap-1.5' }, [h('span', { 'class': 'text-xs font-medium text-slate-600' }, ['Choices']), list]));
+    }
+    inspector.appendChild(h('div', { 'class': 'grid gap-4' }, items));
+  }
+
   function renderInspector() {
     var f = byId(state.selected);
     inspector.textContent = '';
+    if (f && state.mode === 'edit' && state.lang !== '') { renderTranslationInspector(f); return; }
+    if ((!f || state.mode !== 'edit') && state.lang !== '') {
+      inspectorTitle.textContent = 'Translation · ' + state.lang.toUpperCase();
+      var lacking = fields.filter(function (x) { return fieldMissing(x, state.lang) > 0; });
+      inspector.appendChild(h('div', { 'class': 'grid gap-3 text-sm text-slate-600' }, [
+        h('p', {}, [fields.length ? 'Select a field in the form to translate its texts.' : 'There are no fields to translate yet. Add them in ' + langName('') + '.']),
+        lacking.length ? h('p', { 'class': 'rounded-md bg-amber-50 p-3 text-xs text-amber-800' }, [lacking.length + (lacking.length === 1 ? ' field has' : ' fields have') + ' texts still shown in ' + langName('') + '. They are marked on the form.']) : null,
+        h('p', { 'class': 'rounded-md bg-slate-50 p-3 text-xs text-slate-600' }, ['The button, the messages and the emails are translated on the ', h('button', { type: 'button', 'class': 'font-medium text-blue-700 underline', onclick: function () { window.fbShowTab && window.fbShowTab('settings'); } }, ['Settings']), ' and ', h('button', { type: 'button', 'class': 'font-medium text-blue-700 underline', onclick: function () { window.fbShowTab && window.fbShowTab('email'); } }, ['Email']), ' tabs.'])
+      ]));
+      return;
+    }
     if (!f || state.mode !== 'edit') {
       inspectorTitle.textContent = 'Form';
       var count = fields.filter(function (x) { return !def(x.type).display; }).length;
@@ -556,13 +788,15 @@
         var labelInput = h('input', { type: 'text', 'class': cls.input + ' py-1.5', value: opt.label, 'aria-label': 'Choice ' + (i + 1) });
         labelInput.addEventListener('input', function () {
           edit(f, 'opt:' + f.id + ':' + i, function () {
+            var before = opt.value;
             opt.label = labelInput.value;
             if (!opt.touched) opt.value = uniqueValue(f.options, slugify(opt.label) || 'option-' + (i + 1), opt);
+            renameChoice(f, before, opt.value);
           });
           if (showValues && !opt.touched) { var vi = list.children[i] && list.children[i].querySelector('[data-value]'); if (vi) vi.value = opt.value; }
         });
         var valueInput = showValues ? h('input', { type: 'text', 'class': cls.input + ' w-24 py-1.5 font-mono text-xs', value: opt.value, 'data-value': '1', 'aria-label': 'Value of choice ' + (i + 1), title: 'The value that is stored and sent' }) : null;
-        if (valueInput) valueInput.addEventListener('input', function () { edit(f, 'optv:' + f.id + ':' + i, function () { opt.touched = true; opt.value = valueInput.value.replace(/\|/g, '/'); }); });
+        if (valueInput) valueInput.addEventListener('input', function () { edit(f, 'optv:' + f.id + ':' + i, function () { var before = opt.value; opt.touched = true; opt.value = valueInput.value.replace(/\|/g, '/'); renameChoice(f, before, opt.value); }); });
         var grip = h('button', {
           type: 'button',
           'class': 'inline-flex h-8 w-6 shrink-0 cursor-grab touch-none select-none items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 active:cursor-grabbing',
@@ -628,6 +862,15 @@
     return box;
   }
 
+  /** A choice whose value changed keeps its translations. */
+  function renameChoice(f, from, to) {
+    if (from === to) return;
+    Object.keys(f.tr || {}).forEach(function (lang) {
+      var o = f.tr[lang] && f.tr[lang].options;
+      if (o && Object.prototype.hasOwnProperty.call(o, from)) { o[to] = o[from]; delete o[from]; }
+    });
+  }
+
   /** Reordering the choices of a field by dragging the grip of one (vertical, within the list). */
   function beginOptionDrag(event, index, list, f) {
     if (event.button !== undefined && event.button !== 0) return;
@@ -674,6 +917,7 @@
   /* ---------- changes made with buttons and keys ---------- */
 
   function act(id, what) {
+    if (state.lang !== '') return; // the structure is the first language's
     var i = indexOf(id);
     if (i < 0) return;
     var f = fields[i];
@@ -738,6 +982,7 @@
   /* ---------- adding fields ---------- */
 
   function addField(type, extra, at) {
+    if (state.lang !== '') return null;
     var f = newField(type, extra);
     record('');
     fields.splice(at === undefined ? fields.length : at, 0, f);
@@ -995,8 +1240,9 @@
     stage.classList.toggle('fb-narrow', state.device === 'phone');
     stage.style.maxWidth = state.device === 'phone' ? '24rem' : '';
     stage.classList.toggle('fb-preview', preview);
-    if (layout) layout.className = preview ? LAYOUT_PREVIEW : LAYOUT_EDIT;
-    paletteWrap.classList.toggle('hidden', preview);
+    if (layout) layout.className = preview ? LAYOUT_PREVIEW : (translating ? LAYOUT_TRANSLATE : LAYOUT_EDIT);
+    var translating = state.lang !== '';
+    paletteWrap.classList.toggle('hidden', preview || translating);
     inspectorWrap.classList.toggle('hidden', preview);
     Array.prototype.forEach.call(root.querySelectorAll('[data-fb-mode], [data-fb-device]'), function (btn) {
       var on = btn.hasAttribute('data-fb-mode') ? btn.getAttribute('data-fb-mode') === state.mode : btn.getAttribute('data-fb-device') === state.device;
@@ -1012,7 +1258,7 @@
     if (window.fbShowTab) window.fbShowTab('settings');
     if (submitLabelInput) submitLabelInput.focus();
   });
-  if (submitLabelInput) submitLabelInput.addEventListener('input', function () { submitPreview.textContent = submitLabelInput.value.trim() || 'Submit'; });
+  if (submitLabelInput) submitLabelInput.addEventListener('input', function () { submitPreview.textContent = submitText(); });
 
   document.addEventListener('keydown', function (event) {
     if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
@@ -1033,10 +1279,15 @@
   });
 
   // Anything else on the screen that changes marks the form as changed.
-  form.addEventListener('input', function (event) { if (!event.target.closest('[data-panel="build"]')) { otherDirty = true; refreshDirty(); } });
+  form.addEventListener('input', function (event) { if (!event.target.closest('[data-panel="build"]')) { otherDirty = true; refreshDirty(); } if (event.target.hasAttribute && event.target.hasAttribute('data-tr')) refreshLangBar(); });
   form.addEventListener('change', function (event) { if (!event.target.closest('[data-panel="build"]')) { otherDirty = true; refreshDirty(); } });
 
   form.addEventListener('submit', function (event) {
+    // The boxes go back to the first language's texts (they are what the form's settings are), the translations travel in their own field.
+    var open = state.lang;
+    if (open !== '') { swapTexts(''); state.lang = ''; }
+    if (translateField) translateField.value = open;
+    if (transField) transField.value = JSON.stringify(nestedTexts());
     jsonField.value = serialize();
     submitting = true;
     window.setTimeout(function () { if (event.defaultPrevented) submitting = false; }, 0);
@@ -1049,6 +1300,17 @@
 
   /* ---------- start ---------- */
 
+  Object.keys(data.translations || {}).forEach(function (lang) {
+    var row = data.translations[lang] || {};
+    formTexts[lang] = {};
+    Object.keys(row).forEach(function (key) {
+      if (row[key] && typeof row[key] === 'object') Object.keys(row[key]).forEach(function (sub) { formTexts[lang][key + '.' + sub] = row[key][sub]; });
+      else formTexts[lang][key] = row[key];
+    });
+  });
+  Array.prototype.forEach.call(root.querySelectorAll('[data-fb-translate]'), function (btn) {
+    btn.addEventListener('click', function () { setLang(btn.getAttribute('data-fb-translate')); if (window.fbShowTab) window.fbShowTab('build'); });
+  });
   fields = (data.fields || []).map(function (row) { return makeField(row); });
   state.selected = fields.length ? fields[0].id : 0;
   renderPalette();
@@ -1058,4 +1320,6 @@
   // A form that starts from a template is not saved yet, so leaving it is a change.
   otherDirty = !data.existing;
   refreshDirty();
+  refreshLangBar();
+  if (data.open && languages.some(function (l) { return l.code === data.open; })) setLang(data.open);
 })();
