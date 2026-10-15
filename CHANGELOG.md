@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.116 — 2026-10-15 — A change in the admin empties the page cache
+- **Whatever is saved in the admin empties the cache in front of the site** (content, settings, menus, media, redirects, an update), so visitors see the change at once however long the cache keeps a page. Screens that only read, preview or export do not.
+- **On CloudPanel it works by itself**: the CMS finds CloudPanel's Varnish controller and hands it a purge of the site's cache tag. CloudPanel keeps pages as long as its Cache Lifetime says (its controller replaces the CMS's `Cache-Control`), so before this a change could take up to a week to show.
+- **Any other Varnish**: its address under **System > Page cache**; the CMS sends `PURGE /` with the site's host, which the VCL turns into a ban (`docs/varnish.md`).
+- **System > Page cache** shows which cache the site found and has an "Empty the page cache" button.
+- Not kept by the cache: what an editor sees (they may see drafts), the maintenance page during an update, the analytics beacon and a picture that could not be made. Checked by `tests/unit/front-cache.php`.
+
 ## 0.1.115 — 2026-10-15 — Public pages are lighter on the server
 - **A visitor of the public site no longer gets a session.** The admin, a form that is sent and anyone who already has a session (an editor, who sees drafts) still do; everyone else gets no cookie. A public page seen without a session says `Cache-Control: public, max-age=0, s-maxage=60`, so a cache in front of the site (Varnish, a CDN) may keep it for a minute and the browser still asks each time; with a session it says `private, no-store`. Before, every page set a session cookie, so a cache in front of the site passed every visit to PHP.
 - **Content files are parsed once, not on every visit.** The front matter and the HTML of each Markdown file are kept in `storage/cache/content` (one file per type) and read from there while the file's time and size are the same; a new, changed or removed file is seen at once, a file whose front matter cannot be read is never kept (so it is still reported), and a new version of the code starts the store over. Before, each page parsed and converted every file of each type it listed, which on a site with many posts kept PHP busy. Checked by `tests/unit/content-store.php`.
