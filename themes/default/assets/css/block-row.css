@@ -107,6 +107,21 @@
 .block-row > :is(.block--w-25, .block--w-33, .block--w-50) .cols {
     grid-template-columns: minmax(0, 1fr);
   }
+  /* The gap of a side-by-side layout is sized for a full row (up to 6rem); once the halves are stacked it is the space between them. */
+.block-row > :is(.block--w-25, .block--w-33, .block--w-50).block--split .checklist-layout,
+.block-row > :is(.block--w-25, .block--w-33, .block--w-50) .contact-layout.has-form,
+.block-row > :is(.block--w-25, .block--w-33, .block--w-50).block-faq.block--split .faq-layout,
+.block-row > :is(.block--w-25, .block--w-33, .block--w-50).block-form.block--split .form-block-layout,
+.block-row > :is(.block--w-25, .block--w-33, .block--w-50).block-hero.block--split .hero-inner,
+.block-row > :is(.block--w-25, .block--w-33, .block--w-50) .map-split,
+.block-row > :is(.block--w-25, .block--w-33, .block--w-50) .tabs-panel-inner,
+.block-row > :is(.block--w-25, .block--w-33, .block--w-50) .text-split,
+.block-row > :is(.block--w-25, .block--w-33, .block--w-50) .video-split {
+    row-gap: var(--space-l);
+  }
+  .block-row > :is(.block--w-25, .block--w-33, .block--w-50).block-form.block--split .form-block-head:empty {
+    display: none;
+  }
 .block-row > :is(.block--w-25, .block--w-33, .block--w-50) .features-grid,
 .block-row > :is(.block--w-25, .block--w-33, .block--w-50) .gallery-list,
 .block-row > :is(.block--w-25, .block--w-33, .block--w-50) .team-list,

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.125 — 2026-10-15 — No big gap inside a narrow block
+- **A block in a column no longer has a large empty space inside it.** The side-by-side layouts (Form, FAQ, Checklist and Hero split, Contact with a form, Text, Video, Map and Tabs) keep a gap sized for a full row (up to 6rem); in a 25, 33 or 50% column their two halves are one above the other, so that gap became the space between them. There it is now the theme's large space (2rem).
+- **A Form beside the text with no heading starts at the top of its column.** Its empty heading area took a row of its own when stacked, in a column and on a phone; it is now left out there. On a full row the form keeps its place on the right.
+
 ## 0.1.124 — 2026-10-15 — Custom CSS in Theme settings
 - **Theme > Custom CSS** is a new last tab: the site's own stylesheet as an editable text area (monospace, Tab inserts two spaces, Escape then Tab moves on). It reads and writes `custom/assets/css/custom.css`, the file that is already loaded after the theme's stylesheet on every page, so a file edited by hand or kept in git shows up in the box and the other way round. It is saved with the rest of the theme settings; the file is written whole or not at all, line endings are made `\n`, an unchanged text is not rewritten (the file keeps its version), and an empty box empties the file. Up to 512 KB.
 
