@@ -1,9 +1,11 @@
 label: Text and image
-description: Text with an image beside it. Alternate left and right to give long pages a rhythm.
+description: Text with an image beside it, above it or below it. Alternate left and right to give long pages a rhythm.
 category: Content
 variants:
   image-right: Image on the right
   image-left: Image on the left
+  image-top: Image above the text
+  image-bottom: Image below the text
 fields:
   eyebrow:
     type: text
@@ -35,4 +37,4 @@ fields:
     type: select
     label: Image shape
     default: landscape
-    options: { landscape: 'Landscape (4:3)', portrait: 'Portrait (4:5)', square: 'Square' }
+    options: { landscape: 'Landscape (4:3)', wide: 'Wide (16:9)', portrait: 'Portrait (4:5)', square: 'Square' }

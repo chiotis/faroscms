@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.128 — 2026-10-15 — Text and image: the picture above or below the text
+- **Text and image has two more layouts, *Image above the text* and *Image below the text*** (`image-top`, `image-bottom`), next to *Image on the right* and *on the left*. The text and the picture are one column: the picture runs across the whole width, never taller than 34 rem, and the text keeps a readable measure. They have their own small drawings in the layout choice of the editor, and work with the block's Width like the other layouts.
+- **A new picture shape, Wide (16:9)**, for a picture across the whole width.
+
 ## 0.1.127 — 2026-10-15 — A picture alone in a Columns column fills the column
 - **In *Columns*, a column that has a picture but no text and no link shows the picture across the whole column.** In the *Picture beside the text* layout (the default) the picture sits in a narrow column of 7 to 14 rem and the text takes the rest, so a column of only a picture (a row of logos or certificates, say) showed a small picture and an empty space beside it. Such a column is marked `is-bare`, drops its empty text area, and asks for a larger file (`sizes`) so the picture stays sharp. Columns with text, or with a link, look as before.
 

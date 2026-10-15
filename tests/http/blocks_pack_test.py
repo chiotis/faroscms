@@ -228,5 +228,15 @@ check('a column with only a picture is marked and has no empty text area', len(a
 check('a column with a picture and text keeps the picture beside the text', 'is-bare' not in arts[1] and 'col-body' in arts[1], arts[1:])
 check('the narrow picture column applies only to columns that are not bare', ':not(.is-bare) .col-main' in open('app/themes/default/blocks/columns/block.css', encoding='utf-8').read())
 
+# ---- Text and image: the picture can also sit above or below the text
+ti = defs['text-image']
+check('Text and image offers the picture above and below, drawn, and a wide shape', [o[0] for o in next(f for f in ti['common'] if f['key'] == 'variant')['options']] == ['image-right', 'image-left', 'image-top', 'image-bottom'] and sorted(ti['variant_previews']) == ['image-bottom', 'image-left', 'image-right', 'image-top'] and 'wide' in [o[0] for o in next(f for f in ti['fields'] if f['key'] == 'image_ratio')['options']], sorted(ti['variant_previews']))
+for variant in ('image-top', 'image-bottom'):
+    st, _, html = page('ti-' + variant, {'type': 'text-image', 'variant': variant, 'heading': 'Above or below', 'image': '/uploads/a.png', 'image_ratio': 'wide'})
+    t = section(html, 'text-image')
+    check('%s renders its variant class and the wide frame' % variant, ('block--' + variant) in t and 'ratio-wide' in t and 'ti-text' in t and 'ti-media' in t, t[:200])
+ti_css = open('app/themes/default/blocks/text-image/block.css', encoding='utf-8').read()
+check('its style sheet puts the picture first for "above" and keeps one column', '.block--image-top .ti-media' in ti_css and '.ti-media.ratio-wide' in ti_css)
+
 print('\nALL PASSED' if not fails else '\n%d FAILED: %s' % (len(fails), fails))
 sys.exit(1 if fails else 0)

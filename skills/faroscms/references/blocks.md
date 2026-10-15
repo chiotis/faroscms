@@ -1,4 +1,4 @@
-# Blocks of this installation (FarosCMS 0.1.127)
+# Blocks of this installation (FarosCMS 0.1.128)
 
 ## Fields every block has
 
@@ -619,9 +619,9 @@ A heading with rich text. Use it for introductions, statements, and longer copy.
 | &nbsp;&nbsp;`actions[].style` | choice; one of `primary`, `secondary`; default `primary` |  |
 
 ### `text-image` — Text and image
-Text with an image beside it. Alternate left and right to give long pages a rhythm.
+Text with an image beside it, above it or below it. Alternate left and right to give long pages a rhythm.
 
-**Layouts** (`variant`): `image-right` (Image on the right), `image-left` (Image on the left). First is the default.
+**Layouts** (`variant`): `image-right` (Image on the right), `image-left` (Image on the left), `image-top` (Image above the text), `image-bottom` (Image below the text). First is the default.
 
 | field | kind and choices | notes |
 |---|---|---|
@@ -634,7 +634,7 @@ Text with an image beside it. Alternate left and right to give long pages a rhyt
 | &nbsp;&nbsp;`actions[].style` | choice; one of `primary`, `secondary`; default `primary` |  |
 | `image` | image |  |
 | `image_alt` | text | What the image shows. Leave empty if it is purely decorative. |
-| `image_ratio` | choice; one of `landscape`, `portrait`, `square`; default `landscape` |  |
+| `image_ratio` | choice; one of `landscape`, `wide`, `portrait`, `square`; default `landscape` |  |
 
 ### `timeline` — Timeline
 Milestones or process steps in order, each with a date or label, a title, and text.
