@@ -51,6 +51,15 @@ final class LanguageAlternates
             $homeSlug = 'index';
         }
 
+        if ($type === 'forms') {
+            // A form is one thing in every language (its texts are translated inside it), so each language has its address.
+            $links = [];
+            foreach ($available as $lang) {
+                $links[$lang] = ContentPaths::build($type, $item->slug, $lang, $homeSlug, $defaultLang);
+            }
+            return $links;
+        }
+
         $translationId = (string)($item->meta['translation_id'] ?? '');
         $all = $this->content->getItems($type, null, true, false);
         $matches = [];

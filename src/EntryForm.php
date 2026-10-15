@@ -128,10 +128,8 @@ final class EntryForm
             unset($withoutBlocks['blocks']);
             $frontmatter = $withoutBlocks === [] ? '' : trim(Yaml::dump($withoutBlocks, 10, 2, Yaml::DUMP_MULTI_LINE_LITERAL_BLOCK));
         }
-        // A new form starts from a ready-made one the person chose, or, when it is the translation of a form, from that form in the
-        // default language (the labels are then there to be translated).
+        // A new form starts from a ready-made one the person chose.
         $starterName = '';
-        $copiedFrom = '';
         if ($type === 'forms' && $isNew && is_array($meta)) {
             $starter = null;
             $template = FormTemplates::get(Slug::plain((string)($query['template'] ?? '')), $lang);
@@ -141,12 +139,6 @@ final class EntryForm
                     'submit_label' => $template['submit_label'], 'success_message' => $template['success_message'],
                 ];
                 $starterName = $template['name'];
-            } elseif ($slug !== '' && $lang !== $defaultLang) {
-                $source = $this->content->find('forms', $slug, $defaultLang, true, false);
-                if ($source !== null) {
-                    $starter = array_intersect_key($source->meta, array_flip(['title', 'fields', 'notifications', 'submit_label', 'success_message', 'redirect_url', 'antispam', 'store_submissions']));
-                    $copiedFrom = $defaultLang;
-                }
             }
             if ($starter !== null) {
                 $meta = array_merge($meta, $starter);
@@ -293,8 +285,8 @@ final class EntryForm
             'current_type' => $type,
             'form_fields' => $formFields,
             'form_starter' => $starterName,
-            'form_copied_from' => $copiedFrom,
-            'form_builder_json' => $type === 'forms' ? $this->builderJson($formFields, $slug, $lang, !$isNew) : '',
+            'form_translation_status' => $type === 'forms' ? $this->translationStatus($meta, $body, $settings) : [],
+            'form_builder_json' => $type === 'forms' ? $this->builderJson($formFields, $slug, $lang, !$isNew, is_array($meta) ? $meta : [], $settings, Slug::plain((string)($query['translate'] ?? ''))) : '',
             'form_notifications' => $formNotifications,
             'form_settings' => $formSettings,
             'form_submissions' => $formSubmissions,
@@ -305,15 +297,49 @@ final class EntryForm
         ];
     }
 
-    /** What the form builder starts with, as JSON for the page. @param array<int, array<string, mixed>> $fields */
-    private function builderJson(array $fields, string $slug, string $lang, bool $existing): string
+    /**
+     * What each other language of a form still lacks, for the Translations tab.
+     *
+     * @param array<string, mixed>|mixed $meta
+     * @param array<string, mixed> $settings
+     * @return array<int, array{lang: string, name: string, missing: int, total: int}>
+     */
+    private function translationStatus(mixed $meta, string $body, array $settings): array
     {
+        $default = (string)($settings['languages']['default'] ?? 'en');
+        $languages = array_values(array_map('strval', $settings['languages']['available'] ?? [$default]));
+        $texts = is_array($meta) ? $meta : [];
+        $texts['body'] = $body;
+        $rows = [];
+        foreach (FormTranslations::overview($texts, $languages, $default) as $lang => $count) {
+            $rows[] = ['lang' => $lang, 'name' => MenuAdmin::languageName($lang), 'missing' => $count['missing'], 'total' => $count['total']];
+        }
+        return $rows;
+    }
+
+    /**
+     * What the form builder starts with, as JSON for the page: the fields (each with its translations), the languages of the
+     * site, the translations of the form's own texts, and the language to open on.
+     *
+     * @param array<int, array<string, mixed>> $fields
+     * @param array<string, mixed> $meta
+     * @param array<string, mixed> $settings
+     */
+    private function builderJson(array $fields, string $slug, string $lang, bool $existing, array $meta, array $settings, string $translate): string
+    {
+        $default = (string)($settings['languages']['default'] ?? 'en');
+        $others = array_values(array_diff(array_map('strval', $settings['languages']['available'] ?? [$default]), [$default]));
         return (string)json_encode([
             'fields' => $fields,
             'slug' => $slug,
             'lang' => $lang,
             'existing' => $existing,
             'shortcode' => $slug !== '' ? '[form slug="' . $slug . '"]' : '',
+            'default' => $default,
+            'default_name' => MenuAdmin::languageName($default),
+            'languages' => array_map(static fn(string $code): array => ['code' => $code, 'name' => MenuAdmin::languageName($code)], $others),
+            'translations' => (object)FormTranslations::cleanForm($meta['translations'] ?? [], $others),
+            'open' => in_array($translate, $others, true) ? $translate : '',
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE);
     }
 

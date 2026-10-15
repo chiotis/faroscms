@@ -135,6 +135,13 @@ final class ContentRepository
         return $types;
     }
 
+    /** Forgets what was read in this request, for code that changed files and reads them again. */
+    public function forget(): void
+    {
+        $this->cache = [];
+        $this->parsed = [];
+    }
+
     /** @return ContentItem[] */
     public function getItems(string $type, ?string $lang = null, bool $includeHidden = false, bool $fallbackDefault = true): array
     {

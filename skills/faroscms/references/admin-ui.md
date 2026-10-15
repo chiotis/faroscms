@@ -16,7 +16,7 @@ Left menu: **Content** (Pages, Posts, Projects… the types that are on, Media),
 | Import / Export | `/admin/import?type=posts`, `/admin/export?type=posts` | CSV in and out (see `importing.md`) |
 | Media | `/admin/media` | upload, alt text, tags, where a file is used |
 | Menus | `/admin/menus` | two-panel menu editor, labels per language, which menu goes in header/footer |
-| Forms | `/admin/forms` | form builder, submissions, CSV export |
+| Forms | `/admin/forms` | form builder (built once, in the first language; a chip for each other language translates its texts), submissions (filter by language), CSV export |
 | Theme | `/admin/theme?tab=header` | tabs per section, Branding, Single Layouts, Archive Layouts, Footer Blocks (live preview) |
 | SEO | `/admin/seo?tab=search` | title format, social cards, robots, sitemap, structured data, checks of every entry |
 | Redirects | `/admin/redirects` | add, import a list; *Not found* tab: addresses visitors missed, *Ignore all* for bot noise |

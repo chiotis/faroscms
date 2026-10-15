@@ -76,9 +76,10 @@ final class FormFields
      * answer, a part that only shows something (a heading, a paragraph) is named after its kind when it has no name, and
      * options come as a list of choices (value and label) or as text, one per line.
      *
+     * @param string[] $languages the languages a field may be translated into (any when empty)
      * @return array<int, array<string, mixed>>
      */
-    public static function parseInput(mixed $input): array
+    public static function parseInput(mixed $input, array $languages = []): array
     {
         if (!is_array($input)) {
             return [];
@@ -121,6 +122,10 @@ final class FormFields
                 $field['width'] = $width;
             }
             if (self::isDisplay($type)) {
+                $translations = FormTranslations::cleanField($row['translations'] ?? [], [], $languages);
+                if ($translations !== []) {
+                    $field['translations'] = $translations;
+                }
                 $fields[] = $field;
                 continue;
             }
@@ -158,6 +163,10 @@ final class FormFields
             $step = trim((string)($row['step'] ?? ''));
             if ($step !== '') {
                 $field['step'] = $step;
+            }
+            $translations = FormTranslations::cleanField($row['translations'] ?? [], array_column(self::normalizeOptions($field['options'] ?? []), 'value'), $languages);
+            if ($translations !== []) {
+                $field['translations'] = $translations;
             }
             $fields[] = $field;
         }
@@ -243,6 +252,7 @@ final class FormFields
                 'min' => (string)($row['min'] ?? ''),
                 'max' => (string)($row['max'] ?? ''),
                 'step' => (string)($row['step'] ?? ''),
+                'translations' => FormTranslations::cleanField($row['translations'] ?? []),
             ];
             $normalized[] = $field;
         }

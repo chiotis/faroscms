@@ -9,7 +9,7 @@ content/
   pages/        about.md  about.en.md  index.md …      (the "pages" type: always on)
   posts/        news-item.md  news-item.en.md …
   projects/     …                                      (and books/, points/, routes/, businesses/, or a type the site made)
-  forms/        contact.md  contact.en.md              (a form is a content file too)
+  forms/        contact.md                             (a form is a content file too; its other languages are translations inside it)
   menus/        main.yaml  footer.yaml  legal.yaml     (navigation)
   taxonomies/   categories.yaml  tags.yaml  <own>.yaml (the terms content is filed under)
   media/        <id>.yaml                              (a note about each uploaded file: alt text, tags)
@@ -150,7 +150,7 @@ items:
 
 ## Forms
 
-`content/forms/<slug>.md` (+ `.en.md`). Front matter only: `submit_label`, `success_message`, `store_submissions`, `notifications: {enabled, to, subject, reply_to_field, auto_reply…}`, `antispam: {honeypot, rate_limit_seconds}` and `fields:`, each `{type, name, label, required, placeholder, options, rows, width}`. Types: `text email textarea number tel url date time datetime-local select radio checkbox checkboxes hidden color range heading paragraph`. `options` are lines `value|Label`. Field `name`s must be unique. Put a form on a page with the `form` block (`form: <slug>`) or `[form slug="<slug>"]`. Mail needs SMTP or SES set in Admin > Settings > Email (a person does this: it holds passwords); without it submissions are still stored (Admin > Forms).
+`content/forms/<slug>.md`, **one file for every language** (never `contact.en.md`: that is how older versions kept a translation, and the CMS folds such copies into the form by itself). Build the form in the site's first language. Front matter only: `submit_label`, `success_message`, `store_submissions`, `notifications: {enabled, to, subject, reply_to_field, auto_reply…}`, `antispam: {honeypot, rate_limit_seconds}` and `fields:`, each `{type, name, label, required, placeholder, help, options, rows, width}`. Types: `text email textarea number tel url date time datetime-local select radio checkbox checkboxes hidden color range heading paragraph`. `options` are lines `value|Label`. Field `name`s must be unique. Other languages are translations in the same file: on a field `translations: {en: {label, placeholder, help, options: {<value>: <label>}}}` (the option values never change), on the form `translations: {en: {title, excerpt, body, submit_label, success_message, notifications: {subject, auto_reply_subject, auto_reply_message}}}`. A text with no translation is shown in the first language and flagged in the builder; do not copy fields, options, widths or settings into a second file. The form is shown in the language of the page, submissions record that language (`lang`) and the automatic reply uses it. Put a form on a page with the `form` block (`form: <slug>`) or `[form slug="<slug>"]` (the same slug on the page of every language). Mail needs SMTP or SES set in Admin > Settings > Email (a person does this: it holds passwords); without it submissions are still stored (Admin > Forms). Details: `docs/forms.md`.
 
 ## Media
 

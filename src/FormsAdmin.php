@@ -21,7 +21,8 @@ final class FormsAdmin
     }
 
     /**
-     * The forms of the site, one row each (a form with translations is one row), filtered and sorted.
+     * The forms of the site, one row each, filtered and sorted. A form is built once, in the first language; each row says how much of it
+     * the other languages still lack.
      *
      * @param array{q?: string, status?: string} $filters
      * @param string[] $languages every language of the site
@@ -41,6 +42,8 @@ final class FormsAdmin
             $primary = $versions[$defaultLang] ?? reset($versions);
             $stats = $this->submissions->stats((string)$slug);
             $notifications = is_array($primary->meta['notifications'] ?? null) ? $primary->meta['notifications'] : [];
+            $texts = $primary->meta;
+            $texts['body'] = $primary->markdown;
             $status = (string)($primary->meta['status'] ?? 'published');
             $rows[] = [
                 'slug' => (string)$slug,
@@ -48,8 +51,9 @@ final class FormsAdmin
                 'status' => $status,
                 'lang' => $primary->lang,
                 'field_count' => count(FormFields::normalize($primary->meta['fields'] ?? [])),
-                'languages' => array_keys($versions),
-                'missing_languages' => array_values(array_diff($languages, array_keys($versions))),
+                // How much each other language still lacks, and the older per-language copies that were not folded into the form yet.
+                'translations' => FormTranslations::overview($texts, $languages, $defaultLang),
+                'copies' => array_values(array_diff(array_keys($versions), [$primary->lang])),
                 'submissions' => $stats['total'],
                 'recent' => $stats['last_7_days'],
                 'latest_submission' => $stats['latest'] !== '' ? FormProcessor::date($stats['latest']) : '',
@@ -79,6 +83,32 @@ final class FormsAdmin
             default => $b['updated'] <=> $a['updated'],
         });
         return ['rows' => $rows, 'totals' => $totals, 'sort' => $sort];
+    }
+
+    /**
+     * What the folding of per-language copies left for a person to look at: texts of fields that had no match, settings that differed,
+     * and copies that had no first-language form. Null when there is nothing to look at.
+     *
+     * @param array<string, mixed> $report
+     * @return array{unmatched: array<int, array<string, mixed>>, differing: array<int, array<string, mixed>>, skipped: array<int, array<string, mixed>>, ran_at: string}|null
+     */
+    public function migrationNote(array $report): ?array
+    {
+        $unmatched = [];
+        $differing = [];
+        foreach ((array)($report['forms'] ?? []) as $form) {
+            foreach ((array)($form['unmatched'] ?? []) as $row) {
+                $unmatched[] = ['form' => (string)$form['form']] + (array)$row;
+            }
+            foreach ((array)($form['differing'] ?? []) as $row) {
+                $differing[] = ['form' => (string)$form['form']] + (array)$row;
+            }
+        }
+        $skipped = array_values((array)($report['skipped'] ?? []));
+        if ($unmatched === [] && $differing === [] && $skipped === []) {
+            return null;
+        }
+        return ['unmatched' => $unmatched, 'differing' => $differing, 'skipped' => $skipped, 'ran_at' => (string)($report['ran_at'] ?? '')];
     }
 
     /** The versions of one form (language => entry), or none when there is no such form. @return array<string, ContentItem> */
