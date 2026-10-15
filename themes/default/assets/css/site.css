@@ -2812,14 +2812,18 @@ body.has-transparent-header:not(.header-solid) .site-header.is-on-dark[data-stic
 .form-grid button,
 .search-form button {
   justify-self: start;
-  min-height: 2.875rem;
-  padding: 0.7rem 1.5rem;
+  min-height: var(--btn-height, 2.875rem);
+  padding: 0.7rem var(--btn-pad-x, 1.5rem);
   border: 1px solid var(--accent);
   border-radius: var(--radius-button);
   background: var(--accent);
   color: var(--accent-contrast);
   font: inherit;
-  font-weight: 600;
+  font-size: var(--btn-size, 0.95rem);
+  font-weight: var(--btn-weight, 600);
+  letter-spacing: var(--btn-tracking, normal);
+  text-transform: var(--btn-case, none);
+  line-height: 1.2;
   cursor: pointer;
 }
 
