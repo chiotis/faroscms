@@ -142,6 +142,8 @@
     }
     var count = document.querySelector('[data-block-count]');
     if (count) count.textContent = total ? String(total) : '';
+    // Whatever changed the blocks (add, remove, move, a field, a design setting) ends here: the live preview listens for it.
+    document.dispatchEvent(new CustomEvent('bk:change', { detail: { count: total } }));
   }
 
   /** The share of the row a block takes (25, 50, 75 or 100). */

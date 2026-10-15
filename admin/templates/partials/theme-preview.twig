@@ -1,6 +1,7 @@
 {#
   The real site beside the settings, in a frame (Theme > Branding, Header, Footer). admin-preview.js keeps it in step with the
-  choices that are not saved yet. It needs the address of the page to show (preview_url).
+  choices that are not saved yet. It needs the address of the page to show (preview_url; without one the frame starts empty and the
+  script draws it, as the content editor does with preview_title and preview_note for its own texts).
 #}
 <aside class="bp-preview" aria-label="Preview">
   <div class="bp-bar">
@@ -17,7 +18,7 @@
     <button type="button" class="bp-reload" data-bp-reload>Reload</button>
   </div>
   <div class="bp-stage" data-bp-stage>
-    <iframe class="bp-frame" data-bp-frame src="{{ preview_url }}" title="Preview of the site" loading="lazy"></iframe>
+    <iframe class="bp-frame" data-bp-frame{% if preview_url|default('') %} src="{{ preview_url }}" loading="lazy"{% endif %} title="{{ preview_title|default('Preview of the site') }}"></iframe>
   </div>
-  <p class="bp-note">The real site, with your unsaved choices. Links inside it work; the choices stay while you look around.</p>
+  <p class="bp-note">{{ preview_note|default('The real site, with your unsaved choices. Links inside it work; the choices stay while you look around.') }}</p>
 </aside>

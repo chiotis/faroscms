@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.129 — 2026-10-15 — A live preview beside the editor
+- **A *Preview* button in the editor's header shows the page beside the form**, drawn by the theme from what is in the form right now: blocks, front matter, title, template and text, saved or not. Nothing is saved and no version is written. It updates shortly after you stop typing and after every change in the Blocks tab (add, remove, move, a field, a design setting), and keeps its place on the page.
+- **Computer, tablet and phone, light and dark**, as in Theme. Drag the edge of the panel (or use the arrow keys on it) to make it wider or narrower; the width and whether it is shown are remembered. On a narrow window it is a drawer over the form.
+- **Click a block in the preview to open it in the builder**, and click a block in the builder to see it outlined in the preview.
+- An editor without the right to add raw HTML sees raw HTML as plain text in the preview, as it would be saved.
+
 ## 0.1.128 — 2026-10-15 — Text and image: the picture above or below the text
 - **Text and image has two more layouts, *Image above the text* and *Image below the text*** (`image-top`, `image-bottom`), next to *Image on the right* and *on the left*. The text and the picture are one column: the picture runs across the whole width, never taller than 34 rem, and the text keeps a readable measure. They have their own small drawings in the layout choice of the editor, and work with the block's Width like the other layouts.
 - **A new picture shape, Wide (16:9)**, for a picture across the whole width.

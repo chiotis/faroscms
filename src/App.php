@@ -99,6 +99,8 @@ final class App
     private ?UserAdmin $userAdminService = null;
     private ?ContentTypeAdmin $contentTypeAdminService = null;
     private ?SingleLayouts $singleLayoutsService = null;
+    /** True while the live preview of the editor draws a page: its blocks then carry their place in the list (data-bk-block). */
+    private bool $entryPreview = false;
     private ?LayoutsAdmin $layoutsAdminService = null;
     private ?ArchiveBuilder $archiveBuilderService = null;
     private ?BackupAdmin $backupAdminService = null;
@@ -883,6 +885,7 @@ final class App
             $pageBlocks = $this->blockRuntime()->renderer($lang, $path, $this->twig)->render(array_values($raw), $viewDefaults + [
                 'item' => $item,
                 'body_html' => $bodyInTemplate ? '' : $item->html,
+                'block_preview' => $this->entryPreview,
             ]);
         }
         $styles = $pageBlocks['styles'] ?? [];
@@ -1801,6 +1804,10 @@ final class App
 
     private function handleEdit(): void
     {
+        if (($_GET['preview'] ?? '') === 'entry' && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+            $this->previewEntry();
+            return;
+        }
         $type = $this->sanitizeType((string)($_GET['type'] ?? 'pages'));
         if (!$this->canAccessContentType($type)) {
             $this->denyContentType($type);
@@ -1817,6 +1824,53 @@ final class App
             return;
         }
         $this->render($type === 'forms' ? '@admin/form-edit.twig' : '@admin/edit.twig', $this->entryForm()->form($type, $slug, $lang, $_GET, $this->permissions->can($this->auth->user(), 'redirects.manage')) + ['user' => $this->auth->user()]);
+    }
+
+    /**
+     * JSON for the live preview of the content editor: the page the submitted, unsaved form would make, drawn by the theme through
+     * the same way a visitor's page is. The form is read exactly as Save reads it (ContentEditor, including who may add raw HTML),
+     * but nothing is written: no file, no history, no redirect. Whoever may edit the type may preview it.
+     */
+    private function previewEntry(): void
+    {
+        header('Content-Type: application/json; charset=utf-8');
+        header('Cache-Control: no-store');
+        $type = $this->sanitizeType((string)($_POST['type'] ?? 'pages'));
+        if (!$this->canAccessContentType($type) || $type === 'forms') {
+            http_response_code(403);
+            echo json_encode(['error' => 'This cannot be previewed.']);
+            return;
+        }
+        try {
+            $result = $this->contentEditor()->save($type, $_POST, null, $this->permissions->can($this->auth->user(), 'content.raw_html'), $this->currentUsername(), true);
+        } catch (\Throwable $e) {
+            echo json_encode(['error' => 'The front matter cannot be read: ' . $e->getMessage()], JSON_UNESCAPED_UNICODE);
+            return;
+        }
+        $slug = $result['slug'];
+        $lang = $result['lang'];
+        $item = $this->content->parseText($type, $slug, $lang, (string)$result['payload']);
+        $homeSlug = (string)(($this->settings['home_page'] ?? '') !== '' ? $this->settings['home_page'] : 'index');
+        $path = ContentPaths::build($type, $slug, $lang, $homeSlug, $this->defaultLanguage());
+
+        $kept = [$_POST, $_GET, $_SERVER['REQUEST_METHOD'] ?? 'GET'];
+        $_POST = [];
+        $_GET = [];
+        $_SERVER['REQUEST_METHOD'] = 'GET';
+        $this->content->showInstead($item);
+        $this->entryPreview = true;
+        ob_start();
+        try {
+            $this->handleFront($path);
+        } finally {
+            $html = (string)ob_get_clean();
+            $this->entryPreview = false;
+            $this->content->showInstead(null);
+            [$_POST, $_GET, $_SERVER['REQUEST_METHOD']] = $kept;
+        }
+        http_response_code(200);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['html' => $html, 'path' => '/' . $path], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
     }
 
     private function contentTypes(): ContentTypes
