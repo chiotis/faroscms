@@ -10,7 +10,7 @@ use FarosCMS\FormFields;
 $fail = 0;
 function check(string $label, $actual, $expected): void { global $fail; $ok = $actual === $expected; if (!$ok) $fail++; echo ($ok ? 'ok   ' : 'FAIL ') . $label . ($ok ? '' : ' => ' . json_encode($actual, JSON_UNESCAPED_UNICODE) . ' expected ' . json_encode($expected, JSON_UNESCAPED_UNICODE)) . "\n"; }
 
-check('eighteen kinds of field: sixteen to fill in and two that only show something', [count(FormFields::types()), FormFields::DISPLAY, FormFields::isDisplay('heading'), FormFields::isDisplay('text')], [18, ['heading', 'paragraph'], true, false]);
+check('nineteen kinds of field: seventeen to fill in and two that only show something', [count(FormFields::types()), FormFields::DISPLAY, FormFields::isDisplay('heading'), FormFields::isDisplay('text')], [19, ['heading', 'paragraph'], true, false]);
 check('a name is an address-safe word', [FormFields::sanitizeName(' Your Name '), FormFields::sanitizeName('e-mail'), FormFields::sanitizeName('  ')], ['your-name', 'e-mail', '']);
 check('options are split on lines and commas', FormFields::parseOptions("a, b\nc,, d"), ['a', 'b', 'c', 'd']);
 

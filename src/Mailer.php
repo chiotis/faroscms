@@ -33,15 +33,16 @@ final class Mailer
 
     /**
      * @param array<string, string> $headers From, Reply-To, Cc, Bcc
+     * @param array<int, array{path: string, name: string, mime?: string}> $attachments files to send along
      * @return array{ok: bool, provider: string, error: string}
      */
-    public function send(string $to, string $subject, string $body, array $headers): array
+    public function send(string $to, string $subject, string $body, array $headers, array $attachments = []): array
     {
         $provider = $this->provider();
         try {
             $result = match ($provider) {
-                'ses' => $this->sesConfigured() ? $this->sendViaSes($to, $subject, $body, $headers) : ['ok' => false, 'error' => 'SES is not configured.'],
-                'smtp' => $this->smtpConfigured() ? $this->sendViaSmtp($to, $subject, $body, $headers) : ['ok' => false, 'error' => 'SMTP is not configured.'],
+                'ses' => $this->sesConfigured() ? $this->sendViaSes($to, $subject, $body, $headers, $attachments) : ['ok' => false, 'error' => 'SES is not configured.'],
+                'smtp' => $this->smtpConfigured() ? $this->sendViaSmtp($to, $subject, $body, $headers, $attachments) : ['ok' => false, 'error' => 'SMTP is not configured.'],
                 default => ['ok' => false, 'error' => 'No email provider is configured.'],
             };
         } catch (\Throwable $e) {
@@ -91,7 +92,7 @@ final class Mailer
     }
 
     /** @return array{ok: bool, error: string} */
-    private function sendViaSmtp(string $to, string $subject, string $body, array $headers): array
+    private function sendViaSmtp(string $to, string $subject, string $body, array $headers, array $attachments = []): array
     {
         $smtp = is_array($this->config['smtp'] ?? null) ? $this->config['smtp'] : [];
         $host = trim((string)($smtp['host'] ?? ''));
@@ -178,10 +179,31 @@ final class Mailer
             }
         }
         $lines[] = 'MIME-Version: 1.0';
-        $lines[] = 'Content-Type: text/plain; charset=UTF-8';
-        $lines[] = 'Content-Transfer-Encoding: 8bit';
-        $lines[] = '';
-        $lines[] = str_replace(["\r\n", "\r"], "\n", $body);
+        $files = $this->readAttachments($attachments);
+        if ($files === []) {
+            $lines[] = 'Content-Type: text/plain; charset=UTF-8';
+            $lines[] = 'Content-Transfer-Encoding: 8bit';
+            $lines[] = '';
+            $lines[] = str_replace(["\r\n", "\r"], "\n", $body);
+        } else {
+            $boundary = 'faros-' . bin2hex(random_bytes(12));
+            $lines[] = 'Content-Type: multipart/mixed; boundary="' . $boundary . '"';
+            $lines[] = '';
+            $lines[] = '--' . $boundary;
+            $lines[] = 'Content-Type: text/plain; charset=UTF-8';
+            $lines[] = 'Content-Transfer-Encoding: 8bit';
+            $lines[] = '';
+            $lines[] = str_replace(["\r\n", "\r"], "\n", $body);
+            foreach ($files as $file) {
+                $lines[] = '--' . $boundary;
+                $lines[] = 'Content-Type: ' . $file['mime'] . '; name="' . $file['name'] . '"';
+                $lines[] = 'Content-Transfer-Encoding: base64';
+                $lines[] = 'Content-Disposition: attachment; filename="' . $file['name'] . '"';
+                $lines[] = '';
+                $lines[] = rtrim(chunk_split(base64_encode($file['data']), 76, "\n"));
+            }
+            $lines[] = '--' . $boundary . '--';
+        }
         $data = str_replace("\n", "\r\n", implode("\n", $lines));
         // Dot-stuffing: a line that starts with "." must be doubled so it does not end DATA early.
         $data = preg_replace('/^\./m', '..', $data) ?? $data;
@@ -225,7 +247,7 @@ final class Mailer
     }
 
     /** @return array{ok: bool, error: string} */
-    private function sendViaSes(string $to, string $subject, string $body, array $headers): array
+    private function sendViaSes(string $to, string $subject, string $body, array $headers, array $attachments = []): array
     {
         $ses = is_array($this->config['ses'] ?? null) ? $this->config['ses'] : [];
         $accessKey = trim((string)($ses['key'] ?? ''));
@@ -248,6 +270,16 @@ final class Mailer
                 ],
             ],
         ];
+        $files = $this->readAttachments($attachments);
+        if ($files !== []) {
+            $payload['Content']['Simple']['Attachments'] = array_map(static fn(array $file): array => [
+                'FileName' => $file['name'],
+                'RawContent' => base64_encode($file['data']),
+                'ContentType' => $file['mime'],
+                'ContentDisposition' => 'ATTACHMENT',
+                'ContentTransferEncoding' => 'BASE64',
+            ], $files);
+        }
         if (($headers['Reply-To'] ?? '') !== '') {
             $payload['ReplyToAddresses'] = self::parseEmailList((string)$headers['Reply-To']);
         }
@@ -315,6 +347,28 @@ final class Mailer
         }
         $message = is_string($response) ? (string)(json_decode($response, true)['message'] ?? '') : '';
         return ['ok' => false, 'error' => 'SES returned HTTP ' . $status . ($message !== '' ? ': ' . $message : ($curlError !== '' ? ': ' . $curlError : '.'))];
+    }
+
+    /**
+     * The files to send along, read now. A file that cannot be read is left out; the name and kind are made safe for a header.
+     *
+     * @param array<int, array{path: string, name: string, mime?: string}> $attachments
+     * @return array<int, array{name: string, mime: string, data: string}>
+     */
+    private function readAttachments(array $attachments): array
+    {
+        $files = [];
+        foreach ($attachments as $attachment) {
+            $path = (string)($attachment['path'] ?? '');
+            $data = $path !== '' && is_file($path) ? file_get_contents($path) : false;
+            if ($data === false) {
+                continue;
+            }
+            $name = preg_replace('/[^A-Za-z0-9._-]+/', '-', basename((string)($attachment['name'] ?? $path))) ?: 'file';
+            $mime = strtolower((string)($attachment['mime'] ?? ''));
+            $files[] = ['name' => $name, 'mime' => preg_match('#^[a-z0-9.+-]+/[a-z0-9.+-]+$#', $mime) ? $mime : 'application/octet-stream', 'data' => $data];
+        }
+        return $files;
     }
 
     /** Header values must never carry CR/LF, or a value could inject extra headers. */

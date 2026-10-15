@@ -19,7 +19,7 @@ def kept():
     return json.loads(r[0]) if r else None
 def keep(uploads, age=0, content=1000, system=2000):
     run("insert or replace into system_meta (key, value, updated_at) values ('storage_usage', ?, '2026-01-01T00:00:00+00:00')",
-        json.dumps({'parts': {'uploads': uploads, 'content': content, 'system': system}, 'measured_at': int(time.time()) - age}))
+        json.dumps({'parts': {'uploads': uploads, 'content': content, 'system': system, 'forms': 0}, 'measured_at': int(time.time()) - age}))
 def token(c): return re.search(r'name="_csrf" value="([0-9a-f]+)"', c.get('/admin')[2]).group(1)
 def used_label(c):
     m = re.search(r'<span>Storage</span><span class="[^"]*">([^<]*)</span>', c.get('/admin')[2])
@@ -46,7 +46,7 @@ run("delete from system_meta where key='storage_usage'")
 # ---- the first look measures and keeps
 root.get('/admin')
 k = kept()
-check('the first page measures the folders and keeps the result', k is not None and set(k['parts']) == {'uploads', 'content', 'system'} and all(isinstance(v, int) for v in k['parts'].values()), k)
+check('the first page measures the folders and keeps the result', k is not None and set(k['parts']) == {'uploads', 'content', 'system', 'forms'} and all(isinstance(v, int) for v in k['parts'].values()), k)
 check('with the time it was measured', k is not None and abs(k['measured_at'] - time.time()) < 60, k)
 
 # ---- a kept measurement is used for twelve hours, without walking the folders

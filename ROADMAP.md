@@ -46,7 +46,7 @@ Several releases were merged with only the tests of the change run, and CI was r
 
 ## Later
 
-- **Forms**: showing a field only when another has an answer (conditional logic), file upload fields (the storage limit, the file types and where the files are kept need deciding), forms in several steps, and a rating field. The builder, the site's form template and `FormProcessor` would all need to know about a condition, so it is a feature of its own. Submissions: archive actions. Optional: frontend form theme variants (compact/stacked) without changing the form schema.
+- **Forms**: showing a field only when another has an answer (conditional logic), forms in several steps, and a rating field. The builder, the site's form template and `FormProcessor` would all need to know about a condition, so it is a feature of its own. Submissions: archive actions. Optional: frontend form theme variants (compact/stacked) without changing the form schema.
 - **Import UX**: dry-run preview, row-level undo, resumable imports.
 - **Theme**: a switcher in settings with a preview mode; draft preview links; admin-level user management with limits; updates for private repositories. Style references from the owner can refine the design system at any point (tokens and block CSS).
 - **Taxonomies**: term images and meta, per-content-type assignment rules.

@@ -30,7 +30,7 @@ $s = $limits->summary();
 check('the summary adds up the three parts', [$s['used'], $s['used'] === 400000 + 50000 + $usedSystem], [450000 + $usedSystem, true]);
 check('against a limit of 1 MB', [$s['limit'], $s['percent_of_limit'], $s['level'], $s['full']], [1048576, (int)round($s['used'] / 1048576 * 100), 'ok', false]);
 check('the label says used and limit', $s['label'], $s['used_human'] . ' / 1.0 MB');
-check('the parts are readable sizes', array_keys($s['parts']), ['uploads', 'content', 'system']);
+check('the parts are readable sizes', array_keys($s['parts']), ['uploads', 'content', 'system', 'forms']);
 check('the measurement time is now', abs($s['measured_at'] - time()) <= 2, true);
 
 // ---- kept for twelve hours
@@ -61,7 +61,7 @@ check('an adjustment with nothing kept is ignored', $empty->uploadsChanged(500),
 
 // ---- levels and room
 // The limit is in whole megabytes, so the kept figure is set directly to get exact ratios.
-$keep = fn(int $bytes) => $meta->setJson('storage_usage', ['parts' => ['uploads' => $bytes, 'content' => 0, 'system' => 0], 'measured_at' => time()]);
+$keep = fn(int $bytes) => $meta->setJson('storage_usage', ['parts' => ['uploads' => $bytes, 'content' => 0, 'system' => 0, 'forms' => 0], 'measured_at' => time()]);
 $with = fn(array $s) => new SiteLimits($meta, $dir, "$dir/content", fn() => $s);
 $MB = 1048576;
 $at = function (float $ratio) use ($keep, $with, $MB) { $keep((int)round($ratio * 10 * $MB)); return $with(['limits' => ['storage_mb' => 10]])->summary(); };

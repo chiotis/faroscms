@@ -69,14 +69,17 @@ final class SiteLimits
         ];
     }
 
-    /** Walks the folders now and keeps the result. @return array{parts: array{uploads: int, content: int, system: int}, measured_at: int} */
+    /** Walks the folders now and keeps the result. @return array{parts: array{uploads: int, content: int, system: int, forms: int}, measured_at: int} */
     public function measure(): array
     {
+        $forms = self::directorySize($this->basePath . '/storage/form-uploads');
         $measured = [
             'parts' => [
                 'uploads' => self::directorySize($this->basePath . '/public/uploads'),
                 'content' => self::directorySize($this->contentDir),
-                'system' => self::directorySize($this->basePath . '/storage'),
+                // Files visitors attached to forms are counted on their own; the system folder is the rest of storage/.
+                'system' => max(0, self::directorySize($this->basePath . '/storage') - $forms),
+                'forms' => $forms,
             ],
             'measured_at' => time(),
         ];
@@ -88,11 +91,22 @@ final class SiteLimits
     /** Adds or takes off bytes in the kept measurement of the uploads folder, so a new file counts at once. */
     public function uploadsChanged(int $bytes): void
     {
+        $this->partChanged('uploads', $bytes);
+    }
+
+    /** The same for the files visitors attached to forms. */
+    public function formFilesChanged(int $bytes): void
+    {
+        $this->partChanged('forms', $bytes);
+    }
+
+    private function partChanged(string $part, int $bytes): void
+    {
         $kept = $this->meta->getJson('storage_usage');
-        if ($bytes === 0 || !is_array($kept) || !is_int($kept['parts']['uploads'] ?? null)) {
+        if ($bytes === 0 || !is_array($kept) || !is_int($kept['parts'][$part] ?? null)) {
             return;
         }
-        $kept['parts']['uploads'] = max(0, $kept['parts']['uploads'] + $bytes);
+        $kept['parts'][$part] = max(0, $kept['parts'][$part] + $bytes);
         $this->meta->setJson('storage_usage', $kept);
         $this->summary = null;
     }
@@ -119,7 +133,12 @@ final class SiteLimits
     /** The largest file the site allows, in MB (Settings > Limits); 0 means no limit of its own. */
     public function uploadLimitMb(): int
     {
-        $settings = $this->settings();
+        return self::uploadMbFrom($this->settings());
+    }
+
+    /** The upload limit in MB that a site's settings hold (0 for none). @param array<string, mixed> $settings */
+    public static function uploadMbFrom(array $settings): int
+    {
         return max(0, (int)($settings['limits']['upload_mb'] ?? $settings['media']['max_upload_mb'] ?? 20));
     }
 
@@ -131,10 +150,22 @@ final class SiteLimits
         return $mine > 0 && $server > 0 ? min($mine, $server) : max($mine, $server);
     }
 
+    /** What the server lets through in one request (post_max_size), in bytes; 0 when unknown. */
+    public static function serverPostCap(): int
+    {
+        return self::iniBytes('post_max_size');
+    }
+
     /** What the server itself lets through in one upload (upload_max_filesize and post_max_size), in bytes; 0 when unknown. */
     public static function serverUploadCap(): int
     {
-        $sizes = array_filter(array_map(static function (string $name): int {
+        $sizes = array_filter([self::iniBytes('upload_max_filesize'), self::iniBytes('post_max_size')], static fn(int $bytes): bool => $bytes > 0);
+        return $sizes === [] ? 0 : min($sizes);
+    }
+
+    private static function iniBytes(string $name): int
+    {
+        return (static function (string $name): int {
             $raw = trim((string)ini_get($name));
             if ($raw === '' || $raw === '-1') {
                 return 0;
@@ -146,8 +177,7 @@ final class SiteLimits
                 'k' => $number * 1024,
                 default => $number,
             };
-        }, ['upload_max_filesize', 'post_max_size']), static fn(int $bytes): bool => $bytes > 0);
-        return $sizes === [] ? 0 : min($sizes);
+        })($name);
     }
 
     /** The limit typed on the settings form in megabytes, or null when it was left empty or is not a number. @param array<string, mixed> $post */
@@ -204,12 +234,12 @@ final class SiteLimits
      * The size of uploads, content and the system folder, from the copy kept while it is younger than twelve hours,
      * otherwise measured again (and kept). In bytes, where summary() has them for reading.
      *
-     * @return array{parts: array{uploads: int, content: int, system: int}, measured_at: int}
+     * @return array{parts: array{uploads: int, content: int, system: int, forms: int}, measured_at: int}
      */
     public function measurement(): array
     {
         $kept = $this->meta->getJson('storage_usage');
-        $keys = ['uploads', 'content', 'system'];
+        $keys = ['uploads', 'content', 'system', 'forms'];
         if (is_array($kept) && is_array($kept['parts'] ?? null)) {
             $age = time() - (int)($kept['measured_at'] ?? 0);
             $whole = count(array_filter($keys, static fn(string $key): bool => is_int($kept['parts'][$key] ?? null))) === count($keys);

@@ -71,6 +71,11 @@ final class BackupService
                 'description' => 'Images and files in public/uploads.',
                 'prefix' => 'public/uploads/',
             ],
+            'form-uploads' => [
+                'label' => 'Form files',
+                'description' => 'Files visitors attached to form submissions (storage/form-uploads, private).',
+                'prefix' => 'storage/form-uploads/',
+            ],
             'custom' => [
                 'label' => 'Site customizations',
                 'description' => 'The custom/ folder: translation overrides from Admin > Translations, custom CSS/JS, and template overrides.',
@@ -361,6 +366,11 @@ final class BackupService
             if (is_file($liveHtaccess) && !is_file($stagedHtaccess)) {
                 @copy($liveHtaccess, $stagedHtaccess);
             }
+        }
+
+        if (in_array('form-uploads', $restorable, true)) {
+            // The folder stays shut off for the web server, whatever the archive had.
+            (new FormUploads($staged . '/storage/form-uploads'))->protect();
         }
 
         // Swap: move each live area aside, move the staged one in; undo everything on failure.

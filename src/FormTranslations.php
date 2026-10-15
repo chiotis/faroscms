@@ -13,7 +13,7 @@ namespace FarosCMS;
  */
 final class FormTranslations
 {
-    public const FIELD_KEYS = ['label', 'placeholder', 'help'];
+    public const FIELD_KEYS = ['label', 'placeholder', 'help', 'button', 'error_size', 'error_type', 'error_max', 'error_min'];
     public const FORM_KEYS = ['title', 'excerpt', 'body', 'submit_label', 'success_message'];
     public const NOTIFY_KEYS = ['subject', 'auto_reply_subject', 'auto_reply_message'];
 

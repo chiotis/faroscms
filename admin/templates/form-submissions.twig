@@ -10,7 +10,7 @@
   {% set icon_danger = 'rounded-md p-1.5 text-red-500 hover:bg-red-50 hover:text-red-600' %}
   {% set base_query = {'slug': form.slug}|merge(filters|filter(v => v != ''))|merge(per_page != 25 ? {'per_page': per_page} : {}) %}
 
-  {{ ui.flash(deleted_count > 0 ? (deleted_count == 1 ? 'Submission deleted.' : deleted_count ~ ' submissions deleted.') : '', 'success') }}
+  {{ ui.flash(deleted_count > 0 ? ((deleted_count == 1 ? 'Submission deleted.' : deleted_count ~ ' submissions deleted.') ~ (deleted_files > 0 ? ' ' ~ (deleted_files == 1 ? '1 file' : deleted_files ~ ' files') ~ ' deleted with ' ~ (deleted_count == 1 ? 'it.' : 'them.') : '')) : '', 'success') }}
   {{ ui.flash(error, 'error') }}
 
   <div class="mb-2 flex items-center gap-2 text-sm text-slate-400">
@@ -61,6 +61,12 @@
         <span class="mb-1 block text-sm font-medium text-slate-700">To</span>
         <input type="date" name="date_to" value="{{ filters.date_to }}" class="{{ input_class }}">
       </label>
+      {% if has_file_field or filters.has_files %}
+        <label class="flex items-center gap-2 self-end pb-2 text-sm font-medium text-slate-700">
+          <input type="checkbox" name="has_files" value="1" {% if filters.has_files %}checked{% endif %} class="h-4 w-4 rounded border-slate-300">
+          Only with files
+        </label>
+      {% endif %}
       <div class="flex justify-end gap-2 sm:col-span-2 lg:col-span-4">
         <a href="{{ url('admin/form-submissions?slug=' ~ form.slug) }}" class="rounded-md px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100">Reset</a>
         <button type="submit" class="{{ btn_primary }}">Apply</button>
@@ -68,7 +74,7 @@
     </form>
   </div>
 
-  <form method="post" action="{{ url('admin/form-submissions') }}" class="rounded-lg border border-slate-200 bg-white" data-confirm="Delete the selected submissions? This cannot be undone." data-confirm-button="Delete">
+  <form method="post" action="{{ url('admin/form-submissions') }}" class="rounded-lg border border-slate-200 bg-white" data-confirm="Delete the selected submissions? This cannot be undone." data-confirm-button="Delete" data-bulk-delete>
     {{ csrf_field() }}
     <input type="hidden" name="slug" value="{{ form.slug }}">
     <input type="hidden" name="submission_action" value="bulk_delete">
@@ -100,14 +106,17 @@
           <tbody class="divide-y divide-slate-50">
             {% for row in rows %}
               <tr class="hover:bg-slate-50">
-                <td class="px-4 py-2.5"><input type="checkbox" name="selected_ids[]" value="{{ row.id }}" class="h-4 w-4 rounded border-slate-300" aria-label="Select submission {{ row.id }}"></td>
+                <td class="px-4 py-2.5"><input type="checkbox" name="selected_ids[]" value="{{ row.id }}" data-files="{{ row.file_count }}" class="h-4 w-4 rounded border-slate-300" aria-label="Select submission {{ row.id }}"></td>
                 <td class="whitespace-nowrap px-4 py-2.5 text-slate-500">{{ row.submitted_at }}</td>
                 <td class="px-4 py-2.5">
                   <button type="button" data-offcanvas-open="submission-{{ row.id }}" class="text-left font-medium text-slate-900 hover:text-blue-600">{{ row.title }}</button>
                   {% if row.email and row.email != row.title %}<div class="text-xs text-slate-400">{{ row.email }}</div>{% endif %}
                 </td>
                 <td class="px-4 py-2.5">{% if row.lang %}<span class="inline-flex h-5 min-w-7 items-center justify-center rounded bg-slate-100 px-1 text-[10px] font-semibold text-slate-600">{{ row.lang|upper }}</span>{% endif %}</td>
-                <td class="max-w-md px-4 py-2.5 text-slate-500"><span class="line-clamp-1">{{ row.summary }}</span></td>
+                <td class="max-w-md px-4 py-2.5 text-slate-500">
+                  {% if row.file_count %}<span class="mr-1.5 inline-flex items-center gap-1 rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-medium text-slate-600" title="{{ row.file_count }} attached {{ row.file_count == 1 ? 'file' : 'files' }}"><svg class="h-3 w-3" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 11.5l-8.6 8.6a5 5 0 0 1-7.1-7.1l8.6-8.6a3.3 3.3 0 0 1 4.7 4.7l-8.6 8.6a1.7 1.7 0 0 1-2.4-2.4l7.9-7.9"/></svg>{{ row.file_count }}<span class="sr-only"> {{ row.file_count == 1 ? 'file' : 'files' }}</span></span>{% endif %}
+                  <span class="line-clamp-1 inline">{{ row.summary }}</span>
+                </td>
                 <td class="px-4 py-2.5">
                   <div class="flex items-center justify-end gap-0.5">
                     <button type="button" data-offcanvas-open="submission-{{ row.id }}" class="{{ icon_button }}" title="View" aria-label="View submission from {{ row.title }}">
@@ -140,7 +149,7 @@
 
   {# Single-row delete forms live outside the bulk form (forms cannot nest); buttons reference them by id. #}
   {% for row in rows %}
-    <form id="delete-submission-{{ row.id }}" method="post" action="{{ url('admin/form-submissions') }}" data-confirm="Delete the submission from {{ row.title }}?" data-confirm-button="Delete" hidden>
+    <form id="delete-submission-{{ row.id }}" method="post" action="{{ url('admin/form-submissions') }}" data-confirm="Delete the submission from {{ row.title }}{% if row.file_count %} and its {{ row.file_count == 1 ? 'file' : row.file_count ~ ' files' }}{% endif %}?{% if row.file_count %} The files cannot be recovered.{% endif %}" data-confirm-button="Delete" hidden>
       {{ csrf_field() }}
       <input type="hidden" name="slug" value="{{ form.slug }}">
       <input type="hidden" name="submission_action" value="delete">
@@ -163,12 +172,31 @@
         <div class="scroll-thin flex-1 overflow-y-auto px-4 py-4">
           <dl class="space-y-3">
             {% for field in row.fields %}
+              {% if field.value and row.files|filter(g => g.label == field.label)|length %}{% else %}
               <div>
                 <dt class="text-xs font-medium uppercase tracking-wide text-slate-400">{{ field.label }}</dt>
                 <dd class="mt-0.5 whitespace-pre-line break-words text-sm text-slate-800">{{ field.value ?: '—' }}</dd>
               </div>
+              {% endif %}
+            {% endfor %}
+            {% for group in row.files %}
+              <div>
+                <dt class="text-xs font-medium uppercase tracking-wide text-slate-400">{{ group.label }}</dt>
+                <dd class="mt-1 space-y-1">
+                  {% for file in group.items %}
+                    <a href="{{ url(file.url) }}" class="flex items-center gap-2 rounded-md border border-slate-200 px-2.5 py-1.5 text-sm text-slate-800 no-underline hover:border-blue-300 hover:bg-blue-50/40" download>
+                      <svg class="h-4 w-4 shrink-0 text-slate-400" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0 0l-4-4m4 4l4-4M4 19h16"/></svg>
+                      <span class="min-w-0 flex-1 truncate" title="{{ file.original }}">{{ file.name }}</span>
+                      <span class="shrink-0 text-xs text-slate-400">{{ file.size }}</span>
+                    </a>
+                  {% endfor %}
+                </dd>
+              </div>
             {% endfor %}
           </dl>
+          {% if row.file_count > 1 %}
+            <a href="{{ url(row.zip_url) }}" class="mt-3 inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 no-underline shadow-sm hover:bg-slate-50" download>Download all as ZIP</a>
+          {% endif %}
           <div class="mt-6 space-y-1 border-t border-slate-100 pt-3 text-xs text-slate-400">
             <p>ID: <span class="font-mono">{{ row.id }}</span></p>
             {% if row.ip %}<p>IP: {{ row.ip }}</p>{% endif %}
@@ -186,4 +214,20 @@
       </aside>
     </div>
   {% endfor %}
+  <script>
+    // The confirmation for deleting several submissions says how many files go with them.
+    (function () {
+      var form = document.querySelector('[data-bulk-delete]');
+      if (!form) return;
+      var base = form.getAttribute('data-confirm');
+      function update() {
+        var boxes = form.querySelectorAll('input[name="selected_ids[]"]:checked');
+        var files = 0;
+        boxes.forEach(function (box) { files += parseInt(box.getAttribute('data-files'), 10) || 0; });
+        form.setAttribute('data-confirm', files > 0 ? 'Delete the ' + boxes.length + ' selected submission' + (boxes.length === 1 ? '' : 's') + ' and ' + (files === 1 ? 'its 1 attached file' : 'their ' + files + ' attached files') + '? This cannot be undone.' : base);
+      }
+      form.addEventListener('change', update);
+      update();
+    }());
+  </script>
 {% endblock %}

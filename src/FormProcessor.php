@@ -33,7 +33,9 @@ final class FormProcessor
                 continue;
             }
             $default = $field['default'] ?? '';
-            if ($type === 'checkboxes') {
+            if ($type === 'file') {
+                $values[$name] = [];
+            } elseif ($type === 'checkboxes') {
                 $values[$name] = is_array($default) ? $default : FormFields::parseOptions((string)$default);
             } elseif ($type === 'checkbox') {
                 $values[$name] = Format::isTruthy($default) ? '1' : '';
@@ -50,12 +52,15 @@ final class FormProcessor
      *
      * @param array<int, array<string, mixed>> $fields
      * @param array<string, mixed> $payload
-     * @return array{values: array<string, mixed>, errors: array<string, string>}
+     * @param array<string, mixed> $files what was sent as files ($_FILES); a file field is checked by `$uploads`
+     * @return array{values: array<string, mixed>, errors: array<string, string>, uploads: array<string, array<int, array{tmp: string, original: string, ext: string, mime: string, size: int}>>} uploads: the files that are fine, by field
      */
-    public function collect(array $fields, array $payload): array
+    public function collect(array $fields, array $payload, array $files = [], ?FormUploads $uploads = null): array
     {
         $values = [];
         $errors = [];
+        $accepted = [];
+        $totalBytes = 0;
         $required = fn(): string => ($this->translate)('form.error.required', 'This field is required.');
         foreach ($fields as $field) {
             $name = (string)($field['name'] ?? '');
@@ -64,6 +69,20 @@ final class FormProcessor
                 continue;
             }
             $isRequired = (bool)($field['required'] ?? false);
+            if ($type === 'file') {
+                $values[$name] = [];
+                if ($uploads === null) {
+                    continue;
+                }
+                $checked = $uploads->check($field, FormUploads::normalizeFiles($files[$name] ?? null), $this->translate);
+                if ($checked['error'] !== '') {
+                    $errors[$name] = $checked['error'];
+                } elseif ($checked['accepted'] !== []) {
+                    $accepted[$name] = $checked['accepted'];
+                    $totalBytes += array_sum(array_column($checked['accepted'], 'size'));
+                }
+                continue;
+            }
             $options = $field['options'] ?? [];
             $optionValues = array_map(static fn($option) => $option['value'], is_array($options) ? $options : []);
 
@@ -111,7 +130,15 @@ final class FormProcessor
             }
             $values[$name] = $value;
         }
-        return ['values' => $values, 'errors' => $errors];
+        if ($errors === [] && $accepted !== [] && $uploads !== null && !$uploads->hasRoom($totalBytes)) {
+            $errors[array_key_first($accepted)] = ($this->translate)('form.error.file_storage', 'The files could not be saved: there is no room left on this site. Please contact the site owner.');
+        }
+        if ($errors !== [] && $uploads !== null) {
+            // A refused submission keeps nothing: the temporary files go now.
+            $uploads->discard($accepted);
+            $accepted = [];
+        }
+        return ['values' => $values, 'errors' => $errors, 'uploads' => $accepted];
     }
 
     /**
@@ -120,9 +147,9 @@ final class FormProcessor
      * @param array<string, mixed> $values
      * @return array<string, mixed>
      */
-    public function record(ContentItem $form, array $values, string $ip, string $userAgent): array
+    public function record(ContentItem $form, array $values, string $ip, string $userAgent, array $files = []): array
     {
-        return [
+        $record = [
             'form' => $form->slug,
             'lang' => $form->lang,
             'translation_id' => (string)($form->meta['translation_id'] ?? ''),
@@ -131,6 +158,11 @@ final class FormProcessor
             'user_agent' => $userAgent,
             'fields' => $values,
         ];
+        if ($files !== []) {
+            // The names of the files kept with the submission (their folder is storage/form-uploads/<form>/<id>/).
+            $record['files'] = $files;
+        }
+        return $record;
     }
 
     /**
@@ -140,9 +172,10 @@ final class FormProcessor
      * @param array<string, mixed> $values
      * @param array<int, array<string, mixed>> $fields
      * @param array<string, mixed> $siteMail the site's mail settings (forms.notifications): from, from_name
-     * @return array<int, array{to: string, subject: string, body: string, headers: array<string, string>}>
+     * @param array{files?: array<string, array<int, array{name: string, original?: string, size?: int, mime?: string}>>, urls?: array<string, string>, paths?: array<string, string>, zip?: string} $upload the files kept with the submission: their data, an admin address for each (by name), their paths, and the address of all of them as a ZIP
+     * @return array<int, array{to: string, subject: string, body: string, headers: array<string, string>, attachments: array<int, array{path: string, name: string, mime: string}>}>
      */
-    public function emails(ContentItem $form, array $values, array $fields, array $siteMail, string $formUrl): array
+    public function emails(ContentItem $form, array $values, array $fields, array $siteMail, string $formUrl, array $upload = []): array
     {
         $notifications = is_array($form->meta['notifications'] ?? null) ? $form->meta['notifications'] : [];
         $subject = self::fill(trim((string)($notifications['subject'] ?? '')), $values, $fields);
@@ -150,6 +183,34 @@ final class FormProcessor
             $subject = 'New submission: ' . (string)($form->meta['title'] ?? $form->slug);
         }
         $body = $this->body($form, $values, $fields, $formUrl);
+        // The visitor's copy lists what they answered (the names of their files too) and never carries a link into the admin.
+        $visitorBody = $body;
+        $attachments = [];
+        $notice = '';
+        $kept = is_array($upload['files'] ?? null) ? $upload['files'] : [];
+        if ($kept !== []) {
+            $total = 0;
+            foreach ($kept as $list) {
+                $total += array_sum(array_map(static fn(array $file): int => (int)($file['size'] ?? 0), $list));
+            }
+            if (Format::isTruthy($notifications['attach_files'] ?? false)) {
+                $cap = max(0.0, (float)($notifications['attach_max_mb'] ?? 10)) ?: 10.0;
+                if ($total <= (int)round($cap * 1048576)) {
+                    foreach ($kept as $list) {
+                        foreach ($list as $file) {
+                            $path = (string)($upload['paths'][$file['name']] ?? '');
+                            if ($path !== '') {
+                                $attachments[] = ['path' => $path, 'name' => (string)$file['name'], 'mime' => (string)($file['mime'] ?? 'application/octet-stream')];
+                            }
+                        }
+                    }
+                    $notice = 'The files are attached to this email, and can also be downloaded with the links above.';
+                } else {
+                    $notice = 'The files are ' . Format::bytes($total) . ' together, more than the ' . rtrim(rtrim(number_format($cap, 1), '0'), '.') . ' MB that is attached to an email, so they are not attached. Download them with the links above.';
+                }
+            }
+            $body .= $this->fileLinks($upload, $kept) . ($notice !== '' ? "\n\n" . $notice : '');
+        }
 
         $from = trim((string)($siteMail['from'] ?? ''));
         $fromName = trim((string)($siteMail['from_name'] ?? ''));
@@ -172,7 +233,7 @@ final class FormProcessor
         $messages = [];
         $to = trim((string)($notifications['to'] ?? ''));
         if (Format::isTruthy($notifications['enabled'] ?? false) && $to !== '') {
-            $messages[] = ['to' => $to, 'subject' => $subject, 'body' => $body, 'headers' => $headers];
+            $messages[] = ['to' => $to, 'subject' => $subject, 'body' => $body, 'headers' => $headers, 'attachments' => $attachments];
         }
         if (Format::isTruthy($notifications['auto_reply'] ?? false) && $replyEmail !== '') {
             $autoSubject = self::fill(trim((string)($notifications['auto_reply_subject'] ?? '')), $values, $fields);
@@ -181,9 +242,9 @@ final class FormProcessor
                 $autoMessage = "Thanks for contacting us.\n\nWe received your submission and will get back to you soon.";
             }
             if (Format::isTruthy($notifications['auto_reply_include'] ?? false)) {
-                $autoMessage .= "\n\n---\n\n" . $body;
+                $autoMessage .= "\n\n---\n\n" . $visitorBody;
             }
-            $messages[] = ['to' => $replyEmail, 'subject' => $autoSubject !== '' ? $autoSubject : 'Thanks for your message', 'body' => $autoMessage, 'headers' => ['From' => $fromHeader]];
+            $messages[] = ['to' => $replyEmail, 'subject' => $autoSubject !== '' ? $autoSubject : 'Thanks for your message', 'body' => $autoMessage, 'headers' => ['From' => $fromHeader], 'attachments' => []];
         }
         return $messages;
     }
@@ -220,6 +281,21 @@ final class FormProcessor
                 continue;
             }
             $lines[] = (string)($field['label'] ?? $name) . ': ' . self::text($values[$name] ?? '');
+        }
+        return implode("\n", $lines);
+    }
+
+    /** The part of the notification that lets the site's people get to the files: one admin address for each, and one for all of them. @param array<string, mixed> $upload @param array<string, array<int, array<string, mixed>>> $kept */
+    private function fileLinks(array $upload, array $kept): string
+    {
+        $lines = ['', '', 'Files (sign in to the admin to download them):'];
+        foreach ($kept as $list) {
+            foreach ($list as $file) {
+                $lines[] = '- ' . $file['name'] . ' (' . Format::bytes((int)($file['size'] ?? 0)) . '): ' . (string)($upload['urls'][$file['name']] ?? '');
+            }
+        }
+        if ((string)($upload['zip'] ?? '') !== '' && array_sum(array_map('count', $kept)) > 1) {
+            $lines[] = 'All files as a ZIP: ' . $upload['zip'];
         }
         return implode("\n", $lines);
     }

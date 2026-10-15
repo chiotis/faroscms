@@ -99,6 +99,14 @@ Admin > History and the editor's History tab need `content.manage`. Restoring or
 - Raster images must be detected as `image/*`.
 - SVG files are rejected if they contain scripts, event handlers, `javascript:` URLs, `foreignObject`, embedded frames, entity declarations, or external/data references.
 
+### Files attached to forms
+
+- A file field accepts only the extensions the form lists, checks the real content with `finfo` against the extension, never uses the browser's type, and always refuses programs, scripts, web pages and SVG (`FormUploads::BLOCKED`, also in a double extension, and HTML/PHP/shell/executable content), whatever a form allows.
+- Files are written only after the rest of the submission is valid, into `storage/form-uploads/<form>/<submission>/` under names made from the form's pattern (slug characters only, the extension the checked one). They are outside the web root and denied for the web server; a visitor never gets a file back.
+- The admin gives a file out only through `/admin/form-file` and `/admin/form-files-zip`, which need a signed-in user with `forms.manage` (the editor role has none), take the form and submission from the address and the file name from a strict pattern (never a path), send `Content-Disposition: attachment` and `X-Content-Type-Options: nosniff`, and log each download.
+- Files are kept until their submission is deleted. They hold visitors' personal data (CVs, IDs): treat backups that contain them as sensitive, as with the database.
+- Email attachments are the form owner's choice, with a size cap; the visitor's automatic reply never has files or admin links.
+
 ### Response Headers
 
 - Admin: `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: same-origin`, `Cache-Control: no-store, private`.
@@ -109,7 +117,12 @@ Admin > History and the editor's History tab need `content.manage`. Restoring or
 1. Point the web root at `public/` only. `content/`, `storage/`, `src/`, and `vendor/` must never be reachable over HTTP.
 2. Serve the site over HTTPS.
 3. Change the shipped admin password immediately (the admin banner reminds you).
-4. Make sure uploads can never execute:
+4. Keep `storage/` shut off, and with it the files visitors attach to forms (`storage/form-uploads/`): they are private and only the admin gives them out. With the web root on `public/` (point 1) nothing else is needed; as defence in depth Apache gets `storage/form-uploads/.htaccess` (`Require all denied`, written by the CMS) and nginx should have:
+
+   ```nginx
+   location ^~ /storage/ { deny all; return 404; }
+   ```
+5. Make sure uploads can never execute:
    - Apache: `public/uploads/.htaccess` ships with the project and disables script handlers, denies script/HTML extensions, and adds a restrictive CSP to SVG responses. It requires `AllowOverride` to be enabled for that directory.
    - nginx: add an equivalent block, for example:
 

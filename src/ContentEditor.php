@@ -395,6 +395,11 @@ final class ContentEditor
                 $notifications['bcc'] = trim((string)($formNotificationsInput['bcc'] ?? ''));
                 $notifications['auto_reply'] = Format::isTruthy($formNotificationsInput['auto_reply'] ?? false);
                 $notifications['auto_reply_include'] = Format::isTruthy($formNotificationsInput['auto_reply_include'] ?? false);
+                $notifications['attach_files'] = Format::isTruthy($formNotificationsInput['attach_files'] ?? false);
+                $attachMb = (float)str_replace(',', '.', trim((string)($formNotificationsInput['attach_max_mb'] ?? '')));
+                if ($notifications['attach_files'] || $attachMb > 0) {
+                    $notifications['attach_max_mb'] = $attachMb > 0 ? round(min($attachMb, 100.0), 1) : 10;
+                }
                 $notifications['auto_reply_subject'] = trim((string)($formNotificationsInput['auto_reply_subject'] ?? ''));
                 $notifications['auto_reply_message'] = trim((string)($formNotificationsInput['auto_reply_message'] ?? ''));
             }

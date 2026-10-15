@@ -80,11 +80,15 @@
     'datetime-local': { label: 'Date and time', glyph: '31·12', group: 'Date and time', value: true },
     heading: { label: 'Heading', glyph: 'H', group: 'Layout', display: true },
     paragraph: { label: 'Text', glyph: '¶', group: 'Layout', display: true },
+    file: { label: 'File upload', glyph: '⇪', group: 'Files', file: true },
     range: { label: 'Slider', glyph: '⇆', group: 'Other', range: true, value: true },
     color: { label: 'Colour', glyph: '◐', group: 'Other', value: true },
     hidden: { label: 'Hidden value', glyph: '•••', group: 'Other', value: true }
   };
-  var GROUPS = ['Text', 'Choices', 'Date and time', 'Layout', 'Other'];
+  var GROUPS = ['Text', 'Choices', 'Date and time', 'Files', 'Layout', 'Other'];
+  /** The texts of a field that are translated. */
+  var TEXT_KEYS = ['label', 'placeholder', 'help', 'button', 'error_size', 'error_type', 'error_max', 'error_min'];
+  var UPLOAD = data.upload || { server_file: 0, server_post: 0, site_file: 0, max_files: 20, default_mb: 10, presets: {}, blocked: [] };
   var QUICK = [
     { label: 'Full name', type: 'text', name: 'full-name', required: true, width: 'half' },
     { label: 'Email', type: 'email', name: 'email', required: true, width: 'half' },
@@ -185,6 +189,8 @@
       max: o.max || '',
       step: o.step || '',
       width: WIDTH_ORDER.indexOf(o.width || '') !== -1 ? (o.width || '') : '',
+      upload: normalizeUpload(o.upload, o.type),
+      button: o.button || '', error_size: o.error_size || '', error_type: o.error_type || '', error_max: o.error_max || '', error_min: o.error_min || '',
       saved: !!o.saved,
       nameTouched: !!o.saved || !!o.nameTouched,
       tr: JSON.parse(JSON.stringify(o.translations && !Array.isArray(o.translations) ? o.translations : {}))
@@ -192,10 +198,29 @@
     return f;
   }
 
+  /** The settings of a file field; a new one starts with pictures, PDF and documents. */
+  function normalizeUpload(u, type) {
+    u = u && typeof u === 'object' ? u : {};
+    var exts = Array.isArray(u.extensions) ? u.extensions.slice() : [];
+    if (!exts.length && type === 'file') {
+      ['images', 'pdf', 'documents'].forEach(function (k) { if (UPLOAD.presets[k]) exts = exts.concat(UPLOAD.presets[k].extensions); });
+    }
+    return {
+      multiple: !!u.multiple,
+      min: parseInt(u.min, 10) > 0 ? parseInt(u.min, 10) : 0,
+      max: parseInt(u.max, 10) > 0 ? parseInt(u.max, 10) : 5,
+      max_size_mb: parseFloat(u.max_size_mb) > 0 ? parseFloat(u.max_size_mb) : UPLOAD.default_mb,
+      total_mb: parseFloat(u.total_mb) > 0 ? parseFloat(u.total_mb) : 0,
+      extensions: exts,
+      rename: String(u.rename || '')
+    };
+  }
+
   function plain(f) {
     return {
       type: f.type, name: f.name, label: f.label, required: f.required, placeholder: f.placeholder, help: f.help, 'default': f['default'],
       options: f.options.map(function (o) { return { value: o.value, label: o.label }; }), rows: f.rows, min: f.min, max: f.max, step: f.step, width: f.width,
+      upload: f.type === 'file' ? f.upload : undefined, button: f.button, error_size: f.error_size, error_type: f.error_type, error_max: f.error_max, error_min: f.error_min,
       translations: cleanTranslations(f)
     };
   }
@@ -206,7 +231,7 @@
     Object.keys(f.tr || {}).forEach(function (lang) {
       var t = f.tr[lang] || {};
       var row = {};
-      ['label', 'placeholder', 'help'].forEach(function (k) { if (String(t[k] || '').trim()) row[k] = String(t[k]).trim(); });
+      TEXT_KEYS.forEach(function (k) { if (String(t[k] || '').trim()) row[k] = String(t[k]).trim(); });
       var options = {};
       f.options.forEach(function (o) { var v = t.options && t.options[o.value]; if (v && String(v).trim()) options[o.value] = String(v).trim(); });
       if (Object.keys(options).length) row.options = options;
@@ -223,7 +248,7 @@
   function fieldMissing(f, lang) {
     var t = (f.tr && f.tr[lang]) || {};
     var n = 0;
-    ['label', 'placeholder', 'help'].forEach(function (k) { if (filled(f[k]) && !filled(t[k])) n++; });
+    TEXT_KEYS.forEach(function (k) { if (filled(f[k]) && !filled(t[k])) n++; });
     f.options.forEach(function (o) { if (filled(o.label) && !filled(t.options && t.options[o.value])) n++; });
     return n;
   }
@@ -347,7 +372,7 @@
     if (state.lang === '') return f;
     var t = (f.tr && f.tr[state.lang]) || {};
     var v = Object.assign({}, f);
-    ['label', 'placeholder', 'help'].forEach(function (k) { if (filled(t[k])) v[k] = t[k]; });
+    TEXT_KEYS.forEach(function (k) { if (filled(t[k])) v[k] = t[k]; });
     v.options = f.options.map(function (o) { return filled(t.options && t.options[o.value]) ? Object.assign({}, o, { label: t.options[o.value] }) : o; });
     return v;
   }
@@ -421,6 +446,7 @@
   function changed(redraw) {
     if (redraw) { renderCanvas(); renderInspector(); }
     refreshAnswers();
+    refreshAttach();
     refreshDirty();
     refreshLangBar();
   }
@@ -459,6 +485,14 @@
     }
     if (type === 'checkbox') {
       return h('label', { 'class': 'flex items-start gap-2 text-sm text-slate-800' }, [h('input', Object.assign({ type: 'checkbox', checked: f['default'] === '1', 'class': 'mt-0.5 h-4 w-4 rounded border-slate-300' }, shared, { 'aria-label': f.label || 'Checkbox' })), h('span', {}, [f.label || 'Checkbox', f.required ? h('span', { 'class': 'ml-0.5 text-red-600', 'aria-hidden': 'true' }, ['*']) : null])]);
+    }
+    if (type === 'file') {
+      var up = f.upload;
+      return h('div', { 'class': 'grid justify-items-center gap-1.5 rounded-md border-2 border-dashed border-slate-300 bg-slate-50 px-3 py-4 text-center' }, [
+        h('span', { 'class': 'text-sm text-slate-600' }, [up.multiple ? 'Drag files here, or' : 'Drag a file here, or']),
+        h('span', { 'class': 'inline-flex rounded-md bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white' }, [f.button || (up.multiple ? 'Choose files' : 'Choose a file')]),
+        h('span', { 'class': 'text-xs text-slate-500' }, [uploadHint(f)])
+      ]);
     }
     if (type === 'range') return h('input', Object.assign({ type: 'range', min: f.min || '0', max: f.max || '100', step: f.step || '1', 'class': 'w-full' }, shared));
     if (type === 'color') return h('input', Object.assign({ type: 'color', 'class': 'h-9 w-16 rounded border border-slate-300 bg-white' }, shared));
@@ -595,6 +629,11 @@
     items.push(text('label', f.type === 'heading' ? 'Heading' : (f.type === 'paragraph' ? 'Text' : 'Label'), f.type === 'paragraph'));
     if (t.placeholder && filled(f.placeholder)) items.push(text('placeholder', 'Placeholder'));
     if (!t.display && filled(f.help)) items.push(text('help', 'Help text'));
+    if (t.file) {
+      [['button', 'Button text'], ['error_size', 'Message: too big'], ['error_type', 'Message: wrong kind of file'], ['error_max', 'Message: too many files'], ['error_min', 'Message: too few files']].forEach(function (k) {
+        if (filled(f[k[0]])) items.push(text(k[0], k[1]));
+      });
+    }
     if (t.choice && f.options.length) {
       var list = h('ul', { 'class': 'grid gap-2' }, f.options.map(function (o, i) {
         var box = h('input', { type: 'text', 'class': cls.input + ' py-1.5', 'aria-label': 'Choice ' + (i + 1) + ' in ' + langName(lang), lang: lang });
@@ -689,6 +728,7 @@
     }
 
     if (t.choice) items.push(optionsEditor(f));
+    if (t.file) items.push(uploadEditor(f));
 
     if (t.rows) {
       var rows = h('input', { type: 'number', min: '2', max: '30', 'class': cls.input, value: f.rows });
@@ -751,6 +791,256 @@
     ]));
 
     inspector.appendChild(h('div', { 'class': 'grid gap-4' }, items));
+  }
+
+  /* ---------- file upload fields ---------- */
+
+  var GREEK_LETTERS = { 'α': 'a', 'β': 'v', 'γ': 'g', 'δ': 'd', 'ε': 'e', 'ζ': 'z', 'η': 'i', 'θ': 'th', 'ι': 'i', 'κ': 'k', 'λ': 'l', 'μ': 'm', 'ν': 'n', 'ξ': 'x', 'ο': 'o', 'π': 'p', 'ρ': 'r', 'σ': 's', 'τ': 't', 'υ': 'y', 'φ': 'f', 'χ': 'ch', 'ψ': 'ps', 'ω': 'o', 'ϊ': 'i', 'ϋ': 'y' };
+  var VOICELESS = ['κ', 'ξ', 'π', 'σ', 'τ', 'φ', 'χ', 'ψ'];
+
+  /** The address slug of the server (Slug::fromText): Greek to Latin with the ELOT digraphs, accents dropped, anything else a dash. */
+  function elotSlug(text) {
+    text = String(text || '').trim().toLowerCase().replace(/[άέήίόύώςΐΰ]/g, function (c) { return { 'ά': 'α', 'έ': 'ε', 'ή': 'η', 'ί': 'ι', 'ό': 'ο', 'ύ': 'υ', 'ώ': 'ω', 'ς': 'σ', 'ΐ': 'ϊ', 'ΰ': 'ϋ' }[c]; });
+    text = text.replace(/[À-ÿ]/g, function (c) { return c.normalize('NFD').replace(/[̀-ͯ]/g, ''); });
+    var chars = Array.from(text);
+    var out = '';
+    for (var i = 0; i < chars.length; i++) {
+      var c = chars[i], next = chars[i + 1] || '', pair = c + next;
+      var start = i === 0 || !GREEK_LETTERS[chars[i - 1]];
+      var after = chars[i + 2];
+      var voiceless = next === '' || after === undefined || VOICELESS.indexOf(after) !== -1 || !GREEK_LETTERS[after];
+      var digraph = null;
+      switch (pair) {
+        case 'ου': digraph = 'ou'; break;
+        case 'ει': digraph = 'ei'; break;
+        case 'οι': digraph = 'oi'; break;
+        case 'αι': digraph = 'ai'; break;
+        case 'υι': digraph = 'yi'; break;
+        case 'αυ': digraph = voiceless ? 'af' : 'av'; break;
+        case 'ευ': digraph = voiceless ? 'ef' : 'ev'; break;
+        case 'ηυ': digraph = voiceless ? 'if' : 'iv'; break;
+        case 'μπ': digraph = start ? 'b' : 'mp'; break;
+        case 'ντ': digraph = start ? 'd' : 'nt'; break;
+        case 'γκ': digraph = start ? 'g' : 'gk'; break;
+        case 'γγ': digraph = 'ng'; break;
+        case 'γξ': digraph = 'nx'; break;
+        case 'γχ': digraph = 'nch'; break;
+      }
+      if (digraph !== null) { out += digraph; i++; continue; }
+      out += GREEK_LETTERS[c] !== undefined ? GREEK_LETTERS[c] : c;
+    }
+    out = out.replace(/[^a-z0-9\-_]+/g, '-').replace(/-{2,}/g, '-').replace(/^[-_]+|[-_]+$/g, '');
+    if (out.length > 80) {
+      var cut = out.slice(0, 80), dash = cut.lastIndexOf('-');
+      out = (dash > 20 ? cut.slice(0, dash) : cut).replace(/[-_]+$/, '');
+    }
+    return out;
+  }
+
+  /** What the server will accept, as one line of text: the number, the size and the kinds. */
+  function uploadHint(f) {
+    var u = f.upload, size = effectiveMb(u);
+    var kinds = u.extensions.length ? u.extensions.map(function (e) { return '.' + e; }).join(' ') : 'documents, pictures and archives';
+    return (u.multiple ? 'Up to ' + u.max + ' files, ' : 'Up to ') + formatMb(size) + (u.multiple ? ' each' : '') + '. ' + kinds;
+  }
+
+  function formatMb(mb) { return (Math.round(mb * 10) / 10) + ' MB'; }
+
+  /** The most one file can be here: the size asked for, never more than the server or the site allows. */
+  function effectiveMb(u) {
+    var caps = [UPLOAD.server_file, UPLOAD.server_post, UPLOAD.site_file].filter(function (n) { return n > 0; }).map(function (n) { return n / 1048576; });
+    return Math.min.apply(null, [u.max_size_mb].concat(caps));
+  }
+  function capMb() {
+    var caps = [UPLOAD.server_file, UPLOAD.server_post, UPLOAD.site_file].filter(function (n) { return n > 0; }).map(function (n) { return n / 1048576; });
+    return caps.length ? Math.min.apply(null, caps) : 0;
+  }
+
+  /** A made-up answer for a field, to show what a file name pattern will make. */
+  function sampleAnswer(g) {
+    var key = (g.name + ' ' + g.label).toLowerCase();
+    if (/sur|last|eponym|επώνυμο/.test(key)) return 'Παπαδόπουλος';
+    if (/mail/.test(key)) return 'giorgos@example.com';
+    if (/phone|tel|τηλ/.test(key)) return '6900000000';
+    if (/name|first|όνομα/.test(key)) return 'Γιώργος';
+    if (/city|πόλη/.test(key)) return 'Αθήνα';
+    return g['default'] || g.label || 'value';
+  }
+
+  function phpDate(format, d) {
+    var two = function (n) { return (n < 10 ? '0' : '') + n; };
+    var map = { Y: d.getFullYear(), y: two(d.getFullYear() % 100), m: two(d.getMonth() + 1), n: d.getMonth() + 1, d: two(d.getDate()), j: d.getDate(), H: two(d.getHours()), G: d.getHours(), i: two(d.getMinutes()), s: two(d.getSeconds()) };
+    return String(format).replace(/./g, function (c) { return map[c] !== undefined ? map[c] : c; });
+  }
+
+  var PATTERN_TOKENS = /\{(field:[A-Za-z0-9_-]+|form|date(?::[^{}]*)?|time|submission|index|original|random|lang)\}/g;
+
+  /** The name a pattern makes for a sample file, the way the server makes it. */
+  function previewName(f, original, index) {
+    var u = f.upload, now = new Date();
+    var ext = (original.split('.').pop() || 'pdf').toLowerCase();
+    var base = original.replace(/\.[^.]+$/, '');
+    var text = (u.rename.trim() || '{original}').replace(PATTERN_TOKENS, function (m, token) {
+      if (token.indexOf('field:') === 0) {
+        var name = token.slice(6), g = fields.filter(function (x) { return x.name === name && x.type !== 'file'; })[0];
+        return g ? sampleAnswer(g) : '';
+      }
+      if (token === 'date') return phpDate('Y-m-d', now);
+      if (token.indexOf('date:') === 0) return phpDate(token.slice(5) || 'Y-m-d', now);
+      switch (token) {
+        case 'time': return phpDate('His', now);
+        case 'form': return data.slug || 'contact';
+        case 'submission': return '20261015-143005-a1b2c3d4';
+        case 'index': return String(index);
+        case 'original': return base;
+        case 'random': return 'a3f9c1';
+        case 'lang': return state.lang || data.default || 'en';
+      }
+      return '';
+    });
+    return (elotSlug(text) || elotSlug(base) || 'file') + '.' + ext;
+  }
+
+  function uploadEditor(f) {
+    var u = f.upload;
+    var parts = [];
+    var num = function (key, labelText, attrs, hint, parse) {
+      var inp = h('input', Object.assign({ type: 'number', 'class': cls.input, value: u[key] || '' }, attrs));
+      inp.addEventListener('input', function () { edit(f, 'up-' + key + ':' + f.id, function () { u[key] = parse(inp.value); }, false); refreshUploadNotes(); });
+      return field(labelText, inp, hint);
+    };
+
+    parts.push(toggle('Allow several files', u.multiple, function (on) { edit(f, '', function () { u.multiple = on; }, true); }));
+    if (u.multiple) {
+      parts.push(h('div', { 'class': 'grid grid-cols-2 gap-2' }, [
+        num('min', 'At least', { min: '0', max: String(UPLOAD.max_files), step: '1', placeholder: '0' }, '', function (v) { return Math.max(0, Math.min(UPLOAD.max_files, parseInt(v, 10) || 0)); }),
+        num('max', 'At most', { min: '1', max: String(UPLOAD.max_files), step: '1' }, '', function (v) { return Math.max(1, Math.min(UPLOAD.max_files, parseInt(v, 10) || 1)); })
+      ]));
+    }
+    parts.push(h('div', { 'class': 'grid grid-cols-2 gap-2' }, [
+      num('max_size_mb', 'Size of each file (MB)', { min: '0.1', step: '0.1' }, '', function (v) { return parseFloat(v) > 0 ? parseFloat(v) : UPLOAD.default_mb; }),
+      num('total_mb', 'All files together (MB)', { min: '0', step: '0.1', placeholder: 'No limit' }, '', function (v) { return parseFloat(v) > 0 ? parseFloat(v) : 0; })
+    ]));
+    var limitNote = h('p', { 'class': 'text-xs text-slate-500', 'data-fb-limit-note': '1', role: 'status' });
+    parts.push(limitNote);
+    function refreshUploadNotes() {
+      var cap = capMb();
+      var eff = effectiveMb(u);
+      limitNote.textContent = 'Effective limit for one file: ' + formatMb(eff) + (cap > 0 ? '. This server and site allow up to ' + formatMb(cap) + ' (upload_max_filesize, post_max_size and the site\'s upload limit).' : '.');
+      limitNote.className = 'text-xs ' + (cap > 0 && u.max_size_mb > cap ? 'font-medium text-amber-700' : 'text-slate-500');
+    }
+    refreshUploadNotes();
+
+    // Allowed kinds: a chip for each group, and a free list for the rest.
+    var chips = h('div', { 'class': 'flex flex-wrap gap-1.5', role: 'group', 'aria-label': 'Allowed kinds of file' });
+    var presetNames = Object.keys(UPLOAD.presets);
+    var onKeys = [];
+    /** What the chips that are on stand for; the list below holds the rest (a group that is only partly chosen too). */
+    function covered() {
+      var all = [];
+      onKeys.forEach(function (key) { all = all.concat(UPLOAD.presets[key].extensions); });
+      return all;
+    }
+    function drawChips() {
+      onKeys = presetNames.filter(function (key) { return UPLOAD.presets[key].extensions.every(function (e) { return u.extensions.indexOf(e) !== -1; }); });
+      chips.textContent = '';
+      presetNames.forEach(function (key) {
+        var preset = UPLOAD.presets[key];
+        var on = preset.extensions.every(function (e) { return u.extensions.indexOf(e) !== -1; });
+        chips.appendChild(h('button', {
+          type: 'button', 'aria-pressed': on ? 'true' : 'false', title: preset.extensions.map(function (e) { return '.' + e; }).join(' '),
+          'class': 'rounded-full border px-2.5 py-1 text-xs font-medium ' + (on ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'),
+          onclick: function () {
+            edit(f, '', function () {
+              u.extensions = on ? u.extensions.filter(function (e) { return preset.extensions.indexOf(e) === -1; }) : u.extensions.concat(preset.extensions.filter(function (e) { return u.extensions.indexOf(e) === -1; }));
+            });
+            drawChips(); extra.value = extras();
+          }
+        }, [preset.label]));
+      });
+    }
+    function extras() { return u.extensions.filter(function (e) { return covered().indexOf(e) === -1; }).join(', '); }
+    drawChips();
+    var extra = h('input', { type: 'text', 'class': cls.input + ' font-mono text-xs', value: extras(), placeholder: 'dwg, mp3, …' });
+    var refusedNote = h('span', { 'class': 'font-normal text-amber-700', 'data-fb-refused': '1' });
+    extra.addEventListener('input', function () {
+      var list = extra.value.split(/[\s,;]+/).map(function (e) { return e.replace(/^[.*]+/, '').toLowerCase(); }).filter(function (e) { return /^[a-z0-9]{1,8}$/.test(e); });
+      var refused = list.filter(function (e) { return UPLOAD.blocked.indexOf(e) !== -1; });
+      refusedNote.textContent = refused.length ? refused.map(function (e) { return '.' + e; }).join(' ') + ' can never be accepted.' : '';
+      edit(f, 'up-ext:' + f.id, function () {
+        var keep = covered().filter(function (e) { return u.extensions.indexOf(e) !== -1; });
+        list.forEach(function (e) { if (UPLOAD.blocked.indexOf(e) === -1 && keep.indexOf(e) === -1) keep.push(e); });
+        u.extensions = keep;
+      }, false);
+      drawChips();
+    });
+    drawChips();
+    parts.push(h('div', { 'class': 'grid gap-1.5' }, [
+      h('span', { 'class': 'text-xs font-medium text-slate-600' }, ['Allowed kinds']),
+      chips,
+      field('Other extensions', extra, 'The content of every file is checked against its extension. Programs, scripts, web pages and SVG are never accepted.'),
+      refusedNote
+    ]));
+
+    // The name of the files: text and tokens, with a preview.
+    var rename = h('input', { type: 'text', 'class': cls.input + ' font-mono text-xs', value: u.rename, placeholder: '{original}', maxlength: '200', 'aria-describedby': 'fb-rename-preview' });
+    var preview = h('p', { id: 'fb-rename-preview', 'class': 'break-all rounded-md bg-slate-50 px-2.5 py-1.5 font-mono text-xs text-slate-700', 'data-fb-rename-preview': '1' });
+    var unknown = h('p', { 'class': 'text-xs text-amber-700', 'data-fb-rename-unknown': '1' });
+    function drawPreview() {
+      var samples = u.multiple ? ['My CV.pdf', 'Photo.jpg', 'Photo.jpg'] : ['My CV.pdf'];
+      preview.textContent = '';
+      samples.slice(0, u.multiple ? 3 : 1).forEach(function (name, i) {
+        var made = previewName(f, name, i + 1);
+        preview.appendChild(h('span', { 'class': 'block' }, [h('span', { 'class': 'text-slate-400' }, [name + '  →  ']), made]));
+      });
+      var missing = [];
+      (u.rename.match(PATTERN_TOKENS) || []).forEach(function (m) {
+        if (m.indexOf('{field:') === 0) { var n = m.slice(7, -1); if (!fields.some(function (x) { return x.name === n && x.type !== 'file' && !def(x.type).display; })) missing.push(n); }
+      });
+      unknown.textContent = missing.length ? missing.map(function (n) { return '{field:' + n + '}'; }).join(' ') + ' is not a field of this form, so it stays empty.' : '';
+    }
+    rename.addEventListener('input', function () { edit(f, 'up-rename:' + f.id, function () { u.rename = rename.value; }, false); drawPreview(); });
+    var tokenList = [['{original}', 'the name it had'], ['{form}', 'the form'], ['{date}', 'the date, or {date:d-m-Y}'], ['{time}', 'the time'], ['{submission}', 'the submission'], ['{index}', 'the number of the file in this field'], ['{random}', 'a short random code'], ['{lang}', 'the language']];
+    fields.filter(function (g) { return g.id !== f.id && g.type !== 'file' && !def(g.type).display && g.name; }).slice(0, 12).forEach(function (g) {
+      tokenList.push(['{field:' + g.name + '}', 'the answer to “' + (g.label || g.name) + '”']);
+    });
+    var tokens = h('div', { 'class': 'flex flex-wrap gap-1', role: 'group', 'aria-label': 'Add to the name' }, tokenList.map(function (t) {
+      return h('button', {
+        type: 'button', title: t[1], 'class': 'rounded border border-slate-200 bg-white px-1.5 py-0.5 font-mono text-[11px] text-slate-700 hover:bg-slate-50',
+        onclick: function () {
+          var at = typeof rename.selectionStart === 'number' ? rename.selectionStart : rename.value.length;
+          var to = typeof rename.selectionEnd === 'number' ? rename.selectionEnd : at;
+          rename.value = rename.value.slice(0, at) + t[0] + rename.value.slice(to);
+          rename.focus();
+          rename.setSelectionRange(at + t[0].length, at + t[0].length);
+          rename.dispatchEvent(new Event('input'));
+        }
+      }, [t[0]]);
+    }));
+    drawPreview();
+    parts.push(h('div', { 'class': 'grid gap-1.5' }, [
+      field('Name of the files', rename, 'Text and the parts below. The extension is always the real one; a name already used gets -2, -3.'),
+      tokens, preview, unknown
+    ]));
+
+    // Texts: the button and the messages (translated like the label).
+    function textBox(key, labelText, placeholder) {
+      var inp = h('input', { type: 'text', 'class': cls.input, value: f[key], placeholder: placeholder });
+      inp.addEventListener('input', function () { edit(f, key + ':' + f.id, function () { f[key] = inp.value; }, false); });
+      return field(labelText, inp);
+    }
+    parts.push(textBox('button', 'Button text', u.multiple ? 'Choose files' : 'Choose a file'));
+    parts.push(h('details', { 'class': 'rounded-md border border-slate-200 bg-slate-50/60 px-3 py-2' }, [
+      h('summary', { 'class': 'cursor-pointer text-xs font-medium text-slate-600' }, ['Messages when something is wrong']),
+      h('div', { 'class': 'mt-3 grid gap-2' }, [
+        h('p', { 'class': 'text-xs text-slate-500' }, ['Leave empty for the site\'s own wording. You can use {name}, {max}, {types} and {count}.']),
+        textBox('error_size', 'Too big', '"{name}" is larger than {max}.'),
+        textBox('error_type', 'Wrong kind of file', '"{name}" is not an accepted kind of file. Allowed: {types}.'),
+        textBox('error_max', 'Too many files', 'You can add at most {count} files.'),
+        textBox('error_min', 'Too few files', 'Please add at least {count} files.')
+      ])
+    ]));
+    return h('div', { 'class': 'grid gap-3 rounded-md border border-slate-200 p-3', 'data-fb-upload': '1' }, parts);
   }
 
   function toggle(text, checked, onchange) {
@@ -1218,6 +1508,11 @@
     refreshNotifyWarning();
   }
 
+  function refreshAttach() {
+    var box = root.querySelector('[data-fb-attach]');
+    if (box) box.classList.toggle('hidden', !fields.some(function (f) { return f.type === 'file'; }));
+  }
+
   function refreshNotifyWarning() {
     if (!notifyBox || !notifyWarning) return;
     notifyWarning.classList.toggle('hidden', !(notifyBox.checked && !notifyTo.value.trim()));
@@ -1316,6 +1611,7 @@
   renderPalette();
   applyView();
   refreshAnswers();
+  refreshAttach();
   initial = serialize();
   // A form that starts from a template is not saved yet, so leaving it is a change.
   otherDirty = !data.existing;

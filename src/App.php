@@ -137,7 +137,12 @@ final class App
         $this->backupRuns = new BackupRunRepository($this->systemDatabase);
         $this->loginThrottle = new LoginThrottle($this->systemDatabase);
         $this->backups = new BackupService($this->basePath, $this->systemDatabase);
-        $this->formSubmissions = new FormSubmissionRepository($this->contentDir);
+        $this->formSubmissions = new FormSubmissionRepository($this->contentDir, $this->basePath . '/storage/form-uploads');
+        $this->formSubmissions->uploads()->configure(
+            fn(): int => $this->siteLimits()->maxUploadBytes(),
+            fn(int $bytes): bool => $this->siteLimits()->allows($bytes),
+            fn(int $bytes) => $this->siteLimits()->formFilesChanged($bytes)
+        );
         $this->contentIndex = new ContentIndex($this->systemDatabase, $this->contentDir);
         $this->media = new MediaLibrary($this->contentDir, $this->basePath . '/public/uploads');
         $this->media->restrictTo(is_array($this->settings['limits']['upload_types'] ?? null) ? $this->settings['limits']['upload_types'] : []);
@@ -503,7 +508,7 @@ final class App
             fn(): array => $this->settings,
             fn(string $key, ?string $fallback = null): string => $this->translate($key, $fallback),
             fn(string $path): string => $this->buildAbsoluteUrl($path),
-            fn(string $to, string $subject, string $body, array $headers) => $this->sendEmailMessage($to, $subject, $body, $headers),
+            fn(string $to, string $subject, string $body, array $headers, array $attachments = []) => $this->sendEmailMessage($to, $subject, $body, $headers, $attachments),
             fn(string $slug, int $seconds): bool => (time() - (int)($_SESSION['form_rate'][$slug] ?? 0)) < $seconds,
             function (string $slug): void {
                 $_SESSION['form_rate'][$slug] = time();
@@ -977,6 +982,8 @@ final class App
         'forms-new' => 'handleFormsNew',
         'form-submissions' => 'handleFormSubmissions',
         'forms-export' => 'handleFormsExport',
+        'form-file' => 'handleFormFile',
+        'form-files-zip' => 'handleFormFilesZip',
         'import' => 'handleContentImport',
         'export' => 'handleContentExport',
         'translations' => 'handleTranslations',
@@ -1001,7 +1008,7 @@ final class App
     ];
 
     /** Admin addresses whose POST only reads, previews or exports, so the cache in front of the site stays as it is. */
-    private const ADMIN_POSTS_THAT_CHANGE_NOTHING = ['search', 'markdown-visual', 'media-picker', 'block-presets', 'notification-read', 'notifications-read-all', 'forms-export', 'export', 'omni', 'activity-logs', 'email-logs'];
+    private const ADMIN_POSTS_THAT_CHANGE_NOTHING = ['search', 'markdown-visual', 'media-picker', 'block-presets', 'notification-read', 'notifications-read-all', 'forms-export', 'form-file', 'form-files-zip', 'export', 'omni', 'activity-logs', 'email-logs'];
 
     private function frontCache(): FrontCache
     {
@@ -2736,6 +2743,7 @@ final class App
                 $this->logActivity('forms.submission_delete', 'warning', 'forms', $slug, $deleted === 1 ? 'Form submission deleted.' : 'Form submissions deleted.', [
                     'slug' => $slug,
                     'count' => $deleted,
+                    'files' => $result['files'],
                     'ids' => array_slice($result['ids'], 0, 50),
                 ]);
             }
@@ -2745,7 +2753,8 @@ final class App
                 $query = [];
             }
             unset($query['deleted'], $query['error']);
-            $query = ['slug' => $slug] + $query + ($deleted > 0 ? ['deleted' => $deleted] : ['error' => 'Nothing was deleted.']);
+            unset($query['files']);
+            $query = ['slug' => $slug] + $query + ($deleted > 0 ? ['deleted' => $deleted] + ($result['files'] > 0 ? ['files' => $result['files']] : []) : ['error' => 'Nothing was deleted.']);
             $this->redirect('/admin/form-submissions?' . http_build_query($query));
             return;
         }
@@ -2769,6 +2778,8 @@ final class App
             'per_page' => $page['per_page'],
             'per_page_options' => FormsAdmin::PER_PAGE_OPTIONS,
             'deleted_count' => (int)($_GET['deleted'] ?? 0),
+            'deleted_files' => (int)($_GET['files'] ?? 0),
+            'has_file_field' => $page['has_file_field'],
             'error' => trim((string)($_GET['error'] ?? '')),
             'current_url' => $this->currentRequestPath(),
             'languages' => array_values(array_map('strval', $this->settings['languages']['available'] ?? [])),
@@ -2777,6 +2788,46 @@ final class App
             'admin_section' => 'forms',
             'current_type' => 'forms',
         ]);
+    }
+
+    /** One file a visitor attached to a form, given to someone signed in who may see submissions, as a download and never as a page. */
+    private function handleFormFile(): void
+    {
+        $slug = Slug::plain((string)($_GET['slug'] ?? ''));
+        $id = (string)($_GET['id'] ?? '');
+        $path = $this->formSubmissions->uploads()->path($slug, $id, (string)($_GET['f'] ?? ''));
+        if ($path === null) {
+            $this->render404();
+            return;
+        }
+        $name = basename($path);
+        $this->logActivity('forms.file_download', 'info', 'forms', $slug, 'Form file downloaded.', ['slug' => $slug, 'submission' => $id, 'file' => $name]);
+        header('Content-Type: application/octet-stream');
+        header('Content-Disposition: attachment; filename="' . $name . '"');
+        header('Content-Length: ' . (int)filesize($path));
+        header('X-Content-Type-Options: nosniff');
+        header('Cache-Control: private, no-store');
+        readfile($path);
+    }
+
+    /** All the files of one submission as a ZIP. */
+    private function handleFormFilesZip(): void
+    {
+        $slug = Slug::plain((string)($_GET['slug'] ?? ''));
+        $id = (string)($_GET['id'] ?? '');
+        $zip = $this->formSubmissions->uploads()->zip($slug, $id);
+        if ($zip === null) {
+            $this->render404();
+            return;
+        }
+        $this->logActivity('forms.file_download', 'info', 'forms', $slug, 'Form files downloaded as a ZIP.', ['slug' => $slug, 'submission' => $id]);
+        header('Content-Type: application/zip');
+        header('Content-Disposition: attachment; filename="' . $slug . '-' . $id . '.zip"');
+        header('Content-Length: ' . (int)filesize($zip));
+        header('X-Content-Type-Options: nosniff');
+        header('Cache-Control: private, no-store');
+        readfile($zip);
+        @unlink($zip);
     }
 
     private function formTranslationMigration(): FormTranslationMigration
@@ -3980,6 +4031,8 @@ final class App
             'post' => $_POST,
             'ip' => (string)($_SERVER['REMOTE_ADDR'] ?? ''),
             'agent' => (string)($_SERVER['HTTP_USER_AGENT'] ?? ''),
+            'files' => $_FILES,
+            'overflow' => $this->requestOverflowed(),
         ]);
         // A form that was sent now (not the page that thanks for it, shown again, and not a robot's catch in the honeypot) is a goal.
         $honeypot = (string)($result['state']['honeypot'] ?? '');
@@ -3992,21 +4045,31 @@ final class App
         return $result['state'];
     }
 
+    /** Whether a form was sent with more than the server takes in one request: PHP then throws the whole request away, and nothing of the form arrives. */
+    private function requestOverflowed(): bool
+    {
+        $length = (int)($_SERVER['CONTENT_LENGTH'] ?? 0);
+        $cap = SiteLimits::serverPostCap();
+        return ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && $length > 0 && $cap > 0 && $length > $cap && $_POST === [] && $_FILES === [];
+    }
+
     private function mailer(): Mailer
     {
         $config = $this->settings['forms']['notifications'] ?? [];
         return new Mailer(is_array($config) ? $config : []);
     }
 
-    private function sendEmailMessage(string $to, string $subject, string $body, array $headers): bool
+    /** @param array<int, array{path: string, name: string, mime: string}> $attachments */
+    private function sendEmailMessage(string $to, string $subject, string $body, array $headers, array $attachments = []): bool
     {
-        $result = $this->mailer()->send($to, $subject, $body, $headers);
+        $result = $this->mailer()->send($to, $subject, $body, $headers, $attachments);
         $this->logEmailAttempt($to, $subject, $result['provider'], $result['ok'], $result['error'], [
             'driver_setting' => (string)($this->settings['forms']['notifications']['driver'] ?? ''),
             'from' => (string)($headers['From'] ?? ''),
             'reply_to' => (string)($headers['Reply-To'] ?? ''),
             'cc' => (string)($headers['Cc'] ?? ''),
             'bcc' => (string)($headers['Bcc'] ?? ''),
+            'attachments' => count($attachments),
         ]);
         return $result['ok'];
     }
@@ -4022,7 +4085,7 @@ final class App
         if (!$form) {
             return '';
         }
-        return $this->twig->render('components/form.twig', $this->publicForms()->embed($form, $currentPath, $this->formStates[$form->slug] ?? null, $_GET, $lang));
+        return $this->twig->render('components/form.twig', $this->publicForms()->embed($form, $currentPath, $this->formStates[$form->slug] ?? null, $_GET, $lang, $this->requestOverflowed()));
     }
 
     private function redirect(string $path): void

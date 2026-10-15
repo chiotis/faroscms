@@ -10,8 +10,18 @@ namespace FarosCMS;
  */
 final class FormSubmissionRepository
 {
-    public function __construct(private string $contentDir)
+    private FormUploads $uploads;
+
+    /** @param string|null $uploadsDir where the files attached to submissions are kept (private, outside the web root); storage/form-uploads next to the content folder when not given */
+    public function __construct(private string $contentDir, ?string $uploadsDir = null)
     {
+        $this->uploads = new FormUploads($uploadsDir ?? dirname($contentDir) . '/storage/form-uploads');
+    }
+
+    /** The private folder of the files attached to submissions. */
+    public function uploads(): FormUploads
+    {
+        return $this->uploads;
     }
 
     public function directory(string $slug): string
@@ -46,6 +56,7 @@ final class FormSubmissionRepository
                 'ip' => (string)($data['ip'] ?? ''),
                 'user_agent' => (string)($data['user_agent'] ?? ''),
                 'fields' => is_array($data['fields'] ?? null) ? $data['fields'] : [],
+                'files' => is_array($data['files'] ?? null) ? $data['files'] : [],
             ];
         }
         usort($entries, static fn(array $a, array $b): int => strcmp((string)$b['submitted_at'], (string)$a['submitted_at']));
@@ -80,7 +91,7 @@ final class FormSubmissionRepository
 
     /**
      * @param array<int, array<string, mixed>> $entries
-     * @param array{lang?: string, q?: string, date_from?: string, date_to?: string} $filters
+     * @param array{lang?: string, q?: string, date_from?: string, date_to?: string, has_files?: string} $filters
      * @return array<int, array<string, mixed>>
      */
     public function filter(array $entries, array $filters): array
@@ -91,9 +102,13 @@ final class FormSubmissionRepository
         $to = trim((string)($filters['date_to'] ?? ''));
         $fromTs = $from !== '' ? strtotime($from . ' 00:00:00') : false;
         $toTs = $to !== '' ? strtotime($to . ' 23:59:59') : false;
+        $hasFiles = trim((string)($filters['has_files'] ?? '')) !== '';
 
-        return array_values(array_filter($entries, static function (array $entry) use ($lang, $query, $fromTs, $toTs): bool {
+        return array_values(array_filter($entries, static function (array $entry) use ($lang, $query, $fromTs, $toTs, $hasFiles): bool {
             if ($lang !== '' && (string)$entry['lang'] !== $lang) {
+                return false;
+            }
+            if ($hasFiles && self::fileCount($entry) === 0) {
                 return false;
             }
             $submitted = (int)strtotime((string)$entry['submitted_at']);
@@ -114,6 +129,16 @@ final class FormSubmissionRepository
         }));
     }
 
+    /** How many files a submission has (from the entry as `all()` gives it). @param array<string, mixed> $entry */
+    public static function fileCount(array $entry): int
+    {
+        $count = 0;
+        foreach (is_array($entry['files'] ?? null) ? $entry['files'] : [] as $files) {
+            $count += is_array($files) ? count($files) : 0;
+        }
+        return $count;
+    }
+
     public function find(string $slug, string $id): ?array
     {
         if (!self::isValidId($id)) {
@@ -127,14 +152,20 @@ final class FormSubmissionRepository
         return null;
     }
 
+    /** A new submission's id (the files of a submission are kept under it, so it is decided before they are). */
+    public function newId(): string
+    {
+        return date('Ymd-His') . '-' . bin2hex(random_bytes(4));
+    }
+
     /** @param array<string, mixed> $payload */
-    public function store(string $slug, array $payload): string
+    public function store(string $slug, array $payload, ?string $id = null): string
     {
         $dir = $this->directory($slug);
         if (!is_dir($dir)) {
             mkdir($dir, 0775, true);
         }
-        $id = date('Ymd-His') . '-' . bin2hex(random_bytes(4));
+        $id = $id !== null && self::isValidId($id) ? $id : $this->newId();
         $payload = ['id' => $id] + $payload;
         file_put_contents($dir . '/' . $id . '.json', json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
         return $id;
@@ -146,6 +177,11 @@ final class FormSubmissionRepository
             return false;
         }
         $path = $this->directory($slug) . '/' . $id . '.json';
-        return is_file($path) && @unlink($path);
+        $deleted = is_file($path) && @unlink($path);
+        // A submission's files go with it, and only with it.
+        if ($deleted) {
+            $this->uploads->remove($slug, $id);
+        }
+        return $deleted;
     }
 }
