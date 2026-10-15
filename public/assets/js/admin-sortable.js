@@ -11,6 +11,9 @@
  *     ghost: '.head',                     optional: the part of an item shown lifted under the pointer (the whole item by default)
  *     label: function (item, index) {},   what the screen reader says for an item ("Block Text")
  *     group: 'blocks',                    optional: lists of one group exchange items; a list without a group is on its own
+ *     accept: function (item, fromList) {},  optional: false keeps an item out of this list (a container is not dropped into a column); its own items always stay
+ *     listName: function (list) {},       optional: how the screen reader names this list ("column 2 of container 1"); also in the announcements of a move between lists
+ *     meta: anything,                     optional: kept on the list for the caller (it comes back in info.fromList.options.meta)
  *     onSort: function (info) {}          called once after a drop: {item, from, to, fromList, toList, via: 'pointer' | 'keyboard'}
  *   });
  *
@@ -23,8 +26,8 @@
  * cannot be dropped into itself.
  *
  * Keyboard and screen readers: the grip is a button. Space or Enter picks the item up, the arrow keys (and Home and End) move it,
- * Space or Enter drops it, Escape puts it back. Every step is said through one polite live region. Moving between lists is for the
- * pointer; the keyboard moves an item within its own list.
+ * Space or Enter drops it, Escape puts it back. Every step is said through one polite live region. Shift with the left or right arrow
+ * key moves the item to the previous or next list of its group (in page order, around the ends) that takes it, and says where it is.
  */
 (function () {
   'use strict';
@@ -256,6 +259,16 @@
     s.raf = window.requestAnimationFrame(scrollStep);
   }
 
+  /** Whether a list takes an item that comes from another list (its own items always stay). */
+  function takes(list, item, from) {
+    return list === from || !list.options.accept || list.options.accept(item, from) !== false;
+  }
+
+  /** How a list is named for a screen reader. */
+  function nameOfList(list) {
+    return list.options.listName ? list.options.listName(list) : 'another list';
+  }
+
   /** Where the item would land for the pointer: the list under it (the innermost of its group), the slot in that list, the indicator. */
   function update() {
     var s = state;
@@ -264,7 +277,7 @@
     var hit = null;
     var area = Infinity;
     instances.forEach(function (inst) {
-      if (inst.group !== s.self.group || !inst.container.isConnected || s.item.contains(inst.container)) return;
+      if (inst.group !== s.self.group || !inst.container.isConnected || s.item.contains(inst.container) || !takes(inst, s.item, s.self)) return;
       var r = rectOf(inst.container);
       if (s.x >= r.left && s.x <= r.right && s.y >= r.top && s.y <= r.bottom && r.width * r.height < area) {
         area = r.width * r.height;
@@ -315,7 +328,7 @@
       if (s.via === 'keyboard') announce(label + ' dropped, still at position ' + (s.from + 1) + '.');
       return;
     }
-    announce(label + ' moved to position ' + (s.to + 1) + ' of ' + size + (same ? '' : ' in another list') + '.');
+    announce(label + ' moved to ' + (same ? '' : nameOfList(to) + ', ') + 'position ' + (s.to + 1) + ' of ' + size + '.');
     if (to.options.onSort) to.options.onSort(info);
   }
 
@@ -387,14 +400,38 @@
 
     function stepTo(to) {
       var s = state;
-      var items = self.items();
-      to = Math.max(0, Math.min(items.length - 1, to));
+      var target = s.target;
+      var same = target === self;
+      var items = target.items();
+      var last = same ? items.length - 1 : items.length;
+      to = Math.max(0, Math.min(last, to));
       if (to === s.to) return;
       s.to = to;
-      s.slot = to > s.from ? to + 1 : to;
-      showLine(to === s.from ? null : lineBox(items.map(rectOf), s.slot, rectOf(container)));
-      if (items[to] && items[to].scrollIntoView) items[to].scrollIntoView({ block: 'nearest' });
-      announce(s.label + ' moved to position ' + (to + 1) + ' of ' + items.length);
+      s.slot = same && to > s.from ? to + 1 : to;
+      showLine(same && to === s.from ? null : lineBox(items.map(rectOf), s.slot, rectOf(target.container)));
+      var near = items[Math.min(to, items.length - 1)];
+      if (near && near.scrollIntoView) near.scrollIntoView({ block: 'nearest' });
+      announce(s.label + ' moved to ' + (same ? '' : nameOfList(target) + ', ') + 'position ' + (to + 1) + ' of ' + (same ? items.length : items.length + 1));
+    }
+
+    /** Moves the item picked up to the previous or next list of the group that takes it (in page order, around the ends). */
+    function stepList(delta) {
+      var s = state;
+      var lists = instances.filter(function (inst) {
+        return inst.group === self.group && inst.container.isConnected && !s.item.contains(inst.container) && takes(inst, s.item, self);
+      });
+      lists.sort(function (a, b) { return a.container.compareDocumentPosition(b.container) & 4 ? -1 : 1; });
+      if (lists.length < 2) { announce(s.label + ' has no other list to go to.'); return; }
+      var next = lists[(lists.indexOf(s.target) + delta + lists.length) % lists.length];
+      var same = next === self;
+      var items = next.items();
+      var to = Math.max(0, Math.min(same ? items.length - 1 : items.length, s.to));
+      s.target = next;
+      s.to = to;
+      s.slot = same && to > s.from ? to + 1 : to;
+      showLine(same && to === s.from ? null : lineBox(items.map(rectOf), s.slot, rectOf(next.container)));
+      if (next.container.scrollIntoView) next.container.scrollIntoView({ block: 'nearest' });
+      announce(s.label + ' is now in ' + (same ? 'its own list' : nameOfList(next)) + ', position ' + (to + 1) + ' of ' + (same ? items.length : items.length + 1) + '.');
     }
 
     function onKeyDown(event) {
@@ -410,6 +447,9 @@
           document.addEventListener('keyup', quiet, true);
         }
         finish(state);
+      } else if (event.shiftKey && (key === 'ArrowLeft' || key === 'ArrowRight')) {
+        event.preventDefault();
+        stepList(key === 'ArrowLeft' ? -1 : 1);
       } else if (key === 'ArrowUp' || key === 'ArrowLeft') {
         event.preventDefault();
         stepTo(state.to - 1);
@@ -421,7 +461,7 @@
         stepTo(0);
       } else if (key === 'End') {
         event.preventDefault();
-        stepTo(self.items().length - 1);
+        stepTo(state.target.items().length);
       } else if (key === 'Tab') {
         cancel(true);
       }

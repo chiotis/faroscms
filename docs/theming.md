@@ -185,6 +185,34 @@ A block that had a field called `width` of its own (the Divider's line) names th
 
 `scripts/theme-audit.js` has `themeAudit.rows(paths)` to check a page with rows at desktop, tablet and phone widths.
 
+### Containers (rows with columns)
+
+A **container** is an entry of `blocks:` that is not a block: a section with one to six columns, and blocks inside each column. It is what makes a layout the Width of a block cannot (a text beside a picture beside a form, a 25 / 50 / 25 row, a hero-like band with a picture behind the columns). Stored in the front matter, backward compatible (a page without one renders exactly as before):
+
+```yaml
+blocks:
+  - type: container
+    settings: {gap: l, justify: center}       # only what differs from the default
+    columns:
+      - settings: {width: 1/3, padding: m}
+        blocks: [ {type: text, heading: One} ]
+      - blocks: [ {type: image, image: /uploads/x.jpg}, {type: cta, heading: Go} ]
+```
+
+**One level only**: a container inside a column is dropped (stored pages are cleaned the same way, `scripts/check-blocks.php` and the skill's validator name it). `container` is a reserved name: `BlockRegistry` ignores a `blocks/container/` of a theme or of `custom/`. The shape (fields, checking, the classes and variables a column gets) is `src/BlockContainer.php`; the editor, `BlockRenderer`, `HtmlGuard`, the registry's storage check, `scripts/check-blocks.php`, `scripts/theme-audit.js` and the skill know it.
+
+**Settings of the container** (all optional): `direction` (`row`, `row-reverse`), `justify` (justify-content: `start center end between around evenly`), `align` (align-items: `stretch start center end baseline`), `align_content` (align-content), `wrap` (`wrap nowrap wrap-reverse`), `gap` and `row_gap` (the theme's spacing steps `none xs s m l xl`, default `m`; never free sizes), `stack_desktop`, `stack_tablet`, `stack_phone` (how the columns stack on that screen: `row` stays in a row, `two` wraps to halves, `one` stacks to one column; tablet also has `auto`, the default: two columns stay in a row, more wrap to two; phone defaults to `one`), `reverse_phone` (reverse the order when stacked on a phone), `tone` (the section background, as a block's), `image` and `overlay` (`none light dark`; a picture behind the columns, decorative, with a dark overlay the section takes the `contrast` tone so the text is light), `inner` (`container`, `narrow`, `full` for the width of the content), `spacing` (as a block's), `min_height` (`none s m l screen`: 15, 25, 35 rem or the screen), `anchor`, `class` (letters, digits, `-` and `_`) and `hidden`.
+
+**Settings of a column**: `width` (`fill`, the default, an equal share; `auto`, its content; a fraction `1/3`; a percentage `37%`; or a fixed size `20rem`, `320px`), `min_width`, `max_width`, `grow`, `shrink` and `basis` (when one is set the column is `flex: grow shrink basis` and the width is not used), `align_self` (`auto start center end stretch baseline`), `valign` (`top center bottom`: where the blocks sit in a column taller than they are), `order` (-6 to 6), `padding` (a spacing step), `tone` (the column's own background) and `radius` (`none s m l`). The columns of a row add up to exactly the row: the stylesheet takes the gaps off a fraction (`calc(100% * f - gap * (1 - f))`).
+
+**Markup and styles.** `BlockRenderer` draws a container with the theme's `components/block-container.twig` (a `<section class="block block-container bkc tone-… space-…">`, an optional `.bkc-media` picture, `.bkc-inner`, the `.bkc-row` and a `.bkc-col` for each column; the blocks inside are the usual `components/block.twig` sections). Everything is a class (`bkc-j-center`, `bkc-gap-l`, `bkc-d-one`, `bkc-t-two`, `bkc-p-one`, `bkc-col--part`, `bkc-col--pad-m`…) or a custom property set inline and nothing else: `--bkc-f` (a part of the row), `--bkc-w`, `--bkc-min`, `--bkc-max`, `--bkc-grow`, `--bkc-shrink`, `--bkc-basis`, `--bkc-order`. The styles are `assets/css/block-container.css`, added to the page's block stylesheet (`_blocks.css?b=…,_row,_container`) **only when the page has a container**, together with the stylesheets of the block types inside the columns and with `block-row.css`, whose rules for narrow blocks also cover a block in a column (`:is(.block-row, .bkc-col) > .block`). No JavaScript. Stacking is by media query: desktop above 960px, tablet 641 to 960px, phone up to 640px. A theme without `components/block-container.twig` shows the blocks of the columns one under another: copy the file and the stylesheet from the default theme to give it containers.
+
+**Width inside a column is ignored.** A block in a column takes the room of the column: its own Width is neither shown in the editor there nor used when drawing; instead `BlockRenderer` gives the block the narrow class that fits the column (a quarter, a third or a half: `block--w-25|33|50`, none for a wide column), so the narrow-block rules above apply and a Features grid, a Text split or a Form lay themselves out for the column. The stored `width` of a moved block is kept, so unwrapping a container gives the block its width back. Blocks inside a column have no vertical space of their own and are separated by `--space-l`; a column's blocks are sections, so headings stay `h2` and a block can never be the first block of the page (the page keeps its own title). A `content` block inside a column places the page's text.
+
+**Live preview and the editor.** Each container and each block inside it carries `data-bk-block="<container>.<column>.<block>"` in the preview only, so a click in the preview opens the right card.
+
+`themeAudit.containers(paths)` (`scripts/theme-audit.js`) checks a page with containers at desktop, tablet and phone widths: no column outside the container, a column set to stack to one fills the row, nothing wider than its column, no sideways scrolling.
+
 ### Writing a block
 
 Create `blocks/<type>/` with three files:

@@ -145,6 +145,15 @@ final class HtmlGuard
     public function eachMarkdownField(array $blocks, \Closure $change): array
     {
         foreach ($blocks as $i => $block) {
+            if (is_array($block) && ($block['type'] ?? null) === BlockContainer::TYPE && is_array($block['columns'] ?? null)) {
+                // The blocks inside the columns of a container are blocks like any other.
+                foreach (array_values($block['columns']) as $c => $column) {
+                    if (is_array($column) && is_array($column['blocks'] ?? null)) {
+                        $blocks[$i]['columns'][$c]['blocks'] = $this->eachMarkdownField(array_values($column['blocks']), $change);
+                    }
+                }
+                continue;
+            }
             $definition = is_array($block) && is_string($block['type'] ?? null) ? ($this->blocks)()->get($block['type']) : null;
             if ($definition === null) {
                 continue;

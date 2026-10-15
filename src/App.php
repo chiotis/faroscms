@@ -894,7 +894,7 @@ final class App
             // The page of a point, a route or a business draws a map: it needs the map's style sheet and script, once.
             $base = rtrim((string)($this->settings['base_url'] ?? ''), '/');
             $types = array_values(array_unique(array_merge($pageBlocks['types'] ?? [], ['map'])));
-            $styles = array_values(array_filter([$this->theme->blockStylesheetUrl($base, $types)]));
+            $styles = array_values(array_filter([$this->theme->blockStylesheetUrl($base, array_values(array_unique(array_merge($types, array_intersect($pageBlocks['asset_types'] ?? [], [Theme::ROW_STYLES, Theme::CONTAINER_STYLES])))))]));
             $scripts = array_values(array_filter([$this->theme->blockScriptUrl($base, $types)]));
         }
         return [
@@ -3613,6 +3613,7 @@ final class App
         $multiple = count($languages) > 1;
         return (string)json_encode([
             'definitions' => $this->blockRuntime()->registry()->editorDefinitions(),
+            'container' => BlockContainer::editorData(),
             'blocks' => $multiple ? FooterBlocks::sets($stored, array_column($languages, 'key')) : FooterBlocks::forLanguage($stored, 'default', 'default'),
             'languages' => $multiple ? $languages : [],
             'presets' => $this->presetLibrary()->forEditor($lang, $lang),

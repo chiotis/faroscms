@@ -36,25 +36,31 @@ final class BlockRenderer
     /**
      * @param array<int, mixed> $rawBlocks
      * @param array<string, mixed> $context template variables shared with every block (item, lang, lang_prefix, body_html, …)
-     * @return array{html: string, types: string[], styles: string[], scripts: string[], structured_data: array<int, array<string, mixed>>, leads_with_hero: bool, opens_with_slider: bool, opens_with_dark_slide: bool, lead: array{type: string, variant: string, tone: string}|null, count: int, image: string}
+     * @return array{html: string, types: string[], asset_types: string[], styles: string[], scripts: string[], structured_data: array<int, array<string, mixed>>, leads_with_hero: bool, opens_with_slider: bool, opens_with_dark_slide: bool, lead: array{type: string, variant: string, tone: string}|null, count: int, image: string}
      */
     public function render(array $rawBlocks, array $context): array
     {
         $blocks = $this->prepare($rawBlocks, (string)($context['body_html'] ?? ''));
         $html = '';
-        // Each shown block as [html, width, tone, spacing]; blocks narrower than the page are gathered into rows afterwards.
+        // Each shown block as [width, tone, spacing, html]; blocks narrower than the page are gathered into rows afterwards.
         $sections = [];
-        $types = [];
-        $faq = [];
+        // What the blocks (also those inside containers) add to the page: their types, the FAQ questions and the first picture.
+        $found = ['types' => [], 'faq' => [], 'image' => '', 'container' => false];
         $leadsWithHero = false;
         $opensWithSlider = false;
         $sliderDark = true;
-        $firstImage = '';
         $lead = null;
 
         foreach ($blocks as $index => $entry) {
             [$type, $definition, $values] = $entry;
             $isFirst = $index === 0;
+            if ($type === BlockContainer::TYPE) {
+                $section = $this->container($values, $index, $context, $found);
+                if ($section !== null) {
+                    $sections[] = $section;
+                }
+                continue;
+            }
             if ($isFirst && $type === 'hero') {
                 $leadsWithHero = true;
             }
@@ -66,54 +72,14 @@ final class BlockRenderer
             if ($isFirst) {
                 $lead = ['type' => $type, 'variant' => (string)$values['variant'], 'tone' => (string)$values['tone']];
             }
-            $values = $this->withData($type, $definition, $values, $context);
-            if (($values['_empty'] ?? false) === true) {
-                // A dynamic block with nothing to show (no matching content, no valid video) leaves no empty section behind.
-                continue;
-            }
-            if ($firstImage === '' && is_string($values['image'] ?? null) && $values['image'] !== '') {
-                // Share-image fallback for pages without a main image.
-                $firstImage = $values['image'];
-            }
-            if ($firstImage === '' && is_string($values['video_poster'] ?? null) && $values['video_poster'] !== '' && ($values['_video'] ?? null) !== null) {
-                $firstImage = $values['video_poster'];
-            }
-            $uid = $values['anchor'] !== '' ? $values['anchor'] : 'block-' . ($index + 1);
-
-            // The block that opens the page stays full width: the header, the title and the page's <h1> belong to it.
-            if ($isFirst && ($type === 'hero' || self::isOpeningSlider($type, $values))) {
-                $values['width'] = '100';
-            }
-            $sections[] = [(int)$values['width'], (string)$values['tone'], (string)$values['spacing'], $this->twig->render('components/block.twig', $context + [
-                'block' => $values,
-                'block_type' => $type,
-                'block_uid' => $uid,
-                'block_index' => $index,
-                'block_first' => $isFirst,
-                // A layout that is a variant of another also carries the other's class (a centred cover is a cover).
-                'block_extra_class' => isset($definition['variant_extends'][(string)$values['variant']]) ? 'block--' . $definition['variant_extends'][(string)$values['variant']] : '',
-                // The hero that opens the page is the page title; everything else is a section.
-                'heading_tag' => $isFirst && $type === 'hero' ? 'h1' : 'h2',
-                // Items sit one level below their block's heading; a block without a heading has none to sit under.
-                'item_heading_tag' => $isFirst && $type === 'hero' ? 'h2' : (trim((string)($values['heading'] ?? '')) !== '' ? 'h3' : 'h2'),
-                'block_labelled' => trim((string)($values['heading'] ?? '')) !== '',
-            ])];
-            $types[$type] = true;
-
-            if ($type === 'faq' && ($values['schema'] ?? true) === true) {
-                foreach ($values['items'] as $question) {
-                    $name = trim((string)($question['question'] ?? ''));
-                    $answer = trim(strip_tags((string)($question['answer_html'] ?? '')));
-                    if ($name !== '' && $answer !== '') {
-                        $faq[] = [
-                            '@type' => 'Question',
-                            'name' => $name,
-                            'acceptedAnswer' => ['@type' => 'Answer', 'text' => preg_replace('/\s+/', ' ', $answer)],
-                        ];
-                    }
-                }
+            $section = $this->section($type, $definition, $values, $context, $index, $isFirst, '', $found);
+            if ($section !== null) {
+                $sections[] = $section;
             }
         }
+        $types = $found['types'];
+        $faq = $found['faq'];
+        $firstImage = $found['image'];
 
         $html = self::rows($sections);
         $narrow = false;
@@ -130,9 +96,12 @@ final class BlockRenderer
         if (isset($types['hero-slider'])) {
             $assetTypes = array_values(array_unique(array_merge(['hero'], array_diff($assetTypes, ['hero']))));
         }
-        // Only a page with a block narrower than the page carries the styles of a row.
-        if ($narrow) {
+        // Only a page with a block narrower than the page carries the styles of a row. A container's columns are rows too: the blocks in them follow the same narrow rules.
+        if ($narrow || $found['container']) {
             $assetTypes[] = Theme::ROW_STYLES;
+        }
+        if ($found['container']) {
+            $assetTypes[] = Theme::CONTAINER_STYLES;
         }
         $stylesheet = $this->theme->blockStylesheetUrl($this->baseUrl, $assetTypes);
         $styles = $stylesheet !== '' ? [$stylesheet] : [];
@@ -145,6 +114,7 @@ final class BlockRenderer
         return [
             'html' => $html,
             'types' => array_keys($types),
+            'asset_types' => $assetTypes,
             'styles' => $styles,
             'scripts' => $script !== '' ? [$script] : [],
             'structured_data' => $structuredData,
@@ -155,6 +125,116 @@ final class BlockRenderer
             'count' => count($blocks),
             'image' => $firstImage,
         ];
+    }
+
+    /**
+     * One block as a section of the page: its dynamic data, its template, and what it adds to the page.
+     *
+     * @param array<string, mixed> $definition
+     * @param array<string, mixed> $values the block's checked values
+     * @param array<string, mixed> $context
+     * @param array{types: array<string, bool>, faq: array<int, array<string, mixed>>, image: string, container: bool} $found
+     * @return array{0: int, 1: string, 2: string, 3: string}|null width, tone, spacing, markup; null for a block with nothing to show
+     */
+    private function section(string $type, array $definition, array $values, array $context, int $index, bool $isFirst, string $uid, array &$found): ?array
+    {
+        $values = $this->withData($type, $definition, $values, $context);
+        if (($values['_empty'] ?? false) === true) {
+            // A dynamic block with nothing to show (no matching content, no valid video) leaves no empty section behind.
+            return null;
+        }
+        if ($found['image'] === '' && is_string($values['image'] ?? null) && $values['image'] !== '') {
+            // Share-image fallback for pages without a main image.
+            $found['image'] = $values['image'];
+        }
+        if ($found['image'] === '' && is_string($values['video_poster'] ?? null) && $values['video_poster'] !== '' && ($values['_video'] ?? null) !== null) {
+            $found['image'] = $values['video_poster'];
+        }
+        $uid = $uid !== '' ? $uid : ($values['anchor'] !== '' ? $values['anchor'] : 'block-' . ($index + 1));
+
+        // The block that opens the page stays full width: the header, the title and the page's <h1> belong to it.
+        if ($isFirst && ($type === 'hero' || self::isOpeningSlider($type, $values))) {
+            $values['width'] = '100';
+        }
+        $html = $this->twig->render('components/block.twig', $context + [
+            'block' => $values,
+            'block_type' => $type,
+            'block_uid' => $uid,
+            'block_index' => $index,
+            'block_first' => $isFirst,
+            // A layout that is a variant of another also carries the other's class (a centred cover is a cover).
+            'block_extra_class' => isset($definition['variant_extends'][(string)$values['variant']]) ? 'block--' . $definition['variant_extends'][(string)$values['variant']] : '',
+            // The hero that opens the page is the page title; everything else is a section.
+            'heading_tag' => $isFirst && $type === 'hero' ? 'h1' : 'h2',
+            // Items sit one level below their block's heading; a block without a heading has none to sit under.
+            'item_heading_tag' => $isFirst && $type === 'hero' ? 'h2' : (trim((string)($values['heading'] ?? '')) !== '' ? 'h3' : 'h2'),
+            'block_labelled' => trim((string)($values['heading'] ?? '')) !== '',
+        ]);
+        $found['types'][$type] = true;
+
+        if ($type === 'faq' && ($values['schema'] ?? true) === true) {
+            foreach ($values['items'] as $question) {
+                $name = trim((string)($question['question'] ?? ''));
+                $answer = trim(strip_tags((string)($question['answer_html'] ?? '')));
+                if ($name !== '' && $answer !== '') {
+                    $found['faq'][] = [
+                        '@type' => 'Question',
+                        'name' => $name,
+                        'acceptedAnswer' => ['@type' => 'Answer', 'text' => preg_replace('/\s+/', ' ', $answer)],
+                    ];
+                }
+            }
+        }
+        return [(int)$values['width'], (string)$values['tone'], (string)$values['spacing'], $html];
+    }
+
+    /**
+     * A container: its columns with the blocks inside drawn one by one, in the theme's components/block-container.twig. A block in a
+     * column takes the room of the column (its own Width is not used there), is never the first block of the page, and its place in
+     * the editor is `<container>.<column>.<block>`. A container with nothing to show leaves nothing behind for visitors.
+     *
+     * @param array<string, mixed> $resolved BlockContainer::resolve() and `_source`
+     * @param array<string, mixed> $context
+     * @param array{types: array<string, bool>, faq: array<int, array<string, mixed>>, image: string, container: bool} $found
+     * @return array{0: int, 1: string, 2: string, 3: string}|null
+     */
+    private function container(array $resolved, int $index, array $context, array &$found): ?array
+    {
+        $settings = $resolved['settings'];
+        $count = count($resolved['columns']);
+        $columns = [];
+        $any = false;
+        foreach ($resolved['columns'] as $c => $column) {
+            $width = (string)$column['settings']['width'];
+            $html = '';
+            foreach ($this->prepareList($column['blocks'], $resolved['_source'] . '.' . $c . '.', false) as $k => [$type, $definition, $values]) {
+                $values['width'] = (string)BlockContainer::blockWidth($width, $count);
+                $uid = $values['anchor'] !== '' ? $values['anchor'] : 'block-' . ($index + 1) . '-' . ($c + 1) . '-' . ($k + 1);
+                $section = $this->section($type, $definition, $values, $context, $index, false, $uid, $found);
+                $html .= $section !== null ? $section[3] : '';
+            }
+            $any = $any || $html !== '';
+            $columns[] = BlockContainer::columnMarkup($column['settings']) + ['html' => $html];
+        }
+        if (!$any && !($context['block_preview'] ?? false)) {
+            return null;
+        }
+        $found['container'] = true;
+        $dark = $settings['image'] !== '' && $settings['overlay'] === 'dark';
+        $tone = $dark ? 'contrast' : (string)$settings['tone'];
+        // A theme with no template for it shows the blocks of the columns one under another.
+        if (!$this->twig->getLoader()->exists('components/block-container.twig')) {
+            return [100, $tone, (string)$settings['spacing'], implode('', array_column($columns, 'html'))];
+        }
+        $markup = $this->twig->render('components/block-container.twig', $context + [
+            'container' => array_merge($settings, ['tone' => $tone, 'has_picture' => $settings['image'] !== '']),
+            'container_uid' => $settings['anchor'],
+            'container_row' => BlockContainer::rowClasses($settings, $count),
+            'container_columns' => $columns,
+            'container_index' => $index,
+            'container_source' => $resolved['_source'],
+        ]);
+        return [100, $tone, (string)$settings['spacing'], $markup];
     }
 
     /**
@@ -273,10 +353,50 @@ final class BlockRenderer
      */
     private function prepare(array $rawBlocks, string $bodyHtml): array
     {
-        $prepared = [];
+        $prepared = $this->prepareList($rawBlocks, '', true);
+        // A content block (visible, also inside a container) places the page's text.
         $hasContent = false;
+        foreach ($prepared as [$type, , $values]) {
+            if ($type === 'content') {
+                $hasContent = true;
+            } elseif ($type === BlockContainer::TYPE) {
+                foreach ($values['columns'] as $column) {
+                    foreach ($column['blocks'] as $block) {
+                        $hasContent = $hasContent || (($block['type'] ?? null) === 'content' && !FieldSchema::isTruthy($block['hidden'] ?? false));
+                    }
+                }
+            }
+        }
+
+        $content = $this->registry->get('content');
+        if (!$hasContent && $content !== null && trim(strip_tags($bodyHtml, '<img><iframe><video>')) !== '') {
+            $values = FieldSchema::resolve($content['common'], []) + FieldSchema::resolve($content['fields'], []) + ['_source' => -1];
+            $position = ($prepared[0][0] ?? '') === 'hero' || self::isOpeningSlider((string)($prepared[0][0] ?? ''), $prepared[0][2] ?? []) ? 1 : 0;
+            array_splice($prepared, $position, 0, [['content', $content, $values]]);
+        }
+        return $prepared;
+    }
+
+    /**
+     * The valid, visible blocks of a list with resolved values. At the top of the page a container is kept too, with its columns.
+     *
+     * @param array<int, mixed> $rawBlocks
+     * @param string $source what comes before a block's place in the editor's list (the preview marks blocks with it)
+     * @return array<int, array{0: string, 1: array<string, mixed>|null, 2: array<string, mixed>}>
+     */
+    private function prepareList(array $rawBlocks, string $source, bool $containers): array
+    {
+        $prepared = [];
         foreach ($rawBlocks as $position => $raw) {
             if (!is_array($raw)) {
+                continue;
+            }
+            if (($raw['type'] ?? null) === BlockContainer::TYPE) {
+                // One level: a container in a column is not drawn.
+                $resolved = $containers ? BlockContainer::resolve($raw) : null;
+                if ($resolved !== null && $resolved['settings']['hidden'] !== true) {
+                    $prepared[] = [BlockContainer::TYPE, null, $resolved + ['_source' => (int)$position]];
+                }
                 continue;
             }
             $raw = $this->registry->migrate($raw);
@@ -292,16 +412,8 @@ final class BlockRenderer
             $values['anchor'] = trim((string)preg_replace('/[^a-z0-9-]+/', '-', strtolower((string)$values['anchor'])), '-');
             $values += FieldSchema::resolve($definition['fields'], array_intersect_key($raw, $definition['fields']));
             // Where the block stands in the list the editor holds (hidden and unknown ones count), for the live preview.
-            $values['_source'] = (int)$position;
+            $values['_source'] = $source === '' ? (int)$position : $source . $position;
             $prepared[] = [$type, $definition, $values];
-            $hasContent = $hasContent || $type === 'content';
-        }
-
-        $content = $this->registry->get('content');
-        if (!$hasContent && $content !== null && trim(strip_tags($bodyHtml, '<img><iframe><video>')) !== '') {
-            $values = FieldSchema::resolve($content['common'], []) + FieldSchema::resolve($content['fields'], []) + ['_source' => -1];
-            $position = ($prepared[0][0] ?? '') === 'hero' || self::isOpeningSlider((string)($prepared[0][0] ?? ''), $prepared[0][2] ?? []) ? 1 : 0;
-            array_splice($prepared, $position, 0, [['content', $content, $values]]);
         }
         return $prepared;
     }

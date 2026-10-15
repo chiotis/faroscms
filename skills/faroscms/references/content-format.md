@@ -58,7 +58,7 @@ Markdown text.
 | `main_image` | The entry's picture (cards, share image, title area): `/uploads/media/<id>.<ext>` or a full URL. |
 | `template` | `landing` (no title header: the page is its blocks; start with a Hero), `sidebar` (text beside contents/related/contact card). Omit for the standard layout. A site can add more in `custom/page-templates.yaml`. |
 | `hero_layout`, `header_transparent`, `hero_parallax` | How the entry opens (`default`, `centered`, `split`, `cover`, `minimal`; header `on`/`off`; parallax `on`/`off`). Omit to follow Theme > Single Layouts. |
-| `blocks` | The list of blocks (see `blocks.md`). |
+| `blocks` | The list of blocks (see `blocks.md`). An entry can also be a **container**, a row of columns that hold blocks (see "Containers" in `blocks.md`). |
 | `categories`, `tags`, `<taxonomy>` | Lists of **term ids** from `content/taxonomies/<name>.yaml`. Not for pages. |
 | `custom_fields` | Values of the fields the content type declares (a project's `client`, a book's `author`…). See "Content types". |
 

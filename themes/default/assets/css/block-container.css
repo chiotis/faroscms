@@ -1,0 +1,170 @@
+/*
+ * Containers: a row with columns that hold blocks. Loaded only on a page that has one (together with block-row.css, whose rules
+ * for narrow blocks also cover the blocks inside a column). Everything is classes and custom properties; no inline style but
+ * the variables the markup sets (--bkc-f, --bkc-w, --bkc-min, --bkc-max, --bkc-grow, --bkc-shrink, --bkc-basis, --bkc-order).
+ * Gaps and paddings are the theme's spacing steps. No JavaScript.
+ *
+ * Stacking: .bkc-d-* (desktop), .bkc-t-* (tablet, 641px to 960px) and .bkc-p-* (phone, to 640px) are row, two or one.
+ */
+.bkc {
+  --bkc-gap: var(--space-m);
+  --bkc-rgap: var(--space-m);
+}
+
+.bkc-inner {
+  position: relative;
+  z-index: 1;
+  margin-inline: auto;
+}
+.bkc-inner--container { width: min(100% - 2 * var(--gutter), var(--container)); }
+.bkc-inner--narrow { width: min(100% - 2 * var(--gutter), var(--container-narrow)); }
+.bkc-inner--full { width: 100%; }
+
+/* The picture behind the columns and its overlay. */
+.bkc--picture { isolation: isolate; overflow: hidden; }
+.bkc-media {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+}
+.bkc-media :is(picture, img) {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.bkc-media::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+.bkc--overlay-light .bkc-media::after { background: color-mix(in srgb, var(--color-bg) 80%, transparent); }
+.bkc--overlay-dark .bkc-media::after { background: rgb(0 0 0 / 0.55); }
+
+/* A minimum height; the content sits in the middle of it. */
+.bkc--min {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.bkc--min-s { min-height: 15rem; }
+.bkc--min-m { min-height: 25rem; }
+.bkc--min-l { min-height: 35rem; }
+.bkc--min-screen { min-height: 100vh; min-height: 100svh; }
+
+/* The row. */
+.bkc-row {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: var(--bkc-gap);
+  row-gap: var(--bkc-rgap);
+}
+.bkc-gap-none { --bkc-gap: 0px; }
+.bkc-gap-xs { --bkc-gap: var(--space-xs); }
+.bkc-gap-s { --bkc-gap: var(--space-s); }
+.bkc-gap-m { --bkc-gap: var(--space-m); }
+.bkc-gap-l { --bkc-gap: var(--space-l); }
+.bkc-gap-xl { --bkc-gap: var(--space-xl); }
+.bkc-rgap-none { --bkc-rgap: 0px; }
+.bkc-rgap-xs { --bkc-rgap: var(--space-xs); }
+.bkc-rgap-s { --bkc-rgap: var(--space-s); }
+.bkc-rgap-m { --bkc-rgap: var(--space-m); }
+.bkc-rgap-l { --bkc-rgap: var(--space-l); }
+.bkc-rgap-xl { --bkc-rgap: var(--space-xl); }
+
+.bkc-dir-row-reverse { flex-direction: row-reverse; }
+.bkc-wrap-nowrap { flex-wrap: nowrap; }
+.bkc-wrap-wrap-reverse { flex-wrap: wrap-reverse; }
+
+.bkc-j-start { justify-content: flex-start; }
+.bkc-j-center { justify-content: center; }
+.bkc-j-end { justify-content: flex-end; }
+.bkc-j-between { justify-content: space-between; }
+.bkc-j-around { justify-content: space-around; }
+.bkc-j-evenly { justify-content: space-evenly; }
+
+.bkc-a-stretch { align-items: stretch; }
+.bkc-a-start { align-items: flex-start; }
+.bkc-a-center { align-items: center; }
+.bkc-a-end { align-items: flex-end; }
+.bkc-a-baseline { align-items: baseline; }
+
+.bkc-ac-stretch { align-content: stretch; }
+.bkc-ac-start { align-content: flex-start; }
+.bkc-ac-center { align-content: center; }
+.bkc-ac-end { align-content: flex-end; }
+.bkc-ac-between { align-content: space-between; }
+.bkc-ac-around { align-content: space-around; }
+.bkc-ac-evenly { align-content: space-evenly; }
+
+/* A column. Its width is one of: fill (an equal share), auto (its content), a part of the row (a fraction or a percentage; the
+   gaps are taken off so the columns of a row add up to exactly the row), or a fixed size. grow, shrink and basis replace it. */
+.bkc-col {
+  flex: 1 1 0;
+  min-width: var(--bkc-min, 0px);
+  max-width: var(--bkc-max, none);
+}
+.bkc-col--fill { flex: 1 1 0; }
+.bkc-col--auto { flex: 0 1 auto; }
+.bkc-col--part { flex: 0 1 calc(100% * var(--bkc-f) - var(--bkc-gap) * (1 - var(--bkc-f))); }
+.bkc-col--fixed { flex: 0 1 var(--bkc-w); }
+.bkc-col--flex { flex: var(--bkc-grow, 0) var(--bkc-shrink, 1) var(--bkc-basis, auto); }
+
+.bkc-col--self-start { align-self: flex-start; }
+.bkc-col--self-center { align-self: center; }
+.bkc-col--self-end { align-self: flex-end; }
+.bkc-col--self-stretch { align-self: stretch; }
+.bkc-col--self-baseline { align-self: baseline; }
+.bkc-col--v-center,
+.bkc-col--v-bottom { display: flex; flex-direction: column; }
+.bkc-col--v-center { justify-content: center; }
+.bkc-col--v-bottom { justify-content: flex-end; }
+.bkc-col--ordered { order: var(--bkc-order); }
+
+.bkc-col--pad-xs { padding: var(--space-xs); }
+.bkc-col--pad-s { padding: var(--space-s); }
+.bkc-col--pad-m { padding: var(--space-m); }
+.bkc-col--pad-l { padding: var(--space-l); }
+.bkc-col--pad-xl { padding: var(--space-xl); }
+.bkc-col--toned {
+  background: var(--section-bg);
+  color: var(--color-text);
+}
+.bkc-col--toned:not([class*="bkc-col--pad-"]) { padding: var(--space-m); }
+.bkc-col--r-s { border-radius: var(--radius-s); }
+.bkc-col--r-m { border-radius: var(--radius-m); }
+.bkc-col--r-l { border-radius: var(--radius-l); }
+.bkc-col[class*="bkc-col--r-"] { overflow: hidden; }
+
+/* Blocks stacked in a column are separated like the sections of a page are. */
+.bkc-col > .block + .block { margin-top: var(--space-l); }
+.bkc-col > .block { width: 100%; }
+
+/* A column that holds nothing yet keeps its place in the editor's preview. */
+.bkc-col:empty { min-height: 2rem; }
+
+/* How the columns stack. 'one' puts them in a column (reversed when asked on a phone), 'two' wraps them to halves. */
+@media (min-width: 961px) {
+  .bkc-d-two, .bkc-d-one { flex-wrap: wrap; }
+  .bkc-d-two > .bkc-col { flex: 0 0 calc(50% - var(--bkc-gap) / 2); }
+  .bkc-d-one { flex-direction: column; justify-content: flex-start; }
+  .bkc-d-one > .bkc-col { flex: 0 0 auto; width: 100%; max-width: 100%; }
+}
+@media (min-width: 641px) and (max-width: 960px) {
+  .bkc-t-row { flex-wrap: nowrap; }
+  .bkc-t-two, .bkc-t-one { flex-wrap: wrap; }
+  .bkc-t-two > .bkc-col { flex: 0 0 calc(50% - var(--bkc-gap) / 2); }
+  .bkc-t-one { flex-direction: column; justify-content: flex-start; }
+  .bkc-t-one > .bkc-col { flex: 0 0 auto; width: 100%; max-width: 100%; }
+}
+@media (max-width: 640px) {
+  .bkc-p-row { flex-wrap: nowrap; }
+  .bkc-p-two, .bkc-p-one { flex-wrap: wrap; }
+  .bkc-p-two > .bkc-col { flex: 0 0 calc(50% - var(--bkc-gap) / 2); }
+  .bkc-p-one { flex-direction: column; justify-content: flex-start; }
+  .bkc-p-one.bkc-rev { flex-direction: column-reverse; }
+  .bkc-p-one > .bkc-col { flex: 0 0 auto; width: 100%; max-width: 100%; }
+  .bkc-gap-xl, .bkc-gap-l { --bkc-gap: var(--space-m); }
+  .bkc-rgap-xl, .bkc-rgap-l { --bkc-rgap: var(--space-m); }
+}

@@ -391,7 +391,8 @@ final class EntryForm
         return (string)json_encode([
             'definitions' => $registry->editorDefinitions(),
             // A block saved in a layout that has since become another is shown as the layout it is now.
-            'blocks' => array_map(static fn(mixed $block): mixed => is_array($block) ? $registry->migrate($block) : $block, $blocks),
+            'container' => BlockContainer::editorData(),
+            'blocks' => $registry->forEditor($blocks),
             'presets' => ($this->presets)()->forEditor($lang, (string)($settings['languages']['default'] ?? 'en')),
             'presets_url' => rtrim((string)($settings['base_url'] ?? ''), '/') . '/admin/block-presets',
             'lang' => $lang,

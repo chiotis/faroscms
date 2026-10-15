@@ -14,36 +14,36 @@
   padding-block: var(--section-space);
 }
 
-.block-row > .block {
+:is(.block-row, .bkc-col) > .block {
   grid-column: span 12;
   min-width: 0;
   padding-block: 0;
 }
 
-.block-row > .block--w-25 { grid-column: span 3; }
-.block-row > .block--w-33 { grid-column: span 4; }
-.block-row > .block--w-50 { grid-column: span 6; }
-.block-row > .block--w-66 { grid-column: span 8; }
-.block-row > .block--w-75 { grid-column: span 9; }
+:is(.block-row, .bkc-col) > .block--w-25 { grid-column: span 3; }
+:is(.block-row, .bkc-col) > .block--w-33 { grid-column: span 4; }
+:is(.block-row, .bkc-col) > .block--w-50 { grid-column: span 6; }
+:is(.block-row, .bkc-col) > .block--w-66 { grid-column: span 8; }
+:is(.block-row, .bkc-col) > .block--w-75 { grid-column: span 9; }
 
 /* The block's own content is as wide as its column, whatever width the block would have on a full row. */
-.block-row > .block :is(.container, .container-narrow, .site-wrap) {
+:is(.block-row, .bkc-col) > .block :is(.container, .container-narrow, .site-wrap) {
   width: 100%;
 }
 
 /* A block with a background of its own (a tone, a cover picture, a slider, a map) is a contained card in its column. */
-.block-row > .block:is(:not(.tone-default), .block-hero-slider, .block-hero:is(.block--cover, .block--steps)) {
+:is(.block-row, .bkc-col) > .block:is(:not(.tone-default), .block-hero-slider, .block-hero:is(.block--cover, .block--steps)) {
   padding: var(--space-l);
   border-radius: var(--radius-l);
   overflow: hidden;
 }
 
 /* What is as tall as the screen on a full row is only as tall as its content in a column. */
-.block-row > .block-hero:is(.block--cover, .block--steps) {
+:is(.block-row, .bkc-col) > .block-hero:is(.block--cover, .block--steps) {
   min-height: 24rem;
   padding-top: var(--space-xl);
 }
-.block-row > .block-hero-slider .slide-hero:is(.block--cover, .block--steps) {
+:is(.block-row, .bkc-col) > .block-hero-slider .slide-hero:is(.block--cover, .block--steps) {
   min-height: 24rem;
 }
 
@@ -55,8 +55,8 @@
 }
 
 @media (max-width: 960px) {
-  .block-row > :is(.block--w-25, .block--w-33) { grid-column: span 6; }
-  .block-row > :is(.block--w-66, .block--w-75) { grid-column: span 12; }
+  :is(.block-row, .bkc-col) > :is(.block--w-25, .block--w-33) { grid-column: span 6; }
+  :is(.block-row, .bkc-col) > :is(.block--w-66, .block--w-75) { grid-column: span 12; }
 }
 
 @media (max-width: 640px) {
@@ -66,15 +66,15 @@
   .block-row {
     gap: var(--space-m);
   }
-  .block-row > .block:is(:not(.tone-default), .block-hero-slider, .block-hero:is(.block--cover, .block--steps)) {
+  :is(.block-row, .bkc-col) > .block:is(:not(.tone-default), .block-hero-slider, .block-hero:is(.block--cover, .block--steps)) {
     padding: var(--space-m);
   }
-  .block-row > .block,
-  .block-row > .block--w-25,
-  .block-row > .block--w-33,
-  .block-row > .block--w-66,
-  .block-row > .block--w-50,
-  .block-row > .block--w-75 {
+  :is(.block-row, .bkc-col) > .block,
+  :is(.block-row, .bkc-col) > .block--w-25,
+  :is(.block-row, .bkc-col) > .block--w-33,
+  :is(.block-row, .bkc-col) > .block--w-66,
+  :is(.block-row, .bkc-col) > .block--w-50,
+  :is(.block-row, .bkc-col) > .block--w-75 {
     grid-column: auto;
   }
 }
@@ -86,127 +86,127 @@
  * Not for a phone: there every block is full width and uses its own phone layout.
  */
 @media (min-width: 641px) {
-.block-row > :is(.block--w-25, .block--w-33, .block--w-50).block--split .checklist-layout,
-.block-row > :is(.block--w-25, .block--w-33, .block--w-50) .contact-layout.has-form,
-.block-row > :is(.block--w-25, .block--w-33, .block--w-50).block-faq.block--split .faq-layout,
-.block-row > :is(.block--w-25, .block--w-33, .block--w-50).block-form.block--split .form-block-layout,
-.block-row > :is(.block--w-25, .block--w-33, .block--w-50).block-hero.block--split .hero-inner,
-.block-row > :is(.block--w-25, .block--w-33, .block--w-50) .latest-featured,
-.block-row > :is(.block--w-25, .block--w-33, .block--w-50).block-latest.block--editorial .latest-item,
-.block-row > :is(.block--w-25, .block--w-33, .block--w-50) .map-split,
-.block-row > :is(.block--w-25, .block--w-33, .block--w-50) .geo-layout,
-.block-row > :is(.block--w-25, .block--w-33, .block--w-50) .pl-featured-layout,
-.block-row > :is(.block--w-25, .block--w-33, .block--w-50).block--photo .quote-figure,
-.block-row > :is(.block--w-25, .block--w-33, .block--w-50) .tabs-panel-inner,
-.block-row > :is(.block--w-25, .block--w-33, .block--w-50) .tabs-vertical.is-enhanced,
-.block-row > :is(.block--w-25, .block--w-33, .block--w-50) .ti-grid,
-.block-row > :is(.block--w-25, .block--w-33, .block--w-50) .text-split,
-.block-row > :is(.block--w-25, .block--w-33, .block--w-50) .text-contents,
-.block-row > :is(.block--w-25, .block--w-33, .block--w-50) .video-split,
-.block-row > :is(.block--w-25, .block--w-33, .block--w-50).block-pricing.block--list .plan-card,
-.block-row > :is(.block--w-25, .block--w-33, .block--w-50) .cols {
+:is(.block-row, .bkc-col) > :is(.block--w-25, .block--w-33, .block--w-50).block--split .checklist-layout,
+:is(.block-row, .bkc-col) > :is(.block--w-25, .block--w-33, .block--w-50) .contact-layout.has-form,
+:is(.block-row, .bkc-col) > :is(.block--w-25, .block--w-33, .block--w-50).block-faq.block--split .faq-layout,
+:is(.block-row, .bkc-col) > :is(.block--w-25, .block--w-33, .block--w-50).block-form.block--split .form-block-layout,
+:is(.block-row, .bkc-col) > :is(.block--w-25, .block--w-33, .block--w-50).block-hero.block--split .hero-inner,
+:is(.block-row, .bkc-col) > :is(.block--w-25, .block--w-33, .block--w-50) .latest-featured,
+:is(.block-row, .bkc-col) > :is(.block--w-25, .block--w-33, .block--w-50).block-latest.block--editorial .latest-item,
+:is(.block-row, .bkc-col) > :is(.block--w-25, .block--w-33, .block--w-50) .map-split,
+:is(.block-row, .bkc-col) > :is(.block--w-25, .block--w-33, .block--w-50) .geo-layout,
+:is(.block-row, .bkc-col) > :is(.block--w-25, .block--w-33, .block--w-50) .pl-featured-layout,
+:is(.block-row, .bkc-col) > :is(.block--w-25, .block--w-33, .block--w-50).block--photo .quote-figure,
+:is(.block-row, .bkc-col) > :is(.block--w-25, .block--w-33, .block--w-50) .tabs-panel-inner,
+:is(.block-row, .bkc-col) > :is(.block--w-25, .block--w-33, .block--w-50) .tabs-vertical.is-enhanced,
+:is(.block-row, .bkc-col) > :is(.block--w-25, .block--w-33, .block--w-50) .ti-grid,
+:is(.block-row, .bkc-col) > :is(.block--w-25, .block--w-33, .block--w-50) .text-split,
+:is(.block-row, .bkc-col) > :is(.block--w-25, .block--w-33, .block--w-50) .text-contents,
+:is(.block-row, .bkc-col) > :is(.block--w-25, .block--w-33, .block--w-50) .video-split,
+:is(.block-row, .bkc-col) > :is(.block--w-25, .block--w-33, .block--w-50).block-pricing.block--list .plan-card,
+:is(.block-row, .bkc-col) > :is(.block--w-25, .block--w-33, .block--w-50) .cols {
     grid-template-columns: minmax(0, 1fr);
   }
   /* The gap of a side-by-side layout is sized for a full row (up to 6rem); once the halves are stacked it is the space between them. */
-.block-row > :is(.block--w-25, .block--w-33, .block--w-50).block--split .checklist-layout,
-.block-row > :is(.block--w-25, .block--w-33, .block--w-50) .contact-layout.has-form,
-.block-row > :is(.block--w-25, .block--w-33, .block--w-50).block-faq.block--split .faq-layout,
-.block-row > :is(.block--w-25, .block--w-33, .block--w-50).block-form.block--split .form-block-layout,
-.block-row > :is(.block--w-25, .block--w-33, .block--w-50).block-hero.block--split .hero-inner,
-.block-row > :is(.block--w-25, .block--w-33, .block--w-50) .map-split,
-.block-row > :is(.block--w-25, .block--w-33, .block--w-50) .tabs-panel-inner,
-.block-row > :is(.block--w-25, .block--w-33, .block--w-50) .text-split,
-.block-row > :is(.block--w-25, .block--w-33, .block--w-50) .video-split {
+:is(.block-row, .bkc-col) > :is(.block--w-25, .block--w-33, .block--w-50).block--split .checklist-layout,
+:is(.block-row, .bkc-col) > :is(.block--w-25, .block--w-33, .block--w-50) .contact-layout.has-form,
+:is(.block-row, .bkc-col) > :is(.block--w-25, .block--w-33, .block--w-50).block-faq.block--split .faq-layout,
+:is(.block-row, .bkc-col) > :is(.block--w-25, .block--w-33, .block--w-50).block-form.block--split .form-block-layout,
+:is(.block-row, .bkc-col) > :is(.block--w-25, .block--w-33, .block--w-50).block-hero.block--split .hero-inner,
+:is(.block-row, .bkc-col) > :is(.block--w-25, .block--w-33, .block--w-50) .map-split,
+:is(.block-row, .bkc-col) > :is(.block--w-25, .block--w-33, .block--w-50) .tabs-panel-inner,
+:is(.block-row, .bkc-col) > :is(.block--w-25, .block--w-33, .block--w-50) .text-split,
+:is(.block-row, .bkc-col) > :is(.block--w-25, .block--w-33, .block--w-50) .video-split {
     row-gap: var(--space-l);
   }
-  .block-row > :is(.block--w-25, .block--w-33, .block--w-50).block-form.block--split .form-block-head:empty {
+  :is(.block-row, .bkc-col) > :is(.block--w-25, .block--w-33, .block--w-50).block-form.block--split .form-block-head:empty {
     display: none;
   }
-.block-row > :is(.block--w-25, .block--w-33, .block--w-50) .features-grid,
-.block-row > :is(.block--w-25, .block--w-33, .block--w-50) .gallery-list,
-.block-row > :is(.block--w-25, .block--w-33, .block--w-50) .team-list,
-.block-row > :is(.block--w-25, .block--w-33, .block--w-50) .block-latest .latest-list {
+:is(.block-row, .bkc-col) > :is(.block--w-25, .block--w-33, .block--w-50) .features-grid,
+:is(.block-row, .bkc-col) > :is(.block--w-25, .block--w-33, .block--w-50) .gallery-list,
+:is(.block-row, .bkc-col) > :is(.block--w-25, .block--w-33, .block--w-50) .team-list,
+:is(.block-row, .bkc-col) > :is(.block--w-25, .block--w-33, .block--w-50) .block-latest .latest-list {
     grid-template-columns: minmax(0, 1fr);
   }
-  .block-row > :is(.block--w-25, .block--w-33) :is(.section-title, .hero-title, .cta-title) {
+  :is(.block-row, .bkc-col) > :is(.block--w-25, .block--w-33) :is(.section-title, .hero-title, .cta-title) {
     font-size: var(--step-3);
   }
-  .block-row > .block--w-50 :is(.section-title, .hero-title, .cta-title) {
+  :is(.block-row, .bkc-col) > .block--w-50 :is(.section-title, .hero-title, .cta-title) {
     font-size: var(--step-4);
   }
 }
 
 @media (min-width: 961px) {
-.block-row > .block--w-50 .features-grid,
-.block-row > .block--w-50 .gallery-list,
-.block-row > .block--w-50 .team-list,
-.block-row > .block--w-50 .block-latest .latest-list {
+:is(.block-row, .bkc-col) > .block--w-50 .features-grid,
+:is(.block-row, .bkc-col) > .block--w-50 .gallery-list,
+:is(.block-row, .bkc-col) > .block--w-50 .team-list,
+:is(.block-row, .bkc-col) > .block--w-50 .block-latest .latest-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 /* Special cases of single blocks. */
-.block-row > .block {
+:is(.block-row, .bkc-col) > .block {
   overflow-wrap: anywhere;
 }
 @media (min-width: 641px) {
-  .block-row > :is(.block--w-25, .block--w-33, .block--w-50) :is(.testimonials-list, .testimonials-list.is-featured, .pricing-list, .cards-grid, .cards-grid[class*="cols-"]) {
+  :is(.block-row, .bkc-col) > :is(.block--w-25, .block--w-33, .block--w-50) :is(.testimonials-list, .testimonials-list.is-featured, .pricing-list, .cards-grid, .cards-grid[class*="cols-"]) {
     grid-template-columns: minmax(0, 1fr);
   }
-  .block-row > :is(.block--w-25, .block--w-33, .block--w-50) .text-split-head {
+  :is(.block-row, .bkc-col) > :is(.block--w-25, .block--w-33, .block--w-50) .text-split-head {
     position: static;
   }
-  .block-row > :is(.block--w-25, .block--w-33, .block--w-50).block-gallery.block--masonry .gallery-list {
+  :is(.block-row, .bkc-col) > :is(.block--w-25, .block--w-33, .block--w-50).block-gallery.block--masonry .gallery-list {
     columns: 1;
   }
   /* A list of cards with the picture beside the text puts it above, as on a phone. */
-  .block-row > :is(.block--w-25, .block--w-33, .block--w-50).block-cards.block--list .content-item {
+  :is(.block-row, .bkc-col) > :is(.block--w-25, .block--w-33, .block--w-50).block-cards.block--list .content-item {
     flex-direction: column;
   }
-  .block-row > :is(.block--w-25, .block--w-33, .block--w-50).block-cards.block--list .content-item-media {
+  :is(.block-row, .bkc-col) > :is(.block--w-25, .block--w-33, .block--w-50).block-cards.block--list .content-item-media {
     flex-basis: auto;
     aspect-ratio: 16 / 10;
   }
-  .block-row > :is(.block--w-25, .block--w-33) .logos-list {
+  :is(.block-row, .bkc-col) > :is(.block--w-25, .block--w-33) .logos-list {
     --logo-per-row: 1;
     --logo-height: 2.75rem;
   }
-  .block-row > .block--w-50 .logos-list {
+  :is(.block-row, .bkc-col) > .block--w-50 .logos-list {
     --logo-per-row: min(var(--logo-cols, 4), 3);
   }
-  .block-row > :is(.block--w-25, .block--w-33, .block--w-50) :is(.testimonial-quote, .quote-text, .stat-value) {
+  :is(.block-row, .bkc-col) > :is(.block--w-25, .block--w-33, .block--w-50) :is(.testimonial-quote, .quote-text, .stat-value) {
     font-size: var(--step-2);
   }
 }
 @media (min-width: 961px) {
-  .block-row > .block--w-50.block-gallery.block--masonry .gallery-list {
+  :is(.block-row, .bkc-col) > .block--w-50.block-gallery.block--masonry .gallery-list {
     columns: 2;
   }
-  .block-row > .block--w-50 :is(.testimonials-list, .pricing-list, .cards-grid[class*="cols-"]) {
+  :is(.block-row, .bkc-col) > .block--w-50 :is(.testimonials-list, .pricing-list, .cards-grid[class*="cols-"]) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (min-width: 641px) {
-  .block-row > :is(.block--w-25, .block--w-33, .block--w-50) :is(.cols-2, .cols-3, .cols-4, .cols-5, .cols-6):not(.logos-list) {
+  :is(.block-row, .bkc-col) > :is(.block--w-25, .block--w-33, .block--w-50) :is(.cols-2, .cols-3, .cols-4, .cols-5, .cols-6):not(.logos-list) {
     grid-template-columns: minmax(0, 1fr);
   }
-  .block-row > :is(.block--w-25, .block--w-33) .logo-wordmark {
+  :is(.block-row, .bkc-col) > :is(.block--w-25, .block--w-33) .logo-wordmark {
     font-size: var(--step-0);
   }
 }
 @media (min-width: 961px) {
-  .block-row > .block--w-50 :is(.cols-2, .cols-3, .cols-4, .cols-5, .cols-6):not(.logos-list) {
+  :is(.block-row, .bkc-col) > .block--w-50 :is(.cols-2, .cols-3, .cols-4, .cols-5, .cols-6):not(.logos-list) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 /* Logos in a column: wordmarks are smaller, and a half row on a tablet holds two. */
-.block-row > :is(.block--w-25, .block--w-33, .block--w-50, .block:not(.tone-default)) .logo-wordmark {
+:is(.block-row, .bkc-col) > :is(.block--w-25, .block--w-33, .block--w-50, .block:not(.tone-default)) .logo-wordmark {
   font-size: var(--step-0);
 }
 @media (min-width: 641px) and (max-width: 960px) {
-  .block-row > .block--w-50 .logos-list {
+  :is(.block-row, .bkc-col) > .block--w-50 .logos-list {
     --logo-per-row: 2;
   }
 }

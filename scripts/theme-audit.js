@@ -11,6 +11,9 @@
  *        await themeAudit.tokens()                                contrast of the main colour pairs, all palettes
  *        await themeAudit.rows(['/a-page-with-widths'])           blocks that share a row (a Width under 100%): desktop, tablet and phone,
  *                                                                 nothing wider than its column, a phone shows every block full width
+ *        await themeAudit.containers(['/a-page-with-a-container'])  containers (rows of columns): no column wider than the container or
+ *                                                                 sticking out of it, no sideways scrolling, and a column that is set to
+ *                                                                 stack to one is full width on that screen
  *
  * `pages` loads axe-core from cdnjs into the page being audited, so it needs internet access and is
  * a development tool only. Results are plain objects; an empty `violations` list means clean.
@@ -118,6 +121,36 @@
     return { scanned: paths.length, rows: rowsSeen, problems };
   }
 
+  /** Containers: at desktop, tablet and phone widths no column is wider than the container or sticks out of it, nothing inside a column is wider than the column, and a column that stacks to one fills the row. */
+  async function containers(paths, { widths = [1280, 800, 375] } = {}) {
+    const problems = {};
+    let seen = 0;
+    for (const path of paths) {
+      for (const width of widths) {
+        const { frame, doc } = await open(path, width, null);
+        for (const row of doc.querySelectorAll('.bkc-row')) {
+          seen++;
+          const box = row.getBoundingClientRect();
+          const stackedOne = row.className.split(' ').includes(width <= 640 ? 'bkc-p-one' : (width <= 960 ? 'bkc-t-one' : 'bkc-d-one'));
+          for (const column of row.children) {
+            const rect = column.getBoundingClientRect();
+            const label = `${path} @${width} ${column.className.split(' ').slice(1, 3).join('.')}`;
+            if (rect.right > box.right + 1 || rect.left < box.left - 1) (problems[label] ||= []).push('outside the container');
+            if (stackedOne && Math.abs(rect.width - box.width) > 1) (problems[label] ||= []).push(`stacked: ${Math.round(rect.width)}px of ${Math.round(box.width)}px`);
+            const wide = [...column.querySelectorAll('*')].filter((el) => {
+              const r = el.getBoundingClientRect();
+              return r.width > 0 && (r.right > rect.right + 1 || r.left < rect.left - 1) && !el.closest('.slider-track, .tabs-list, .table-wrap, .gallery-list, [tabindex="0"], .sr-only, .form-honeypot');
+            });
+            if (wide.length) (problems[label] ||= []).push(`${wide.length} element(s) wider than the column, e.g. ${wide[0].tagName}.${String(wide[0].className).slice(0, 30)}`);
+          }
+        }
+        if (doc.documentElement.scrollWidth > doc.documentElement.clientWidth + 1) (problems[`${path} @${width}`] ||= []).push('sideways scrolling');
+        frame.remove();
+      }
+    }
+    return { scanned: paths.length, containers: seen, problems };
+  }
+
   /** Contrast of the colour pairs the theme relies on, in every palette and both modes (AA needs 4.5). */
   async function tokens() {
     const parse = (value) => {
@@ -174,5 +207,5 @@
     return { worst, below45: Object.entries(rows).flatMap(([label, pairs]) => Object.entries(pairs).filter(([, v]) => v < 4.5).map(([k, v]) => `${label}: ${k} ${v}`)), rows };
   }
 
-  window.themeAudit = { pages, reflow, rows, tokens };
+  window.themeAudit = { pages, reflow, rows, containers, tokens };
 })();

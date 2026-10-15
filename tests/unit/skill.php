@@ -122,6 +122,20 @@ if ($python === '' || trim((string)@shell_exec('python3 -c "import yaml" 2>&1'))
     [$code, $out] = $run('new_entry.py --out ' . escapeshellarg($writable) . ' --type pages --title "Λάθος" --blocks ' . escapeshellarg($blocksFile));
     check('an unknown block type is refused and nothing is written', [$code, is_file($writable . '/content/pages/lathos.md')], [1, false]);
 
+    // A container (rows with columns) is understood: a page with one is written and read, a good one passes and a wrong one is named.
+    file_put_contents($blocksFile, "- type: hero\n  heading: Hi\n- type: container\n  settings: { gap: l, justify: center }\n  columns:\n    - settings: { width: 1/3 }\n      blocks:\n        - { type: text, heading: A }\n    - blocks:\n        - { type: cta, heading: B }\n");
+    [$code, $out] = $run('new_entry.py --out ' . escapeshellarg($writable) . ' --type pages --title "Στήλες" --blocks ' . escapeshellarg($blocksFile) . ' --status draft');
+    check('new_entry writes a page with a container', [$code, is_file($writable . '/content/pages/stiles.md')], [0, true]);
+    [$yaml] = FarosCMS\FrontMatter::split((string)@file_get_contents($writable . '/content/pages/stiles.md'));
+    $meta = Symfony\Component\Yaml\Yaml::parse($yaml);
+    check('and the CMS reads its columns and the blocks in them', [$meta['blocks'][1]['type'] ?? '', count($meta['blocks'][1]['columns'] ?? []), $meta['blocks'][1]['columns'][0]['blocks'][0]['type'] ?? ''], ['container', 2, 'text']);
+    [$code, $out] = $run('validate_content.py --root ' . escapeshellarg($site) . ' ' . escapeshellarg($writable . '/content/pages/stiles.md'));
+    check('the validator has nothing to say about a good container', str_contains($out, 'container'), false);
+    $bad = "- type: container\n  settings: { gap: 3px, wide: yes }\n  columns:\n    - settings: { width: 9 apples, order: 40 }\n      blocks:\n        - { type: container, columns: [] }\n";
+    file_put_contents($writable . '/content/pages/bad-container.md', "---\ntitle: Bad\nstatus: draft\nblocks:\n" . preg_replace('/^/m', '  ', $bad) . "---\n");
+    [$code, $out] = $run('validate_content.py --root ' . escapeshellarg($site) . ' ' . escapeshellarg($writable . '/content/pages/bad-container.md'));
+    check('and it names what is wrong in a bad one', [str_contains($out, 'container.gap'), str_contains($out, 'unknown setting `wide`'), str_contains($out, 'column.width'), str_contains($out, 'column.order'), str_contains($out, 'cannot be inside a column')], [true, true, true, true, true]);
+
     exec('rm -rf ' . escapeshellarg($site));
 }
 

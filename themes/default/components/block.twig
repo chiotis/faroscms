@@ -4,6 +4,6 @@
   item_heading_tag (one level below), block_first, block_labelled, plus the page context. In the editor's live preview
   (block_preview) a block also says where it stands in the editor's list (data-bk-block).
 #}
-<section class="block block-{{ block_type }} block--{{ block.variant }}{% if block_extra_class|default('') %} {{ block_extra_class }}{% endif %}{% if block.width|default('100') != '100' %} block--w-{{ block.width }}{% endif %} tone-{{ block.tone }} space-{{ block.spacing }}"{% if block.anchor %} id="{{ block.anchor }}"{% endif %}{% if block_labelled %} aria-labelledby="{{ block_uid }}-title"{% endif %}{% if block_preview|default(false) and block._source|default(-1) >= 0 %} data-bk-block="{{ block._source }}"{% endif %}>
+<section class="block block-{{ block_type }} block--{{ block.variant }}{% if block_extra_class|default('') %} {{ block_extra_class }}{% endif %}{% if block.width|default('100') != '100' %} block--w-{{ block.width }}{% endif %} tone-{{ block.tone }} space-{{ block.spacing }}"{% if block.anchor %} id="{{ block.anchor }}"{% endif %}{% if block_labelled %} aria-labelledby="{{ block_uid }}-title"{% endif %}{% if block_preview|default(false) and block._source|default(-1) != -1 %} data-bk-block="{{ block._source }}"{% endif %}>
   {% include 'blocks/' ~ block_type ~ '/block.twig' %}
 </section>
