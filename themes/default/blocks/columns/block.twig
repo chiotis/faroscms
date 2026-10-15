@@ -6,7 +6,9 @@
   <div class="cols cols-{{ columns|length }}">
     {% for col in columns %}
       {% set href = link_url(col.url, prefix) %}
-      <article class="col{% if col.image %} has-image{% endif %}">
+      {# A picture with no text and no link has nothing to sit beside: it takes the whole column. #}
+      {% set bare = col.image and not col.text_html and not (href and col.link_label) %}
+      <article class="col{% if col.image %} has-image{% endif %}{% if bare %} is-bare{% endif %}">
         {% if col.eyebrow or col.title %}
           <header class="col-head">
             {% if col.eyebrow %}<p class="eyebrow">{{ col.eyebrow }}</p>{% endif %}
@@ -17,12 +19,14 @@
         {% endif %}
         <div class="col-main">
           {% if col.image %}
-            <div class="col-media">{{ image(col.image, {alt: col.image_alt, sizes: block.variant == 'image-side' ? '(min-width: 900px) 15vw, 40vw' : '(min-width: 900px) 30vw, 92vw', max_width: 800}) }}</div>
+            <div class="col-media">{{ image(col.image, {alt: col.image_alt, sizes: block.variant == 'image-side' and not bare ? '(min-width: 900px) 15vw, 40vw' : '(min-width: 900px) 30vw, 92vw', max_width: 800}) }}</div>
           {% endif %}
-          <div class="col-body">
-            {% if col.text_html %}<div class="prose">{{ col.text_html|raw }}</div>{% endif %}
-            {% if href and col.link_label %}<a class="text-link" href="{{ href }}">{{ col.link_label }}{{ icon('arrow-right', 'btn-icon') }}</a>{% endif %}
-          </div>
+          {% if not bare %}
+            <div class="col-body">
+              {% if col.text_html %}<div class="prose">{{ col.text_html|raw }}</div>{% endif %}
+              {% if href and col.link_label %}<a class="text-link" href="{{ href }}">{{ col.link_label }}{{ icon('arrow-right', 'btn-icon') }}</a>{% endif %}
+            </div>
+          {% endif %}
         </div>
       </article>
     {% endfor %}

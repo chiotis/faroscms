@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.127 — 2026-10-15 — A picture alone in a Columns column fills the column
+- **In *Columns*, a column that has a picture but no text and no link shows the picture across the whole column.** In the *Picture beside the text* layout (the default) the picture sits in a narrow column of 7 to 14 rem and the text takes the rest, so a column of only a picture (a row of logos or certificates, say) showed a small picture and an empty space beside it. Such a column is marked `is-bare`, drops its empty text area, and asks for a larger file (`sizes`) so the picture stays sharp. Columns with text, or with a link, look as before.
+
 ## 0.1.126 — 2026-10-15 — Form buttons follow the theme's button style
 - **The buttons of a form (the Submit button, the *Choose a file* button of an upload field) and of the search form now follow the button choices of Theme > Branding**: height, side padding, text size, weight and capitals. Before, they kept their own fixed size and weight, so a site with taller or uppercase buttons had forms that did not match. The corner shape already followed the theme. A site that sets nothing looks as before.
 
