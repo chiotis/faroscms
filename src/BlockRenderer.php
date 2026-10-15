@@ -275,7 +275,7 @@ final class BlockRenderer
     {
         $prepared = [];
         $hasContent = false;
-        foreach ($rawBlocks as $raw) {
+        foreach ($rawBlocks as $position => $raw) {
             if (!is_array($raw)) {
                 continue;
             }
@@ -291,13 +291,15 @@ final class BlockRenderer
             }
             $values['anchor'] = trim((string)preg_replace('/[^a-z0-9-]+/', '-', strtolower((string)$values['anchor'])), '-');
             $values += FieldSchema::resolve($definition['fields'], array_intersect_key($raw, $definition['fields']));
+            // Where the block stands in the list the editor holds (hidden and unknown ones count), for the live preview.
+            $values['_source'] = (int)$position;
             $prepared[] = [$type, $definition, $values];
             $hasContent = $hasContent || $type === 'content';
         }
 
         $content = $this->registry->get('content');
         if (!$hasContent && $content !== null && trim(strip_tags($bodyHtml, '<img><iframe><video>')) !== '') {
-            $values = FieldSchema::resolve($content['common'], []) + FieldSchema::resolve($content['fields'], []);
+            $values = FieldSchema::resolve($content['common'], []) + FieldSchema::resolve($content['fields'], []) + ['_source' => -1];
             $position = ($prepared[0][0] ?? '') === 'hero' || self::isOpeningSlider((string)($prepared[0][0] ?? ''), $prepared[0][2] ?? []) ? 1 : 0;
             array_splice($prepared, $position, 0, [['content', $content, $values]]);
         }

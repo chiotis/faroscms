@@ -37,11 +37,13 @@ final class ContentEditor
     /**
      * @param array<string, mixed> $post the submitted editor form (same field names as the form)
      * @param string|null $mainImageOverride a main image that was just uploaded, replacing the submitted value
+     * @param bool $dryRun work out what would be saved and return it as `payload` (the text of the file), writing nothing:
+     *   no file, no history, no index, no redirect. The live preview of the editor draws the page from it.
      * @return array{type: string, slug: string, lang: string, title: string, status: string, was_existing: bool, moved: bool,
      *   moved_together: bool, original_slug: string, original_lang: string, slug_taken: string, html_neutralized: bool,
-     *   translations_renamed: int, redirects_created: int}
+     *   translations_renamed: int, redirects_created: int, payload?: string}
      */
-    public function save(string $type, array $post, ?string $mainImageOverride, bool $canRawHtml, string $actor): array
+    public function save(string $type, array $post, ?string $mainImageOverride, bool $canRawHtml, string $actor, bool $dryRun = false): array
     {
         $postedSlug = Slug::plain((string)($post['slug'] ?? ''));
         $slug = $postedSlug;
@@ -96,7 +98,7 @@ final class ContentEditor
 
 
         $dir = $this->contentDir . '/' . $type;
-        if (!is_dir($dir)) {
+        if (!$dryRun && !is_dir($dir)) {
             mkdir($dir, 0775, true);
         }
 
@@ -138,7 +140,9 @@ final class ContentEditor
         $siblings = $moved && $slug !== $originalSlug ? $this->translationSiblings($type, $originalSlug, $originalLang) : [];
         // What is on disk now goes into the history first, in case it is not there yet (the first save since history
         // began, or a file edited outside the editor).
-        if ($sourceExists) {
+        if ($dryRun) {
+            // Nothing is recorded for a preview.
+        } elseif ($sourceExists) {
             $this->revisions?->baseline($type, $originalSlug, $originalLang, $oldPath, $actor);
         } elseif ($wasExisting) {
             $this->revisions?->baseline($type, $slug, $lang, $path, $actor);
@@ -450,6 +454,25 @@ final class ContentEditor
 
         $frontmatter = trim(Yaml::dump($data, 10, 2, Yaml::DUMP_MULTI_LINE_LITERAL_BLOCK));
         $payload = "---\n" . $frontmatter . "\n---\n\n" . $body . "\n";
+        if ($dryRun) {
+            return [
+                'type' => $type,
+                'slug' => $slug,
+                'lang' => $lang,
+                'title' => (string)($data['title'] ?? ''),
+                'status' => (string)($data['status'] ?? ''),
+                'was_existing' => $wasExisting,
+                'moved' => $moved,
+                'moved_together' => false,
+                'original_slug' => $originalSlug,
+                'original_lang' => $originalLang,
+                'slug_taken' => $slugTaken,
+                'html_neutralized' => $htmlNeutralized,
+                'translations_renamed' => 0,
+                'redirects_created' => 0,
+                'payload' => $payload,
+            ];
+        }
         file_put_contents($path, $payload);
         $this->index($type, $path);
 

@@ -3,22 +3,26 @@
  * every choice that is not saved yet. The frame can be shown at a computer, tablet or phone width, in light or dark, and the
  * page can be reloaded. The settings are plain fields, so the form works without this script.
  *
- * Two ways to follow the choices, set by data-mode on the root ([data-preview]):
+ * Three ways to follow the choices, set by data-mode on the root ([data-preview]):
  *   css   (Branding) the unsaved choices go to the server (data-endpoint), which answers with the CSS and the attributes the
  *         pages would get; they are put into the frame's document at once, with no reload.
  *   page  (Header, Footer) the choices change what the page is made of, so the server draws the page that is in the frame
  *         with them (nothing is stored, no form is processed) and the frame shows that. Where it was scrolled is kept, and
  *         when the visitor follows a link inside the frame the next page is drawn the same way.
+ *   entry (the content editor, admin-entry-preview.js) the whole form of the entry (data-form: its selector) is sent to the server
+ *         (data-endpoint), which draws the page as saving the form would make it, without saving. It is asked for 600ms after
+ *         the last change of the form, on 'bk:change' (the block editor changed a block) and on 'preview:refresh' (sent to the root);
+ *         the root gets 'preview:drawn' whenever the frame holds a new picture.
  */
 (function () {
   'use strict';
 
   function init(root) {
-    var form = root.closest('form');
+    var form = root.getAttribute('data-form') ? document.querySelector(root.getAttribute('data-form')) : root.closest('form');
     var frame = root.querySelector('[data-bp-frame]');
     var stage = root.querySelector('[data-bp-stage]');
     var endpoint = root.getAttribute('data-endpoint');
-    var mode = root.getAttribute('data-mode') === 'page' ? 'page' : 'css';
+    var mode = ({ page: 'page', entry: 'entry' })[root.getAttribute('data-mode')] || 'css';
     if (!form || !frame || !stage || !endpoint) { return; }
 
     var latest = null;       // css: the last answer of the server
@@ -72,12 +76,16 @@
     function formData() {
       var data = new FormData();
       new FormData(form).forEach(function (value, key) {
-        if (key.indexOf('theme_settings[') === 0 || key === '_csrf') { data.append(key, value); }
+        if (mode === 'entry') {
+          // The whole form as Save would read it, except the files: a picture chosen but not uploaded is not in the preview.
+          if (typeof value === 'string') { data.append(key, value); }
+        } else if (key.indexOf('theme_settings[') === 0 || key === '_csrf') { data.append(key, value); }
       });
       return data;
     }
 
     function request() {
+      if (mode === 'entry' && root.hidden) { return; } // a panel nobody sees is not drawn; showing it asks again
       var data = formData();
       if (mode === 'page') { data.append('preview_path', path); }
       var mine = ++sequence;
@@ -85,8 +93,9 @@
         .then(function (response) { return response.ok ? response.json() : null; })
         .then(function (answer) {
           if (!answer || mine !== sequence) { return; }
-          if (mode === 'page') {
-            path = answer.path || path;
+          if (answer.error || typeof answer.html !== 'string') { return; } // the text cannot be drawn just now: the last picture stays
+          if (mode === 'page' || mode === 'entry') {
+            if (mode === 'page') { path = answer.path || path; }
             try { scrollTo = frame.contentWindow.scrollY || 0; } catch (e) { scrollTo = 0; }
             frame.srcdoc = answer.html;
           } else {
@@ -119,7 +128,11 @@
     function onLoad() {
       var address = '';
       try { address = frame.contentWindow.location.href; } catch (e) { address = ''; }
-      if (mode === 'page') {
+      if (mode === 'entry') {
+        if (scrollTo > 0) {
+          try { frame.contentWindow.scrollTo(0, scrollTo); } catch (e) { /* nothing to scroll */ }
+        }
+      } else if (mode === 'page') {
         if (address && address.indexOf('about:') !== 0) {
           // The frame went to a page of the site (a link was followed, or Reload): that is the page to draw from now on.
           try { var url = new URL(address); path = url.pathname + url.search; } catch (e) { /* keep the last */ }
@@ -129,19 +142,28 @@
         }
       }
       apply();
+      root.dispatchEvent(new CustomEvent('preview:drawn', { bubbles: true }));
     }
 
     function schedule() {
       dirty = true;
       clearTimeout(timer);
-      timer = setTimeout(request, mode === 'page' ? 400 : 250);
+      timer = setTimeout(request, mode === 'entry' ? 600 : mode === 'page' ? 400 : 250);
     }
 
-    function relevant(event) {
-      return event.target.name && event.target.name.indexOf('theme_settings[') === 0;
+    if (mode === 'entry') {
+      // Anything typed or chosen in the form, and whatever the block editor reports; the panel may ask for a picture at once.
+      form.addEventListener('input', schedule);
+      form.addEventListener('change', schedule);
+      document.addEventListener('bk:change', schedule);
+      root.addEventListener('preview:refresh', function () { clearTimeout(timer); request(); });
+    } else {
+      var relevant = function (event) {
+        return event.target.name && event.target.name.indexOf('theme_settings[') === 0;
+      };
+      root.addEventListener('input', function (event) { if (relevant(event)) { schedule(); } });
+      root.addEventListener('change', function (event) { if (relevant(event)) { schedule(); } });
     }
-    root.addEventListener('input', function (event) { if (relevant(event)) { schedule(); } });
-    root.addEventListener('change', function (event) { if (relevant(event)) { schedule(); } });
 
     // The frame shows the page at a computer, tablet or phone width, scaled down to fit the space.
     function fit() {
@@ -161,7 +183,7 @@
       input.addEventListener('change', function () { var doc = frameDocument(); if (doc && doc.documentElement) { applyMode(doc); } });
     });
     root.querySelector('[data-bp-reload]').addEventListener('click', function () {
-      if (mode === 'page' && dirty) { request(); } else { frame.contentWindow.location.reload(); }
+      if (mode === 'entry' || (mode === 'page' && dirty)) { request(); } else { frame.contentWindow.location.reload(); }
     });
     frame.addEventListener('load', onLoad);
     window.addEventListener('resize', fit);

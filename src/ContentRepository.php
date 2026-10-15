@@ -36,6 +36,9 @@ final class ContentRepository
     /** @var array<string, array<string, array{0: int, 1: int, 2: array, 3: string, 4: string}>> type => path => [mtime, size, meta, markdown, html] */
     private array $stored = [];
 
+    /** The entry the live preview of the editor shows instead of the stored one (this request only). */
+    private ?ContentItem $draft = null;
+
     /** @param (\Closure(): string[])|null $catalogue */
     public function __construct(string $contentDir, MarkdownConverter $markdown, array $settings, ?\Closure $catalogue = null)
     {
@@ -148,7 +151,7 @@ final class ContentRepository
         $defaultLang = $this->settings['languages']['default'] ?? null;
         $cacheKey = $type . '|' . ($lang === null ? '_all' : $lang) . '|' . ($fallbackDefault ? 'fb' : 'strict');
         if (isset($this->cache[$cacheKey])) {
-            return $this->filterVisibility($this->cache[$cacheKey], $includeHidden);
+            return $this->filterVisibility($this->withDraft($type, $lang, $this->cache[$cacheKey]), $includeHidden);
         }
 
         $itemsBySlug = [];
@@ -183,7 +186,7 @@ final class ContentRepository
         });
 
         $this->cache[$cacheKey] = $items;
-        return $this->filterVisibility($items, $includeHidden);
+        return $this->filterVisibility($this->withDraft($type, $lang, $items), $includeHidden);
     }
 
     /** The file at `$path` as an entry: from this request, from the store when the file has not changed since, or parsed. */
@@ -305,7 +308,45 @@ final class ContentRepository
 
     public function parseFile(string $type, string $path): ContentItem
     {
-        $raw = (string)file_get_contents($path);
+        $filename = basename($path, '.md');
+        $lang = $this->settings['languages']['default'] ?? 'en';
+        $slug = $filename;
+        if (preg_match('/^(.*)\.([a-z]{2})$/', $filename, $langMatch)) {
+            $slug = $langMatch[1];
+            $lang = $langMatch[2];
+        }
+        return $this->build($type, $slug, $lang, (string)file_get_contents($path), $path, (int)filemtime($path));
+    }
+
+    /** An entry from the text a file would hold, with nothing read from or written to disk (the live preview of the editor). */
+    public function parseText(string $type, string $slug, string $lang, string $raw): ContentItem
+    {
+        return $this->build($type, $slug, $lang, $raw, '', time());
+    }
+
+    /**
+     * Shows `$item` in place of the stored entry with the same address (or as one more) until `null` is given: the live preview of
+     * the editor draws the page as the unsaved form would make it. It lasts for this request and touches no file.
+     */
+    public function showInstead(?ContentItem $item): void
+    {
+        $this->draft = $item;
+    }
+
+    /** @param ContentItem[] $items */
+    private function withDraft(string $type, ?string $lang, array $items): array
+    {
+        $draft = $this->draft;
+        if ($draft === null || $draft->type !== $type || ($lang !== null && $draft->lang !== $lang)) {
+            return $items;
+        }
+        $items = array_values(array_filter($items, fn(ContentItem $item): bool => $item->slug !== $draft->slug || ($lang === null && $item->lang !== $draft->lang)));
+        array_unshift($items, $draft);
+        return $items;
+    }
+
+    private function build(string $type, string $slug, string $lang, string $raw, string $path, int $mtime): ContentItem
+    {
         $meta = [];
         $body = $raw;
 
@@ -321,19 +362,13 @@ final class ContentRepository
                 // One file with a typo must not take the whole site down: it counts as an unpublished draft (so no visitor
                 // sees half a page) that the admin flags, and its text stays in the file for someone to fix.
                 $meta = ['status' => 'draft', 'visible' => false, 'front_matter_error' => $e->getMessage()];
-                $this->unreadable[$path] = $e->getMessage();
-                if ($this->onUnreadable !== null) {
-                    ($this->onUnreadable)($type, $path, $e->getMessage());
+                if ($path !== '') {
+                    $this->unreadable[$path] = $e->getMessage();
+                    if ($this->onUnreadable !== null) {
+                        ($this->onUnreadable)($type, $path, $e->getMessage());
+                    }
                 }
             }
-        }
-
-        $filename = basename($path, '.md');
-        $lang = $this->settings['languages']['default'] ?? 'en';
-        $slug = $filename;
-        if (preg_match('/^(.*)\.([a-z]{2})$/', $filename, $langMatch)) {
-            $slug = $langMatch[1];
-            $lang = $langMatch[2];
         }
 
         $meta['title'] = $meta['title'] ?? $this->titleFromSlug($slug);
@@ -343,16 +378,7 @@ final class ContentRepository
 
         $html = (string)$this->markdown->convert($body);
 
-        return new ContentItem(
-            $type,
-            $slug,
-            $lang,
-            $meta,
-            $body,
-            $html,
-            $path,
-            (int)filemtime($path)
-        );
+        return new ContentItem($type, $slug, $lang, $meta, $body, $html, $path, $mtime);
     }
 
     private function titleFromSlug(string $slug): string
