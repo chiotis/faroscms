@@ -343,6 +343,8 @@ async function builderChecks() {
   check('the output is in the order of the page', JSON.stringify(b.out()) === '["One","Two","Three","Four"]');
   check('the grip names the hint that says how to use it', b.doc.getElementById(grips()[0].getAttribute('aria-describedby')) !== null);
 
+  let changes = 0;
+  b.doc.addEventListener('bk:change', () => { changes++; });
   // keyboard
   grips()[0].focus();
   grips()[0].dispatchEvent(new b.window.MouseEvent('click', { bubbles: true, detail: 0 }));
@@ -351,6 +353,7 @@ async function builderChecks() {
   check('while a block is carried, the output is as it was', JSON.stringify(b.out()) === '["One","Two","Three","Four"]');
   key(b.window, grips()[0], 'Enter');
   check('Space or Enter drops it and the output has the new order', JSON.stringify(b.out()) === '["Two","Three","One","Four"]', b.out());
+  check('the builder tells the page (the live preview) about the new order', changes > 0, changes);
   check('the list is drawn again in that order and the grip of the moved block keeps the focus', cards()[2].querySelector('.bk-name').textContent === '3. Text' && b.doc.activeElement === cards()[2].querySelector('.bk-grip'));
   check('what was said names the block and its place', /Block Text moved to position 3 of 4/.test(said(b.window)), said(b.window));
   grips()[3].dispatchEvent(new b.window.MouseEvent('click', { bubbles: true, detail: 0 }));

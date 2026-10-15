@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.130 — 2026-10-15 — Drag and drop to reorder blocks
+- **Blocks are reordered by dragging**, and the up and down arrows are gone. Drag the grip (six dots) at the start of a block's header, or the whole header of a collapsed block. A copy of the block is lifted under the pointer, a blue line shows where it will land, and the page scrolls by itself near the top and bottom edges. It works with a mouse, a finger and a pen. Blocks that share a row through their Width are still one list: dragging only changes the order.
+- **The same for the rows inside a block** (items, slides, columns, FAQ entries) and for the short texts of a list such as Highlights. A row can only be moved inside its own list.
+- **With the keyboard:** focus the grip, press Space or Enter to pick the block up, use the arrow keys to move it, Space or Enter to drop it, Escape to cancel. Each step is announced to screen readers ("Block Text moved to position 3 of 7"). A block's new **…** menu also has *Move to top* and *Move to bottom*.
+- What is saved is the same as before: only the order changes.
+
+## 0.1.129 — 2026-10-15 — A live preview beside the editor
+- **A *Preview* button in the editor's header shows the page beside the form**, drawn by the theme from what is in the form right now: blocks, front matter, title, template and text, saved or not. Nothing is saved and no version is written. It updates shortly after you stop typing and after every change in the Blocks tab (add, remove, move, a field, a design setting), and keeps its place on the page.
+- **Computer, tablet and phone, light and dark**, as in Theme. Drag the edge of the panel (or use the arrow keys on it) to make it wider or narrower; the width and whether it is shown are remembered. On a narrow window it is a drawer over the form.
+- **Click a block in the preview to open it in the builder**, and click a block in the builder to see it outlined in the preview.
+- An editor without the right to add raw HTML sees raw HTML as plain text in the preview, as it would be saved.
+
 ## 0.1.128 — 2026-10-15 — Text and image: the picture above or below the text
 - **Text and image has two more layouts, *Image above the text* and *Image below the text*** (`image-top`, `image-bottom`), next to *Image on the right* and *on the left*. The text and the picture are one column: the picture runs across the whole width, never taller than 34 rem, and the text keeps a readable measure. They have their own small drawings in the layout choice of the editor, and work with the block's Width like the other layouts.
 - **A new picture shape, Wide (16:9)**, for a picture across the whole width.

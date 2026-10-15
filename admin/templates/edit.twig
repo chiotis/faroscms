@@ -46,7 +46,9 @@
     <template data-flash data-type="warning">Saved. Raw HTML is only available to administrators, so the HTML you typed is shown as plain text. Use Markdown for formatting.</template>
   {% endif %}
 
-  <form method="post" action="{{ url('admin/save') }}" class="editor space-y-3" enctype="multipart/form-data">
+  <div class="ep-split" data-entry-split>
+  <div class="ep-main">
+  <form method="post" action="{{ url('admin/save') }}" class="editor space-y-3" enctype="multipart/form-data" id="entry-form">
     {{ csrf_field() }}
     <input type="hidden" name="type" value="{{ type }}">
     <input type="hidden" name="translation_id" value="{{ meta_form.translation_id }}">
@@ -62,6 +64,10 @@
         <span class="en-chip {{ meta_form.status == 'draft' ? 'is-draft' : 'is-live' }}" data-status-pill>{{ meta_form.status == 'draft' ? 'Draft' : 'Published' }}</span>
         <span data-nonindex-pill class="en-chip is-noindex{% if not meta_form.seo_noindex %} hidden{% endif %}">Non-indexed</span>
       </p>
+      <button type="button" class="ep-toggle" data-entry-preview-toggle aria-expanded="false" aria-controls="entry-preview" title="Show the page as you are writing it">
+        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path stroke-linecap="round" d="M14 4v16"/></svg>
+        <span>Preview</span>
+      </button>
     </header>
 
     <div class="en-tabs" role="tablist">
@@ -475,7 +481,16 @@
       {% endblock %}
     {% endembed %}
   </form>
+  </div>
+  <div class="ep-panel" id="entry-preview" data-entry-preview data-preview data-mode="entry" data-form="#entry-form" data-endpoint="{{ url('admin/edit?preview=entry') }}" hidden>
+    <button type="button" class="ep-grip" data-entry-preview-grip role="separator" aria-orientation="vertical" aria-label="Width of the preview. Use the left and right arrow keys." aria-valuemin="320" aria-valuemax="900" tabindex="0"></button>
+    <button type="button" class="ep-close" data-entry-preview-close aria-label="Hide the preview">Close</button>
+    {% include '@admin/partials/theme-preview.twig' with {preview_url: '', preview_title: 'Preview of this page, as it is now', preview_note: 'The page as it would be if you saved now. Nothing is saved. Click a block to open it in the Blocks tab.'} %}
+  </div>
+  </div>
 
+  <script src="{{ asset('js/admin-preview.js') }}" defer></script>
+  <script src="{{ asset('js/admin-entry-preview.js') }}" defer></script>
   <script src="{{ asset('js/admin-entry.js') }}" defer></script>
   <script src="{{ asset('js/admin-editor.js') }}" defer></script>
   <script src="{{ asset('js/admin-seo-count.js') }}" defer></script>
