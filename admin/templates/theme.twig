@@ -44,6 +44,11 @@
             <div class="tab-panel space-y-4{% if active_tab != key %} hidden{% else %} active{% endif %}" data-panel="{{ key }}" role="tabpanel">
               {% include '@admin/partials/theme-footer-blocks.twig' %}
             </div>
+          {% elseif key == 'custom_css' %}
+            {# The site's own stylesheet (partials/theme-custom-css.twig). #}
+            <div class="tab-panel space-y-4{% if active_tab != key %} hidden{% else %} active{% endif %}" data-panel="{{ key }}" role="tabpanel">
+              {% include '@admin/partials/theme-custom-css.twig' %}
+            </div>
           {% elseif key == 'branding' %}
             {# Appearance, Brand and Design together (partials/theme-branding.twig). #}
             <div class="tab-panel space-y-4{% if active_tab != key %} hidden{% else %} active{% endif %}" data-panel="{{ key }}" role="tabpanel">

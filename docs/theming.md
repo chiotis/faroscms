@@ -37,7 +37,7 @@ themes/default/
 └── lang/<lang>.php       shipped strings
 
 custom/                   site-specific, never touched by updates
-├── assets/css/custom.css loaded after the theme CSS when present
+├── assets/css/custom.css loaded after the theme CSS when present; Admin > Theme > Custom CSS edits it as a text area
 ├── assets/js/custom.js   loaded after the theme JS when present
 ├── page-templates.yaml   the site's own page templates (each needs custom/templates/<name>.twig)
 ├── lang/<lang>.yaml      string overrides (written by Admin > Translations)

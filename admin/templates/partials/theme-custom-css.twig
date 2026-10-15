@@ -1,0 +1,29 @@
+{#
+  Theme > Custom CSS: the site's own stylesheet (custom/assets/css/custom.css), loaded after the theme's on every page.
+
+  custom_css   what the file holds now
+#}
+<section class="rounded-lg border border-slate-200 bg-white p-4" aria-labelledby="css-title">
+  <div class="mb-3 border-b border-slate-100 pb-3">
+    <h2 id="css-title" class="text-sm font-semibold text-slate-900">Custom CSS</h2>
+    <p class="mt-0.5 text-xs text-slate-500">Your own styles, loaded after the theme's on every page. They are kept in <code class="rounded bg-slate-100 px-1 py-0.5 text-[11px]">custom/assets/css/custom.css</code>, which updates never touch. Use the theme's variables (<code class="rounded bg-slate-100 px-1 py-0.5 text-[11px]">var(--accent)</code>) to follow the palette and dark mode.</p>
+  </div>
+  <label for="custom-css" class="sr-only">Custom CSS</label>
+  <textarea id="custom-css" name="custom_css" rows="22" spellcheck="false" autocomplete="off" autocapitalize="off" wrap="off" placeholder="/* .my-class { color: var(--accent); } */" class="block w-full rounded-md border border-slate-300 bg-slate-50 px-3 py-2 font-mono text-[13px] leading-5 text-slate-800 shadow-sm focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500" style="tab-size:2">{{ custom_css }}</textarea>
+  <p class="mt-2 text-xs text-slate-400">Plain CSS. Saved with the rest of the theme settings; an empty box removes your styles.</p>
+</section>
+<script>
+  // Tab inserts two spaces instead of leaving the box (Escape, then Tab, moves on).
+  (function () {
+    const box = document.getElementById('custom-css');
+    if (!box) return;
+    let escaped = false;
+    box.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') { escaped = true; return; }
+      if (event.key !== 'Tab' || event.shiftKey || event.ctrlKey || event.metaKey || event.altKey) { escaped = false; return; }
+      if (escaped) { escaped = false; return; }
+      event.preventDefault();
+      box.setRangeText('  ', box.selectionStart, box.selectionEnd, 'end');
+    });
+  })();
+</script>
