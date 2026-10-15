@@ -89,6 +89,8 @@ final class EntryForm
             'bcc' => '',
             'auto_reply' => false,
             'auto_reply_include' => false,
+            'attach_files' => false,
+            'attach_max_mb' => 10,
             'auto_reply_subject' => '',
             'auto_reply_message' => '',
         ];
@@ -186,6 +188,9 @@ final class EntryForm
                     $formNotifications['bcc'] = (string)($notifications['bcc'] ?? '');
                     $formNotifications['auto_reply'] = Format::isTruthy($notifications['auto_reply'] ?? false);
                     $formNotifications['auto_reply_include'] = Format::isTruthy($notifications['auto_reply_include'] ?? false);
+                    $formNotifications['attach_files'] = Format::isTruthy($notifications['attach_files'] ?? false);
+                    $attachMb = (float)($notifications['attach_max_mb'] ?? 10);
+                    $formNotifications['attach_max_mb'] = $attachMb > 0 ? $attachMb : 10;
                     $formNotifications['auto_reply_subject'] = (string)($notifications['auto_reply_subject'] ?? '');
                     $formNotifications['auto_reply_message'] = (string)($notifications['auto_reply_message'] ?? '');
                 }
@@ -340,6 +345,16 @@ final class EntryForm
             'languages' => array_map(static fn(string $code): array => ['code' => $code, 'name' => MenuAdmin::languageName($code)], $others),
             'translations' => (object)FormTranslations::cleanForm($meta['translations'] ?? [], $others),
             'open' => in_array($translate, $others, true) ? $translate : '',
+            // What a file field can be limited to here: the server's and the site's limits, and the kinds of file it offers.
+            'upload' => [
+                'server_file' => SiteLimits::serverUploadCap(),
+                'server_post' => SiteLimits::serverPostCap(),
+                'site_file' => SiteLimits::uploadMbFrom($settings) * 1048576,
+                'max_files' => FormUploads::MAX_FILES,
+                'default_mb' => FormUploads::DEFAULT_MAX_MB,
+                'presets' => FormUploads::PRESETS,
+                'blocked' => FormUploads::BLOCKED,
+            ],
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE);
     }
 

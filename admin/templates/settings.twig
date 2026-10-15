@@ -97,7 +97,7 @@
               <p class="rounded-md bg-slate-50 px-3 py-2 {{ storage.level == 'danger' ? 'text-red-700' : (storage.level == 'warn' ? 'text-orange-700' : 'text-slate-700') }}">{{ storage.used_human }}{% if storage.limit %} of {{ storage.limit_human }} ({{ storage.percent_of_limit }}%){% endif %}</p>
             </div>
           </div>
-          <p id="storage-limit-help" class="mt-2 text-xs text-slate-400">The default is 1 GB. Enter 0 for no limit. What counts: uploads {{ storage.parts.uploads }}, content {{ storage.parts.content }}, and the system database and backups {{ storage.parts.system }}.</p>
+          <p id="storage-limit-help" class="mt-2 text-xs text-slate-400">The default is 1 GB. Enter 0 for no limit. What counts: uploads {{ storage.parts.uploads }}, content {{ storage.parts.content }}, files sent through forms {{ storage.parts.forms }}, and the system database and backups {{ storage.parts.system }}.</p>
           <p class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400" id="storage-measured">
             <span>Measured {{ storage.measured_at|date('Y-m-d H:i') }}. Measured again automatically every 12 hours; uploads and deletions in Media count at once.</span>
             <button type="submit" form="storage-recalculate" class="font-medium text-slate-600 underline hover:text-slate-900">Recalculate now</button>

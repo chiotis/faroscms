@@ -12,6 +12,31 @@ final class FormFields
     /** How wide a field is in the row of the form; a field with none takes the whole row. */
     public const WIDTHS = ['half', 'third', 'two-thirds'];
 
+    /** The texts of a file field besides its label and help: the button, and what is said when something is wrong. All can be translated. */
+    public const FILE_TEXTS = ['button', 'error_size', 'error_type', 'error_max', 'error_min'];
+
+    /** The settings of a file field as they are stored: single or several, how many, how big, which kinds, and the pattern for the file names. @return array<string, mixed> */
+    public static function storeUpload(mixed $raw): array
+    {
+        $settings = FormUploads::settings(['upload' => is_array($raw) ? $raw : []]);
+        $clean = [
+            'multiple' => $settings['multiple'],
+            'max_size_mb' => $settings['max_size_mb'],
+            'extensions' => $settings['extensions'],
+        ];
+        if ($settings['multiple']) {
+            $clean['min'] = $settings['min'];
+            $clean['max'] = $settings['max'];
+        }
+        if ($settings['total_mb'] > 0) {
+            $clean['total_mb'] = $settings['total_mb'];
+        }
+        if ($settings['rename'] !== '') {
+            $clean['rename'] = mb_substr($settings['rename'], 0, 200);
+        }
+        return $clean;
+    }
+
     public static function isDisplay(string $type): bool
     {
         return in_array($type, self::DISPLAY, true);
@@ -37,6 +62,7 @@ final class FormFields
             'hidden',
             'color',
             'range',
+            'file',
             'heading',
             'paragraph',
         ];
@@ -131,6 +157,25 @@ final class FormFields
             }
             if (Format::isTruthy($row['required'] ?? false)) {
                 $field['required'] = true;
+            }
+            if ($type === 'file') {
+                $help = trim((string)($row['help'] ?? ''));
+                if ($help !== '') {
+                    $field['help'] = $help;
+                }
+                $field['upload'] = self::storeUpload($row['upload'] ?? []);
+                foreach (self::FILE_TEXTS as $key) {
+                    $text = trim(str_replace(["\r", "\n"], ' ', (string)($row[$key] ?? '')));
+                    if ($text !== '') {
+                        $field[$key] = $text;
+                    }
+                }
+                $translations = FormTranslations::cleanField($row['translations'] ?? [], [], $languages);
+                if ($translations !== []) {
+                    $field['translations'] = $translations;
+                }
+                $fields[] = $field;
+                continue;
             }
             $placeholder = trim((string)($row['placeholder'] ?? ''));
             if ($placeholder !== '') {
@@ -254,6 +299,12 @@ final class FormFields
                 'step' => (string)($row['step'] ?? ''),
                 'translations' => FormTranslations::cleanField($row['translations'] ?? []),
             ];
+            if ($type === 'file') {
+                $field['upload'] = FormUploads::settings($row);
+                foreach (self::FILE_TEXTS as $key) {
+                    $field[$key] = trim((string)($row[$key] ?? ''));
+                }
+            }
             $normalized[] = $field;
         }
         return $normalized;

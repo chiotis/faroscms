@@ -72,7 +72,7 @@ check('there is no screen for an archive that does not exist', [$admin->restoreS
 $s = $admin->restoreScreen($full);
 check('the screen names the archive and verifies it', [$s['filename'], $s['verification']['ok'], $s['snapshot']['filename']], [$full, true, $full]);
 $byKey = array_column($s['scopes'], null, 'key');
-check('every area says how much of it the archive holds, and is ticked when it has some', [array_keys($byKey), $byKey['content']['available'], $byKey['content']['checked'], $byKey['custom']['available'], $byKey['custom']['checked']], [['content', 'uploads', 'custom', 'database'], true, true, false, false]);
+check('every area says how much of it the archive holds, and is ticked when it has some', [array_keys($byKey), $byKey['content']['available'], $byKey['content']['checked'], $byKey['custom']['available'], $byKey['custom']['checked']], [['content', 'uploads', 'form-uploads', 'custom', 'database'], true, true, false, false]);
 check('only the areas asked for are ticked', array_column($admin->restoreScreen($full, ['uploads'])['scopes'], 'checked', 'key')['content'], false);
 
 // ---- restoring

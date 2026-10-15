@@ -345,7 +345,7 @@ final class PermissionService
             'content' => 'content.manage',
             'menus', 'menus-new', 'menus-edit' => 'menus.manage',
             'media', 'files' => 'media.manage',
-            'forms', 'forms-new', 'form-submissions' => 'forms.manage',
+            'forms', 'forms-new', 'form-submissions', 'form-file', 'form-files-zip' => 'forms.manage',
             'forms-export', 'export' => 'exports.manage',
             'import' => 'imports.manage',
             'translations' => 'translations.manage',

@@ -130,31 +130,34 @@ final class FormsAdmin
      * Deletes submissions: one (`delete`, by `id`) or the ticked ones (`bulk_delete`, by `selected_ids`).
      *
      * @param array<string, mixed> $post
-     * @return array{deleted: int, ids: string[]}
+     * @return array{deleted: int, ids: string[], files: int} files: how many attached files went with them
      */
     public function deleteSubmissions(string $slug, array $post): array
     {
         $action = (string)($post['submission_action'] ?? '');
         if (!in_array($action, ['delete', 'bulk_delete'], true)) {
-            return ['deleted' => 0, 'ids' => []];
+            return ['deleted' => 0, 'ids' => [], 'files' => 0];
         }
         $ids = $action === 'delete'
             ? [(string)($post['id'] ?? '')]
             : (is_array($post['selected_ids'] ?? null) ? array_map('strval', $post['selected_ids']) : []);
         $deleted = 0;
+        $files = 0;
         foreach ($ids as $id) {
+            $count = FormSubmissionRepository::isValidId($id) ? $this->submissions->uploads()->count($slug, $id) : 0;
             if ($this->submissions->delete($slug, $id)) {
                 $deleted++;
+                $files += $count;
             }
         }
-        return ['deleted' => $deleted, 'ids' => $ids];
+        return ['deleted' => $deleted, 'ids' => $ids, 'files' => $files];
     }
 
     /**
      * One page of a form's submissions, each with its fields labelled the way the form labels them.
      *
-     * @param array<string, mixed> $get lang, q, date_from, date_to (YYYY-MM-DD), page, per_page
-     * @return array{rows: array<int, array<string, mixed>>, filters: array<string, string>, total_all: int, total: int, recent: int, page: int, total_pages: int, per_page: int}
+     * @param array<string, mixed> $get lang, q, date_from, date_to (YYYY-MM-DD), has_files, page, per_page
+     * @return array{rows: array<int, array<string, mixed>>, filters: array<string, string>, total_all: int, total: int, recent: int, page: int, total_pages: int, per_page: int, has_file_field: bool}
      */
     public function page(ContentItem $form, array $get): array
     {
@@ -163,6 +166,7 @@ final class FormsAdmin
             'q' => trim((string)($get['q'] ?? '')),
             'date_from' => preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)($get['date_from'] ?? '')) ? (string)$get['date_from'] : '',
             'date_to' => preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)($get['date_to'] ?? '')) ? (string)$get['date_to'] : '',
+            'has_files' => (string)($get['has_files'] ?? '') !== '' ? '1' : '',
         ];
         $perPage = (int)($get['per_page'] ?? 25);
         $perPage = in_array($perPage, self::PER_PAGE_OPTIONS, true) ? $perPage : 25;
@@ -188,7 +192,7 @@ final class FormsAdmin
             }
             $summaryParts = [];
             foreach ($fields as $field) {
-                if (in_array($field['key'], ['name', 'full_name', 'email'], true) || $field['value'] === '') {
+                if (in_array($field['key'], ['name', 'full_name', 'email'], true) || $field['value'] === '' || isset($entry['files'][$field['key']])) {
                     continue;
                 }
                 $summaryParts[] = $field['value'];
@@ -196,7 +200,26 @@ final class FormsAdmin
                     break;
                 }
             }
+            // The files of the submission, each with the way to download it (the admin gives them out; they are not on the web).
+            $files = [];
+            foreach ($entry['files'] as $fieldName => $list) {
+                $items = [];
+                foreach (is_array($list) ? $list : [] as $file) {
+                    $items[] = [
+                        'name' => (string)($file['name'] ?? ''),
+                        'original' => (string)($file['original'] ?? ''),
+                        'size' => Format::bytes((int)($file['size'] ?? 0)),
+                        'url' => 'admin/form-file?' . http_build_query(['slug' => $form->slug, 'id' => $entry['id'], 'f' => (string)($file['name'] ?? '')]),
+                    ];
+                }
+                if ($items !== []) {
+                    $files[] = ['label' => $labels[(string)$fieldName] ?? Slug::title((string)$fieldName), 'items' => $items];
+                }
+            }
             $rows[] = [
+                'files' => $files,
+                'file_count' => FormSubmissionRepository::fileCount($entry),
+                'zip_url' => 'admin/form-files-zip?' . http_build_query(['slug' => $form->slug, 'id' => $entry['id']]),
                 'id' => $entry['id'],
                 'submitted_at' => FormProcessor::date((string)$entry['submitted_at']),
                 'lang' => (string)$entry['lang'],
@@ -217,6 +240,7 @@ final class FormsAdmin
             'page' => $page,
             'total_pages' => $totalPages,
             'per_page' => $perPage,
+            'has_file_field' => count(array_filter($formFields, static fn(array $field): bool => ($field['type'] ?? '') === 'file')) > 0,
         ];
     }
 

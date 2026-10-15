@@ -39,6 +39,7 @@ Before the application boots, `public/index.php` hands `/_themes/…` and `/_cus
 | `BackupService` | Archive creation with checksum manifest, listing, retention, verification, and staged restore. |
 | `S3BackupStorage` | S3-compatible upload, listing, and pruning with SigV4 signing. |
 | `UpdateService` | Local version, GitHub `VERSION`/`CHANGELOG` source, cached update status. |
+| `FormUploads` | The files attached to a form: what a file field allows (kinds, sizes, numbers, capped by the server and the site), the check of the real content with finfo, the refused kinds, the file name a pattern makes, and the private folder `storage/form-uploads/<form>/<submission>/` (saving, finding a file safely, the ZIP, removing). |
 | `FormSubmissionRepository` | JSON form submissions per form slug: listing, filtering, storing, deleting. |
 | `Mailer` | SMTP and Amazon SES sending. |
 | `MediaLibrary` | Media uploads (type allowlist, SVG checks), YAML metadata, tags, listing, legacy adoption. |

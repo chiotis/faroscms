@@ -282,6 +282,17 @@
                 <label class="block"><span class="{{ label_class }}">Bcc</span><input type="text" name="form_notifications[bcc]" value="{{ form_notifications.bcc }}" class="{{ input_class }}"></label>
               </div>
             </details>
+            <div class="hidden rounded-md border border-slate-200 bg-slate-50/60 p-3" data-default-only data-fb-attach>
+              <p class="text-xs text-slate-500">This form has a file field. The email always has a link to each file (for people who are signed in to the admin).</p>
+              <div class="mt-2 grid gap-2">
+                {{ ui.toggle('form_notifications[attach_files]', form_notifications.attach_files, 'Also attach the files to the email', 'Files stay private on the site either way.') }}
+                <label class="block">
+                  <span class="{{ label_class }}">Attach up to (MB, all files together)</span>
+                  <input type="number" name="form_notifications[attach_max_mb]" value="{{ form_notifications.attach_max_mb|default(10) }}" min="1" max="100" step="1" class="{{ input_class }}">
+                  <span class="mt-1 block text-xs text-slate-500">Above this size only the links are sent, and the email says so. The automatic reply to the visitor never has files.</span>
+                </label>
+              </div>
+            </div>
             <div>
               <p class="text-xs font-medium text-slate-600">Put an answer in the subject</p>
               <div class="mt-1.5 flex flex-wrap gap-1.5" data-fb-chips></div>

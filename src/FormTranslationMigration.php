@@ -173,7 +173,7 @@ final class FormTranslationMigration
                 $existing = is_array($fields[$i]['translations'][$lang] ?? null) ? $fields[$i]['translations'][$lang] : [];
                 $row = $existing;
                 foreach (FormTranslations::FIELD_KEYS as $key) {
-                    if (trim((string)($row[$key] ?? '')) === '' && trim((string)$cf[$key]) !== '') {
+                    if (trim((string)($row[$key] ?? '')) === '' && trim((string)($cf[$key] ?? '')) !== '') {
                         $row[$key] = trim((string)$cf[$key]);
                     }
                 }

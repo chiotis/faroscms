@@ -6,7 +6,7 @@ Archives live in `storage/backups/` and are listed in Admin `Backups`.
 
 | Type | Contents | Filename |
 |------|----------|----------|
-| Full | Every project file except `.git/`, `node_modules/`, `storage/backups/`, `storage/cache/`, `storage/restore/`, `storage/updates/`, and generated image variants (`public/uploads/_v/`), plus a consistent copy of the system database | `<site>-backup-YYYYMMDD-HHMMSS-<id>.zip` |
+| Full | Every project file (form uploads in `storage/form-uploads/` included, with their checksums in the manifest) except `.git/`, `node_modules/`, `storage/backups/`, `storage/cache/`, `storage/restore/`, `storage/updates/`, and generated image variants (`public/uploads/_v/`), plus a consistent copy of the system database | `<site>-backup-YYYYMMDD-HHMMSS-<id>.zip` |
 | Database | A consistent copy of `storage/db/app.sqlite` | `<site>-database-backup-YYYYMMDD-HHMMSS-<id>.zip` |
 
 Every archive contains `faroscms-backup.json`:
@@ -53,6 +53,7 @@ Restore is limited to superadmins (`backups.restore` capability).
 2. Choose the areas:
    - **Content**: `content/` (pages, posts, projects, forms and submissions, menus, taxonomies, media metadata)
    - **Uploads**: `public/uploads/`
+   - **Form files**: `storage/form-uploads/` (what visitors attached to form submissions; private, restored with its web-server deny rule)
    - **Site customizations**: `custom/` (translation overrides, custom CSS/JS, template overrides)
    - **System database**: `storage/db/app.sqlite` (settings, users, logs, notifications, backup history)
 3. Type the archive name to confirm.
@@ -77,5 +78,5 @@ If the admin itself is unusable:
 
 1. Stop the web server or put the site in maintenance.
 2. Unzip the archive somewhere else and compare `faroscms-backup.json` checksums if needed (`shasum -a 256 <file>`).
-3. Copy `content/`, `public/uploads/`, `custom/`, and `storage/db/app.sqlite` into place. Remove any stale `storage/db/app.sqlite-wal` and `app.sqlite-shm` first.
+3. Copy `content/`, `public/uploads/`, `storage/form-uploads/`, `custom/`, and `storage/db/app.sqlite` into place. Remove any stale `storage/db/app.sqlite-wal` and `app.sqlite-shm` first.
 4. Start the server and sign in.

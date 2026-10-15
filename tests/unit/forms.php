@@ -154,7 +154,7 @@ check('a field the form does not know is labelled from its name', array_column($
 check('filtered by language', array_column($admin->page($form, ['lang' => 'en'])['rows'], 'title'), ['Bob']);
 check('by words in any field', array_column($admin->page($form, ['q' => 'hello'])['rows'], 'title'), ['Bob']);
 check('by date, and a wrong date format is ignored', [array_column($admin->page($form, ['date_from' => date('Y-m-d', time() - 3 * 86400)])['rows'], 'title'), $admin->page($form, ['date_from' => '30/09/2026'])['total']], [['Ada', 'Bob'], 3]);
-check('the filters are returned cleaned', $admin->page($form, ['lang' => 'EN', 'q' => ' x ', 'date_to' => 'bad'])['filters'], ['lang' => 'en', 'q' => 'x', 'date_from' => '', 'date_to' => '']);
+check('the filters are returned cleaned', $admin->page($form, ['lang' => 'EN', 'q' => ' x ', 'date_to' => 'bad'])['filters'], ['lang' => 'en', 'q' => 'x', 'date_from' => '', 'date_to' => '', 'has_files' => '']);
 check('a page size is one of the options', [$admin->page($form, ['per_page' => '50'])['per_page'], $admin->page($form, ['per_page' => '7'])['per_page']], [50, 25]);
 $paged = $admin->page($form, ['per_page' => '25', 'page' => '9']);
 check('a page past the end is the last', [$paged['page'], $paged['total_pages']], [1, 1]);
@@ -172,7 +172,7 @@ check('a site with no title still names the file', $admin->export($form, '')['fi
 check('a title that has no usable letters falls back to the form address', $admin->export(new ContentItem('forms', 'contact', 'el', ['title' => '日本'], '', '', '', 0), '!!!')['filename'], 'site-contact-submissions.csv');
 
 // ---- deleting
-check('nothing is deleted without a known action', $admin->deleteSubmissions('contact', ['submission_action' => 'wipe', 'id' => $a]), ['deleted' => 0, 'ids' => []]);
+check('nothing is deleted without a known action', $admin->deleteSubmissions('contact', ['submission_action' => 'wipe', 'id' => $a]), ['deleted' => 0, 'ids' => [], 'files' => 0]);
 check('one is deleted by id', [$admin->deleteSubmissions('contact', ['submission_action' => 'delete', 'id' => $a])['deleted'], $subs->find('contact', $a)], [1, null]);
 check('deleting what is gone deletes nothing', $admin->deleteSubmissions('contact', ['submission_action' => 'delete', 'id' => $a])['deleted'], 0);
 check('an id that is not an id is refused', $admin->deleteSubmissions('contact', ['submission_action' => 'delete', 'id' => '../../x'])['deleted'], 0);
