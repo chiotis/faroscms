@@ -48,6 +48,11 @@ check('one narrow block is a row with the rest empty', rows(only) == [['50']], r
 check('a hidden block does not break a row', rows(page('w-hidden', t('A', 25), t('H', 100, hidden=True), t('B', 75))) == [['25', '75']])
 check('a block that opens the page as a hero stays full width', 'block--w-' not in page('w-hero', {'type': 'hero', 'heading': 'Top', 'width': 50}, t('A')), None)
 
+thirds = page('w-thirds', t('A', 33), t('B', 33), t('C', 33), t('Full'), t('D', 66), t('E', 33), t('F', 33), t('G', 66), t('H', 25), t('I', 75))
+check('33 + 33 + 33 is a row of three, 66 + 33 and 33 + 66 and 25 + 75 wrap in the next one', rows(thirds) == [['33', '33', '33'], ['66', '33', '33', '66', '25', '75']], rows(thirds))
+rowcss = anon.get('/_themes/default/_blocks.css?b=text,_row')[2]
+check('the row styles use a twelve-column grid with exact thirds', 'repeat(12' in rowcss and '.block--w-33' in rowcss and '.block--w-66' in rowcss)
+
 # ---- the styles ride along only where needed
 m = re.search(r'/_themes/default/_blocks\.css\?b=([^&"]*)', h)
 check('a page with a row loads the row styles with its blocks', bool(m) and m.group(1).split(',')[-1] == '_row', m and m.group(1))
@@ -62,15 +67,15 @@ st, _, edit = root.get('/admin/edit?type=pages&slug=about&lang=en')
 data = json.loads(re.search(r'id="block-editor-data"[^>]*>(.*?)</script>', edit, re.S).group(1))
 defs = {d['type']: d for d in data['definitions']}
 widths = [next(f for f in d['common'] if f['key'] == 'width') for d in defs.values()]
-check('every block type has the Width setting, 100% by default', len(widths) == len(defs) and all([o[0] for o in w['options']] == ['100', '75', '50', '25'] and w['default'] == '100' for w in widths))
+check('every block type has the Width setting, 100% by default', len(widths) == len(defs) and all([o[0] for o in w['options']] == ['100', '75', '66', '50', '33', '25'] and w['default'] == '100' for w in widths))
 js = root.get('/assets/js/admin-blocks.js')[2]
 check('the editor script draws chips and a row', 'bk-widths' in js and 'bk-sharing' in js and 'widthOf' in js)
 def save(blocks):
     fields = {'type': 'pages', 'slug': 'w-saved', 'lang': 'en', 'title': 'w-saved', 'status': 'published', 'visible': '1', 'body': 'x', 'blocks_editor': '1', 'blocks_json': json.dumps(blocks)}
     return root.submit('/admin/edit?type=pages&slug=about&lang=en', has_field('body'), fields)
-save([{'type': 'text', 'heading': 'A', 'width': '25'}, {'type': 'text', 'heading': 'B', 'width': '100'}, {'type': 'text', 'heading': 'C', 'width': '75'}, {'type': 'text', 'heading': 'D', 'width': '33'}])
+save([{'type': 'text', 'heading': 'A', 'width': '25'}, {'type': 'text', 'heading': 'B', 'width': '100'}, {'type': 'text', 'heading': 'C', 'width': '75'}, {'type': 'text', 'heading': 'D', 'width': '34'}, {'type': 'text', 'heading': 'E', 'width': '33'}, {'type': 'text', 'heading': 'F', 'width': '66'}])
 raw = open('app/content/pages/w-saved.en.md', encoding='utf-8').read() if __import__('os').path.exists('app/content/pages/w-saved.en.md') else open('app/content/pages/w-saved.md', encoding='utf-8').read()
-check('saved, a width is a plain number and 100 is not written', re.findall(r'width: .*', raw) == ['width: 25', 'width: 75'], re.findall(r'width: .*', raw))
+check('saved, a width is a plain number and 100 is not written', re.findall(r'width: .*', raw) == ['width: 25', 'width: 75', 'width: 33', 'width: 66'], re.findall(r'width: .*', raw))
 st, _, edit2 = root.get('/admin/edit?type=pages&slug=w-saved&lang=en')
 check('and the editor reads it back', '"width":25' in edit2.replace(' ', '') or '"width":"25"' in edit2.replace(' ', ''), re.findall(r'"width":[^,}]*', edit2))
 

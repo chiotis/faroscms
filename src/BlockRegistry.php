@@ -19,7 +19,7 @@ final class BlockRegistry
 {
     public const TONES = ['default' => 'Default', 'muted' => 'Muted', 'contrast' => 'Contrast', 'accent' => 'Accent'];
     /** Share of the row a block takes (percent); 100 is today's full-width section and is never written to a page. */
-    public const WIDTHS = ['100' => '100%', '75' => '75%', '50' => '50%', '25' => '25%'];
+    public const WIDTHS = ['100' => '100%', '75' => '75%', '66' => '66%', '50' => '50%', '33' => '33%', '25' => '25%'];
     public const SPACINGS = ['default' => 'Default', 'compact' => 'Compact', 'spacious' => 'Spacious', 'none' => 'None'];
 
     /** @var array<string, array<string, mixed>>|null */

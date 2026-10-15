@@ -1,6 +1,6 @@
 # Building pages with blocks
 
-A page is its front matter `blocks:` list (and optionally a Markdown body). The editor never hand-writes layout: each block brings its own markup, spacing and responsive behaviour, and the **layout** (`variant`) and **background** (`tone`) change how it looks. Blocks can sit side by side: `width: 25|50|75` on consecutive blocks makes a row (three `text` blocks at `width: 25`, `25`, `50`); leave it out for a full-width block. Your job is to choose blocks, write the content, and keep the values valid. The exact fields of every block are in `blocks.md` (or `python3 scripts/block_reference.py <type>` for the installed version).
+A page is its front matter `blocks:` list (and optionally a Markdown body). The editor never hand-writes layout: each block brings its own markup, spacing and responsive behaviour, and the **layout** (`variant`) and **background** (`tone`) change how it looks. Blocks can sit side by side: `width: 25|33|50|66|75` on consecutive blocks makes a row (three `text` blocks at `width: 33`, `33`, `33`); leave it out for a full-width block. Your job is to choose blocks, write the content, and keep the values valid. The exact fields of every block are in `blocks.md` (or `python3 scripts/block_reference.py <type>` for the installed version).
 
 ## How a page is put together
 

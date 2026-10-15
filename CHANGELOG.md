@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.123 — 2026-10-15 — Thirds, for three equal columns
+- **Width also offers 33% and 66%** (25, 33, 50, 66, 75, 100), stored as `width: 33` or `66`. Three Text blocks at 33 + 33 + 33 are three exactly equal columns (the row is twelve columns, so a third is exactly a third of the row minus the gaps); 66 + 33, 33 + 66 and 25 + 75 work too, and rows wrap as before. On a tablet 33 becomes 50 and 66 becomes 100, on a phone every block is full width; a 33% block is treated as a narrow block like 25% and 50%.
+
 ## 0.1.122 — 2026-10-15 — Blocks side by side
 - **Every block has a *Width*** in its Design tab: 25%, 50%, 75% or 100% (the default). Blocks narrower than 100% that follow each other sit side by side in one row and wrap when the row is full: 25 + 25 + 50, 50 + 50, 75 + 25, four at 25, or 25 + 50 with the rest left empty. A block at 100% always starts a new row. Three Text blocks as three columns is three blocks at 25, 25 and 50.
 - **It works the same in every place blocks live**: pages and posts, Footer Blocks, sections saved to *custom/presets*, the ready-made sections and page layouts, and the revision history (the change shows as a `width:` line). Stored as `width: 25|50|75` in the front matter; nothing is written for 100%, and a page without widths renders exactly as before, with no extra markup or styles.
