@@ -15,14 +15,14 @@ Options: `--profile=FILE`, `--menus`, `--custom=PATH`, `--lang=en` (language of 
 |---|---|
 | Pages | Pages. The page WordPress shows as the home page becomes the home page file. |
 | Posts | Posts, with date, category and tag terms, the featured picture as the main image, and an excerpt only when the author wrote one (the cut WordPress makes by itself is left out). |
-| Categories and tags | Terms. The category tree is flattened: a name used under several parents ("Logicomix" under News and under Reviews) becomes "Logicomix (News)" with the address `news-logicomix`, and a post in a child category is also in the parents, as WordPress shows it on the parent's page. |
+| Categories and tags | Terms. The category tree is kept: a category keeps its name and its parent, and its address is the one it had (`/category/news/child`). A name used under several parents ("Logicomix" under News and under Reviews) stays "Logicomix" under each; the terms are told apart by their parent (their ids get a number, `logicomix` and `logicomix-2`, the same on every run). A post is filed under the categories it has, and the page of a parent also lists what is filed under its children, as WordPress shows it. Tags have no tree. |
 | The media library | Files in the library with their alternative text, and every picture or file the text uses. A size WordPress made (`photo-300x200.jpg`) is the picture itself. |
 | The text (HTML) | Markdown: paragraphs, headings, lists, quotes, links, pictures, simple tables and code. Styles, Word's classes, float classes and empty paragraphs are dropped; a table used to place a picture beside text is taken apart; video embeds (YouTube, Vimeo, SoundCloud and a few more, over https) stay as a small piece of HTML. |
 | Links between pages | Rewritten to the new addresses. |
 
 ## Old addresses
 
-The run writes `redirects.txt` (default `storage/import/`): one line per old address that is not the same on the new site (a post at `/2020/05/slug/` is now at `/slug`, a category at `/category/news/child/` is at `/category/news-child`, a picture at `/wp-content/uploads/...` is in the library). Paste it into **Admin → Redirects → Import** on the site that will serve them. An old address that is a page of the new site is never redirected.
+The run writes `redirects.txt` (default `storage/import/`): one line per old address that is not the same on the new site (a post at `/2020/05/slug/` is now at `/slug`, a picture at `/wp-content/uploads/...` is in the library). Paste it into **Admin → Redirects → Import** on the site that will serve them. An old address that is a page of the new site is never redirected.
 
 ## Running it again
 

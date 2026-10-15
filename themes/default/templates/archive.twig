@@ -23,7 +23,8 @@
   {% set prefix = lang_prefix|default('') %}
   {% set layout = config.layout|default('cards') %}
   {# The trail (Archive Layouts > Breadcrumbs): Home, then this list (a category or tag by its own title). #}
-  {% set crumbs = config.breadcrumbs|default(false) ? [{label: t('nav.main.home', 'Home'), url: '/' ~ prefix}, {label: (archive_title is defined ? title_text : t('type.' ~ type_key, type_key|title)), url: ''}] : [] %}
+  {# A child term follows the tree: Home, its parents (term_trail), then the term. #}
+  {% set crumbs = config.breadcrumbs|default(false) ? [{label: t('nav.main.home', 'Home'), url: '/' ~ prefix}]|merge(term_trail|default([]))|merge([{label: (archive_title is defined ? title_text : t('type.' ~ type_key, type_key|title)), url: ''}]) : [] %}
   {% include 'components/title-area.twig' with {layout: archive_title_layout, title: title_text, hero_text: subtitle_text, meta_html: '', meta_inline: '', hero_image: archive_title_image, hero_bg: '', hero_parallax: archive_image_behind and config.title_parallax|default(false), crumbs: crumbs} only %}
 
   <section class="site-wrap section-stack single-body archive-body">

@@ -37,7 +37,8 @@ final class TaxonomyPage
      */
     public function build(array $segments, string $lang, array $viewDefaults, array $query): ?array
     {
-        $slug = $segments[1] ?? '';
+        // The address after the word: one slug, or a child's with its parents' ("books/english").
+        $slug = implode('/', array_slice($segments, 1));
         if ($slug === '') {
             return null;
         }
@@ -47,7 +48,7 @@ final class TaxonomyPage
             return null;
         }
         $kind = Taxonomies::kind($key);
-        $term = $taxonomies->findBySlug($key, $slug);
+        $term = $taxonomies->findByPath($key, $slug);
         if ($term === null) {
             return null;
         }
@@ -61,13 +62,18 @@ final class TaxonomyPage
         $archive['taxonomies'] = array_values(array_diff($archive['taxonomies'], [$key]));
         $includeTypes = $archive['types'];
 
+        // The page of a parent also lists what is filed under its sub-terms, unless the taxonomy's archive says not to.
+        $termIds = [$termId];
+        if ($archive['include_children']) {
+            $termIds = array_merge($termIds, $taxonomies->descendantIds($key, $termId));
+        }
         $items = [];
         foreach ($this->content->getTypes() as $type) {
             if (in_array($type, ['pages', 'forms'], true) || ($includeTypes !== [] && !in_array($type, $includeTypes, true))) {
                 continue;
             }
             foreach ($this->content->getItems($type, $lang, false, false) as $item) {
-                if (in_array($termId, Format::list($item->meta[$key] ?? null), true)) {
+                if (array_intersect($termIds, Format::list($item->meta[$key] ?? null)) !== []) {
                     $items[] = $item;
                 }
             }
@@ -87,15 +93,23 @@ final class TaxonomyPage
             default => $taxonomies->load($key)['title'],
         };
         $description = $taxonomies->description($key, $termId, $lang, $defaultLang);
-        $alternates = ($this->alternates)()->forTaxonomy($key, $term['slug']);
+        $alternates = ($this->alternates)()->forTaxonomy($key, $taxonomies->slug($key, $termId));
 
-        return ['kind' => $kind, 'slug' => $slug, 'data' => [
+        // The trail follows the tree: each parent above the term, with the address of its page.
+        $prefix = FrontRoute::langPrefix($lang, $defaultLang);
+        $trail = [];
+        foreach ($taxonomies->ancestors($key, $termId) as $above) {
+            $trail[] = ['label' => $taxonomies->label($key, $above['id'], $lang), 'url' => '/' . $prefix . $kind . '/' . $taxonomies->slug($key, $above['id'])];
+        }
+
+        return ['kind' => $kind, 'slug' => $term['slug'], 'data' => [
             'items' => $page['items'],
             'archive' => $page,
             'type' => $key,
             'archive_title' => $archive['title'] !== '' ? $fill($archive['title']) : $titlePrefix . ': ' . $label,
             'archive_subtitle' => $archive['subtitle'] !== '' ? $fill($archive['subtitle']) : $description,
             'term_description' => $description,
+            'term_trail' => $trail,
             'block_styles' => [$this->theme->blockStylesheetUrl(rtrim((string)($settings['base_url'] ?? ''), '/'), ['latest'])],
             'alternate_urls' => $alternates['urls'],
             'alternate_default' => $alternates['default'],

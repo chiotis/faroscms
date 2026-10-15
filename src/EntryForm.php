@@ -464,7 +464,8 @@ final class EntryForm
             $rows[] = [
                 'name' => $name,
                 'title' => (string)$taxonomy['title'],
-                'terms' => $taxonomy['terms'],
+                // A taxonomy with a tree is offered as a tree (a child after its parent, marked by its depth).
+                'terms' => $taxonomy['hierarchical'] ? $taxonomies->tree($name) : $taxonomy['terms'],
             ];
         }
         return $rows;

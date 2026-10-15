@@ -98,7 +98,7 @@ $post = [
     'archive' => ['layout' => 'list', 'per_page' => '5', 'types' => ['posts']],
 ];
 $r = $editor->apply('tags', $post, ['el', 'en'], 'el', 'tester');
-check('the summary counts what happened', $r, ['title' => 'Topics', 'terms' => 3, 'moved' => 1, 'removed' => 1, 'added' => 1, 'orphaned' => 0]);
+check('the summary counts what happened', $r, ['title' => 'Topics', 'terms' => 3, 'moved' => 1, 'removed' => 1, 'added' => 1, 'orphaned' => 0, 'refused' => 0]);
 $saved = $store->load('tags');
 check('title and terms are stored, in the order sent', [$saved['title'], array_column($saved['terms'], 'id')], ['Topics', ['news', 'design', 'neos-oros']]);
 check('the description is stored', $saved['terms'][0]['descriptions']['el'], 'Όλα τα νέα');
@@ -116,6 +116,47 @@ $editor->apply('tags', ['taxonomy_title' => 'Topics', 'term_id' => ['design'], '
 $editor->apply('tags', ['taxonomy_title' => 'Topics', 'term_id' => ['design'], 'term_slug' => ['design'], 'term_label' => ['el' => ['Σχεδιασμός'], 'en' => ['Design']]], ['el', 'en'], 'el', 'tester');
 check('a form without the layout part (it is edited in Theme > Archive Layouts) leaves it alone', $store->load('tags')['archive']['layout'] ?? null, 'magazine');
 check('a form without a title keeps the title', $editor->apply('tags', ['term_id' => ['design'], 'term_slug' => ['design'], 'term_label' => ['el' => ['Σχεδιασμός'], 'en' => ['Design']]], ['el', 'en'], 'el', 't')['title'], 'Topics');
+
+
+// ---- a tree: moving a term or renaming a parent leaves redirects for everything below
+$lbl = fn(string $en) => ['el' => $en, 'en' => $en];
+$cat = fn(array $ids, array $slugs, array $parents, array $names, array $extra = []) => ['term_id' => $ids, 'term_slug' => $slugs, 'term_parent' => $parents, 'term_label' => ['el' => $names, 'en' => $names]] + $extra;
+$editor->apply('categories', $cat(['books', 'english', 'classics', 'plays'], ['books', 'english', 'classics', 'plays'], ['', 'books', 'english', ''], ['Books', 'English', 'Classics', 'Plays']), ['el', 'en'], 'el', 'tester');
+check('a form can give a term a parent, and the address holds the parents\'', array_map(fn($id) => $store->slug('categories', $id), ['books', 'english', 'classics', 'plays']), ['books', 'books/english', 'books/english/classics', 'plays']);
+$menus->write('main', ['title' => 'Main', 'items' => [['label' => 'English', 'url' => 'category/books/english'], ['label' => 'Home', 'url' => 'index']]]);
+$before = count($redirects->all());
+$r = $editor->apply('categories', $cat(['books', 'english', 'classics', 'plays'], ['books', 'english', 'classics', 'plays'], ['', 'plays', 'english', ''], ['Books', 'English', 'Classics', 'Plays']), ['el', 'en'], 'el', 'tester');
+$rd = [];
+foreach ($redirects->all() as $row) { $rd[$row['source']] = $row['target']; }
+check('moving a term counts it and what is below it', [$r['moved'], $r['refused']], [2, 0]);
+check('the old addresses of the term and its descendants lead to the new, in each language', [$rd['category/books/english'] ?? null, $rd['category/books/english/classics'] ?? null, $rd['en/category/books/english'] ?? null, $rd['en/category/books/english/classics'] ?? null], ['/category/plays/english', '/category/plays/english/classics', '/en/category/plays/english', '/en/category/plays/english/classics']);
+check('the menu link follows', $menus->load('main')['items'][0]['url'], 'category/plays/english');
+$r = $editor->apply('categories', $cat(['books', 'english', 'classics', 'plays'], ['library', 'english', 'classics', 'plays'], ['', 'plays', 'english', ''], ['Books', 'English', 'Classics', 'Plays']), ['el', 'en'], 'el', 'tester');
+$rd = [];
+foreach ($redirects->all() as $row) { $rd[$row['source']] = $row['target']; }
+check('renaming a parent with nothing below it redirects only itself', [$r['moved'], $rd['category/books'] ?? null], [1, '/category/library']);
+$r = $editor->apply('categories', $cat(['plays', 'english', 'classics', 'library'], ['plays', 'english', 'classics', 'library'], ['', 'plays', 'english', ''], ['Plays', 'English', 'Classics', 'Library']), ['el', 'en'], 'el', 'tester');
+$r = $editor->apply('categories', $cat(['plays', 'english', 'classics', 'library'], ['plays', 'english', 'classics', 'library'], ['classics', 'plays', 'english', ''], ['Plays', 'English', 'Classics', 'Library']), ['el', 'en'], 'el', 'tester');
+check('a loop is refused and said so; nothing moves', [$r['refused'], $r['moved'], $store->slug('categories', 'plays')], [1, 0, 'plays']);
+$r = $editor->apply('categories', $cat(['plays', 'classics', 'library'], ['plays', 'classics', 'library'], ['', 'english', ''], ['Plays', 'Classics', 'Library']), ['el', 'en'], 'el', 'tester');
+$rd = [];
+foreach ($redirects->all() as $row) { $rd[$row['source']] = $row['target']; }
+check('deleting a parent moves its children up a level, with a redirect', [$store->slug('categories', 'classics'), $r['removed'], $rd['category/plays/english/classics'] ?? null], ['plays/classics', 1, '/category/plays/classics']);
+$screen = $editor->screen('categories', [], ['el', 'en'], 'el', true, fn($t) => $t);
+check('the screen lists a tree in tree order, with depth and address', [$screen['hierarchical'], array_map(fn($t) => $t['id'] . ':' . $t['depth'] . ':' . $t['path'], $screen['taxonomy_terms'])], [true, ['plays:0:plays', 'classics:1:plays/classics', 'library:0:library']]);
+$screen = $editor->screen('tags', [], ['el', 'en'], 'el', true, fn($t) => $t);
+check('and a flat taxonomy is listed as before', [$screen['hierarchical'], array_column($screen['taxonomy_terms'], 'depth')], [false, [0]]);
+$editor->apply('categories', ['taxonomy_title' => 'Categories', 'term_id' => ['plays'], 'term_slug' => ['plays'], 'term_label' => ['el' => ['Plays'], 'en' => ['Plays']], 'taxonomy_hierarchical' => '0'], ['el', 'en'], 'el', 'tester');
+check('the tree can be turned off for categories', [$store->isHierarchical('categories'), str_contains((string)file_get_contents("$dir/content/taxonomies/categories.yaml"), 'hierarchical: false')], [false, true]);
+$editor->apply('categories', ['taxonomy_title' => 'Categories', 'term_id' => ['plays'], 'term_slug' => ['plays'], 'term_label' => ['el' => ['Plays'], 'en' => ['Plays']], 'taxonomy_hierarchical' => '1'], ['el', 'en'], 'el', 'tester');
+check('and on again; a form that does not send the choice leaves it', [$store->isHierarchical('categories'), $editor->apply('categories', ['term_id' => ['plays'], 'term_slug' => ['plays'], 'term_label' => ['el' => ['Plays'], 'en' => ['Plays']]], ['el', 'en'], 'el', 't')['terms'], $store->isHierarchical('categories')], [true, 1, true]);
+$archive = $editor->archiveFromInput('categories', ['layout' => 'list', 'children_shown' => '1']);
+check('the archive card stores "no sub-terms" when its chip is off, and nothing when it is on', [$archive['include_children'] ?? 'default', $editor->archiveFromInput('categories', ['children_shown' => '1', 'include_children' => '1'])['include_children'] ?? 'default'], [false, 'default']);
+check('a form that did not draw the chip leaves the choice alone', $editor->archiveFromInput('categories', ['layout' => 'list'])['include_children'] ?? 'default', 'default');
+$store->save('categories', 'Categories', $store->load('categories')['terms'], ['include_children' => false]);
+check('and keeps a choice already made', $editor->archiveFromInput('categories', ['layout' => 'list'])['include_children'] ?? 'default', false);
+$made = $editor->create('Regions', '', [], ['el', 'en'], 'index', 'tester', true);
+check('a new taxonomy can be a tree from the start', [$made['error'], $store->isHierarchical('regions')], ['', true]);
 
 exec('rm -rf ' . escapeshellarg($dir));
 echo $fail === 0 ? "\nALL PASSED\n" : "\n$fail FAILED\n";

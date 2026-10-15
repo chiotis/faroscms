@@ -51,10 +51,12 @@ final class TaxonomyEditor
                 'added' => $result['added'],
                 'renamed' => $result['moved'],
                 'removed' => $result['removed'],
+                'refused' => $result['refused'],
             ]);
         }
         return '/admin/taxonomies?taxonomy=' . urlencode($taxonomy) . '&saved=1'
             . ($result['moved'] > 0 ? '&moved=' . $result['moved'] : '')
+            . ($result['refused'] > 0 ? '&refused=' . $result['refused'] : '')
             . ($result['removed'] > 0 ? '&removed=' . $result['removed'] . '&orphaned=' . $result['orphaned'] : '');
     }
 
@@ -75,10 +77,13 @@ final class TaxonomyEditor
         $listable = $this->listableTypes();
         $usage = $this->usage($names, true);
         $terms = [];
-        foreach ($current['terms'] as $term) {
+        // A taxonomy with a tree is listed as a tree: each term followed by its children.
+        foreach ($current['hierarchical'] ? $this->store->tree($taxonomy) : $current['terms'] as $term) {
             $byType = $usage[$taxonomy][$term['id']] ?? [];
             $term['used'] = array_sum($byType);
             $term['used_by_type'] = $byType;
+            $term['depth'] ??= 0;
+            $term['path'] = $this->store->slug($taxonomy, $term['id']);
             $terms[] = $term;
         }
         $tabs = [];
@@ -101,6 +106,7 @@ final class TaxonomyEditor
             'taxonomy_title' => $current['title'],
             'taxonomy_terms' => $terms,
             'taxonomy_kind' => Taxonomies::kind($taxonomy),
+            'hierarchical' => $current['hierarchical'],
             'languages' => $languages,
             'default_language' => $defaultLang,
             'archive' => $this->store->archive($taxonomy, $defaultLang, $defaultLang),
@@ -118,6 +124,7 @@ final class TaxonomyEditor
             'moved' => (int)($get['moved'] ?? 0),
             'removed' => (int)($get['removed'] ?? 0),
             'orphaned' => (int)($get['orphaned'] ?? 0),
+            'refused' => (int)($get['refused'] ?? 0),
             'can_redirects' => $canRedirects,
             'title_layouts' => $titleLayouts,
             'error' => '',
@@ -175,6 +182,14 @@ final class TaxonomyEditor
         } else {
             $archive['types'] = $types;
         }
+        // Whether a term's page also lists its sub-terms' entries: on unless unchecked. Only a form that drew the choice (`children_shown`) decides.
+        if (isset($submitted['children_shown'])) {
+            if (FieldSchema::isTruthy($submitted['include_children'] ?? false)) {
+                unset($archive['include_children']);
+            } else {
+                $archive['include_children'] = false;
+            }
+        }
         return $archive;
     }
 
@@ -195,9 +210,10 @@ final class TaxonomyEditor
      *
      * @param string[] $types the content types its pages list (none: all of them)
      * @param string[] $languages
+     * @param bool $hierarchical whether its terms can have a parent
      * @return array{name: string, error: string} the name made, or what is wrong with the one asked for
      */
-    public function create(string $title, string $requestedName, array $types, array $languages, string $homeSlug, string $by): array
+    public function create(string $title, string $requestedName, array $types, array $languages, string $homeSlug, string $by, bool $hierarchical = false): array
     {
         $title = trim(preg_replace('/[\x00-\x1F\x7F]+/', ' ', $title) ?? '');
         if ($title === '') {
@@ -225,9 +241,9 @@ final class TaxonomyEditor
             }
         }
         $types = array_values(array_intersect($this->listableTypes(), array_map('strval', $types)));
-        $this->store->save($name, $title, [], $types !== [] ? ['types' => $types] : null);
+        $this->store->save($name, $title, [], $types !== [] ? ['types' => $types] : null, $hierarchical);
         if ($this->log !== null) {
-            ($this->log)('taxonomies.create', 'info', 'taxonomy', $name, 'Taxonomy created.', ['title' => $title, 'types' => $types]);
+            ($this->log)('taxonomies.create', 'info', 'taxonomy', $name, 'Taxonomy created.', ['title' => $title, 'types' => $types, 'hierarchical' => $hierarchical]);
         }
         return ['name' => $name, 'error' => ''];
     }
@@ -264,7 +280,7 @@ final class TaxonomyEditor
      *
      * @param array<string, mixed> $post
      * @param string[] $languages
-     * @return array<int, array{id: string, slug: string, labels: array<string, string>, descriptions: array<string, string>|null, hero_layout: string|null}>
+     * @return array<int, array{id: string, slug: string, labels: array<string, string>, descriptions: array<string, string>|null, hero_layout: string|null, parent: string|null}>
      */
     public function rowsFromPost(array $post, array $languages): array
     {
@@ -274,9 +290,10 @@ final class TaxonomyEditor
         $labels = $list('term_label');
         $texts = $list('term_description');
         $heroes = $list('term_hero_layout');
+        $parents = $list('term_parent');
         $rows = [];
         for ($i = 0, $count = max(count($ids), count($slugs)); $i < $count; $i++) {
-            $row = ['id' => trim((string)($ids[$i] ?? '')), 'slug' => (string)($slugs[$i] ?? ''), 'labels' => [], 'descriptions' => $texts === [] ? null : [], 'hero_layout' => $heroes === [] ? null : trim((string)($heroes[$i] ?? ''))];
+            $row = ['id' => trim((string)($ids[$i] ?? '')), 'slug' => (string)($slugs[$i] ?? ''), 'labels' => [], 'descriptions' => $texts === [] ? null : [], 'hero_layout' => $heroes === [] ? null : trim((string)($heroes[$i] ?? '')), 'parent' => $parents === [] ? null : trim((string)($parents[$i] ?? ''))];
             foreach ($languages as $lang) {
                 $row['labels'][$lang] = trim((string)($labels[$lang][$i] ?? ''));
                 if ($texts !== []) {
@@ -293,7 +310,7 @@ final class TaxonomyEditor
      *
      * @param array<string, mixed> $post
      * @param string[] $languages
-     * @return array{title: string, terms: int, moved: int, removed: int, added: int, orphaned: int}
+     * @return array{title: string, terms: int, moved: int, removed: int, added: int, orphaned: int, refused: int}
      */
     public function apply(string $taxonomy, array $post, array $languages, string $defaultLang, string $by): array
     {
@@ -301,14 +318,17 @@ final class TaxonomyEditor
         $names = $this->store->names();
         $listable = $this->listableTypes();
         $title = trim((string)($post['taxonomy_title'] ?? $current['title']));
-        $prepared = $this->store->prepare($taxonomy, $this->rowsFromPost($post, $languages), $defaultLang);
+        // Whether terms can have a parent: a form that carries the choice decides, one without it leaves it as it is.
+        $hierarchical = isset($post['taxonomy_hierarchical']) ? FieldSchema::isTruthy($post['taxonomy_hierarchical']) : $current['hierarchical'];
+        $prepared = $this->store->prepare($taxonomy, $this->rowsFromPost($post, $languages), $defaultLang, $hierarchical);
 
         // How the pages of this taxonomy look is edited in Theme > Archive Layouts; a form without it leaves it alone.
         $archive = is_array($post['archive'] ?? null) ? $this->archiveFromInput($taxonomy, $post['archive']) : null;
 
-        $this->store->save($taxonomy, $title, $prepared['terms'], $archive);
+        $this->store->save($taxonomy, $title, $prepared['terms'], $archive, $hierarchical);
 
-        // A term whose address changed leaves the old one behind, in every language, like a page does.
+        // A term whose address changed leaves the old one behind, in every language, like a page does. Moving a term or
+        // renaming a parent changes the address of everything below it too, so each of those is in the list.
         $kind = Taxonomies::kind($taxonomy);
         foreach ($prepared['moved'] as $move) {
             foreach ($languages as $lang) {
@@ -331,6 +351,7 @@ final class TaxonomyEditor
             'removed' => count($prepared['removed']),
             'added' => count($prepared['added']),
             'orphaned' => array_sum(array_map(static fn(string $id): int => $usage[$id] ?? 0, $prepared['removed'])),
+            'refused' => count($prepared['refused']),
         ];
     }
 }

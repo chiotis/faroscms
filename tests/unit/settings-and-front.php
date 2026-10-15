@@ -32,7 +32,8 @@ check('/name alone is an ordinary page address (a page can be made there)', [$rt
 check('a content type of that name keeps its list and entries', [$rt('posts')['kind'], $rt('posts/hello')['kind']], ['archive', 'entry']);
 check('without the taxonomy in the list the address is not found', $r('industries/retail')['kind'], 'not_found');
 check('an address with more after a page is not a page', [$r('about/anything')['kind'], $r('en/about/anything')['kind'], $r('index/x')['kind'], $r('a/b/c')['kind']], ['not_found', 'not_found', 'not_found', 'not_found']);
-check('nor after a list, an entry, a term, the search or an old page address', [$r('posts/hello/extra')['kind'], $r('tag/news/extra')['kind'], $r('category/news/extra')['kind'], $r('search/extra')['kind'], $r('pages/about/extra')['kind'], $rt('industries/retail/extra')['kind']], ['not_found', 'not_found', 'not_found', 'not_found', 'not_found', 'not_found']);
+check('nor after a list, an entry, the search or an old page address', [$r('posts/hello/extra')['kind'], $r('search/extra')['kind'], $r('pages/about/extra')['kind']], ['not_found', 'not_found', 'not_found']);
+check('but a term can be as deep as a tree of terms goes (the page finds out whether it is there)', [$r('tag/news/extra')['kind'], $r('category/news/extra')['kind'], $rt('industries/retail/extra')['kind']], ['taxonomy', 'taxonomy', 'taxonomy']);
 check('but what has exactly its parts is what it was', [$r('about')['kind'], $r('posts')['kind'], $r('posts/hello')['kind'], $r('tag/news')['kind'], $r('search')['kind'], $r('pages/about')['kind'], $r('en')['kind'], $r('')['kind']], ['page', 'archive', 'entry', 'taxonomy', 'search', 'legacy_page', 'page', 'page']);
 $x = $r('posts');
 check('the list of a type', [$x['kind'], $x['type'], $x['slug']], ['archive', 'posts', '']);

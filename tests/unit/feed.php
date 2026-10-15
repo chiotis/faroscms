@@ -95,7 +95,11 @@ $r = $route('projects/feed');
 check('a type\'s', [$r['kind'], $r['segments']], ['feed', ['projects']]);
 $r = $route('category/world/feed');
 check('a term\'s', [$r['kind'], $r['segments']], ['feed', ['category', 'world']]);
-check('no feed of the list of terms, of a page or of a deeper address', [$route('category/feed')['kind'], $route('about/feed')['kind'], $route('tag/news/x/feed')['kind'], $route('nothing/feed')['kind']], ['taxonomy', 'not_found', 'not_found', 'not_found']);
+check('no feed of the list of terms, of a page or of a deeper address', [$route('category/feed')['kind'], $route('about/feed')['kind'], $route('tag/news/x/feed')['kind'], $route('nothing/feed')['kind']], ['taxonomy', 'not_found', 'feed', 'not_found']);
+// A deeper address is the feed route (the term is looked up by the caller); a child term has its own feed and pages.
+$r = $route('category/books/english/feed');
+check('a child term\'s feed', [$r['kind'], $r['segments']], ['feed', ['category', 'books', 'english']]);
+check('a child term is a taxonomy page, and a page of its list is ?page=', [$route('category/books/english')['kind'], $route('category/books/english/page/2')['kind'], $route('category/books/english/page/2')['location'], $route('en/category/books/english/page/3')['location']], ['taxonomy', 'legacy_page', '/category/books/english?page=2', '/en/category/books/english?page=3']);
 check('with feeds off an address ending in feed is read as before', [$route('feed', false)['kind'], $route('projects/feed', false)['kind']], ['page', 'entry']);
 $r = $route('category/world/page/2');
 check('WordPress\'s second page of a category goes to ?page=2', [$r['kind'], $r['location']], ['legacy_page', '/category/world?page=2']);

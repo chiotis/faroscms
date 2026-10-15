@@ -321,7 +321,7 @@
                   {% if label == '' %}
                     {% set label = taxonomy_label(taxonomy.name, term.id, null) %}
                   {% endif %}
-                  <label class="lc-chip"><input type="checkbox" name="taxonomy_terms[{{ taxonomy.name }}][]" value="{{ term.id }}" {% if term.id in selected_terms %}checked{% endif %}><span>{{ label }}</span></label>
+                  <label class="lc-chip"><input type="checkbox" name="taxonomy_terms[{{ taxonomy.name }}][]" value="{{ term.id }}" {% if term.id in selected_terms %}checked{% endif %}><span>{% if term.depth|default(0) > 0 %}<span aria-hidden="true">{% for i in 1..term.depth %}– {% endfor %}</span>{% endif %}{{ label }}</span></label>
                 {% endfor %}
               </div>
             {% endif %}

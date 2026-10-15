@@ -11,15 +11,19 @@ use Symfony\Component\Yaml\Yaml;
  *
  * A taxonomy is a file in content/taxonomies/<name>.yaml:
  *   title:    what the admin calls it
- *   terms:    id (what content refers to, never changes), slug (the address, may change), labels per language, and
- *             an optional description per language (kept only when one is written)
+ *   hierarchical: whether a term can have a parent (categories do by default, tags and a site's own taxonomies do not);
+ *             written only when it differs from that default
+ *   terms:    id (what content refers to, never changes), slug (the address, may change), labels per language, an
+ *             optional description per language (kept only when one is written) and an optional `parent` (the id of
+ *             another term, hierarchical taxonomies only). A term's address is its parents' slugs and its own:
+ *             /category/books/english. A slug is unique among the terms of one parent.
  *   archive:  only the layout choices that differ from the defaults, the same ones a content type has
  *             (layout, columns, per_page, order, show_*, title, subtitle, taxonomies), plus `types`: the
  *             content types listed on its pages (none chosen means all of them).
  */
 final class Taxonomies
 {
-    /** @var array<string, array{title: string, terms: array<int, array{id: string, slug: string, labels: array<string, string>, descriptions: array<string, string>}>, archive: array<string, mixed>}> */
+    /** @var array<string, array{title: string, hierarchical: bool, terms: array<int, array{id: string, slug: string, labels: array<string, string>, descriptions: array<string, string>}>, archive: array<string, mixed>}> */
     private array $cache = [];
 
     /** @param string[] $languages every language of the site */
@@ -104,7 +108,18 @@ final class Taxonomies
         }
     }
 
-    /** @return array{title: string, terms: array<int, array{id: string, slug: string, labels: array<string, string>, descriptions: array<string, string>, hero_layout: string}>, archive: array<string, mixed>} */
+    /** Whether the terms of a taxonomy can have a parent when its file does not say: categories can, tags and a site's own taxonomies cannot. */
+    public static function hierarchicalByDefault(string $name): bool
+    {
+        return $name === 'categories';
+    }
+
+    public function isHierarchical(string $name): bool
+    {
+        return $this->load($name)['hierarchical'];
+    }
+
+    /** @return array{title: string, hierarchical: bool, terms: array<int, array{id: string, slug: string, parent: string, labels: array<string, string>, descriptions: array<string, string>, hero_layout: string}>, archive: array<string, mixed>} */
     public function load(string $name): array
     {
         $name = Slug::plain($name) ?: 'tags';
@@ -122,9 +137,11 @@ final class Taxonomies
             $data = is_array($parsed) ? $parsed : [];
         }
         $title = trim((string)($data['title'] ?? ''));
+        $hierarchical = array_key_exists('hierarchical', $data) ? FieldSchema::isTruthy($data['hierarchical']) : self::hierarchicalByDefault($name);
         return $this->cache[$name] = [
             'title' => $title !== '' ? $title : Slug::title($name),
-            'terms' => $this->normalizeTerms($data['terms'] ?? []),
+            'hierarchical' => $hierarchical,
+            'terms' => $this->normalizeTerms($data['terms'] ?? [], $hierarchical),
             'archive' => is_array($data['archive'] ?? null) ? $data['archive'] : [],
         ];
     }
@@ -132,8 +149,9 @@ final class Taxonomies
     /**
      * @param array<int, array<string, mixed>> $terms
      * @param array<string, mixed>|null $archive the layout choices to keep; null leaves what the file holds
+     * @param bool|null $hierarchical whether terms can have a parent; null leaves what the file holds
      */
-    public function save(string $name, string $title, array $terms, ?array $archive = null): void
+    public function save(string $name, string $title, array $terms, ?array $archive = null, ?bool $hierarchical = null): void
     {
         $name = Slug::plain($name);
         if ($name === '') {
@@ -142,9 +160,18 @@ final class Taxonomies
         if (!is_dir($this->dir())) {
             mkdir($this->dir(), 0775, true);
         }
+        $hierarchical ??= $this->load($name)['hierarchical'];
         $payload = [
             'title' => trim($title) !== '' ? trim($title) : Slug::title($name),
+        ];
+        if ($hierarchical !== self::hierarchicalByDefault($name)) {
+            $payload['hierarchical'] = $hierarchical;
+        }
+        $payload += [
             'terms' => array_map(static function (array $term): array {
+                if (($term['parent'] ?? '') === '') {
+                    unset($term['parent']);
+                }
                 // A description is written only when there is one, so files stay as short as they were.
                 if (implode('', $term['descriptions']) === '') {
                     unset($term['descriptions']);
@@ -153,7 +180,7 @@ final class Taxonomies
                     unset($term['hero_layout']);
                 }
                 return $term;
-            }, $this->normalizeTerms($terms)),
+            }, $this->normalizeTerms($terms, $hierarchical)),
         ];
         $archive ??= $this->load($name)['archive'];
         if ($archive !== []) {
@@ -181,8 +208,8 @@ final class Taxonomies
         $this->cache = [];
     }
 
-    /** @return array<int, array{id: string, slug: string, labels: array<string, string>, descriptions: array<string, string>, hero_layout: string}> */
-    private function normalizeTerms(mixed $terms): array
+    /** @return array<int, array{id: string, slug: string, parent: string, labels: array<string, string>, descriptions: array<string, string>, hero_layout: string}> */
+    private function normalizeTerms(mixed $terms, bool $hierarchical): array
     {
         if (!is_array($terms)) {
             return [];
@@ -208,25 +235,153 @@ final class Taxonomies
                 $labels[(string)$lang] = trim((string)($source[(string)$lang] ?? ''));
                 $descriptions[(string)$lang] = trim(str_replace("\r\n", "\n", (string)($texts[(string)$lang] ?? '')));
             }
-            $rows[] = ['id' => $id, 'slug' => $slug, 'labels' => $labels, 'descriptions' => $descriptions, 'hero_layout' => self::heroChoice($term['hero_layout'] ?? '')];
+            $parent = $hierarchical ? Slug::plain((string)($term['parent'] ?? '')) : '';
+            $rows[] = ['id' => $id, 'slug' => $slug, 'parent' => $parent, 'labels' => $labels, 'descriptions' => $descriptions, 'hero_layout' => self::heroChoice($term['hero_layout'] ?? '')];
             $seen[$id] = true;
+        }
+        return $hierarchical ? self::untangle($rows) : $rows;
+    }
+
+    /**
+     * A parent that is not a term, the term itself, or one that would make a loop is dropped, so a hand-edited file
+     * can never send an address round in circles.
+     *
+     * @param array<int, array<string, mixed>> $rows
+     * @return array<int, array<string, mixed>>
+     */
+    private static function untangle(array $rows): array
+    {
+        $parents = [];
+        foreach ($rows as $row) {
+            $parents[$row['id']] = $row['parent'];
+        }
+        foreach ($rows as $i => $row) {
+            if ($row['parent'] === '') {
+                continue;
+            }
+            $seen = [$row['id'] => true];
+            $at = $row['parent'];
+            while ($at !== '') {
+                if (isset($seen[$at]) || !array_key_exists($at, $parents)) {
+                    $rows[$i]['parent'] = '';
+                    $parents[$row['id']] = '';
+                    break;
+                }
+                $seen[$at] = true;
+                $at = $parents[$at];
+            }
         }
         return $rows;
     }
 
-    /** @return array{id: string, slug: string, labels: array<string, string>, descriptions: array<string, string>, hero_layout: string}|null */
-    public function findBySlug(string $name, string $slug): ?array
+    /** The slugs from the top of the tree down to a term, from terms keyed by id; null when the term is not there. @param array<string, array<string, mixed>> $byId @return string[]|null */
+    private static function slugChain(array $byId, string $id): ?array
     {
-        $slug = Slug::plain($slug);
-        if ($slug === '') {
+        $chain = [];
+        for ($guard = 0; $id !== '' && $guard < 50; $guard++) {
+            if (!isset($byId[$id])) {
+                return null;
+            }
+            array_unshift($chain, (string)$byId[$id]['slug']);
+            $id = (string)($byId[$id]['parent'] ?? '');
+        }
+        return $chain;
+    }
+
+    /**
+     * The term at an address inside a taxonomy: "english" at the top level, "books/english" for a child. Null when
+     * no term sits there (a taxonomy without a tree has no address longer than one slug).
+     *
+     * @return array{id: string, slug: string, parent: string, labels: array<string, string>, descriptions: array<string, string>, hero_layout: string}|null
+     */
+    public function findByPath(string $name, string $path): ?array
+    {
+        $parts = array_values(array_filter(explode('/', trim($path, '/')), static fn(string $p): bool => $p !== ''));
+        if ($parts === []) {
             return null;
         }
-        foreach ($this->load($name)['terms'] as $term) {
-            if ($term['slug'] === $slug) {
-                return $term;
+        $parent = '';
+        $found = null;
+        foreach ($parts as $part) {
+            $slug = Slug::plain($part);
+            $found = null;
+            foreach ($this->load($name)['terms'] as $term) {
+                if ($term['slug'] === $slug && $term['parent'] === $parent) {
+                    $found = $term;
+                    break;
+                }
             }
+            if ($found === null) {
+                return null;
+            }
+            $parent = $found['id'];
         }
-        return null;
+        return $found;
+    }
+
+    /** The terms above a term, the top one first (none for a term at the top). @return array<int, array<string, mixed>> */
+    public function ancestors(string $name, string $termId): array
+    {
+        $byId = [];
+        foreach ($this->load($name)['terms'] as $term) {
+            $byId[$term['id']] = $term;
+        }
+        $chain = [];
+        $at = (string)($byId[Slug::plain($termId)]['parent'] ?? '');
+        for ($guard = 0; $at !== '' && isset($byId[$at]) && $guard < 50; $guard++) {
+            array_unshift($chain, $byId[$at]);
+            $at = $byId[$at]['parent'];
+        }
+        return $chain;
+    }
+
+    /** The ids of every term below a term, children first level by level. @return string[] */
+    public function descendantIds(string $name, string $termId): array
+    {
+        $terms = $this->load($name)['terms'];
+        $found = [];
+        $level = [Slug::plain($termId)];
+        while ($level !== []) {
+            $next = [];
+            foreach ($terms as $term) {
+                if ($term['parent'] !== '' && in_array($term['parent'], $level, true) && !in_array($term['id'], $found, true)) {
+                    $found[] = $term['id'];
+                    $next[] = $term['id'];
+                }
+            }
+            $level = $next;
+        }
+        return $found;
+    }
+
+    /**
+     * The terms in the order a tree is read: each term followed by its children, siblings in the order of the file.
+     * Every row gets a `depth` (0 at the top).
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function tree(string $name): array
+    {
+        $terms = $this->load($name)['terms'];
+        $children = [];
+        foreach ($terms as $term) {
+            $children[$term['parent']][] = $term;
+        }
+        $out = [];
+        $walk = static function (string $parent, int $depth) use (&$walk, &$out, $children): void {
+            foreach ($children[$parent] ?? [] as $term) {
+                $out[] = $term + ['depth' => $depth];
+                $walk($term['id'], $depth + 1);
+            }
+        };
+        $walk('', 0);
+        return $out;
+    }
+
+    /** The term at an address, where a child's address holds its parents' slugs ("books/english"). @return array{id: string, slug: string, parent: string, labels: array<string, string>, descriptions: array<string, string>, hero_layout: string}|null */
+    public function findBySlug(string $name, string $slug): ?array
+    {
+        return $this->findByPath($name, $slug);
     }
 
     public function label(string $name, string $termId, string $lang): string
@@ -285,18 +440,26 @@ final class Taxonomies
         return '';
     }
 
+    /** The address of a term after the taxonomy's word: its slug, with its parents' slugs in front ("books/english"). */
     public function slug(string $name, string $termId): string
     {
         $termId = Slug::plain($termId);
         if ($termId === '') {
             return '';
         }
+        $byId = [];
         foreach ($this->load($name)['terms'] as $term) {
-            if ($term['id'] === $termId) {
-                return $term['slug'] !== '' ? $term['slug'] : $termId;
-            }
+            $byId[$term['id']] = $term;
         }
-        return $termId;
+        $chain = self::slugChain($byId, $termId);
+        return $chain === null ? $termId : implode('/', $chain);
+    }
+
+    /** Whether the page of a term also lists what is filed under its sub-terms (the taxonomy's archive choice, on by default). */
+    public function includesChildren(string $name): bool
+    {
+        $raw = $this->load($name)['archive'];
+        return $this->isHierarchical($name) && FieldSchema::isTruthy($raw['include_children'] ?? true);
     }
 
     /**
@@ -309,6 +472,7 @@ final class Taxonomies
         $raw = $this->load($name)['archive'];
         $values = ContentTypes::resolveArchive($raw, static fn(mixed $v): mixed => ContentTypes::pick($v, $lang, $defaultLang));
         $values['types'] = self::typeList($raw['types'] ?? null);
+        $values['include_children'] = FieldSchema::isTruthy($raw['include_children'] ?? true);
         return $values;
     }
 
@@ -323,33 +487,37 @@ final class Taxonomies
 
     /**
      * What to save for the terms of a submitted form. The address of a new term is made from its label (Greek
-     * converted to Latin) unless one was typed; a term whose address field is empty keeps the one it has.
+     * converted to Latin) unless one was typed; a term whose address field is empty keeps the one it has. A slug is
+     * unique among the terms of one parent, so "english" can exist under two different parents.
+     *
+     * A parent that would make a loop is refused (the term keeps the parent it had). A term whose parent was removed
+     * moves up to that parent's parent. A move changes the address of the term and of everything below it, so every
+     * one of them is in `moved`, with the path before and after (the slugs from the top of the tree).
      *
      * @param string $name the taxonomy
-     * @param array<int, array{id: string, slug: string, labels: array<string, string>, descriptions?: array<string, string>|null, hero_layout?: string|null}> $rows in form order, `id` empty for a new term; `descriptions` and `hero_layout` left out (or null) keep what the term has
-     * @return array{terms: array<int, array{id: string, slug: string, labels: array<string, string>, descriptions: array<string, string>}>, moved: array<int, array{id: string, from: string, to: string}>, removed: string[], added: string[]}
+     * @param array<int, array{id: string, slug: string, parent?: string|null, labels: array<string, string>, descriptions?: array<string, string>|null, hero_layout?: string|null}> $rows in form order, `id` empty for a new term; `descriptions`, `hero_layout` and `parent` left out (or null) keep what the term has
+     * @param bool|null $hierarchical whether terms can have a parent after this save; null: as the taxonomy is now
+     * @return array{terms: array<int, array{id: string, slug: string, parent: string, labels: array<string, string>, descriptions: array<string, string>, hero_layout: string}>, moved: array<int, array{id: string, from: string, to: string}>, removed: string[], added: string[], refused: string[]}
      */
-    public function prepare(string $name, array $rows, string $defaultLang): array
+    public function prepare(string $name, array $rows, string $defaultLang, ?bool $hierarchical = null): array
     {
+        $hierarchical ??= $this->isHierarchical($name);
         $before = [];
         foreach ($this->load($name)['terms'] as $term) {
             $before[$term['id']] = $term;
         }
-        $terms = [];
+        $drafts = [];
         $usedIds = [];
-        $usedSlugs = [];
-        $moved = [];
-        $added = [];
-        // Terms that already exist claim their id and address first, so a new term never takes one of theirs.
+        // Terms that already exist claim their id first, so a new term never takes one of theirs.
         foreach ($rows as $row) {
             if ($row['id'] !== '' && isset($before[Slug::plain($row['id'])])) {
                 $usedIds[Slug::plain($row['id'])] = true;
             }
         }
-        foreach ($rows as $row) {
+        foreach ($rows as $index => $row) {
             $id = Slug::plain($row['id']);
             $existing = $id !== '' ? ($before[$id] ?? null) : null;
-            if ($existing !== null && in_array($id, array_column($terms, 'id'), true)) {
+            if ($existing !== null && isset($drafts[$id])) {
                 continue; // The same term twice.
             }
             $label = $this->firstLabel($row['labels'], $defaultLang);
@@ -367,31 +535,102 @@ final class Taxonomies
                 if ($id === '' || isset($usedIds[$id])) {
                     $id = Slug::fromText($label !== '' ? $label : $base);
                 }
+                $id = $this->unique($id !== '' ? $id : ($slug !== '' ? $slug : 'term'), $usedIds);
+                $usedIds[$id] = true;
             }
-            if ($slug === '') {
-                $slug = 'term';
-            }
-            if ($existing === null) {
-                $id = $this->unique($id !== '' ? $id : $slug, $usedIds);
-            }
-            $slug = $this->unique($slug, $usedSlugs);
-            $usedIds[$id] = true;
-            $usedSlugs[$slug] = true;
-
-            if ($existing !== null && $existing['slug'] !== $slug) {
-                $moved[] = ['id' => $id, 'from' => $existing['slug'], 'to' => $slug];
-            }
-            if ($existing === null) {
-                $added[] = $id;
-            }
+            $parent = array_key_exists('parent', $row) && $row['parent'] !== null ? Slug::plain((string)$row['parent']) : ($existing['parent'] ?? '');
             $descriptions = is_array($row['descriptions'] ?? null) ? $row['descriptions'] : ($existing['descriptions'] ?? []);
             $hero = is_string($row['hero_layout'] ?? null) ? self::heroChoice($row['hero_layout']) : ($existing['hero_layout'] ?? '');
-            $terms[] = ['id' => $id, 'slug' => $slug, 'labels' => $row['labels'], 'descriptions' => $descriptions, 'hero_layout' => $hero];
+            $drafts[$id] = ['index' => $index, 'id' => $id, 'slug' => $slug !== '' ? $slug : 'term', 'parent' => $parent, 'labels' => $row['labels'], 'descriptions' => $descriptions, 'hero_layout' => $hero, 'new' => $existing === null];
         }
-        $kept = array_column($terms, 'id');
-        // An address another term still uses is not gone, so nobody is sent away from it.
-        $moved = array_values(array_filter($moved, static fn(array $m): bool => !isset($usedSlugs[$m['from']])));
-        return ['terms' => $terms, 'moved' => $moved, 'removed' => array_values(array_diff(array_keys($before), $kept)), 'added' => $added];
+
+        // The parents: a removed parent hands its children to its own parent; a loop is refused.
+        $refused = [];
+        foreach ($drafts as $id => $draft) {
+            $parent = $hierarchical ? $this->livingParent($draft['parent'], $drafts, $before) : '';
+            $drafts[$id]['parent'] = $parent;
+        }
+        foreach ($drafts as $id => $draft) {
+            if ($draft['parent'] !== '' && self::loops($drafts, $id)) {
+                $refused[] = $id;
+                $old = (string)($before[$id]['parent'] ?? '');
+                $drafts[$id]['parent'] = isset($drafts[$old]) ? $old : '';
+                if (self::loops($drafts, $id)) {
+                    $drafts[$id]['parent'] = '';
+                }
+            }
+        }
+
+        // A slug is unique among the terms of one parent. Terms that stay where they are and keep their slug are served
+        // first, then terms that moved or were renamed, then new ones, so nobody loses an address to a newcomer.
+        $usedSlugs = [];
+        $rank = static fn(array $draft, string $id): int => $draft['new'] ? 2 : (isset($before[$id]) && $before[$id]['slug'] === $draft['slug'] && $before[$id]['parent'] === $draft['parent'] ? 0 : 1);
+        $order = array_keys($drafts);
+        usort($order, static fn(string $x, string $y): int => [$rank($drafts[$x], $x), $drafts[$x]['index']] <=> [$rank($drafts[$y], $y), $drafts[$y]['index']]);
+        foreach ($order as $id) {
+            $slug = $this->unique($drafts[$id]['slug'], $usedSlugs[$drafts[$id]['parent']] ?? []);
+            $usedSlugs[$drafts[$id]['parent']][$slug] = true;
+            $drafts[$id]['slug'] = $slug;
+        }
+
+        uasort($drafts, static fn(array $a, array $b): int => $a['index'] <=> $b['index']);
+        $terms = [];
+        foreach ($drafts as $draft) {
+            $terms[] = ['id' => $draft['id'], 'slug' => $draft['slug'], 'parent' => $draft['parent'], 'labels' => $draft['labels'], 'descriptions' => $draft['descriptions'], 'hero_layout' => $draft['hero_layout']];
+        }
+
+        $moved = [];
+        $added = [];
+        $paths = [];
+        foreach ($drafts as $id => $draft) {
+            $paths[$id] = implode('/', self::slugChain($drafts, $id) ?? [$draft['slug']]);
+            if ($draft['new']) {
+                $added[] = $id;
+            }
+        }
+        $taken = array_flip($paths);
+        foreach ($drafts as $id => $draft) {
+            if (!isset($before[$id])) {
+                continue;
+            }
+            $from = implode('/', self::slugChain($before, $id) ?? [$before[$id]['slug']]);
+            // An address another term still uses is not gone, so nobody is sent away from it.
+            if ($from !== $paths[$id] && !isset($taken[$from])) {
+                $moved[] = ['id' => $id, 'from' => $from, 'to' => $paths[$id]];
+            }
+        }
+        return ['terms' => $terms, 'moved' => $moved, 'removed' => array_values(array_diff(array_keys($before), array_keys($drafts))), 'added' => $added, 'refused' => $refused];
+    }
+
+    /**
+     * The nearest parent that is still a term: the one asked for, or when that was removed, the first of its own parents
+     * that was not.
+     *
+     * @param array<string, array<string, mixed>> $drafts the terms that stay, by id
+     * @param array<string, array<string, mixed>> $before the terms as they were, by id
+     */
+    private function livingParent(string $parent, array $drafts, array $before): string
+    {
+        for ($guard = 0; $parent !== '' && $guard < 50; $guard++) {
+            if (isset($drafts[$parent])) {
+                return $parent;
+            }
+            $parent = (string)($before[$parent]['parent'] ?? '');
+        }
+        return '';
+    }
+
+    /** Whether going up from a term through its parents comes back to it. @param array<string, array<string, mixed>> $terms by id */
+    private static function loops(array $terms, string $id): bool
+    {
+        $at = (string)($terms[$id]['parent'] ?? '');
+        for ($guard = 0; $at !== '' && $guard < 200; $guard++) {
+            if ($at === $id) {
+                return true;
+            }
+            $at = (string)($terms[$at]['parent'] ?? '');
+        }
+        return $at !== '';
     }
 
     /** @param array<string, string> $labels */

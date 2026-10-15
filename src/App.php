@@ -452,6 +452,13 @@ final class App
                     foreach (Format::list($item->meta[$name] ?? null) as $termId) {
                         $key = $name . "\0" . $termId;
                         $newest[$key] = max($newest[$key] ?? 0, $item->mtime);
+                        // The page of a parent lists its sub-terms' entries too, so it has them as well.
+                        if ($this->taxonomies()->includesChildren($name)) {
+                            foreach ($this->taxonomies()->ancestors($name, (string)$termId) as $above) {
+                                $up = $name . "\0" . $above['id'];
+                                $newest[$up] = max($newest[$up] ?? 0, $item->mtime);
+                            }
+                        }
                     }
                 }
             }
@@ -2292,7 +2299,8 @@ final class App
                     is_array($_POST['new_types'] ?? null) ? $_POST['new_types'] : [],
                     $languages,
                     (string)($this->settings['home_page'] ?? 'index'),
-                    $this->currentUsername()
+                    $this->currentUsername(),
+                    isset($_POST['new_hierarchical'])
                 );
                 $this->redirect($made['error'] === ''
                     ? '/admin/taxonomies?taxonomy=' . urlencode($made['name']) . '&created=1'
@@ -3764,7 +3772,7 @@ final class App
 
     private function resolveTaxonomyTemplate(string $kind, string $slug): string
     {
-        $safeSlug = Slug::plain($slug);
+        $safeSlug = Slug::plain(basename($slug));
         return $this->theme->findTemplate([
             'templates/archive-' . $kind . '-' . $safeSlug . '.twig',
             'templates/archive-' . $kind . '.twig',

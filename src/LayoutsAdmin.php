@@ -101,6 +101,7 @@ final class LayoutsAdmin
                 'name' => $name,
                 'title' => $loaded['title'],
                 'kind' => Taxonomies::kind($name),
+                'hierarchical' => $loaded['hierarchical'],
                 'terms' => count($loaded['terms']),
                 'archive' => $this->taxonomies->archive($name, $default, $default),
                 'filters' => array_values(array_diff($names, [$name])),

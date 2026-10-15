@@ -7,6 +7,9 @@
  *   - search, select and remove several, reorder (drag the handle, or the arrow buttons), sort A to Z
  *   - removals wait for Save and can be undone: a removed row has all its fields disabled, so it is not sent
  *   - a note when there are unsaved changes, and a warning before leaving with them
+ *   - a taxonomy with a tree (data-hierarchical): each row also carries term_parent[], the rows are kept in tree order
+ *     (a term followed by its children, indented), the dialog picks a parent that is never the term or below it, and a
+ *     term's page address is shown with its parents' addresses in front
  */
 (function () {
   'use strict';
@@ -30,6 +33,8 @@
   var kind = form.getAttribute('data-kind') || 'tag';
   var defaultLang = form.getAttribute('data-default-language') || '';
   var canRedirects = form.getAttribute('data-can-redirects') === '1';
+  var tree = form.getAttribute('data-hierarchical') === '1';
+  var dlgParent = dialog.querySelector('[data-dialog-parent]');
   var reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   var dirty = false;
@@ -46,6 +51,67 @@
   }
   function isRemoved(row) { return row.hasAttribute('data-removed'); }
   function announce(text) { if (live) { live.textContent = ''; setTimeout(function () { live.textContent = text; }, 30); } }
+
+  /* ---- the tree ---------------------------------------------------------------------------------------- */
+
+  function idOf(row) { return field(row, 'id').value; }
+  function parentOf(row) { var f = field(row, 'parent'); return f ? f.value : ''; }
+  function rowById(id) {
+    if (id === '') return null;
+    var all = rows();
+    for (var i = 0; i < all.length; i++) if (idOf(all[i]) === id) return all[i];
+    return null;
+  }
+  function childrenOf(row) {
+    var id = idOf(row);
+    return id === '' ? [] : rows().filter(function (other) { return parentOf(other) === id; });
+  }
+  function descendantsOf(row) {
+    var found = [];
+    (function walk(current) {
+      childrenOf(current).forEach(function (child) { if (found.indexOf(child) === -1) { found.push(child); walk(child); } });
+    })(row);
+    return found;
+  }
+  // The address after the taxonomy's word: the parents' slugs and the term's own ('' while it has none yet).
+  function pathOf(row) {
+    var own = field(row, 'slug').value.trim();
+    if (own === '') return '';
+    if (!tree) return own;
+    var parts = [own];
+    var at = rowById(parentOf(row));
+    for (var guard = 0; at && guard < 20; guard++) {
+      var slug = field(at, 'slug').value.trim();
+      if (slug === '') return '';
+      parts.unshift(slug);
+      at = rowById(parentOf(at));
+    }
+    return parts.join('/');
+  }
+  // Puts the rows in tree order (a term, then its children, siblings as they were) and indents them.
+  function rebuildTree() {
+    if (!tree) return;
+    var all = rows();
+    var byParent = {};
+    all.forEach(function (row) {
+      var parent = parentOf(row);
+      if (parent === '' || !rowById(parent) || parent === idOf(row)) parent = '';
+      (byParent[parent] = byParent[parent] || []).push(row);
+    });
+    var placed = [];
+    (function walk(parent, depth) {
+      (byParent[parent] || []).forEach(function (row) {
+        if (placed.indexOf(row) !== -1) return;
+        placed.push(row);
+        row.setAttribute('data-depth', String(depth));
+        var indent = row.querySelector('[data-term-indent]');
+        if (indent) indent.style.marginLeft = depth > 0 ? (depth * 1.25) + 'rem' : '';
+        walk(idOf(row), depth + 1);
+      });
+    })('', 0);
+    all.forEach(function (row) { if (placed.indexOf(row) === -1) placed.push(row); });
+    placed.forEach(function (row) { body.appendChild(row); });
+  }
 
   function markDirty() {
     dirty = true;
@@ -65,6 +131,7 @@
   function refreshRow(row) {
     var name = primaryName(row);
     var slug = field(row, 'slug').value.trim();
+    var fullPath = pathOf(row);
     var isNew = field(row, 'id').value === '';
     var nameButton = row.querySelector('[data-term-name]');
     nameButton.textContent = name || slug || 'Untitled term';
@@ -103,12 +170,12 @@
     row.querySelector('[data-term-description]').textContent = describe;
 
     var address = row.querySelector('[data-term-address]');
-    var original = row.getAttribute('data-original-slug') || '';
+    var original = row.getAttribute('data-original-path') || '';
     address.innerHTML = '';
-    if (slug !== '') {
+    if (fullPath !== '') {
       var link = document.createElement('span');
       link.className = 'font-mono';
-      link.textContent = '/' + kind + '/' + slug;
+      link.textContent = '/' + kind + '/' + fullPath;
       address.appendChild(link);
     } else {
       var made = document.createElement('span');
@@ -118,7 +185,7 @@
     }
 
     var badge = row.querySelector('[data-term-badge]');
-    var changed = !isNew && original !== '' && slug !== '' && slug !== original;
+    var changed = !isNew && original !== '' && fullPath !== '' && fullPath !== original;
     if (isNew) { badge.textContent = 'New'; badge.classList.remove('hidden'); }
     else if (row.hasAttribute('data-edited') || changed) { badge.textContent = changed ? 'Address changed' : 'Edited'; badge.classList.remove('hidden'); }
     else badge.classList.add('hidden');
@@ -142,8 +209,16 @@
     all.forEach(function (row, index) {
       var up = row.querySelector('[data-term-up]');
       var down = row.querySelector('[data-term-down]');
-      if (up) up.disabled = index === 0 || searching();
-      if (down) down.disabled = index === all.length - 1 || searching();
+      var first = index === 0;
+      var last = index === all.length - 1;
+      if (tree) {
+        // Only among the terms of the same parent.
+        var same = all.filter(function (other) { return parentOf(other) === parentOf(row); });
+        first = same[0] === row;
+        last = same[same.length - 1] === row;
+      }
+      if (up) up.disabled = first || searching();
+      if (down) down.disabled = last || searching();
       [up, down].forEach(function (button) { if (button) button.classList.toggle('opacity-30', button.disabled); });
     });
     updateSelection();
@@ -201,8 +276,10 @@
     restore.classList.toggle('hidden', !removed);
     restore.classList.toggle('inline-flex', removed);
     note.classList.toggle('hidden', !removed);
+    var below = tree && removed ? childrenOf(row).length : 0;
     note.textContent = removed
       ? (used > 0 ? 'Removed when you save. ' + used + (used === 1 ? ' entry keeps' : ' entries keep') + ' this term in its file.' : 'Removed when you save.')
+        + (below > 0 ? ' Its ' + (below === 1 ? 'sub-term moves' : below + ' sub-terms move') + ' up a level.' : '')
       : '';
     markDirty();
   }
@@ -220,6 +297,7 @@
   /* ---- order ------------------------------------------------------------------------------------------- */
 
   function move(row, delta) {
+    if (tree) { moveInTree(row, delta); return; }
     var target = delta < 0 ? row.previousElementSibling : row.nextElementSibling;
     if (!target) return;
     if (delta < 0) body.insertBefore(row, target); else body.insertBefore(target, row);
@@ -230,9 +308,33 @@
     announce(primaryName(row) + ' moved ' + (delta < 0 ? 'up' : 'down') + '. Position ' + (rows().indexOf(row) + 1) + ' of ' + rows().length + '.');
   }
 
+  // In a tree a term moves among the terms of its own parent, and takes its children with it.
+  function moveInTree(row, delta) {
+    var parent = parentOf(row);
+    var siblings = rows().filter(function (other) { return parentOf(other) === parent; });
+    var at = siblings.indexOf(row);
+    var target = siblings[at + delta];
+    if (!target) return;
+    var block = [row].concat(descendantsOf(row));
+    if (delta < 0) {
+      block.forEach(function (item) { body.insertBefore(item, target); });
+    } else {
+      var after = [target].concat(descendantsOf(target));
+      var anchor = after[after.length - 1].nextElementSibling;
+      block.forEach(function (item) { body.insertBefore(item, anchor); });
+    }
+    rebuildTree();
+    markDirty();
+    refreshChrome();
+    var button = row.querySelector(delta < 0 ? '[data-term-up]' : '[data-term-down]');
+    if (button && !button.disabled) button.focus(); else row.querySelector('[data-term-edit]').focus();
+    announce(primaryName(row) + ' moved ' + (delta < 0 ? 'up' : 'down') + '.');
+  }
+
   function sortAlphabetically() {
     var collator = new Intl.Collator(document.documentElement.lang || undefined, { sensitivity: 'base', numeric: true });
     rows().sort(function (a, b) { return collator.compare(primaryName(a), primaryName(b)); }).forEach(function (row) { body.appendChild(row); });
+    rebuildTree();
     markDirty();
     refreshChrome();
     announce('Terms sorted from A to Z. Press Save to keep the order.');
@@ -264,6 +366,7 @@
     dragging.classList.remove('opacity-40');
     dragging.draggable = false;
     dragging = null;
+    rebuildTree();
     markDirty();
     refreshChrome();
   }
@@ -282,12 +385,43 @@
 
   function dialogInput(kindName, lang) { return dialog.querySelector('[data-dialog-' + kindName + '="' + lang + '"]'); }
 
+  // The parents' part of an address, "books/" for a child of Books.
+  function parentPrefix() {
+    if (!tree || !dlgParent || dlgParent.value === '') return '';
+    var above = rowById(dlgParent.value);
+    var path = above ? pathOf(above) : '';
+    return path === '' ? '' : path + '/';
+  }
+
   function updateSlugNote() {
-    var original = editing ? (editing.getAttribute('data-original-slug') || '') : '';
+    var original = editing ? (editing.getAttribute('data-original-path') || '') : '';
     var typed = dlgSlug.value.trim();
-    var show = original !== '' && typed !== '' && typed !== original;
+    var next = typed !== '' ? parentPrefix() + typed : (editing ? parentPrefix() + field(editing, 'slug').value.trim() : '');
+    var show = original !== '' && next !== '' && next !== original;
     dlgNote.classList.toggle('hidden', !show);
     dlgOld.textContent = '/' + kind + '/' + original;
+    var lead = dialog.querySelector('[data-dialog-slug-lead]');
+    if (lead) lead.textContent = '/' + kind + '/' + parentPrefix();
+  }
+
+  // The parents a term can be given: any saved term that is not the term itself or below it.
+  function fillParents(row) {
+    if (!dlgParent) return;
+    var blocked = row ? [row].concat(descendantsOf(row)) : [];
+    dlgParent.innerHTML = '';
+    var none = document.createElement('option');
+    none.value = '';
+    none.textContent = 'None (top level)';
+    dlgParent.appendChild(none);
+    rows().forEach(function (other) {
+      if (idOf(other) === '' || isRemoved(other) || blocked.indexOf(other) !== -1) return;
+      var option = document.createElement('option');
+      option.value = idOf(other);
+      var depth = parseInt(other.getAttribute('data-depth') || '0', 10);
+      option.textContent = new Array(depth + 1).join('– ') + primaryName(other);
+      dlgParent.appendChild(option);
+    });
+    dlgParent.value = row ? parentOf(row) : '';
   }
 
   function openDialog(row) {
@@ -300,6 +434,7 @@
     });
     dlgSlug.value = row ? field(row, 'slug').value : '';
     if (dlgHero) dlgHero.value = row && field(row, 'hero_layout') ? field(row, 'hero_layout').value : '';
+    fillParents(row);
     dlgTitle.textContent = row ? 'Edit term' : 'Add term';
     dlgSub.textContent = row ? 'Changes are applied when you press Save on the page.' : 'Give it a name in each language you use.';
     dlgApply.textContent = row ? 'Update term' : 'Add term';
@@ -342,6 +477,8 @@
     });
     var heroField = field(row, 'hero_layout');
     if (heroField && dlgHero && heroField.value !== dlgHero.value) { heroField.value = dlgHero.value; changed = true; }
+    var parentField = field(row, 'parent');
+    if (parentField && dlgParent && parentField.value !== dlgParent.value) { parentField.value = dlgParent.value; changed = true; }
     var slugField = field(row, 'slug');
     var typed = dlgSlug.value.trim();
     if (slugField.value !== typed && (added || typed !== '')) changed = true;
@@ -351,7 +488,8 @@
       if (!added) row.setAttribute('data-edited', '');
       markDirty();
     }
-    refreshRow(row);
+    rebuildTree();
+    rows().forEach(refreshRow); // a changed address changes the address of everything below it
     dialog.close();
     applySearch();
     if (added) {
@@ -374,6 +512,7 @@
   // A click on the dimmed area (the dialog element itself) closes it.
   dialog.addEventListener('mousedown', function (event) { if (event.target === dialog) dialog.close(); });
   dlgSlug.addEventListener('input', function () { slugTouched = true; updateSlugNote(); });
+  if (dlgParent) dlgParent.addEventListener('change', updateSlugNote);
   dialog.addEventListener('close', function () { editing = null; });
 
   /* ---- wiring ------------------------------------------------------------------------------------------ */
@@ -429,6 +568,6 @@
     event.returnValue = '';
   });
 
-  // The server drew the rows, so they are only counted and given their arrow buttons' state here.
+  // The server drew the rows (in tree order), so they are only counted and given their arrow buttons' state here.
   refreshChrome();
 })();
