@@ -9,6 +9,25 @@
   order: -1;
 }
 
+/* The picture above or below the text: one column, the picture across the whole width (never taller than a screen can show),
+   the text kept to a readable measure. */
+.block-text-image:is(.block--image-top, .block--image-bottom) .ti-grid {
+  grid-template-columns: minmax(0, 1fr);
+  gap: clamp(1.5rem, 1rem + 2vw, 3rem);
+}
+
+.block-text-image:is(.block--image-top, .block--image-bottom) .ti-text {
+  max-width: 52rem;
+}
+
+.block-text-image:is(.block--image-top, .block--image-bottom) .ti-media {
+  max-height: 34rem;
+}
+
+.block-text-image.block--image-top .ti-media {
+  order: -1;
+}
+
 .ti-text .section-title {
   margin-bottom: var(--space-m);
 }
@@ -24,6 +43,7 @@
 }
 
 .ti-media.ratio-landscape { aspect-ratio: 4 / 3; }
+.ti-media.ratio-wide { aspect-ratio: 16 / 9; }
 .ti-media.ratio-portrait { aspect-ratio: 4 / 5; }
 .ti-media.ratio-square { aspect-ratio: 1; }
 
