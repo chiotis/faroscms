@@ -264,7 +264,7 @@ def list_entries(root, ctype):
 TYPES = ["text", "textarea", "markdown", "email", "url", "link", "image", "video", "file", "location", "color", "number",
          "decimal", "date", "select", "icon", "toggle", "repeater"]
 TONES = {"default": "Default", "muted": "Muted", "contrast": "Contrast", "accent": "Accent"}
-WIDTHS = {"100": "100%", "75": "75%", "50": "50%", "25": "25%"}
+WIDTHS = {"100": "100%", "75": "75%", "66": "66%", "50": "50%", "33": "33%", "25": "25%"}
 SPACINGS = {"default": "Default", "compact": "Compact", "spacious": "Spacious", "none": "None"}
 KEY = re.compile(r"^[a-z][a-z0-9_]*$")
 

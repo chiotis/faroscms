@@ -147,7 +147,7 @@
   /** The share of the row a block takes (25, 50, 75 or 100). */
   function widthOf(block) {
     var value = Number(block.width);
-    return value === 25 || value === 50 || value === 75 ? value : 100;
+    return value === 25 || value === 33 || value === 50 || value === 66 || value === 75 ? value : 100;
   }
 
   function summaryOf(block) {
@@ -856,7 +856,7 @@
           list.appendChild(row);
         }
         // An open block takes the whole row to have room for its fields.
-        card.style.gridColumn = 'span ' + (block._open ? 4 : widthOf(block) / 25);
+        card.style.gridColumn = 'span ' + (block._open ? 12 : ({ 25: 3, 33: 4, 50: 6, 66: 8, 75: 9 })[widthOf(block)]);
         row.appendChild(card);
       } else {
         row = null;

@@ -1390,7 +1390,7 @@ html.dark .ed-pop-row { color: #cbd5e1; }
 .bk-save-input { width: 12rem; }
 .bk-save-input.is-wide { width: 16rem; }
 /* Blocks narrower than the page that follow each other are drawn side by side, as they sit in a row on the page. */
-.bk-sharing { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .375rem; padding: .25rem; border: 1px dashed #cbd5e1; border-radius: .75rem; }
+.bk-sharing { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: .375rem; padding: .25rem; border: 1px dashed #cbd5e1; border-radius: .75rem; }
 .bk-sharing > .bk-card { min-width: 0; }
 .bk-sharing .bk-head { flex-wrap: wrap; row-gap: 0; }
 .bk-sharing .bk-toggle { flex-basis: 8rem; }
