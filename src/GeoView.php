@@ -121,12 +121,12 @@ final class GeoView
      * The map of the page of one entry: its own place (or its route, drawn whole, with the places the file marks) and the entries
      * near it, as the types and the distance ask.
      *
-     * @param array{types?: array<int, string>, radius?: float, limit?: int} $options
+     * @param array{types?: array<int, string>, radius?: float, limit?: int|array<string, int>} $options
      * @return array<string, mixed>
      */
     public function single(ContentItem $item, string $lang, array $options = []): array
     {
-        $near = $this->nearby($item, $options['types'] ?? [], (float)($options['radius'] ?? 5), (int)($options['limit'] ?? 12), $lang);
+        $near = $this->nearby($item, $options['types'] ?? [], (float)($options['radius'] ?? 5), $options['limit'] ?? 12, $lang);
         $set = [$item];
         foreach ($near as $entry) {
             $set[] = $entry['item'];
@@ -149,13 +149,13 @@ final class GeoView
      * @param array<int, string> $types
      * @return array<int, array{item: ContentItem, km: float}>
      */
-    public function nearby(ContentItem $item, array $types, float $radiusKm, int $limit, string $lang): array
+    public function nearby(ContentItem $item, array $types, float $radiusKm, int|array $limit, string $lang): array
     {
         $types = array_values(array_filter($types, static fn(string $t): bool => preg_match('/^[a-z][a-z0-9_-]*$/', $t) === 1));
         if ($types === []) {
             return [];
         }
-        return $this->geo->nearby($item, $this->gather($types, $lang), max(0.1, min(100.0, $radiusKm)), max(0, min(50, $limit)));
+        return $this->geo->nearby($item, $this->gather($types, $lang), max(0.1, min(100.0, $radiusKm)), is_array($limit) ? array_map(static fn($n): int => max(0, min(50, (int)$n)), $limit) : max(0, min(50, $limit)));
     }
 
     /** The settings of the tiles every map draws. @return array{url: string, attribution: string, max_zoom: int} */

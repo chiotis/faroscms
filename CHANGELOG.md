@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.117 — 2026-10-15 — Maps: three rough edges smoothed
+- **A popup's text starts at the first paragraph.** An entry with no excerpt used to show its Markdown headings first; now the headings and any block code are skipped, the same way the RSS feed builds its text.
+- **"Near" lists have a limit for each kind.** *Theme > Single Layouts* has a number for routes, points and businesses (18 when empty, as before), so a crowded route cannot push the points out. A single `nearby_limit` set by a site still works for every kind.
+- **The Map block no longer offers *List: Below* over the map.** With the layout *Full width, list over the map* the choice is Right, Left or None; a saved *below* still works and is read as right. The block editor can now hide a choice that does not fit the layout (`options_when` in a select field).
+
 ## 0.1.116 — 2026-10-15 — A change in the admin empties the page cache
 - **Whatever is saved in the admin empties the cache in front of the site** (content, settings, menus, media, redirects, an update), so visitors see the change at once however long the cache keeps a page. Screens that only read, preview or export do not.
 - **On CloudPanel it works by itself**: the CMS finds CloudPanel's Varnish controller and hands it a purge of the site's cache tag. CloudPanel keeps pages as long as its Cache Lifetime says (its controller replaces the CMS's `Cache-Control`), so before this a change could take up to a week to show.

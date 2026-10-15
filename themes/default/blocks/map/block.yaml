@@ -91,6 +91,8 @@ fields:
     label: List
     default: right
     options: { right: Right, left: Left, below: Below, none: None }
+    # Below the map means nothing when the list floats over it, so the choice is not offered there (a saved "below" is read as right).
+    options_when: { below: { variant: '!overlay' } }
     when: { source: '!manual' }
   cluster:
     type: toggle

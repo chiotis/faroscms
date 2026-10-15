@@ -61,6 +61,18 @@ final class FieldSchema
             // An icon is a choice from the theme's icon set; the set itself is filled in where the theme is known.
             if ($type === 'select' || $type === 'icon') {
                 $field['options'] = self::normalizeOptions($definition['options'] ?? []);
+                // A choice that fits only while another field has a value: `options_when: {below: {variant: '!overlay'}}`, read like `when`.
+                $optionsWhen = [];
+                foreach (is_array($definition['options_when'] ?? null) ? $definition['options_when'] : [] as $option => $conditions) {
+                    $checked = is_array($conditions) && isset($field['options'][(string)$option])
+                        ? (self::normalize(['x' => ['type' => 'text', 'when' => $conditions]])['x']['when'] ?? null) : null;
+                    if ($checked !== null) {
+                        $optionsWhen[(string)$option] = $checked;
+                    }
+                }
+                if ($optionsWhen !== []) {
+                    $field['options_when'] = $optionsWhen;
+                }
             }
             // A choice the editor draws as small pictures: `drawn: true` takes variants/<value>.svg of the block, `drawn: hero` those of that block.
             if ($type === 'select' && isset($definition['drawn'])) {

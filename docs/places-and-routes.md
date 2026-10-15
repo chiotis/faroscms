@@ -61,7 +61,7 @@ is loaded from anyone else except the **map tiles**. A page that has no map load
 ## Archive with a map
 
 *Admin > Theme > Archive Layouts* offers the layout **Map** for every type and every category or tag. An archive with that layout is
-one map with a list beside it (right, left, below, or no list), with the height you choose; or, as wide as the screen, with the list *over* the map on one side (see below). It shows every entry that has a place (up
+one map with a list beside it (right, left, below, or no list), with the height you choose; or, as wide as the screen, with the list *over* the map on one side (see below). A popup's text is the entry's excerpt, or, without one, the start of its first paragraph (headings and code blocks are skipped). It shows every entry that has a place (up
 to 800; no paging); a route is drawn as a line. A bar over the map filters by kind (when the list has several), by category, and by a
 search. The filters of the type that are not categories (activity, difficulty, price range) stay as the page's own form. The three
 types here use this layout by default.
@@ -73,7 +73,7 @@ The existing **Map** block has a new first choice, *Show*: *One place, typed bel
 left, below, none), whether markers that are close are grouped, the height, and when the map loads (*as the site says*, on a click, or
 when in view). The block draws nothing for a visitor when there is nothing to show.
 
-**Layouts.** *Inside the page width* and *Full width* work for any map. *Details beside the map* (the text and address of one place beside its map) is offered only for a map of one place, and **Full width, list over the map** only for a map of content: the map runs edge to edge, and the list with its filters floats over it on the side chosen in *List* (right or left; *below* is read as right). The map is centred on the part the list leaves free, its zoom buttons and credit move to the other side, and a popup opens clear of the list. On a narrow screen the list goes under the map. An archive can do the same: *Theme > Archive Layouts > Map > List > Over the map*. The editor changes the layout by itself when the choice of *Show* makes the old one meaningless (`variant_when` in `block.yaml`). The field `when` of the block editor can now say
+**Layouts.** *Inside the page width* and *Full width* work for any map. *Details beside the map* (the text and address of one place beside its map) is offered only for a map of one place, and **Full width, list over the map** only for a map of content: the map runs edge to edge, and the list with its filters floats over it on the side chosen in *List* (right or left). *Below* is not offered for this layout in the editor, and a saved *below* is read as right. The map is centred on the part the list leaves free, its zoom buttons and credit move to the other side, and a popup opens clear of the list. On a narrow screen the list goes under the map. An archive can do the same: *Theme > Archive Layouts > Map > List > Over the map*. The editor changes the layout by itself when the choice of *Show* makes the old one meaningless (`variant_when` in `block.yaml`). The field `when` of the block editor can now say
 "anything but": `when: {source: '!manual'}`.
 
 ## The page of one
@@ -91,14 +91,16 @@ when in view). The block draws nothing for a visitor when there is nothing to sh
   passes near it and the businesses and points around. Nearest first, with the distance. Computed from the positions, so there is
   nothing to keep in step by hand.
 - *Theme > Single Layouts* has a card for each type: the map's height, whether to show the information, the profile, the download
-  button, what is near, and what distance counts as near (`opt.nearby_radius`, in km).
+  button, what is near, what distance counts as near (`opt.nearby_radius`, in km), and how many of each kind to list
+  (`nearby_limit_routes`, `nearby_limit_points`, `nearby_limit_businesses`; 18 when empty), so a crowded route cannot push the points
+  out. A site that set one `nearby_limit` in its own type definition keeps it as the number for every kind.
 - Search engines get a `TouristAttraction` or `LocalBusiness` with its coordinates, address, phone, email and price range.
 
 ## For templates
 
 `geo_dataset(items, {lines, cluster})` and `geo_single(item, {types, radius, limit})` give the data a map draws;
 `include 'components/geo-map.twig' with {geo, height, list, filters, cluster, load, label}` draws it. `geo_nearby(item, types, radius,
-limit)` gives `[{item, km}]`; `route_facts(item)` the facts of a route; `elevation_profile(profile, label)` the drawing;
+limit)` gives `[{item, km}]` (`limit` is a number for all, or a map such as `{points: 6, businesses: 4}` for each type; a type missing from the map is not cut); `route_facts(item)` the facts of a route; `elevation_profile(profile, label)` the drawing;
 `geo_position(item)` the place of an entry. A type counts as having places when one of its fields is of the kind `location`.
 
 ## Not in this version

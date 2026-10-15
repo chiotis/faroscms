@@ -151,6 +151,7 @@ check('a map with the list over it is as wide as the screen, with the list float
 check('and the filters are in the list, not above the map', 'data-geo-filters' in html.split('class="geo-side"')[1].split('<ul class="geo-list"')[0], side[:200])
 st, _, html = page('over-left', {'type': 'map', 'source': 'all', 'variant': 'overlay', 'list': 'left'})
 check('on the left too', 'is-overlay over-left' in html and '"overlay":"left"' in html)
+check('the editor is told that "below" is not a choice over a map (a layout-dependent choice), and the other choices stay', next(f for f in mp['fields'] if f['key'] == 'list').get('options_when') == {'below': {'variant': ['!overlay']}} and [o[0] for o in next(f for f in mp['fields'] if f['key'] == 'list')['options']] == ['right', 'left', 'below', 'none'])
 st, _, html = page('over-below', {'type': 'map', 'source': 'all', 'variant': 'overlay', 'list': 'below'})
 check('"below" makes no sense over a map, so the list is on the right', 'is-overlay over-right' in html)
 st, _, html = page('over-none', {'type': 'map', 'source': 'all', 'variant': 'overlay', 'list': 'none'})

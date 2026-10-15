@@ -608,7 +608,17 @@
     };
     def.fields.forEach(function (field) {
       if ((def.design_fields || []).indexOf(field.key) !== -1) return;
-      var node = fieldControl(field, block[field.key], function (value) {
+      var shown = field;
+      var current = block[field.key];
+      // A choice that fits only with some other value (`options_when`): the others are not offered, and a saved one that no longer fits shows the default.
+      if (field.options_when) {
+        shown = Object.assign({}, field, { options: field.options.filter(function (pair) {
+          var wanted = field.options_when[pair[0]];
+          return !wanted || Object.keys(wanted).every(function (key) { return whenMatches(wanted[key], valueFor(def, block, key)); });
+        }) });
+        if (!shown.options.some(function (pair) { return pair[0] === String(current); })) current = field['default'];
+      }
+      var node = fieldControl(shown, current, function (value) {
         block[field.key] = value;
         serialize();
         applyWhen();
