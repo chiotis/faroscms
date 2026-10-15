@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.126 — 2026-10-15 — Form buttons follow the theme's button style
+- **The buttons of a form (the Submit button, the *Choose a file* button of an upload field) and of the search form now follow the button choices of Theme > Branding**: height, side padding, text size, weight and capitals. Before, they kept their own fixed size and weight, so a site with taller or uppercase buttons had forms that did not match. The corner shape already followed the theme. A site that sets nothing looks as before.
+
 ## 0.1.125 — 2026-10-15 — No big gap inside a narrow block
 - **A block in a column no longer has a large empty space inside it.** The side-by-side layouts (Form, FAQ, Checklist and Hero split, Contact with a form, Text, Video, Map and Tabs) keep a gap sized for a full row (up to 6rem); in a 25, 33 or 50% column their two halves are one above the other, so that gap became the space between them. There it is now the theme's large space (2rem).
 - **A Form beside the text with no heading starts at the top of its column.** Its empty heading area took a row of its own when stacked, in a column and on a phone; it is now left out there. On a full row the form keeps its place on the right.
