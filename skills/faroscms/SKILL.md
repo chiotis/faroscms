@@ -63,7 +63,7 @@ In the browser instead: `references/admin-ui.md`, section "Make a page with bloc
 
 ## 4. Import content
 
-Read `references/importing.md`. In short: inventory the source, plan addresses (slugs by `slugify`, redirects `old-path new-path`), back up, add pictures first, write the entries (`new_entry.py` per entry, or `entries_to_csv.py` to make the CSV that *Admin > Content > type > Import* previews and applies), convert text to clean Markdown, validate, link into menus, add redirects, open a sample, and report what was created, skipped and not carried over. A WordPress site that is online has its own importer (`scripts/import-wordpress.php` in the repository, with `docs/wordpress-import.md`).
+Read `references/importing.md`. In short: inventory the source, plan addresses (slugs by `slugify`, redirects `old-path new-path`), back up, add pictures first, write the entries (`new_entry.py` per entry, or `entries_to_csv.py` to make the CSV that *Admin > Content > type > Import* previews and applies), convert text to clean Markdown, validate, link into menus, add redirects, open a sample, and report what was created, skipped and not carried over. A WordPress site that is online has its own importer (`scripts/import-wordpress.php` in the repository, with `docs/wordpress-import.md` and theme profiles in `docs/wordpress-profiles/`). **Moving a whole website** (pages, look, menus, addresses): follow *Moving a whole website* in `importing.md`: survey first, map every part onto blocks, content types and Theme settings, keep the old addresses (redirects for the rest), never patch the CMS's code for something it cannot do (report it), and on a site behind Varnish/CloudPanel empty *System > Page cache* before checking, because files written outside the admin do not empty it.
 
 ## 5. Change settings and the look
 
@@ -98,8 +98,8 @@ Order that works: (1) `site_info.py`; confirm languages, name, tagline, base add
 - `references/admin-ui.md`: browser-driven work and the screen map.
 - `references/troubleshooting.md`: symptom → cause → fix; the final checklist.
 
-The shipped references describe FarosCMS 0.1.87 (`snapshot/VERSION`). If the installation is newer, the installed files win: `block_reference.py`, `site_settings.py schema theme --markdown` and its `CHANGELOG.md` are always current.
+The shipped references describe FarosCMS 0.1.118 (`snapshot/VERSION`). If the installation is newer, the installed files win: `block_reference.py`, `site_settings.py schema theme --markdown` and its `CHANGELOG.md` are always current.
 
 ## 9. Finish
 
-Tell the person, briefly and in their language: what you created or changed (file paths or screens, drafts vs published, the address of each page), what you could not do or invented nothing for (the `TODO`s), what only they can do (secrets, publishing, mail, users), and how to undo it (History, the settings database copy, the backup).
+Tell the person, briefly and in their language: what you created or changed (file paths or screens, drafts vs published, the address of each page), what you could not do or invented nothing for (the `TODO`s), what only they can do (secrets, publishing, mail, users), and how to undo it (History, the settings database copy, the backup). If you wrote files on a site with a page cache in front of it, remind them to press *Admin > System > Page cache > Empty the page cache*.

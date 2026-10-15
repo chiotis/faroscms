@@ -6,7 +6,7 @@ What you can see depends on the person's role (superadmin, admin, editor, user).
 
 ## Screens
 
-Left menu: **Content** (Pages, Posts, Projects… the types that are on, Media), **Forms**, **Menus**, **Theme**, **Taxonomies**, **Content types**, **SEO**, **Redirects**, **Translations**, **History**, then **Users & Roles**, **Analytics**, **Logs**, **Backups**, **Updates**, **Settings**. Every form ends in one fixed Save bar (it also shows the messages). Dashboard (`/admin`) lists what needs attention.
+Left menu: **Content** (Pages, Posts, Projects… the types that are on, Media), **Forms**, **Menus**, **Theme**, **Taxonomies**, **Content types**, **SEO**, **Redirects**, **Translations**, **History**, then **Users & Roles**, **Analytics**, **Logs**, **Backups**, **Updates**, **System**, **Omni** (superadmin), **Settings**. Every form ends in one fixed Save bar (it also shows the messages). Dashboard (`/admin`) lists what needs attention.
 
 | Screen | Address | Use it for |
 |---|---|---|
@@ -19,20 +19,21 @@ Left menu: **Content** (Pages, Posts, Projects… the types that are on, Media),
 | Forms | `/admin/forms` | form builder, submissions, CSV export |
 | Theme | `/admin/theme?tab=header` | tabs per section, Branding, Single Layouts, Archive Layouts, Footer Blocks (live preview) |
 | SEO | `/admin/seo?tab=search` | title format, social cards, robots, sitemap, structured data, checks of every entry |
-| Redirects | `/admin/redirects` | add, import a list, addresses visitors missed |
+| Redirects | `/admin/redirects` | add, import a list; *Not found* tab: addresses visitors missed, *Ignore all* for bot noise |
 | Translations | `/admin/translations` | the theme's words per language |
 | Taxonomies | `/admin/taxonomies` | categories, tags, own taxonomies and their terms |
 | Content types | `/admin/content-types` | switch types on, make a type, its fields |
 | History | `/admin/revisions` | every saved version, compare, restore |
 | Settings | `/admin/settings?tab=basics` | tabs basics (General), smtp, auth, backup, updates, apis, limits |
-| Backups | `/admin/backups` | create, verify, download, restore |
-| System | `/admin/system` | health checks, content index status |
+| Backups | `/admin/backups` | create, verify, download, restore; *Remote storage* lists and fetches backups kept only remotely |
+| System | `/admin/system` | health checks, content index, the cron job line, **Page cache** (*Empty the page cache*) |
+| Omni | `/admin/omni` | superadmin only: the site's connection to an Omni monitor; leave it to the person |
 
 ## Make a page with blocks, in the browser
 
 1. `/admin/new?type=pages&lang=<default>`: type the **Title** (the address is made from it; check it under the title and edit it if it is not right), choose **Status** `Draft` in the Publish card, and the **Template** if you want `Landing`.
 2. Open the **Blocks** tab. *Add block* opens a picker with three tabs: **Blocks** (each with a description and a small drawing), **Ready-made sections**, and **Page layouts** (a whole page; *Replace* or *Add after*). Choosing one adds it with default values.
-3. Each block is a card: drag or use the arrows to reorder; *Duplicate*, *Hide*, *Remove* (with undo). Open it to fill its fields. The **Design** tab of a block holds its layout drawings (`variant`), background and spacing. Repeaters (items, buttons) have *Add* and *Remove* per row. Image fields open the media library (*Library…*) or take an address.
+3. Each block is a card: drag or use the arrows to reorder; *Duplicate*, *Hide*, *Remove* (with undo). Open it to fill its fields. The **Design** tab of a block holds its layout drawings (`variant`), background and spacing. A **Hero slider** is a list of slides, each with its own hero layout (picked from the same drawings), buttons, highlights and picture or video. Repeaters (items, buttons) have *Add* and *Remove* per row. Image fields open the media library (*Library…*) or take an address.
 4. The Content tab holds the Markdown body (visual or Markdown mode; the choice is remembered).
 5. **Save** (bottom bar). Check the message. Use *View* to see the page; a signed-in person sees drafts.
 6. For the translation: **Translations** tab, *Create* next to the language; it opens a new entry already linked (same `translation_id`) and with the same address.
@@ -47,6 +48,7 @@ Typing blocks as YAML into the **Advanced** tab (the raw front matter) does **no
 - **SEO of one page**: the entry's SEO tab (title, description, canonical, share image, noindex) with a search-result preview and a character count.
 - **Redirect after changing an address**: the editor offers it when a published address changes; or Redirects > Add / Import lines `old-path new-path`.
 - **Publish many**: Content list > tick > Publish.
+- **After changing files outside the admin** on a site behind Varnish/CloudPanel: System > Page cache > *Empty the page cache*.
 - **Undo a mistake**: History > the entry > compare > Restore; or Backups.
 
 ## Do not press, unless the person asked for exactly that

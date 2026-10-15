@@ -4,7 +4,7 @@ A page is its front matter `blocks:` list (and optionally a Markdown body). The 
 
 ## How a page is put together
 
-1. **Opening.** Make the first block a `hero` (it becomes the page's `<h1>` and the header can sit transparent over it). Without a hero the template prints the page title in a header band. For a campaign page set `template: landing`: no title header, the page is its blocks, so start with a hero.
+1. **Opening.** Make the first block a `hero` (it becomes the page's `<h1>` and the header can sit transparent over it). A `hero-slider` (every slide is a hero with its own layout; the old `slider` block is gone and a saved one is read as a hero slider) can open a home page instead. Without a hero the template prints the page title in a header band. For a campaign page set `template: landing`: no title header, the page is its blocks, so start with a hero.
 2. **Rhythm.** 4 to 8 blocks is a full page. Alternate backgrounds (`tone: muted` on every second section), alternate `text-image` between `image-right` and `image-left`, end with one `cta`. Do not put two heroes on a page; do not stack two call-to-action blocks.
 3. **Body text.** The Markdown body appears after an opening hero (or first) unless a `content` block places it. Use `{type: content}` to put the body *between* blocks. Long legal or guide text: body + `template: sidebar` (contents list) or a `text` block with `variant: contents`.
 4. **Headings.** Never write `<h1>`/`# ` in the body or blocks; blocks choose their own heading level. Each block has `eyebrow` (small label), `heading`, often `intro`.

@@ -6,7 +6,7 @@ It does not need the CMS source and it carries no site data. What it knows of on
 
 ## Install it
 
-**Claude** (claude.ai or the desktop app): Settings > Capabilities > Skills > upload `faroscms-skill.zip` (see *Build the zip*). **Claude Code**: copy the `faroscms` folder to `~/.claude/skills/` (for you everywhere) or `.claude/skills/` in a project. In both, the skill is picked up when a request is about a FarosCMS site; you can also name it ("use the faroscms skill").
+**Claude** (claude.ai or the desktop app): Settings > Capabilities > Skills > upload `faroscms-skill.zip` (see *Build the zip*). **Claude Code**: copy the `faroscms` folder to `~/.claude/skills/` (for you everywhere) or `.claude/skills/` in a project. **Codex**: copy the `faroscms` folder to `~/.codex/skills/` and start a new Codex session in the site's folder (it needs Python 3 with PyYAML: `pip3 install pyyaml`). In all of them, the skill is picked up when a request is about a FarosCMS site; you can also name it ("use the faroscms skill").
 
 **ChatGPT**: where your plan offers *Skills*, upload the same zip (the format is the same: a folder with `SKILL.md`). Where it does not, use a Project or a Custom GPT: paste the text of `SKILL.md` (without the first lines between `---`) into the instructions, upload everything in `references/` as knowledge files, and turn on the code tool and upload the `scripts/` folder and `snapshot/` too if you want the assistant to run the checks. The settings of ChatGPT change often: if a menu is not where this says, look for "skills", "instructions" and "knowledge files".
 

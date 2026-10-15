@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.118 — 2026-10-15 — The skill knows this version, and how to move a whole site
+- **`skills/faroscms` is brought to this version of the CMS.** The snapshot and the generated references (blocks, theme settings) are refreshed; the hand-written ones now cover the Hero slider in place of the Slider, the feed and the WordPress list pages that need no redirect, a title area per term (`hero_layout` on a term), heading colour, the fading header, breadcrumbs, the page cache, System > Page cache, Not found > Ignore all, backups from cron and in remote storage, and Omni (left to the superadmin).
+- **A new section, *Moving a whole website*, in `references/importing.md`:** survey the old site, map each part onto blocks, content types and theme settings, keep the old addresses, report what the CMS cannot do instead of patching its code, check, then watch Not found after launch. The WordPress importer's profiles are described.
+- **Files written outside the admin do not empty a page cache in front of the site**, so the skill tells the assistant to have *System > Page cache > Empty the page cache* pressed before checking and at hand-over.
+- The README says how to install the skill in Codex.
+
 ## 0.1.117 — 2026-10-15 — Maps: three rough edges smoothed
 - **A popup's text starts at the first paragraph.** An entry with no excerpt used to show its Markdown headings first; now the headings and any block code are skipped, the same way the RSS feed builds its text.
 - **"Near" lists have a limit for each kind.** *Theme > Single Layouts* has a number for routes, points and businesses (18 when empty, as before), so a crowded route cannot push the points out. A single `nearby_limit` set by a site still works for every kind.
