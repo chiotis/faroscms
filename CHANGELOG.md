@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.118 — 2026-10-15 — Categories in a tree
+- **A category can have a parent.** Its address holds its parents' (`/category/books/english`, and `/en/category/books/english`), its page, its feed (`/category/books/english/feed`), its pages of results (`?page=2`, and the old WordPress `/page/2`) and its place in the sitemap all follow. Categories are a tree by default; tags are not, and a taxonomy of a site's own says whether it is when it is made (or later, under its settings). A site with no parents set works exactly as before.
+- **The same name can sit under two parents**: "Logicomix" under News and under Reviews are two terms with the same address ending, each under its own parent.
+- **Moving a term, or renaming a parent, keeps the old addresses working**: the term and everything below it leave a redirect behind, in every language, and links in menus are updated. Deleting a parent moves its children up a level.
+- **A parent's page lists its children's entries too** (and so does its feed). It is a choice on the taxonomy's card in *Theme > Archive Layouts* ("List entries of the sub-terms too", on by default).
+- **Breadcrumbs follow the tree**: Home, the parents, then the term.
+- **Taxonomies screen**: the term dialog has a *Parent* (never the term itself or something below it; a loop is refused with a message), the list shows the tree indented with each term's whole address, and the arrows move a term among its brothers. A taxonomy can be turned into a tree, or back to a flat list (the changed addresses are redirected). The entry editor lists a tree's terms in tree order.
+- **The WordPress importer keeps the categories' tree** instead of flattening names like "Logicomix (News)": a category keeps its name, its parent and its old address, and a post is filed under the categories it has. Run it again on a site imported before to get the tree. Checked by `tests/unit/taxonomies.php`, `taxonomy-editor.php`, `wordpress-import.php`, `public-site.php` and `tests/http/category_tree_test.py`.
+
 ## 0.1.117 — 2026-10-15 — Maps: three rough edges smoothed
 - **A popup's text starts at the first paragraph.** An entry with no excerpt used to show its Markdown headings first; now the headings and any block code are skipped, the same way the RSS feed builds its text.
 - **"Near" lists have a limit for each kind.** *Theme > Single Layouts* has a number for routes, points and businesses (18 when empty, as before), so a crowded route cannot push the points out. A single `nearby_limit` set by a site still works for every kind.

@@ -133,7 +133,7 @@ final class LanguageAlternates
     {
         $defaultLang = $this->settings()['languages']['default'] ?? 'en';
         $available = $this->settings()['languages']['available'] ?? [$defaultLang];
-        $slug = Slug::plain($slug);
+        $slug = implode('/', array_map([Slug::class, 'plain'], explode('/', $slug)));
         $pathKind = Taxonomies::kind($key);
 
         $urls = [];
@@ -154,7 +154,8 @@ final class LanguageAlternates
 
     private function hasTaxonomyItems(string $key, string $slug, string $lang): bool
     {
-        $term = ($this->taxonomies)()->findBySlug($key, $slug);
+        $taxonomies = ($this->taxonomies)();
+        $term = $taxonomies->findByPath($key, $slug);
         if ($term === null) {
             return false;
         }
@@ -162,13 +163,17 @@ final class LanguageAlternates
         if ($termId === '') {
             return false;
         }
+        $termIds = [$termId];
+        if ($taxonomies->includesChildren($key)) {
+            $termIds = array_merge($termIds, $taxonomies->descendantIds($key, $termId));
+        }
         foreach ($this->content->getTypes() as $type) {
             if ($type === 'pages') {
                 continue;
             }
             foreach ($this->content->getItems($type, $lang, false) as $item) {
                 $values = Format::list($item->meta[$key] ?? null);
-                if (in_array($termId, $values, true)) {
+                if (array_intersect($termIds, $values) !== []) {
                     return true;
                 }
             }

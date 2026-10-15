@@ -1,4 +1,4 @@
-# Blocks of this installation (FarosCMS 0.1.114)
+# Blocks of this installation (FarosCMS 0.1.118)
 
 ## Fields every block has
 
@@ -363,7 +363,7 @@ The newest posts, projects, or any content type, shown from a quiet text list to
 | `eyebrow` | text |  |
 | `heading` | text |  |
 | `intro` | text (several lines) |  |
-| `source` | choice; a content type of the site; default `posts` |  |
+| `source` | choice; a content type of the site |  |
 | `term` | text | Optional. The slug of a category or tag, as in Taxonomies. |
 | `limit` | whole number; 1 to 12; default `3` |  |
 | `columns` | choice; one of `2`, `3`, `4`; default `3` |  |

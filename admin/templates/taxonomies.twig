@@ -22,17 +22,18 @@
 {% endmacro %}
 
 {# One row. `term` is empty for the template JavaScript copies when a term is added. #}
-{% macro term_row(term, languages, default_language, kind, type_names, icon_btn, taxonomy, title_layouts) %}
+{% macro term_row(term, languages, default_language, kind, type_names, icon_btn, taxonomy, title_layouts, hierarchical) %}
   {% import _self as me %}
   {% set primary = term.labels[default_language]|default('') %}
   {% if primary == '' %}{% for text in term.labels %}{% if primary == '' and text != '' %}{% set primary = text %}{% endif %}{% endfor %}{% endif %}
   {% set search_text = ((term.labels|join(' ')) ~ ' ' ~ term.slug ~ ' ' ~ (term.descriptions|default({})|join(' ')))|lower %}
-  <tr data-term-row data-used="{{ term.used|default(0) }}" data-original-slug="{{ term.slug|default('') }}" data-search="{{ search_text }}" class="group hover:bg-slate-50">
+  <tr data-term-row data-used="{{ term.used|default(0) }}" data-original-path="{{ term.path|default('') }}" data-depth="{{ term.depth|default(0) }}" data-search="{{ search_text }}" class="group hover:bg-slate-50">
     <td class="w-10 px-3 py-3 align-top">
       <input type="checkbox" data-term-select class="mt-1 h-4 w-4 rounded border-slate-300" aria-label="Select {{ primary|default('this term') }}">
     </td>
     <td class="px-2 py-3 align-top">
-      <div class="flex items-start gap-2">
+      <div class="flex items-start gap-2" data-term-indent{% if term.depth|default(0) > 0 %} style="margin-left: {{ term.depth * 1.25 }}rem"{% endif %}>
+        {% if hierarchical and term.depth|default(0) > 0 %}<span class="mt-0.5 shrink-0 select-none text-slate-300" aria-hidden="true">└</span>{% endif %}
         <button type="button" data-term-grip class="mt-0.5 hidden shrink-0 cursor-grab touch-none rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 sm:inline-flex" aria-label="Drag to reorder" title="Drag to reorder">{{ me.icon('grip') }}</button>
         <div class="min-w-0">
           <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -57,6 +58,7 @@
       </div>
       <input type="hidden" name="term_id[]" value="{{ term.id|default('') }}" data-field="id">
       <input type="hidden" name="term_slug[]" value="{{ term.slug|default('') }}" data-field="slug">
+      {% if hierarchical %}<input type="hidden" name="term_parent[]" value="{{ term.parent|default('') }}" data-field="parent">{% endif %}
       {% if title_layouts|default([]) is not empty %}<input type="hidden" name="term_hero_layout[]" value="{{ term.hero_layout|default('') }}" data-field="hero_layout">{% endif %}
       {% for lang in languages %}
         <input type="hidden" name="term_label[{{ lang }}][]" value="{{ term.labels[lang]|default('') }}" data-field="label" data-lang="{{ lang }}">
@@ -66,7 +68,7 @@
     <td class="hidden px-3 py-3 align-top md:table-cell">
       <span data-term-address class="text-xs text-slate-600">
         {% if term.slug|default('') != '' %}
-          <a href="{{ url(kind ~ '/' ~ term.slug) }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 font-mono hover:text-blue-700 hover:underline">/{{ kind }}/{{ term.slug }}<span class="sr-only"> (opens the public page in a new tab)</span></a>
+          <a href="{{ url(kind ~ '/' ~ term.path|default(term.slug)) }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 font-mono hover:text-blue-700 hover:underline">/{{ kind }}/{{ term.path|default(term.slug) }}<span class="sr-only"> (opens the public page in a new tab)</span></a>
         {% else %}
           <span class="text-slate-500">Made from the name</span>
         {% endif %}
@@ -113,6 +115,7 @@
   {% set filed_total = taxonomy_tabs|filter(tab => tab.name == taxonomy)|first.filed|default(0) %}
 
   {% if saved %}<template data-flash data-type="success">Saved.{% if moved %} {{ moved }} address{{ moved == 1 ? '' : 'es' }} changed: the old {{ moved == 1 ? 'one keeps' : 'ones keep' }} working{% if can_redirects %} (see Redirects){% endif %}.{% endif %}</template>{% endif %}
+  {% if refused %}<template data-flash data-type="warning">{{ refused }} term{{ refused == 1 ? ' was' : 's were' }} not moved: a term cannot be placed under itself or under one of its own sub-terms.</template>{% endif %}
   {% if removed and orphaned %}<template data-flash data-type="warning">{{ removed }} term{{ removed == 1 ? '' : 's' }} removed, but {{ orphaned }} {{ orphaned == 1 ? 'entry is' : 'entries are' }} still filed under {{ removed == 1 ? 'it' : 'them' }}. The entries keep the old term in their files, and the term no longer has a page.</template>{% endif %}
   {% if deleted %}<template data-flash data-type="success">Taxonomy “{{ deleted }}” deleted.</template>{% endif %}
   {% if created %}<template data-flash data-type="success">Taxonomy created. Add its first terms below; its pages will be at /{{ taxonomy_kind }}/term.</template>{% endif %}
@@ -164,10 +167,14 @@
         {% endfor %}
         <span class="text-[11px] text-slate-500">None chosen: every type. The address is also the field entries keep their terms in, and cannot change later.</span>
       </fieldset>
+      <div class="flex flex-wrap items-center gap-1.5">
+        <label class="lc-chip"><input type="checkbox" name="new_hierarchical" value="1"><span>Terms can have a parent</span></label>
+        <span class="text-[11px] text-slate-500">A tree, like categories: a child’s address holds its parents’, for example /name/parent/child.</span>
+      </div>
     </form>
   </details>
 
-  <form method="post" class="grid gap-4" data-taxonomy-form data-kind="{{ taxonomy_kind }}" data-default-language="{{ default_language }}" data-can-redirects="{{ can_redirects ? '1' : '' }}" novalidate>
+  <form method="post" class="grid gap-4" data-taxonomy-form{% if hierarchical %} data-hierarchical="1"{% endif %} data-kind="{{ taxonomy_kind }}" data-default-language="{{ default_language }}" data-can-redirects="{{ can_redirects ? '1' : '' }}" novalidate>
     {{ csrf_field() }}
     <input type="hidden" name="taxonomy" value="{{ taxonomy }}">
 
@@ -224,7 +231,7 @@
             </thead>
             <tbody data-term-rows class="divide-y divide-slate-100">
               {% for term in taxonomy_terms %}
-                {{ me.term_row(term, languages, default_language, taxonomy_kind, type_names, icon_btn, taxonomy, title_layouts) }}
+                {{ me.term_row(term, languages, default_language, taxonomy_kind, type_names, icon_btn, taxonomy, title_layouts, hierarchical) }}
               {% endfor %}
             </tbody>
           </table>
@@ -257,6 +264,15 @@
             <input type="text" value="{{ taxonomy }}" readonly class="{{ input_class }} bg-slate-100">
             <span class="text-xs font-normal text-slate-500">The field entries use in their files. It cannot change.</span>
           </label>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-4 py-4">
+          <div class="min-w-0">
+            <h3 class="text-sm font-semibold text-slate-900">A tree of terms</h3>
+            <p class="mt-0.5 text-xs text-slate-500">A term can have a parent, and its address holds its parents’ (/{{ taxonomy_kind }}/parent/child). Turning it off flattens the terms: each one keeps its own address, and the old ones lead to it. Press Save to apply.</p>
+          </div>
+          <input type="hidden" name="taxonomy_hierarchical" value="0">
+          <label class="lc-chip"><input type="checkbox" name="taxonomy_hierarchical" value="1"{% if hierarchical %} checked{% endif %}><span>Terms can have a parent</span></label>
         </div>
 
         <div class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-4 py-4">
@@ -306,7 +322,7 @@
 
   {# What JavaScript copies when a term is added. #}
   <template data-term-row-template>
-    {{ me.term_row({id: '', slug: '', labels: {}, descriptions: {}, hero_layout: ''}, languages, default_language, taxonomy_kind, type_names, icon_btn, taxonomy, title_layouts) }}
+    {{ me.term_row({id: '', slug: '', parent: '', depth: 0, labels: {}, descriptions: {}, hero_layout: ''}, languages, default_language, taxonomy_kind, type_names, icon_btn, taxonomy, title_layouts, hierarchical) }}
   </template>
 
   {# The dialog for adding or editing one term. Its fields have no names, so they are never submitted: Apply copies them into the row. #}
@@ -335,10 +351,17 @@
             </label>
           </fieldset>
         {% endfor %}
-        <div class="grid gap-1 border-t border-slate-100 pt-4">
+        {% if hierarchical %}
+          <div class="grid gap-1 border-t border-slate-100 pt-4">
+            <label for="term-dialog-parent" class="text-sm font-medium text-slate-700">Parent</label>
+            <select id="term-dialog-parent" data-dialog-parent class="{{ input_class }}"><option value="">None (top level)</option></select>
+            <p class="text-xs text-slate-500">The term is listed under its parent, and its address starts with the parent’s. Moving it, or changing a parent’s address, leaves the old addresses of the term and everything below it working.</p>
+          </div>
+        {% endif %}
+        <div class="grid gap-1 {% if not hierarchical %}border-t border-slate-100 pt-4{% endif %}">
           <label for="term-dialog-slug" class="text-sm font-medium text-slate-700">Page address</label>
           <div class="flex items-center rounded-md border border-slate-300 bg-white focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20">
-            <span class="select-none pl-3 text-sm text-slate-500">/{{ taxonomy_kind }}/</span>
+            <span class="max-w-[60%] select-none truncate pl-3 text-sm text-slate-500" data-dialog-slug-lead>/{{ taxonomy_kind }}/</span>
             <input id="term-dialog-slug" type="text" data-dialog-slug autocomplete="off" spellcheck="false" placeholder="made from the name" class="min-w-0 flex-1 border-0 bg-transparent py-2 pl-0.5 pr-3 font-mono text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-0">
           </div>
           <p class="hidden text-xs text-amber-700" data-dialog-slug-note>The old address <span class="font-mono" data-dialog-old-slug></span> will keep working and lead here.</p>

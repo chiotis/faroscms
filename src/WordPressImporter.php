@@ -15,9 +15,9 @@ use Symfony\Component\Yaml\Yaml;
  * Every id is made from the address it came from, so running it again updates what it brought and never makes a second
  * copy; a file of the site's own that was not brought by an import is never overwritten unless asked.
  *
- * WordPress keeps categories in a tree and this site's categories are a flat list: a category that shares its address
- * with another one takes its parent's name in front, and a post in a child category is also put in its parents, as
- * WordPress shows it on the parent's page.
+ * WordPress keeps categories in a tree and so do this site's: a category keeps its name and its parent, its address is
+ * the old one (/category/news/child), and a post is filed under the categories it has (the page of a parent also lists
+ * what is filed under its children). Two terms of one slug under different parents are different terms.
  */
 final class WordPressImporter
 {
@@ -108,7 +108,7 @@ final class WordPressImporter
 
         $categories = in_array('posts', $kinds, true) ? $this->reader->terms('categories') : [];
         $tags = in_array('posts', $kinds, true) && in_array('tags', $info['taxonomies'], true) ? $this->reader->terms('tags') : [];
-        $terms = ['categories' => $this->flatTerms($categories, 'category'), 'tags' => $this->flatTerms($tags, 'tag')];
+        $terms = ['categories' => $this->buildTerms($categories, true), 'tags' => $this->buildTerms($tags, false)];
 
         foreach ($this->reader->media() as $file) {
             $this->attachmentUrls[$file['id']] = $this->registerMedia($file['url'], $file['alt'], $file['title'], true);
@@ -133,7 +133,7 @@ final class WordPressImporter
         }
         foreach ($terms as $name => $list) {
             foreach ($list as $term) {
-                $this->linkMap[self::pathOf($term['link'])] = $this->termPath($name, $term['slug']);
+                $this->linkMap[self::pathOf($term['link'])] = $this->termPath($name, $term['path']);
             }
         }
 
@@ -194,7 +194,7 @@ final class WordPressImporter
         }
         foreach ($terms as $name => $list) {
             foreach ($list as $term) {
-                $this->addRedirect($redirects, $term['link'], '/' . $this->termPath($name, $term['slug']));
+                $this->addRedirect($redirects, $term['link'], '/' . $this->termPath($name, $term['path']));
             }
         }
         foreach ((array)($this->profile['archives'] ?? []) as $oldPath => $newType) {
@@ -454,7 +454,7 @@ final class WordPressImporter
             $front['main_image'] = $this->resolve($canonical, 'image');
         }
         if ($entry['type'] === 'posts') {
-            $categories = $this->withParents($entry['categories'], $terms['categories']);
+            $categories = $this->termIds($entry['categories'], $terms['categories']);
             if ($categories !== []) {
                 $front['categories'] = $categories;
             }
@@ -462,7 +462,7 @@ final class WordPressImporter
             foreach ($entry['tags'] as $id) {
                 foreach ($terms['tags'] as $term) {
                     if ($term['id'] === $id) {
-                        $tagSlugs[] = $term['slug'];
+                        $tagSlugs[] = $term['term_id'];
                     }
                 }
             }
@@ -502,7 +502,7 @@ final class WordPressImporter
         foreach ((array)($this->profile['types'][$entry['post_type']]['front'] ?? []) as $key => $value) {
             $front[(string)$key] = $value;
         }
-        $categories = $this->withParents($entry['category_ids'] ?? [], $terms['categories'] ?? []);
+        $categories = $this->termIds($entry['category_ids'] ?? [], $terms['categories'] ?? []);
         if ($categories !== []) {
             $front['categories'] = $categories;
         }
@@ -650,74 +650,95 @@ final class WordPressImporter
     // ------------------------------------------------------------------ terms
 
     /**
+     * The terms of a taxonomy as this site keeps them. A WordPress category keeps its parent: the address is the old one
+     * (`/category/news/child`), a name used under several parents ("Logicomix" under News and under Reviews) stays one
+     * name, and a term is only told apart from another of the same slug by its parent. A taxonomy without a tree (tags)
+     * is listed flat.
+     *
+     * `id` is WordPress's number; `term_id` is what entries are filed under here (the slug, with a number added when
+     * two terms have the same slug under different parents), the same on every run; `parent_term` is the `term_id` of the
+     * parent; `path` is the address after the taxonomy's word.
+     *
      * @param array<int, array{id: int, slug: string, name: string, link: string, parent: int, count: int, description: string}> $terms
-     * @return array<int, array{id: int, slug: string, label: string, description: string, parent: int, link: string}>
+     * @return array<int, array{id: int, term_id: string, slug: string, parent_term: string, path: string, label: string, description: string, parent: int, link: string}>
      */
-    private function flatTerms(array $terms, string $kind): array
+    private function buildTerms(array $terms, bool $tree): array
     {
         $byId = [];
-        $names = [];
         foreach ($terms as $term) {
             $byId[$term['id']] = $term;
-            $names[mb_strtolower($term['name'])] = ($names[mb_strtolower($term['name'])] ?? 0) + 1;
         }
+        $slugs = [];
+        $ids = [];
         $used = [];
-        $flat = [];
         foreach ($terms as $term) {
             $slug = Slug::plain($term['slug']);
-            $slug = $slug !== '' && $slug === $term['slug'] ? $slug : (Slug::fromText($term['name']) ?: 'term-' . $term['id']);
-            $label = $term['name'];
-            $parent = $byId[$term['parent']] ?? null;
-            if ($names[mb_strtolower($term['name'])] > 1 && $parent !== null) {
-                // The same name under several parents (Reviews > Logicomix, News > Logicomix): the parent tells them apart.
-                $prefix = Slug::plain($parent['slug']) ?: Slug::fromText($parent['name']);
-                $own = Slug::fromText(str_replace(["’", "'"], '', $term['name'])) ?: $slug;
-                $slug = $prefix . '-' . $own;
-                $label = $term['name'] . ' (' . $parent['name'] . ')';
+            $slugs[$term['id']] = $slug !== '' && $slug === $term['slug'] ? $slug : (Slug::fromText($term['name']) ?: 'term-' . $term['id']);
+            $id = $slugs[$term['id']];
+            for ($n = 2; isset($used[$id]); $n++) {
+                $id = $slugs[$term['id']] . '-' . $n;
             }
-            $base = $slug;
-            for ($n = 2; isset($used[$slug]); $n++) {
-                $slug = $base . '-' . $n;
-            }
-            $used[$slug] = true;
-            $flat[] = ['id' => $term['id'], 'slug' => $slug, 'label' => $label, 'description' => $term['description'], 'parent' => $term['parent'], 'link' => $term['link']];
+            $used[$id] = true;
+            $ids[$term['id']] = $id;
         }
-        return $flat;
+        $parentOf = static fn(array $term): int => $tree && isset($byId[$term['parent']]) && $term['parent'] !== $term['id'] ? $term['parent'] : 0;
+        $list = [];
+        foreach ($terms as $term) {
+            $chain = [$slugs[$term['id']]];
+            $at = $parentOf($term);
+            for ($guard = 0; $at > 0 && $guard < 20; $guard++) {
+                array_unshift($chain, $slugs[$at]);
+                $at = $parentOf($byId[$at]);
+            }
+            $parent = $parentOf($term);
+            $list[] = [
+                'id' => $term['id'],
+                'term_id' => $ids[$term['id']],
+                'slug' => $slugs[$term['id']],
+                'parent_term' => $parent > 0 ? $ids[$parent] : '',
+                'path' => implode('/', $chain),
+                'label' => $term['name'],
+                'description' => $term['description'],
+                'parent' => $parent,
+                'link' => $term['link'],
+            ];
+        }
+        return $list;
     }
 
     /**
-     * The terms of a post and the terms above them, as addresses.
+     * The terms of a post, as what entries are filed under here. Only the terms the post has: the page of a parent also
+     * lists what is filed under its children.
      *
      * @param int[] $ids
-     * @param array<int, array{id: int, slug: string, parent: int}> $terms
+     * @param array<int, array{id: int, term_id: string}> $terms
      * @return string[]
      */
-    private function withParents(array $ids, array $terms): array
+    private function termIds(array $ids, array $terms): array
     {
         $byId = [];
         foreach ($terms as $term) {
-            $byId[$term['id']] = $term;
+            $byId[$term['id']] = $term['term_id'];
         }
         $out = [];
         foreach ($ids as $id) {
-            for ($guard = 0; $id > 0 && isset($byId[$id]) && $guard < 10; $guard++) {
-                $out[$byId[$id]['slug']] = true;
-                $id = $byId[$id]['parent'];
+            if (isset($byId[$id])) {
+                $out[$byId[$id]] = true;
             }
         }
         return array_keys($out);
     }
 
-    private function termPath(string $taxonomy, string $slug): string
+    private function termPath(string $taxonomy, string $path): string
     {
         $prefix = $this->lang() === $this->defaultLang() ? '' : $this->lang() . '/';
-        return $prefix . Taxonomies::kind($taxonomy) . '/' . $slug;
+        return $prefix . Taxonomies::kind($taxonomy) . '/' . $path;
     }
 
     /**
      * Adds the terms that are not in the taxonomy yet; the ones it has are left as they are.
      *
-     * @param array<int, array{slug: string, label: string, description: string}> $list
+     * @param array<int, array{term_id: string, slug: string, parent_term: string, label: string, description: string}> $list
      */
     private function saveTerms(string $name, array $list): int
     {
@@ -729,12 +750,13 @@ final class WordPressImporter
         $have = array_column($terms, 'id');
         $added = 0;
         foreach ($list as $term) {
-            if (in_array($term['slug'], $have, true)) {
+            if (in_array($term['term_id'], $have, true)) {
                 continue;
             }
             $terms[] = [
-                'id' => $term['slug'],
+                'id' => $term['term_id'],
                 'slug' => $term['slug'],
+                'parent' => $term['parent_term'],
                 'labels' => [$this->lang() => $term['label']],
                 'descriptions' => [$this->lang() => $term['description']],
             ];

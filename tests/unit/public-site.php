@@ -78,6 +78,33 @@ $p = $page->build(['tag', 'news'], 'el', ['canonical_url' => 'https://s.test/tag
 check('the taxonomy chooses which types it lists, how many on a page, and its subtitle', [array_map(fn($i) => $i->slug, $p['data']['items']), $p['data']['archive']['total'], $p['data']['archive']['page'], $p['data']['archive_subtitle']], [['old'], 2, 2, 'About Νέα']);
 check('a page after the first has its own address for search engines', $p['data']['canonical_url'], 'https://s.test/tag/news?page=2');
 
+// ---- the page of a child term
+$write('posts', 'asia-post', "---\ntitle: Asia post\nstatus: published\ndate: '2026-03-01'\ncategories: [asia]\n---\n\nx\n", 1700000600);
+$write('posts', 'asia.en', "---\ntitle: Asia EN\nstatus: published\ndate: '2026-03-02'\ncategories: [asia]\n---\n\nx\n", 1700000700);
+file_put_contents("$dir/content/taxonomies/categories.yaml", "title: Categories\nterms:\n  - id: world\n    slug: world\n    labels: {el: Κόσμος, en: World}\n  - id: asia\n    slug: asia\n    parent: world\n    labels: {el: Ασία, en: Asia}\n  - id: japan\n    slug: japan\n    parent: asia\n    labels: {el: Ιαπωνία, en: Japan}\n");
+$taxonomies = new Taxonomies("$dir/content", ['el', 'en']);
+$content = new ContentRepository("$dir/content", new MarkdownConverter($environment), $settings);
+$alternates = new LanguageAlternates($content, fn() => $taxonomies, fn() => $settings, $absolute);
+$page = new TaxonomyPage($content, $theme, fn() => $taxonomies, fn() => $archive, fn() => $alternates, fn() => $settings, $translate);
+$child = $page->build(['category', 'world', 'asia'], 'el', ['canonical_url' => 'https://s.test/category/world/asia'], []);
+check('a child term has a page at its address in the tree', [$child['kind'], $child['slug'], $child['data']['archive_title']], ['category', 'asia', 'Category: Ασία']);
+check('the page of a child lists its own entries and those of its sub-terms\' (none here)', array_map(fn($i) => $i->slug, $child['data']['items']), ['asia-post']);
+check('its trail follows the tree: each parent with its address', $child['data']['term_trail'], [['label' => 'Κόσμος', 'url' => '/category/world']]);
+check('and a term at the top has none', $page->build(['category', 'world'], 'el', [], [])['data']['term_trail'], []);
+$grand = $page->build(['category', 'world', 'asia', 'japan'], 'en', [], []);
+check('deeper still, in another language the trail has its prefix', [$grand['data']['term_trail'], $grand['data']['archive_title']], [[['label' => 'World', 'url' => '/en/category/world'], ['label' => 'Asia', 'url' => '/en/category/world/asia']], 'Category: Japan']);
+check('a child is not at the top level, nor under another parent, nor deeper than the tree', [$page->build(['category', 'asia'], 'el', [], []), $page->build(['category', 'japan', 'asia'], 'el', [], []), $page->build(['category', 'world', 'asia', 'japan', 'x'], 'el', [], []), $page->build(['tag', 'news', 'x'], 'el', [], [])], [null, null, null, null]);
+$parent = $page->build(['category', 'world'], 'el', [], []);
+check('a parent\'s page also lists what is filed under its children, newest first', array_map(fn($i) => $i->slug, $parent['data']['items']), ['asia-post', 'new']);
+file_put_contents("$dir/content/taxonomies/categories.yaml", file_get_contents("$dir/content/taxonomies/categories.yaml") . "archive:\n  include_children: false\n");
+$taxonomies = new Taxonomies("$dir/content", ['el', 'en']);
+$page = new TaxonomyPage($content, $theme, fn() => $taxonomies, fn() => $archive, fn() => $alternates, fn() => $settings, $translate);
+check('unless the archive says not to', array_map(fn($i) => $i->slug, $page->build(['category', 'world'], 'el', [], [])['data']['items']), ['new']);
+file_put_contents("$dir/content/taxonomies/categories.yaml", str_replace("archive:\n  include_children: false\n", '', file_get_contents("$dir/content/taxonomies/categories.yaml")));
+$taxonomies = new Taxonomies("$dir/content", ['el', 'en']);
+$alternates = new LanguageAlternates($content, fn() => $taxonomies, fn() => $settings, $absolute);
+check('the language versions of a child page keep the tree address, and a parent has the languages of its children', [array_keys($alternates->forTaxonomy('categories', 'world/asia')['urls']), $alternates->forTaxonomy('categories', 'world/asia')['urls']['en'] ?? '', array_keys($alternates->forTaxonomy('categories', 'world')['urls'])], [['el', 'en'], 'https://s.test/en/category/world/asia', ['el', 'en']]);
+
 // ---- forms: being sent
 $processor = new FormProcessor($translate);
 $submissions = new FormSubmissionRepository("$dir/content");

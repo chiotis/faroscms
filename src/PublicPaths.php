@@ -59,7 +59,7 @@ final class PublicPaths
             return true;
         }
         if (in_array($first, ['tag', 'tags', 'category', 'categories'], true)) {
-            return isset($segments[1]) && ($this->taxonomies)()->findBySlug(in_array($first, ['category', 'categories'], true) ? 'categories' : 'tags', $segments[1]) !== null;
+            return isset($segments[1]) && ($this->taxonomies)()->findByPath(in_array($first, ['category', 'categories'], true) ? 'categories' : 'tags', implode('/', array_slice($segments, 1))) !== null;
         }
         if (in_array($first, $this->content->getTypes(), true)) {
             if (count($segments) === 1) {

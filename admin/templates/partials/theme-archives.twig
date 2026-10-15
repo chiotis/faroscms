@@ -94,6 +94,16 @@
           </dd>
         </div>
       {% endif %}
+      {% if kind == 'taxonomy' and item.hierarchical %}
+        <div class="lc-row">
+          <dt>Sub-terms</dt>
+          <dd class="m-0 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+            <input type="hidden" name="{{ name }}[children_shown]" value="1">
+            {{ c.chip(name ~ '[include_children]', 'List entries of the sub-terms too', a.include_children) }}
+            <span class="text-[11px] text-slate-500">A parent’s page and feed then carry what is filed under its children.</span>
+          </dd>
+        </div>
+      {% endif %}
       {% if kind == 'taxonomy' and item.listable|length > 1 %}
         <div class="lc-row">
           <dt>Lists</dt>

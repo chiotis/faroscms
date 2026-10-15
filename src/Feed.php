@@ -71,9 +71,14 @@ final class Feed
 
         $taxonomies = ($this->taxonomies)();
         $key = $taxonomies->fromWord($base[0]);
-        $term = $key === null ? null : $taxonomies->findBySlug($key, $base[1]);
+        $term = $key === null ? null : $taxonomies->findByPath($key, implode('/', array_slice($base, 1)));
         if ($key === null || $term === null) {
             return null;
+        }
+        // The feed of a parent carries what its page lists: its sub-terms' entries too, unless the archive says otherwise.
+        $ids = [$term['id']];
+        if ($taxonomies->includesChildren($key)) {
+            $ids = array_merge($ids, $taxonomies->descendantIds($key, $term['id']));
         }
         $items = [];
         foreach ($types as $type) {
@@ -81,7 +86,7 @@ final class Feed
                 continue;
             }
             foreach ($this->content->getItems($type, $lang, false, false) as $item) {
-                if (in_array($term['id'], Format::list($item->meta[$key] ?? null), true)) {
+                if (array_intersect($ids, Format::list($item->meta[$key] ?? null)) !== []) {
                     $items[] = $item;
                 }
             }

@@ -79,7 +79,7 @@ If the page has blocks, the body appears where a `content` block puts it, or rig
 | a post | `/<slug>` (pages and posts **share** one namespace: no two may use the same slug) |
 | any other type | `/<type>/<slug>` (projects: `/projects/alpha`) |
 | a list of a type | `/<type>` (`/projects`, `/en/projects`) |
-| a category / tag / own taxonomy term | `/category/<slug>`, `/tag/<slug>`, `/<taxonomy>/<slug>` |
+| a category / tag / own taxonomy term | `/category/<slug>`, `/tag/<slug>`, `/<taxonomy>/<slug>`; a child term has its parents' slugs in front: `/category/books/english` |
 
 The slug is the file name without `.md` / `.<lang>.md`: lowercase Latin letters, digits, `-` and `_`. The admin makes it from the title (Greek is transliterated by the ELOT 743 rules: `Υπηρεσίες` → `ypiresies`, `Μπάμπης` → `bampis`); `scripts/faros_lib.slugify()` does exactly the same, so use it (or `new_entry.py`) instead of inventing slugs. Reserved at the root: `admin assets uploads custom pages search tag tags category categories sitemap robots favicon api storage themes vendor`, any content type name and any language code. Changing a slug later breaks old links unless a redirect is added (Admin > Redirects, or paste lines `old-path new-path` into Redirects > Import).
 
@@ -111,10 +111,17 @@ terms:
     slug: news          # the address part (/category/news); may change
     labels: { el: Νέα, en: News }
     # descriptions: { el: …, en: … }   optional
+  - id: reviews
+    slug: reviews
+    parent: news        # optional: the id of another term of this file. Its address is /category/news/reviews
+    labels: { el: Κριτικές, en: Reviews }
 archive: { layout: cards }              # optional, only what differs from the defaults
+# hierarchical: true                    # whether terms can have a parent; written only when it differs from the default
 ```
 
 An entry is filed with `categories: [news]` (term **ids**). A term used in an entry but missing here appears in no list. Categories and tags exist by default; a site may add its own taxonomy in Admin > Taxonomies > New taxonomy.
+
+**A tree of terms.** `parent` is the id of another term of the same file; a term without one is at the top. Categories are a tree by default; tags and a site's own taxonomies are not, unless the file says `hierarchical: true` (a `parent` in a taxonomy that is not a tree is ignored). A child's address holds its parents' slugs (`/category/books/english`, `/en/category/books/english`); a slug has to be unique only among the terms of one parent, so `english` can sit under `books` and under `plays`. A parent that is not a term, or that would make a loop, is dropped when the file is read. File an entry under the term it belongs to (`categories: [english]`), not under its parents too: the page and the feed of a parent also list what is filed under its children (`archive: { include_children: false }` turns that off). Changing a slug, or a parent, changes the address of the term and of everything below it: add a redirect for each old address (the admin does it by itself; for a file you edit, use Redirects > Import). In the file, the order of terms is the order among siblings.
 
 ## Menus
 

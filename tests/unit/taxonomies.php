@@ -115,6 +115,78 @@ check('a new term starts with none', $p['terms'][1]['descriptions'], []);
 $t->save('tags', 'Tags', $p['terms']);
 check('a new term saved without texts has empty ones', $t->load('tags')['terms'][1]['descriptions'], ['el' => '', 'en' => '']);
 
+
+// ---- a tree of terms
+check('categories can have a parent by default; tags and a site\'s own taxonomies cannot', [$t->isHierarchical('categories'), $t->isHierarchical('tags'), $t->isHierarchical('industries')], [true, false, false]);
+$t->save('categories', 'Categories', [
+    ['id' => 'books', 'slug' => 'books', 'labels' => ['el' => 'Βιβλία', 'en' => 'Books']],
+    ['id' => 'english', 'slug' => 'english', 'parent' => 'books', 'labels' => ['el' => 'Αγγλικά', 'en' => 'English']],
+    ['id' => 'plays', 'slug' => 'plays', 'labels' => ['el' => 'Έργα', 'en' => 'Plays']],
+    ['id' => 'plays-english', 'slug' => 'english', 'parent' => 'plays', 'labels' => ['el' => 'Αγγλικά', 'en' => 'English']],
+    ['id' => 'classics', 'slug' => 'classics', 'parent' => 'english', 'labels' => ['el' => 'Κλασικά', 'en' => 'Classics']],
+]);
+check('a child\'s address holds its parents\' (the same slug can sit under two parents)', array_map(fn($id) => $t->slug('categories', $id), ['books', 'english', 'plays-english', 'classics']), ['books', 'books/english', 'plays/english', 'books/english/classics']);
+check('an address finds its term, however deep', array_map(fn($p) => $t->findByPath('categories', $p)['id'] ?? null, ['books', 'books/english', 'plays/english', 'books/english/classics', 'english', 'books/plays', 'books/english/nothing', '']), ['books', 'english', 'plays-english', 'classics', null, null, null, null]);
+check('findBySlug takes the same address', $t->findBySlug('categories', 'plays/english')['id'], 'plays-english');
+check('the terms above a term, the top one first', array_column($t->ancestors('categories', 'classics'), 'id'), ['books', 'english']);
+check('the terms below a term', [$t->descendantIds('categories', 'books'), $t->descendantIds('categories', 'classics')], [['english', 'classics'], []]);
+check('the tree is read parent first, then children, with a depth', array_map(fn($x) => $x['id'] . ':' . $x['depth'], $t->tree('categories')), ['books:0', 'english:1', 'classics:2', 'plays:0', 'plays-english:1']);
+$file = (string)file_get_contents("$dir/taxonomies/categories.yaml");
+check('the file holds a parent only where there is one, and no flag for the default', [substr_count($file, 'parent:'), str_contains($file, 'hierarchical')], [3, false]);
+check('a term at the top has no parent', $t->load('categories')['terms'][0]['parent'], '');
+
+$rows = fn(array $extra = []) => array_map(fn($x) => ['id' => $x['id'], 'slug' => $x['slug'], 'parent' => $x['parent'], 'labels' => $x['labels']], $t->load('categories')['terms']);
+// Moving a term: the old addresses of it and of what is below it are listed.
+$edit = $rows();
+$edit[1]['parent'] = 'plays';
+$p = $t->prepare('categories', $edit, 'el');
+check('moving a term to another parent lists the old and new address of it and of everything below', array_map(fn($m) => $m['from'] . ' -> ' . $m['to'], $p['moved']), ['books/english -> plays/english-2', 'books/english/classics -> plays/english-2/classics']);
+check('a slug is unique only among the terms of one parent', array_map(fn($x) => $x['slug'], $p['terms']), ['books', 'english-2', 'plays', 'english', 'classics']);
+// Renaming a parent moves its children.
+$edit = $rows();
+$edit[0]['slug'] = 'library';
+$p = $t->prepare('categories', $edit, 'el');
+check('renaming a parent moves everything below it', array_map(fn($m) => $m['from'] . ' -> ' . $m['to'], $p['moved']), ['books -> library', 'books/english -> library/english', 'books/english/classics -> library/english/classics']);
+// A cycle is refused.
+$edit = $rows();
+$edit[0]['parent'] = 'classics';
+$p = $t->prepare('categories', $edit, 'el');
+check('a parent that would make a loop is refused, the term keeps the parent it had', [$p['refused'], $p['terms'][0]['parent'], $p['moved']], [['books'], '', []]);
+$edit = $rows();
+$edit[0]['parent'] = 'books';
+check('a term is never its own parent', [$t->prepare('categories', $edit, 'el')['refused'], $t->prepare('categories', $edit, 'el')['terms'][0]['parent']], [['books'], '']);
+// Removing a parent moves its children up a level.
+$edit = array_values(array_filter($rows(), fn($x) => $x['id'] !== 'english'));
+$p = $t->prepare('categories', $edit, 'el');
+check('removing a parent hands its children to its parent', [array_values(array_column(array_filter($p['terms'], fn($x) => $x['id'] === 'classics'), 'parent')), $p['removed']], [['books'], ['english']]);
+check('and the child\'s old address leads to the new one', array_map(fn($m) => $m['from'] . ' -> ' . $m['to'], $p['moved']), ['books/english/classics -> books/classics']);
+$edit = array_values(array_filter($rows(), fn($x) => !in_array($x['id'], ['books'], true)));
+$p = $t->prepare('categories', $edit, 'el');
+check('removing a top term makes its children top terms', [array_values(array_column(array_filter($p['terms'], fn($x) => $x['id'] === 'english'), 'parent')), $p['moved'][0]['to'] ?? null], [[''], 'english']);
+// A row that does not send a parent keeps the term\'s own.
+$p = $t->prepare('categories', array_map(fn($x) => ['id' => $x['id'], 'slug' => $x['slug'], 'labels' => $x['labels']], $t->load('categories')['terms']), 'el');
+check('rows sent without a parent keep what the terms have', [array_column($p['terms'], 'parent'), $p['moved']], [['', 'books', '', 'plays', 'english'], []]);
+// A new term under a parent.
+$p = $t->prepare('categories', array_merge($rows(), [['id' => '', 'slug' => 'english', 'parent' => 'books', 'labels' => ['el' => 'Αγγλικά', 'en' => 'English']]]), 'el');
+check('a new term with the slug of a sibling gets another', [end($p['terms'])['slug'], end($p['terms'])['id'], $p['added']], ['english-2', 'anglika', ['anglika']]);
+
+// A flat taxonomy ignores a parent in its file, and in a form.
+$t->save('tags', 'Tags', [['id' => 'a', 'slug' => 'a', 'parent' => 'b', 'labels' => ['el' => 'A', 'en' => 'A']], ['id' => 'b', 'slug' => 'b', 'labels' => ['el' => 'B', 'en' => 'B']]]);
+check('no tree in tags: a parent is dropped and the address is the slug', [$t->load('tags')['terms'][0]['parent'], $t->slug('tags', 'a'), $t->findByPath('tags', 'b/a')], ['', 'a', null]);
+// A hand-edited file can not make a loop.
+file_put_contents("$dir/taxonomies/looped.yaml", "title: Looped\nhierarchical: true\nterms:\n  - {id: a, slug: a, parent: b}\n  - {id: b, slug: b, parent: a}\n  - {id: c, slug: c, parent: ghost}\n");
+check('a loop or a parent that is not a term is dropped when the file is read', array_column($t->load('looped')['terms'], 'parent'), ['', 'a', '']);
+check('a site\'s own taxonomy can declare a tree, written only when it differs from the default', [$t->isHierarchical('looped')], [true]);
+$t->save('industries', 'Industries', $t->load('industries')['terms'], null, true);
+check('the flag is saved for a taxonomy that is not a tree by default, and can be turned off for categories', [str_contains((string)file_get_contents("$dir/taxonomies/industries.yaml"), 'hierarchical: true'), $t->isHierarchical('industries')], [true, true]);
+// Turning the tree off flattens it, and the old addresses are listed.
+$p = $t->prepare('categories', $rows(), 'el', false);
+check('turning a tree off lists the changed addresses', array_map(fn($m) => $m['from'] . ' -> ' . $m['to'], $p['moved']), ['books/english -> english', 'plays/english -> english-2', 'books/english/classics -> classics']);
+// The archive choice.
+check('a parent\'s page lists its children\'s entries unless the archive says no', [$t->archive('categories', 'el', 'el')['include_children'], $t->includesChildren('categories'), $t->includesChildren('tags')], [true, true, false]);
+$t->save('categories', 'Categories', $t->load('categories')['terms'], ['include_children' => false]);
+check('and the choice is kept', [$t->archive('categories', 'el', 'el')['include_children'], $t->includesChildren('categories')], [false, false]);
+
 exec('rm -rf ' . escapeshellarg($dir));
 echo $fail === 0 ? "\nALL PASSED\n" : "\n$fail FAILED\n";
 exit($fail ? 1 : 0);

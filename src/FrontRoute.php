@@ -6,7 +6,8 @@ namespace FarosCMS;
 
 /**
  * Which kind of public page an address asks for: the sitemap, robots.txt, a feed, an old /pages/... address (sent to the
- * address it became), a list's page of the old WordPress kind (/category/news/page/2, sent to ?page=2), a category or tag,
+ * address it became), a list's page of the old WordPress kind (/category/news/page/2, sent to ?page=2), a category or tag
+ * (also a child term: /category/books/english),
  * the search, the list of a content type, one entry of a type, or a page. The
  * language is read from the first part of the address. This only decides; finding the entry and drawing the page is
  * the caller's.
@@ -60,7 +61,7 @@ final class FrontRoute
         if ($feeds && end($segments) === 'feed') {
             $base = array_slice($segments, 0, -1);
             $of = $base === [] ? null : self::resolve(($lang === $default ? '' : $lang . '/') . implode('/', $base), $settings, $types, $taxonomies, false);
-            if ($base === [] || ($of['kind'] === 'archive') || ($of['kind'] === 'taxonomy' && count($base) === 2)) {
+            if ($base === [] || ($of['kind'] === 'archive') || ($of['kind'] === 'taxonomy' && count($base) >= 2)) {
                 return ['kind' => 'feed', 'segments' => $base] + $route;
             }
         }
@@ -86,7 +87,8 @@ final class FrontRoute
             return ['kind' => 'legacy_page', 'location' => '/' . $prefix . ($slug !== '' && $slug !== $homeSlug ? $slug : '')] + $route;
         }
         if (in_array($first, ['tag', 'tags', 'category', 'categories'], true) || ($count > 1 && in_array($first, $taxonomies, true) && !in_array($first, $types, true))) {
-            return $count > 2 ? $notFound : ['kind' => 'taxonomy'] + $route;
+            // A term of a taxonomy with a tree is at /category/parent/child, as deep as the tree goes (the page finds out whether it is there).
+            return ['kind' => 'taxonomy'] + $route;
         }
         if ($first === 'search') {
             return $count > 1 ? $notFound : ['kind' => 'search'] + $route;

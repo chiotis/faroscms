@@ -20,7 +20,7 @@ $web = [
         ['id' => 1, 'slug' => 'news', 'name' => 'News', 'link' => "$SITE/category/news/", 'parent' => 0, 'count' => 2, 'description' => ''],
         ['id' => 2, 'slug' => 'reviews', 'name' => 'Reviews', 'link' => "$SITE/category/reviews/", 'parent' => 0, 'count' => 1, 'description' => 'What people say'],
         ['id' => 3, 'slug' => 'c3-logicomix', 'name' => 'Logicomix', 'link' => "$SITE/category/news/c3-logicomix/", 'parent' => 1, 'count' => 1, 'description' => ''],
-        ['id' => 4, 'slug' => 'c4-logicomix', 'name' => 'Logicomix', 'link' => "$SITE/category/reviews/c4-logicomix/", 'parent' => 2, 'count' => 0, 'description' => ''],
+        ['id' => 4, 'slug' => 'c3-logicomix', 'name' => 'Logicomix', 'link' => "$SITE/category/reviews/c3-logicomix/", 'parent' => 2, 'count' => 0, 'description' => ''],
     ],
     '/wp-json/wp/v2/tags' => [['id' => 7, 'slug' => 'maths', 'name' => 'Maths', 'link' => "$SITE/tag/maths/", 'parent' => 0, 'count' => 1, 'description' => '']],
     '/wp-json/wp/v2/media' => [
@@ -99,12 +99,12 @@ check('planning downloads nothing', $downloads, []);
 check('what the plan counts', $plan['counts'], ['new' => 5, 'update' => 0, 'skip' => 0, 'media' => 3, 'redirects' => $plan['counts']['redirects']]);
 check('the home page takes the home file name', array_map(fn($i) => $i['type'] . '/' . $i['slug'], $plan['items']), ['pages/index', 'pages/about', 'posts/hello', 'posts/about-2', 'posts/ellinika']);
 check('a post and a page cannot share an address, so the post takes another', [$plan['items'][1]['path'], $plan['items'][3]['path']], ['about', 'about-2']);
-check('categories with the same name get their parent in the name and address', array_map(fn($t) => [$t['slug'], $t['label']], $plan['terms']['categories']), [['news', 'News'], ['reviews', 'Reviews'], ['news-logicomix', 'Logicomix (News)'], ['reviews-logicomix', 'Logicomix (Reviews)']]);
+check('categories keep their names and their parent; a term is told apart from another of the same slug by its parent', array_map(fn($t) => [$t['term_id'], $t['slug'], $t['parent_term'], $t['path'], $t['label']], $plan['terms']['categories']), [['news', 'news', '', 'news', 'News'], ['reviews', 'reviews', '', 'reviews', 'Reviews'], ['c3-logicomix', 'c3-logicomix', 'news', 'news/c3-logicomix', 'Logicomix'], ['c3-logicomix-2', 'c3-logicomix', 'reviews', 'reviews/c3-logicomix', 'Logicomix']]);
 check('tags are read too', array_map(fn($t) => $t['slug'], $plan['terms']['tags']), ['maths']);
 $list = array_map(fn($r) => $r[0] . ' ' . $r[1], $plan['redirects']);
 check('a post whose address is the same here is not redirected', array_values(array_filter($list, fn($l) => str_starts_with($l, '/hello '))), []);
 check('an address that is a page here is not redirected', array_values(array_filter($list, fn($l) => str_starts_with($l, '/about '))), []);
-check('a category address leads to the flat one', in_array('/category/news/c3-logicomix /category/news-logicomix', $list, true), true);
+check('a category keeps its address, so it is not redirected', array_values(array_filter($list, fn($l) => str_starts_with($l, '/category/'))), []);
 check('a Greek address is decoded in the redirect', in_array('/ελληνικά /ellinika', $list, true), true);
 check('pictures on other sites are counted by host', $plan['external_images'], ['pics.elsewhere.test' => 2]);
 check('a link that cannot be resolved is counted', $plan['unresolved'], ['/missing-thing/' => 1]);
@@ -126,7 +126,7 @@ $paperId = substr(sha1("$SITE/wp-content/uploads/2013/paper.pdf"), 0, 16);
 check('a size of a picture is the picture, with an id made from its address', str_contains($text, "![](/uploads/media/$coverId.png)"), true);
 check('a file link points into the library', str_contains($text, "[the paper](/uploads/media/$paperId.pdf)"), true);
 check('a link to a post leads to its new address', str_contains($text, '[A post](/hello)'), true);
-check('a link to a category leads to the flat one', str_contains($text, '[a category](/category/news-logicomix)'), true);
+check('a link to a category leads to its address in the tree', str_contains($text, '[a category](/category/news/c3-logicomix)'), true);
 check('a link to another site is left alone', str_contains($text, '[out](https://elsewhere.test/x)'), true);
 check('the old site\'s index.php is the home page', str_contains($bodyOf("$root/content/pages/index.md"), '[old home](/)') && str_contains($bodyOf("$root/content/pages/index.md"), '[About](/about)'), true);
 $hello = $bodyOf("$root/content/posts/hello.md");
@@ -134,10 +134,12 @@ check('a picture the old site does not have is dropped', str_contains($hello, 'g
 check('a link to a page that does not exist is kept as a path', str_contains($hello, '[gone](/missing-thing/)'), true);
 $helloFront = $front("$root/content/posts/hello.md");
 check('the featured picture is the main image', $helloFront['main_image'], "/uploads/media/$coverId.png");
-check('a post is also in the categories above its own', [$helloFront['categories'], $helloFront['tags']], [['news-logicomix', 'news'], ['maths']]);
+check('a post is in the categories it has (its parents list it through the tree)', [$helloFront['categories'], $helloFront['tags']], [['c3-logicomix'], ['maths']]);
 check('the file name of a Greek post is made of its title when WordPress gave letters', is_file("$root/content/posts/ellinika.md"), true);
 check('the library has the files, with the alternative text', [(new MediaLibrary("$root/content", "$root/uploads"))->find($coverId)['alt'], is_file("$root/uploads/media/$coverId.png"), is_file("$root/uploads/media/$paperId.pdf")], ['The cover', true, true]);
-check('the terms were added with their labels', array_map(fn($t) => $t['labels']['en'], (new Taxonomies("$root/content", ['en']))->load('categories')['terms']), ['News', 'Reviews', 'Logicomix (News)', 'Logicomix (Reviews)']);
+$savedTerms = (new Taxonomies("$root/content", ['en']))->load('categories');
+check('the terms were added with their names and their parents', array_map(fn($t) => [$t['id'], $t['labels']['en'], $t['parent']], $savedTerms['terms']), [['news', 'News', ''], ['reviews', 'Reviews', ''], ['c3-logicomix', 'Logicomix', 'news'], ['c3-logicomix-2', 'Logicomix', 'reviews']]);
+check('and the tree gives each its address', array_map(fn($t) => (new Taxonomies("$root/content", ['en']))->slug('categories', $t['id']), $savedTerms['terms']), ['news', 'reviews', 'news/c3-logicomix', 'reviews/c3-logicomix']);
 check('a description comes with the term', (new Taxonomies("$root/content", ['en']))->load('categories')['terms'][1]['descriptions']['en'], 'What people say');
 check('the redirects include the old address of a file that arrived', in_array("/wp-content/uploads/2013/cover.png /uploads/media/$coverId.png", array_map(fn($r) => $r[0] . ' ' . $r[1], $result['redirects']), true), true);
 check('and the list is in the form the Redirects screen takes', str_starts_with(WordPressImporter::redirectList([['/a', '/b']]), "# Old address, new address, code. Paste into Admin > Redirects > Import.\n/a /b 301\n"), true);
@@ -227,7 +229,7 @@ check('a book is written under its content type, with the profile\'s front matte
 $coverS = substr(sha1("$SITE/wp-content/uploads/2013/cover.png"), 0, 16);
 check('its cover is the main image and sits beside the description', [$book['main_image'], $book['blocks'][0]['type'], $book['blocks'][0]['variant'], $book['blocks'][0]['image'], $book['blocks'][0]['image_ratio']], ["/uploads/media/$coverS.png", 'text-image', 'image-left', "/uploads/media/$coverS.png", 'portrait']);
 check('the description is Markdown with its links rewritten', $book['blocks'][0]['body'], '**The Novel** is about [the author](/about)' . '.');
-check('a page of a custom type is in the categories whose archive lists it, and the ones above them', $book['categories'], ['reviews', 'news-logicomix', 'news']);
+check('a page of a custom type is in the categories whose archive lists it', $book['categories'], ['reviews', 'c3-logicomix']);
 check('a page no archive lists is in none', array_key_exists('categories', $front("$root/content/books/no-tabs.md")), false);
 check('the tabs are a Tabs block, without the empty panel', array_map(fn($t) => $t['label'], $book['blocks'][1]['items']), ['Features', 'Links']);
 check('a tab\'s text is Markdown', $book['blocks'][1]['items'][1]['text'], '[Buy](https://shop.example/x)');
