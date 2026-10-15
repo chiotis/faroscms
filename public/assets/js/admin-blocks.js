@@ -25,6 +25,14 @@
 
   var definitions = {};
   (data.definitions || []).forEach(function (def) { definitions[def.type] = def; });
+  // The container row (BlockContainer): not a block type of the theme, so the page hands over its fields; it gets a definition of its
+  // own here so the lists, the picker and the labels treat it like a block.
+  var containerDef = data.container || null;
+  var MAX_COLUMNS = containerDef ? containerDef.max_columns : 6;
+  var CONTAINER_PREVIEW = '<rect x="6" y="8" width="52" height="32" rx="3"/><rect x="10" y="12" width="12" height="24" rx="2" fill="currentColor" fill-opacity=".14"/><rect x="26" y="12" width="12" height="24" rx="2" fill="currentColor" fill-opacity=".14"/><rect x="42" y="12" width="12" height="24" rx="2" fill="currentColor" fill-opacity=".14"/>';
+  if (containerDef) {
+    definitions.container = { type: 'container', label: containerDef.label, description: containerDef.description, category: 'Layout', origin: 'theme', preview: CONTAINER_PREVIEW, variant_when: {}, variant_previews: {}, design_fields: [], common: [], fields: [] };
+  }
   // The editor of Theme > Footer Blocks (data.context 'footer') is for the blocks above the footer, not for a page: no whole-page layouts.
   var footerMode = data.context === 'footer';
   var presets = (data.presets || []).filter(function (p) { return !footerMode || p.kind !== 'page'; });
@@ -70,7 +78,10 @@
     eyeOff: '<path d="M3 3l18 18M10.6 10.6a2 2 0 0 0 2.8 2.8M9.9 5.1A9.8 9.8 0 0 1 12 5c5 0 9 5 9 7a9.6 9.6 0 0 1-2.5 3.5M6.2 6.2C4.3 7.5 3 9.5 3 12c0 2 4 7 9 7a9.3 9.3 0 0 0 4.3-1"/>',
     image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/>',
     eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
-    close: '<path d="M6 6l12 12M18 6L6 18"/>'
+    close: '<path d="M6 6l12 12M18 6L6 18"/>',
+    wrap: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M9 5v14M15 5v14"/>',
+    out: '<path d="M4 12h10M10 8l4 4-4 4M19 5v14"/>',
+    minus: '<path d="M5 12h14"/>'
   };
 
   /* The wireframe a block shows in the picker: the markup of its preview.svg (see BlockRegistry::previewMarkup), or a plain
@@ -104,11 +115,65 @@
   }
 
   function withId(block, open) {
-    var copy = JSON.parse(JSON.stringify(block));
-    Object.defineProperty(copy, '_id', { value: nextId++, enumerable: false, writable: true });
-    Object.defineProperty(copy, '_open', { value: !!open, enumerable: false, writable: true });
-    Object.defineProperty(copy, '_tab', { value: 'content', enumerable: false, writable: true });
-    return copy;
+    return prepare(JSON.parse(JSON.stringify(block)), open);
+  }
+
+  /** The editor-only state of a block (its id, whether it is open, its tab) lives in properties that are never saved. */
+  function tag(node, open, tab) {
+    Object.defineProperty(node, '_id', { value: nextId++, enumerable: false, writable: true });
+    Object.defineProperty(node, '_open', { value: !!open, enumerable: false, writable: true });
+    Object.defineProperty(node, '_tab', { value: tab || 'content', enumerable: false, writable: true });
+    return node;
+  }
+
+  function plain(value) {
+    return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  }
+
+  /** A block as the builder holds it; a container is given its settings and one to six columns, each with its blocks (one level: no container inside). */
+  function prepare(block, open) {
+    tag(block, open);
+    if (block.type === 'container') {
+      block.settings = plain(block.settings);
+      var columns = Array.isArray(block.columns) && block.columns.length ? block.columns.slice(0, MAX_COLUMNS) : [{}];
+      block.columns = columns.map(function (given) {
+        given = plain(given);
+        var column = { settings: plain(given.settings), blocks: [] };
+        column.blocks = (Array.isArray(given.blocks) ? given.blocks : []).filter(function (inner) {
+          return inner && typeof inner === 'object' && inner.type !== 'container';
+        }).map(function (inner) { return prepare(inner, false); });
+        Object.defineProperty(column, '_id', { value: nextId++, enumerable: false, writable: true });
+        return column;
+      });
+    }
+    return block;
+  }
+
+  function isContainer(block) {
+    return !!block && block.type === 'container';
+  }
+
+  /** A new container with columns of the given widths ('' for an equal share). */
+  function newContainer(widths) {
+    return prepare({
+      type: 'container',
+      settings: {},
+      columns: (widths && widths.length ? widths : ['', '']).map(function (width) { return { settings: width ? { width: width } : {}, blocks: [] }; })
+    }, true);
+  }
+
+  /** Every block of a list, the ones inside containers too. */
+  function everyBlock(list) {
+    var all = [];
+    list.forEach(function (block) {
+      all.push(block);
+      if (isContainer(block)) block.columns.forEach(function (column) { column.blocks.forEach(function (inner) { all.push(inner); }); });
+    });
+    return all;
+  }
+
+  function hasContainers() {
+    return blocks.some(isContainer);
   }
 
   function defaultsFor(fields) {
@@ -612,7 +677,7 @@
 
   var TONE_SWATCH = { 'default': '#ffffff', muted: '#f1f5f9', contrast: '#0f172a', accent: '#2563eb' };
 
-  function designPanel(block, def, idBase) {
+  function designPanel(block, def, idBase, inColumn) {
     var panel = el('div', { class: 'bk-design', role: 'tabpanel' });
     var field = function (key) { return def.common.filter(function (f) { return f.key === key; })[0]; };
     var change = function (key) {
@@ -673,7 +738,7 @@
       row.appendChild(swatches);
     }
     // How much of the row the block takes; under 100% it sits beside the next blocks.
-    var width = field('width');
+    var width = inColumn ? null : field('width');
     if (width) {
       var chips = el('div', { class: 'bk-field' }, [el('span', { class: 'bk-label', text: width.label })]);
       chips.appendChild(choiceButtons(width, block.width == null ? width['default'] : block.width, function (value) {
@@ -748,10 +813,16 @@
     return panel;
   }
 
-  function renderBlock(block, index) {
+  /**
+   * A block as a card. `where` says which list it is in: {list: the array, path: its place in the editor ('2' or '2.0.1'), column: the
+   * column object when it is inside a container}. Inside a column the block takes the room of the column, so its own Width is not offered.
+   */
+  function renderBlock(block, index, where) {
     var def = definitions[block.type];
     var idBase = 'blk-' + block._id;
-    var card = el('section', { class: 'bk-card' + (block.hidden ? ' is-hidden' : '') + (block._open ? ' is-open' : ''), 'data-block-card': block._id });
+    var list = where.list;
+    var inColumn = !!where.column;
+    var card = el('section', { class: 'bk-card' + (block.hidden ? ' is-hidden' : '') + (block._open ? ' is-open' : ''), 'data-block-card': block._id, 'data-block-path': where.path });
 
     var label = def ? def.label : 'Unknown block: ' + block.type;
     var summary = def ? summaryOf(block) : 'Kept as is. Its definition is not installed.';
@@ -771,7 +842,7 @@
         toggle.appendChild(el('span', { class: 'bk-tag', text: optionLabel(variantField, block.variant) }));
       }
     }
-    var share = widthOf(block);
+    var share = inColumn ? 100 : widthOf(block);
     if (def && share < 100) toggle.appendChild(el('span', { class: 'bk-tag bk-width-tag', title: 'Width: ' + share + '% of the row', text: share + '%' }));
     if (block.hidden) {
       toggle.appendChild(el('span', { class: 'bk-tag is-warn', html: svg('eyeOff', 'h-3 w-3') + 'Hidden' }));
@@ -784,10 +855,16 @@
 
     var actions = el('div', { class: 'bk-actions' });
     var eye = el('button', { type: 'button', class: CLS.icon, 'aria-label': block.hidden ? 'Show block on the page' : 'Hide block from the page', title: block.hidden ? 'Show on the page' : 'Hide from the page', 'aria-pressed': block.hidden ? 'true' : 'false', html: svg(block.hidden ? 'eyeOff' : 'eye'), disabled: !def, 'data-action': 'hide' });
-    var more = moreMenu(label, [
-      { label: 'Move to top', icon: 'top', disabled: index === 0, run: function () { move(index, 0, 'more'); sayMoved('Block ' + label, 0, blocks.length); } },
-      { label: 'Move to bottom', icon: 'bottom', disabled: index === blocks.length - 1, run: function () { move(index, blocks.length - 1, 'more'); sayMoved('Block ' + label, blocks.length - 1, blocks.length); } }
-    ]);
+    var actionsMenu = [
+      { label: 'Move to top', icon: 'top', disabled: index === 0, run: function () { move(list, index, 0, 'more'); sayMoved('Block ' + label, 0, list.length); } },
+      { label: 'Move to bottom', icon: 'bottom', disabled: index === list.length - 1, run: function () { move(list, index, list.length - 1, 'more'); sayMoved('Block ' + label, list.length - 1, list.length); } }
+    ];
+    if (containerDef && def) {
+      actionsMenu.push(inColumn
+        ? { label: 'Move out of the container', icon: 'out', run: function () { moveOut(block, where); } }
+        : { label: 'Wrap in container', icon: 'wrap', run: function () { wrap(block, index); } });
+    }
+    var more = moreMenu(label, actionsMenu);
     var insert = el('button', { type: 'button', class: CLS.icon, 'aria-label': 'Add a block below', title: 'Add a block below', html: svg('plus'), 'data-action': 'insert' });
     var duplicate = el('button', { type: 'button', class: CLS.icon, 'aria-label': 'Duplicate block', title: 'Duplicate', html: svg('copy'), disabled: !def, 'data-action': 'duplicate' });
     var remove = el('button', { type: 'button', class: CLS.iconDanger, 'aria-label': 'Remove block', title: 'Remove', html: svg('trash'), 'data-action': 'remove' });
@@ -795,31 +872,35 @@
       block.hidden = !block.hidden;
       render(block._id, 'keep');
     });
-    insert.addEventListener('click', function () { openPicker(index + 1, insert); });
+    insert.addEventListener('click', function () { openPicker(index + 1, insert, list, where.column); });
     duplicate.addEventListener('click', function () {
       var copy = withId(block, true);
-      blocks.splice(index + 1, 0, copy);
+      list.splice(index + 1, 0, copy);
       render(copy._id, 'toggle');
     });
     remove.addEventListener('click', function () {
-      lastRemoved = { block: block, index: index };
-      blocks.splice(index, 1);
+      lastRemoved = { block: block, index: index, list: list };
+      list.splice(index, 1);
       render(null);
       showUndo(label);
     });
     [eye, insert, duplicate, more, remove].forEach(function (b) { actions.appendChild(b); });
 
-    var select = el('input', { type: 'checkbox', class: 'bk-select', 'aria-label': 'Select ' + label + ' to save as a section', title: 'Select to save as a section', checked: !!selected[block._id], disabled: !def });
-    select.addEventListener('change', function () {
-      if (select.checked) selected[block._id] = true;
-      else delete selected[block._id];
-      syncSaveBar();
-    });
-    card.appendChild(el('div', { class: 'bk-head' }, [blocks.length > 1 ? grip('block ' + label) : null, select, toggle, actions]));
+    var select = inColumn ? null : el('input', { type: 'checkbox', class: 'bk-select', 'aria-label': 'Select ' + label + ' to save as a section', title: 'Select to save as a section', checked: !!selected[block._id], disabled: !def });
+    if (select) {
+      select.addEventListener('change', function () {
+        if (select.checked) selected[block._id] = true;
+        else delete selected[block._id];
+        syncSaveBar();
+      });
+    }
+    // A list of one has no grip, except in a column: a block there can still be dragged to another column or out of the container.
+    var gripNode = inColumn || list.length > 1 || (!inColumn && hasContainers()) ? grip('block ' + label) : null;
+    card.appendChild(el('div', { class: 'bk-head' }, [gripNode, select, toggle, actions]));
 
     if (block._open && def) {
       var body = el('div', { id: idBase + '-body', class: 'bk-body' });
-      var panels = { content: contentPanel(block, def, idBase), design: designPanel(block, def, idBase) };
+      var panels = { content: contentPanel(block, def, idBase), design: designPanel(block, def, idBase, inColumn) };
       var tabs = el('div', { class: 'bk-tabs', role: 'tablist' });
       var show = function (name) {
         block._tab = name;
@@ -853,11 +934,532 @@
     return card;
   }
 
-  function move(from, to, focusWhat) {
-    if (to < 0 || to >= blocks.length || from === to) return;
-    var block = blocks.splice(from, 1)[0];
-    blocks.splice(to, 0, block);
+  function move(list, from, to, focusWhat) {
+    if (to < 0 || to >= list.length || from === to) return;
+    var block = list.splice(from, 1)[0];
+    list.splice(to, 0, block);
     render(block._id, focusWhat);
+  }
+
+  /** Puts a block in a container of its own (one column), where it was. */
+  function wrap(block, index) {
+    var container = prepare({ type: 'container', settings: {}, columns: [{ settings: {}, blocks: [] }] }, true);
+    container.columns[0].blocks.push(block);
+    blocks.splice(index, 1, container);
+    block._open = false;
+    render(container._id, 'toggle');
+    var name = definitions[block.type] ? definitions[block.type].label : block.type;
+    if (Sortable) Sortable.announce('Block ' + name + ' wrapped in a new container at position ' + (index + 1) + ' of ' + blocks.length + '.');
+  }
+
+  /** Takes a container apart: its blocks go to the top level in order (column by column), where the container was. */
+  function unwrap(container, index) {
+    var inside = [];
+    container.columns.forEach(function (column) { column.blocks.forEach(function (inner) { inside.push(inner); }); });
+    Array.prototype.splice.apply(blocks, [index, 1].concat(inside));
+    render(inside.length ? inside[0]._id : null, 'toggle');
+    if (Sortable) Sortable.announce('Container unwrapped: ' + inside.length + (inside.length === 1 ? ' block is' : ' blocks are') + ' now at the top level.');
+  }
+
+  /** A block of a column goes to the top level, right after its container. */
+  function moveOut(block, where) {
+    var at = blocks.indexOf(where.container);
+    var from = where.list.indexOf(block);
+    if (at < 0 || from < 0) return;
+    where.list.splice(from, 1);
+    blocks.splice(at + 1, 0, block);
+    render(block._id, 'more');
+    var name = definitions[block.type] ? definitions[block.type].label : block.type;
+    if (Sortable) Sortable.announce('Block ' + name + ' moved out of the container, to the top level at position ' + (at + 2) + ' of ' + blocks.length + '.');
+  }
+
+  /* Containers: a row of columns that hold blocks ------------------------------------------------- */
+
+  var ui = new WeakMap(); // what the Design tab of a container remembers while it is open: the screen, the column, the advanced part
+  var SPACE_LABELS = { none: '0', xs: 'XS', s: 'S', m: 'M', l: 'L', xl: 'XL' };
+  var STACK_ICON_ORDER = ['desktop', 'tablet', 'phone'];
+
+  function uiOf(container) {
+    if (!ui.has(container)) ui.set(container, { screen: 'desktop', column: 0, advanced: false });
+    return ui.get(container);
+  }
+
+  function settingDef(key) {
+    return containerDef.settings.filter(function (f) { return f.key === key; })[0];
+  }
+
+  function columnDef(key) {
+    return containerDef.columns.filter(function (f) { return f.key === key; })[0];
+  }
+
+  /** What a setting is now: the stored value, or the field's default while nothing is stored. */
+  function settingValue(holder, def) {
+    return holder.settings[def.key] == null ? def['default'] : holder.settings[def.key];
+  }
+
+  /** The share of the row a column asks for, as a weight for drawing it (a column without one takes an equal share). */
+  function columnWeight(column, count) {
+    var width = column.settings.width || 'fill';
+    var m = /^(\d)\/(\d)$/.exec(width);
+    if (m) return Number(m[1]) / Number(m[2]);
+    if (/%$/.test(width)) return Math.max(0.05, parseFloat(width) / 100);
+    return 1 / count;
+  }
+
+  function widthLabel(column) {
+    var width = column.settings.width || 'fill';
+    return width === 'fill' ? 'Fill' : (width === 'auto' ? 'Auto' : width);
+  }
+
+  function containerLabel(container) {
+    var blocksInside = 0;
+    container.columns.forEach(function (column) { blocksInside += column.blocks.length; });
+    return container.columns.length + (container.columns.length === 1 ? ' column' : ' columns') + ' · ' + blocksInside + (blocksInside === 1 ? ' block' : ' blocks');
+  }
+
+  /** The bars of a preset (or of the columns now): each as wide as its share. */
+  function bars(widths) {
+    var weights = widths.map(function (w) {
+      var m = /^(\d)\/(\d)$/.exec(w);
+      return m ? Number(m[1]) / Number(m[2]) : 1 / widths.length;
+    });
+    var node = el('span', { class: 'bk-bars', 'aria-hidden': 'true' });
+    weights.forEach(function (weight) { node.appendChild(el('i', { style: 'flex-grow:' + Math.round(weight * 1000) })); });
+    return node;
+  }
+
+  function removeColumn(container, index) {
+    if (container.columns.length < 2) return;
+    var gone = container.columns.splice(index, 1)[0];
+    // Its blocks are not lost: they go to the end of the column before it (or the one after, for the first).
+    var keep = container.columns[Math.max(0, index - 1)];
+    if (index === 0) Array.prototype.unshift.apply(keep.blocks, gone.blocks); else gone.blocks.forEach(function (inner) { keep.blocks.push(inner); });
+    var state = uiOf(container);
+    state.column = Math.min(state.column, container.columns.length - 1);
+    if (Sortable) Sortable.announce('Column ' + (index + 1) + ' removed' + (gone.blocks.length ? '; its blocks moved to column ' + (container.columns.indexOf(keep) + 1) : '') + '. ' + container.columns.length + ' columns left.');
+  }
+
+  function addColumn(container) {
+    if (container.columns.length >= MAX_COLUMNS) return;
+    var column = { settings: {}, blocks: [] };
+    Object.defineProperty(column, '_id', { value: nextId++, enumerable: false, writable: true });
+    container.columns.push(column);
+    if (Sortable) Sortable.announce('Column added. ' + container.columns.length + ' columns.');
+  }
+
+  /** A ready-made layout: the number of columns and the width of each. The blocks of columns that go are kept, in the last column. */
+  function applyPreset(container, widths) {
+    while (container.columns.length < widths.length) addColumn(container);
+    while (container.columns.length > widths.length) removeColumn(container, container.columns.length - 1);
+    container.columns.forEach(function (column, c) {
+      if (widths[c]) column.settings.width = widths[c]; else delete column.settings.width;
+    });
+  }
+
+  function matchesPreset(container, widths) {
+    return container.columns.length === widths.length && container.columns.every(function (column, c) { return (column.settings.width || '') === (widths[c] || ''); });
+  }
+
+  /** A choice as a row of buttons, whatever the number of options; `short` gives the text on a button, the full label is its name. */
+  function chipsField(def, value, onChange, short) {
+    var wrapper = el('div', { class: 'bk-field' }, [el('span', { class: 'bk-label', text: def.label })]);
+    var group = choiceButtons(def, value, onChange, 'bk-seg', function (button, pair) {
+      button.textContent = short && short[pair[0]] ? short[pair[0]] : pair[1];
+      if (short && short[pair[0]]) button.setAttribute('aria-label', pair[1]);
+    });
+    wrapper.appendChild(group);
+    if (def.help) wrapper.appendChild(el('span', { class: 'bk-help', text: def.help }));
+    return wrapper;
+  }
+
+  /** A column's width: a kind (fill, auto, a fraction, a percentage, a fixed size) and, for the last three, the value. */
+  function widthControl(column, idBase, changed) {
+    var current = column.settings.width || 'fill';
+    var kind = current === 'fill' || current === 'auto' ? current : (/^\d\/\d$/.test(current) ? 'fraction' : (/%$/.test(current) ? 'percent' : 'fixed'));
+    var FRACTIONS = ['1/2', '1/3', '2/3', '1/4', '3/4', '1/5', '2/5', '3/5', '4/5', '1/6', '5/6'];
+    var wrapper = el('div', { class: 'bk-field is-wide bk-widthctl' }, [el('span', { class: 'bk-label', id: idBase + '-wlabel', text: 'Width' })]);
+    var kinds = [['fill', 'Fill'], ['auto', 'Auto'], ['fraction', 'Fraction'], ['percent', 'Percent'], ['fixed', 'Fixed']];
+    var row = el('div', { class: 'bk-widthrow' });
+    var kindSelect = el('select', { class: 'lc-input lc-select', id: idBase + '-wkind', 'aria-labelledby': idBase + '-wlabel' });
+    kinds.forEach(function (pair) { kindSelect.appendChild(el('option', { value: pair[0], text: pair[1], selected: pair[0] === kind })); });
+    kindSelect.addEventListener('change', function () {
+      var next = kindSelect.value;
+      var value = { fill: 'fill', auto: 'auto', fraction: '1/2', percent: '50%', fixed: '20rem' }[next];
+      if (value === 'fill') delete column.settings.width; else column.settings.width = value;
+      changed(true);
+    });
+    row.appendChild(kindSelect);
+    if (kind === 'fraction') {
+      var fractions = el('select', { class: 'lc-input lc-select', id: idBase + '-wvalue', 'aria-label': 'Fraction of the row' });
+      FRACTIONS.forEach(function (f) { fractions.appendChild(el('option', { value: f, text: f, selected: f === current })); });
+      fractions.addEventListener('change', function () { column.settings.width = fractions.value; changed(false); });
+      row.appendChild(fractions);
+    } else if (kind === 'percent') {
+      var percent = el('input', { type: 'number', class: 'lc-input', id: idBase + '-wvalue', min: '5', max: '100', step: '1', 'aria-label': 'Percent of the row', value: String(parseFloat(current) || 50) });
+      percent.addEventListener('input', function () {
+        var n = Number(percent.value);
+        if (n >= 5 && n <= 100) { column.settings.width = n + '%'; changed(false); }
+      });
+      row.appendChild(percent);
+    } else if (kind === 'fixed') {
+      var size = el('input', { type: 'number', class: 'lc-input', id: idBase + '-wvalue', min: '1', step: 'any', 'aria-label': 'Size', value: String(parseFloat(current) || 20) });
+      var unit = el('select', { class: 'lc-input lc-select', id: idBase + '-wunit', 'aria-label': 'Unit' });
+      var have = (/[a-z]+$/.exec(current) || ['rem'])[0];
+      ['rem', 'px', 'em', 'ch'].forEach(function (u) { unit.appendChild(el('option', { value: u, text: u, selected: u === have })); });
+      var write = function () {
+        var n = Number(size.value);
+        if (n > 0) { column.settings.width = n + unit.value; changed(false); }
+      };
+      size.addEventListener('input', write);
+      unit.addEventListener('change', write);
+      row.appendChild(size);
+      row.appendChild(unit);
+    }
+    wrapper.appendChild(row);
+    return wrapper;
+  }
+
+  function textSetting(def, holder, idBase, changed) {
+    return fieldControl(Object.assign({}, def, { span: '' }), holder.settings[def.key], function (value) {
+      if (value === '' || value == null) delete holder.settings[def.key]; else holder.settings[def.key] = value;
+      changed(false);
+    }, idBase);
+  }
+
+  function valueSetting(def, holder, idBase, changed, redraw) {
+    return fieldControl(Object.assign({}, def, { span: '' }), settingValue(holder, def), function (value) {
+      holder.settings[def.key] = value;
+      changed(!!redraw);
+    }, idBase);
+  }
+
+  var groupCount = 0;
+
+  function group(title, children, note) {
+    var titleId = 'bk-dg-' + (++groupCount);
+    var node = el('div', { class: 'bk-dgroup', role: 'group', 'aria-labelledby': titleId }, [el('p', { class: 'bk-dtitle', id: titleId, text: title })]);
+    if (note) node.appendChild(el('p', { class: 'bk-help', text: note }));
+    var grid = el('div', { class: 'bk-grid' });
+    children.forEach(function (child) { if (child) grid.appendChild(child); });
+    node.appendChild(grid);
+    return node;
+  }
+
+  /** A small picture of how the columns sit on a screen: `columns` boxes in a row, in halves or one above the other. */
+  function stackDrawing(mode, count) {
+    var per = mode === 'one' ? 1 : (mode === 'two' ? 2 : count);
+    var node = el('span', { class: 'bk-stackdraw', 'aria-hidden': 'true', style: 'grid-template-columns:repeat(' + per + ',1fr)' });
+    for (var i = 0; i < count; i++) node.appendChild(el('i'));
+    return node;
+  }
+
+  /** The Design tab of a container. `redrawAll` draws the columns again too; `changed(redraw)` saves and, when asked, draws this tab again. */
+  function containerDesign(container, idBase) {
+    var state = uiOf(container);
+    var host = el('div', { class: 'bk-design bk-cdesign', role: 'tabpanel' });
+    var changed = function (redraw) {
+      serialize();
+      if (redraw) draw();
+    };
+    function draw() {
+      var focusId = document.activeElement && host.contains(document.activeElement) ? document.activeElement.id : '';
+      host.innerHTML = '';
+      build();
+      var again = focusId ? host.querySelector('#' + focusId) : null;
+      if (again) again.focus();
+    }
+    function build() {
+      var count = container.columns.length;
+
+      // Columns: how many, and a ready-made layout.
+      var countRow = el('div', { class: 'bk-field is-wide' }, [el('span', { class: 'bk-label', id: idBase + '-count-label', text: 'Columns' })]);
+      var minus = el('button', { type: 'button', class: CLS.icon, id: idBase + '-minus', 'aria-label': 'Remove the last column', title: 'Remove the last column', disabled: count <= 1, html: svg('minus') });
+      var plus = el('button', { type: 'button', class: CLS.icon, id: idBase + '-plus', 'aria-label': 'Add a column', title: 'Add a column', disabled: count >= MAX_COLUMNS, html: svg('plus') });
+      minus.addEventListener('click', function () { removeColumn(container, container.columns.length - 1); changed(true); });
+      plus.addEventListener('click', function () { addColumn(container); changed(true); });
+      countRow.appendChild(el('div', { class: 'bk-stepper', role: 'group', 'aria-labelledby': idBase + '-count-label' }, [minus, el('output', { class: 'bk-count', 'aria-live': 'polite', text: String(count) }), plus]));
+      var presetsRow = el('div', { class: 'bk-field is-wide' }, [el('span', { class: 'bk-label', id: idBase + '-presets-label', text: 'Layouts' })]);
+      var chips = el('div', { class: 'bk-presets', role: 'group', 'aria-labelledby': idBase + '-presets-label' });
+      containerDef.presets.forEach(function (preset) {
+        var chip = el('button', { type: 'button', class: 'bk-preset', 'aria-pressed': matchesPreset(container, preset.widths) ? 'true' : 'false' }, [bars(preset.widths), el('span', { text: preset.label })]);
+        chip.addEventListener('click', function () { applyPreset(container, preset.widths); changed(true); });
+        chips.appendChild(chip);
+      });
+      presetsRow.appendChild(chips);
+      host.appendChild(group('Columns', [countRow, presetsRow]));
+
+      // The column being edited.
+      var pick = el('div', { class: 'bk-field is-wide' }, [el('span', { class: 'bk-label', id: idBase + '-pick-label', text: 'Column' })]);
+      var picker = el('div', { class: 'bk-seg', role: 'group', 'aria-labelledby': idBase + '-pick-label' });
+      container.columns.forEach(function (column, c) {
+        var b = el('button', { type: 'button', 'aria-pressed': c === state.column ? 'true' : 'false', text: String(c + 1), 'aria-label': 'Column ' + (c + 1) + ', width ' + widthLabel(column) });
+        b.addEventListener('click', function () { state.column = c; draw(); });
+        picker.appendChild(b);
+      });
+      pick.appendChild(picker);
+      var column = container.columns[Math.min(state.column, count - 1)];
+      var cid = idBase + '-c' + container.columns.indexOf(column);
+      var colChanged = function (redraw) { changed(redraw); };
+      var minmax = el('div', { class: 'bk-field is-wide bk-minmax' }, [
+        textSetting(columnDef('min_width'), column, cid, colChanged),
+        textSetting(columnDef('max_width'), column, cid, colChanged)
+      ]);
+      var advanced = el('details', { class: 'bk-advanced', open: state.advanced });
+      advanced.appendChild(el('summary', { text: 'Advanced: grow, shrink and basis' }));
+      advanced.addEventListener('toggle', function () { state.advanced = advanced.open; });
+      advanced.appendChild(el('p', { class: 'bk-help', text: 'When one of these is set it replaces the width (flex: grow shrink basis).' }));
+      var advGrid = el('div', { class: 'bk-grid' });
+      ['grow', 'shrink', 'basis'].forEach(function (key) { advGrid.appendChild(textSetting(columnDef(key), column, cid, colChanged)); });
+      advanced.appendChild(advGrid);
+      var colTone = columnDef('tone');
+      var toneField = el('div', { class: 'bk-field' }, [el('span', { class: 'bk-label', text: 'Column ' + colTone.label.toLowerCase() })]);
+      toneField.appendChild(choiceButtons(colTone, settingValue(column, colTone), function (value) { column.settings.tone = value; changed(false); }, 'bk-swatches', function (button, pair) {
+        button.appendChild(el('i', { style: 'background:' + (TONE_SWATCH[pair[0]] || '#fff'), 'aria-hidden': 'true' }));
+        button.appendChild(el('span', { text: pair[1] }));
+      }));
+      host.appendChild(group('Column ' + (container.columns.indexOf(column) + 1) + ' of ' + count, [
+        pick,
+        widthControl(column, cid, colChanged),
+        minmax,
+        valueSetting(columnDef('align_self'), column, cid, colChanged),
+        chipsField(columnDef('valign'), settingValue(column, columnDef('valign')), function (value) { column.settings.valign = value; changed(false); }),
+        valueSetting(columnDef('order'), column, cid, colChanged),
+        chipsField(columnDef('padding'), settingValue(column, columnDef('padding')), function (value) { column.settings.padding = value; changed(false); }, SPACE_LABELS),
+        toneField,
+        chipsField(columnDef('radius'), settingValue(column, columnDef('radius')), function (value) { column.settings.radius = value; changed(false); }),
+        advanced
+      ]));
+
+      // Direction and alignment.
+      var d = function (key) { return settingDef(key); };
+      host.appendChild(group('Direction and alignment', [
+        chipsField(d('direction'), settingValue(container, d('direction')), function (value) { container.settings.direction = value; changed(false); }),
+        chipsField(d('wrap'), settingValue(container, d('wrap')), function (value) { container.settings.wrap = value; changed(false); }),
+        valueSetting(d('justify'), container, idBase, changed),
+        valueSetting(d('align'), container, idBase, changed),
+        valueSetting(d('align_content'), container, idBase, changed)
+      ]));
+
+      // Gaps from the theme's spacing steps.
+      host.appendChild(group('Gaps', [
+        chipsField(d('gap'), settingValue(container, d('gap')), function (value) { container.settings.gap = value; changed(false); }, SPACE_LABELS),
+        chipsField(d('row_gap'), settingValue(container, d('row_gap')), function (value) { container.settings.row_gap = value; changed(false); }, SPACE_LABELS)
+      ]));
+
+      // How the columns stack on each screen.
+      var screenBar = el('div', { class: 'bk-field is-wide' }, [el('span', { class: 'bk-label', id: idBase + '-screen-label', text: 'Screen' })]);
+      var screens = el('div', { class: 'bk-seg', role: 'group', 'aria-labelledby': idBase + '-screen-label' });
+      [['desktop', 'Desktop'], ['tablet', 'Tablet'], ['phone', 'Phone']].forEach(function (pair) {
+        var b = el('button', { type: 'button', 'aria-pressed': state.screen === pair[0] ? 'true' : 'false', text: pair[1] });
+        b.addEventListener('click', function () { state.screen = pair[0]; draw(); });
+        screens.appendChild(b);
+      });
+      screenBar.appendChild(screens);
+      var stackDef = Object.assign({}, d('stack_' + state.screen), { label: 'On a ' + state.screen + ' the columns' });
+      var stackNow = settingValue(container, d('stack_' + state.screen));
+      var stackField = chipsField(stackDef, stackNow, function (value) { container.settings['stack_' + state.screen] = value; changed(true); });
+      var shown = stackNow === 'auto' ? (count <= 2 ? 'row' : 'two') : stackNow;
+      stackField.appendChild(stackDrawing(shown, count));
+      var responsive = [screenBar, stackField];
+      if (state.screen === 'phone') {
+        responsive.push(fieldControl(Object.assign({}, d('reverse_phone'), { span: '' }), !!container.settings.reverse_phone, function (value) { container.settings.reverse_phone = value; changed(false); }, idBase));
+      }
+      host.appendChild(group('Responsive', responsive));
+
+      // The section itself.
+      var tone = d('tone');
+      var swatches = el('div', { class: 'bk-field' }, [el('span', { class: 'bk-label', text: tone.label })]);
+      swatches.appendChild(choiceButtons(tone, settingValue(container, tone), function (value) { container.settings.tone = value; changed(false); }, 'bk-swatches', function (button, pair) {
+        button.appendChild(el('i', { style: 'background:' + (TONE_SWATCH[pair[0]] || '#fff'), 'aria-hidden': 'true' }));
+        button.appendChild(el('span', { text: pair[1] }));
+      }));
+      var picture = d('image');
+      var pictureField = fieldControl(Object.assign({}, picture, { span: 'full' }), container.settings.image, function (value) {
+        if (value === '') delete container.settings.image; else container.settings.image = value;
+        changed(true);
+      }, idBase);
+      var section = [swatches, pictureField];
+      if (container.settings.image) section.push(chipsField(d('overlay'), settingValue(container, d('overlay')), function (value) { container.settings.overlay = value; changed(false); }));
+      section.push(
+        chipsField(d('inner'), settingValue(container, d('inner')), function (value) { container.settings.inner = value; changed(false); }),
+        valueSetting(d('spacing'), container, idBase, changed),
+        valueSetting(d('min_height'), container, idBase, changed),
+        textSetting(d('anchor'), container, idBase, changed),
+        textSetting(d('class'), container, idBase, changed),
+        fieldControl(Object.assign({}, d('hidden'), { span: '' }), !!container.settings.hidden, function (value) {
+          container.settings.hidden = value;
+          serialize();
+          render(container._id, 'keep');
+        }, idBase)
+      );
+      host.appendChild(group('Container', section));
+    }
+    build();
+    return host;
+  }
+
+  /** The Columns tab: the columns side by side, each a list of blocks that can be dragged between columns and out of the container. */
+  function containerColumns(container, index) {
+    var host = el('div', { class: 'bk-cols', role: 'group', 'aria-label': 'Columns of the container' });
+    var count = container.columns.length;
+    var ordinal = blocks.filter(isContainer).indexOf(container) + 1;
+    container.columns.forEach(function (column, c) {
+      var area = el('div', { class: 'bk-col-list' });
+      column.blocks.forEach(function (inner, k) {
+        area.appendChild(renderBlock(inner, k, { list: column.blocks, path: index + '.' + c + '.' + k, column: column, container: container }));
+      });
+      var add = el('button', { type: 'button', class: 'bk-add', html: svg('plus') + '<span>Add block</span>', 'aria-label': 'Add a block to column ' + (c + 1) });
+      add.addEventListener('click', function () { openPicker(column.blocks.length, add, column.blocks, column); });
+      var empty = el('p', { class: 'bk-col-empty', text: 'Drop blocks here' });
+      empty.hidden = column.blocks.length > 0;
+      area.appendChild(empty);
+      var remove = count > 1 ? el('button', { type: 'button', class: CLS.iconDanger, 'aria-label': 'Remove column ' + (c + 1), title: 'Remove column (its blocks move to the previous one)', html: svg('trash') }) : null;
+      if (remove) {
+        remove.addEventListener('click', function () { removeColumn(container, c); render(container._id, 'keep'); });
+      }
+      var head = el('div', { class: 'bk-col-head' }, [
+        el('span', { class: 'bk-col-title', text: 'Column ' + (c + 1) }),
+        el('span', { class: 'bk-tag', title: 'Width', text: widthLabel(column) }),
+        remove
+      ]);
+      var node = el('div', { class: 'bk-col', style: 'flex:' + Math.round(columnWeight(column, count) * 1000) + ' 1 0', 'data-column': c }, [head, area, add]);
+      host.appendChild(node);
+      if (Sortable) {
+        // The whole column is the list (its head and its Add button too), so a block can be dropped anywhere on it.
+        Sortable.create({
+          container: node,
+          items: '.bk-card',
+          handle: '.bk-grip',
+          surface: '.bk-head',
+          surfaceActive: function (node) { return !node.classList.contains('is-open'); },
+          ghost: '.bk-head',
+          group: 'blocks',
+          meta: { get: function () { return column.blocks; } },
+          // A container is a top-level thing: it is not dropped into a column.
+          accept: function (item) { return !item.classList.contains('bk-container'); },
+          listName: function () { return 'column ' + (c + 1) + ' of ' + count + ' in container ' + ordinal; },
+          label: function (node, at) {
+            var inner = column.blocks[at];
+            var def = inner && definitions[inner.type];
+            return 'Block ' + (def ? def.label : (inner ? inner.type : ''));
+          },
+          onSort: onSortBlocks
+        });
+      }
+    });
+    if (count < MAX_COLUMNS) {
+      var more = el('button', { type: 'button', class: 'bk-col-new', 'aria-label': 'Add a column', title: 'Add a column', html: svg('plus') });
+      more.addEventListener('click', function () { addColumn(container); render(container._id, 'keep'); });
+      host.appendChild(more);
+    }
+    return host;
+  }
+
+  function renderContainer(container, index) {
+    var idBase = 'blk-' + container._id;
+    var hidden = !!container.settings.hidden;
+    var label = 'Container';
+    var card = el('section', { class: 'bk-card bk-container' + (hidden ? ' is-hidden' : '') + (container._open ? ' is-open' : ''), 'data-block-card': container._id, 'data-block-path': String(index) });
+    var toggle = el('button', {
+      type: 'button',
+      class: 'bk-toggle',
+      'data-drag-surface': '',
+      'aria-expanded': container._open ? 'true' : 'false',
+      'aria-controls': idBase + '-body',
+      html: '<span class="bk-chev' + (container._open ? ' is-open' : '') + '">' + svg('chevron', 'h-3.5 w-3.5') + '</span>'
+    });
+    toggle.appendChild(el('span', { class: 'bk-mini', html: '<svg viewBox="0 0 64 48" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">' + CONTAINER_PREVIEW + '</svg>' }));
+    toggle.appendChild(el('span', { class: 'bk-name', text: (index + 1) + '. ' + label }));
+    toggle.appendChild(el('span', { class: 'bk-tag', text: containerLabel(container) }));
+    if (hidden) toggle.appendChild(el('span', { class: 'bk-tag is-warn', html: svg('eyeOff', 'h-3 w-3') + 'Hidden' }));
+    toggle.addEventListener('click', function () {
+      container._open = !container._open;
+      render(container._id, 'toggle');
+    });
+
+    var eye = el('button', { type: 'button', class: CLS.icon, 'aria-label': hidden ? 'Show container on the page' : 'Hide container from the page', title: hidden ? 'Show on the page' : 'Hide from the page', 'aria-pressed': hidden ? 'true' : 'false', html: svg(hidden ? 'eyeOff' : 'eye'), 'data-action': 'hide' });
+    eye.addEventListener('click', function () {
+      container.settings.hidden = !hidden;
+      render(container._id, 'keep');
+    });
+    var more = moreMenu(label, [
+      { label: 'Move to top', icon: 'top', disabled: index === 0, run: function () { move(blocks, index, 0, 'more'); sayMoved(label, 0, blocks.length); } },
+      { label: 'Move to bottom', icon: 'bottom', disabled: index === blocks.length - 1, run: function () { move(blocks, index, blocks.length - 1, 'more'); sayMoved(label, blocks.length - 1, blocks.length); } },
+      { label: 'Unwrap (blocks to the top level)', icon: 'out', run: function () { unwrap(container, index); } }
+    ]);
+    var insert = el('button', { type: 'button', class: CLS.icon, 'aria-label': 'Add a block below', title: 'Add a block below', html: svg('plus'), 'data-action': 'insert' });
+    insert.addEventListener('click', function () { openPicker(index + 1, insert, blocks); });
+    var duplicate = el('button', { type: 'button', class: CLS.icon, 'aria-label': 'Duplicate container', title: 'Duplicate', html: svg('copy'), 'data-action': 'duplicate' });
+    duplicate.addEventListener('click', function () {
+      var copy = withId(container, true);
+      blocks.splice(index + 1, 0, copy);
+      render(copy._id, 'toggle');
+    });
+    var remove = el('button', { type: 'button', class: CLS.iconDanger, 'aria-label': 'Remove container', title: 'Remove', html: svg('trash'), 'data-action': 'remove' });
+    remove.addEventListener('click', function () {
+      lastRemoved = { block: container, index: index, list: blocks };
+      blocks.splice(index, 1);
+      render(null);
+      showUndo(label);
+    });
+    var select = el('input', { type: 'checkbox', class: 'bk-select', 'aria-label': 'Select container to save as a section', title: 'Select to save as a section', checked: !!selected[container._id] });
+    select.addEventListener('change', function () {
+      if (select.checked) selected[container._id] = true; else delete selected[container._id];
+      syncSaveBar();
+    });
+    card.appendChild(el('div', { class: 'bk-head' }, [
+      blocks.length > 1 ? grip('container') : null, select, toggle,
+      el('div', { class: 'bk-actions' }, [eye, insert, duplicate, more, remove])
+    ]));
+
+    if (container._open) {
+      var body = el('div', { id: idBase + '-body', class: 'bk-body' });
+      var tabs = el('div', { class: 'bk-tabs', role: 'tablist' });
+      var holder = el('div');
+      var show = function (name) {
+        container._tab = name;
+        holder.innerHTML = '';
+        var panel = name === 'design' ? containerDesign(container, idBase + '-d') : containerColumns(container, index);
+        panel.id = idBase + '-' + name;
+        panel.setAttribute('role', 'tabpanel');
+        holder.appendChild(panel);
+        Array.prototype.forEach.call(tabs.children, function (b) {
+          b.setAttribute('aria-selected', b.getAttribute('data-tab') === name ? 'true' : 'false');
+          b.tabIndex = b.getAttribute('data-tab') === name ? 0 : -1;
+        });
+      };
+      [['content', 'Columns'], ['design', 'Design']].forEach(function (pair) {
+        var tab = el('button', { type: 'button', role: 'tab', 'data-tab': pair[0], text: pair[1], 'aria-controls': idBase + '-' + pair[0] });
+        tab.addEventListener('click', function () { show(pair[0]); });
+        tab.addEventListener('keydown', function (event) {
+          if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+            event.preventDefault();
+            var other = pair[0] === 'content' ? 'design' : 'content';
+            show(other);
+            tabs.querySelector('[data-tab="' + other + '"]').focus();
+          }
+        });
+        tabs.appendChild(tab);
+      });
+      body.appendChild(tabs);
+      body.appendChild(holder);
+      show(container._tab === 'design' ? 'design' : 'content');
+      card.appendChild(body);
+    }
+    return card;
+  }
+
+  /** A block was dropped: within its list, between two lists (columns, or a column and the top level). The data changes, then everything is drawn again. */
+  function onSortBlocks(info) {
+    var source = info.fromList.options.meta.get();
+    var target = info.toList.options.meta.get();
+    if (source === target) {
+      move(source, info.from, info.to, info.via === 'keyboard' ? 'move' : '');
+      return;
+    }
+    var item = source.splice(info.from, 1)[0];
+    target.splice(info.to, 0, item);
+    render(item._id, info.via === 'keyboard' ? 'move' : '');
   }
 
   var list = el('div', { class: 'bk-list', 'data-block-list': '' });
@@ -871,15 +1473,16 @@
       surfaceActive: function (node) { return !node.classList.contains('is-open'); },
       ghost: '.bk-head',
       group: 'blocks',
+      meta: { get: function () { return blocks; } },
+      listName: function () { return 'the top level'; },
       label: function (node, at) {
         var block = blocks[at];
         var def = block && definitions[block.type];
-        return 'Block ' + (def ? def.label : (block ? block.type : ''));
+        return (isContainer(block) ? '' : 'Block ') + (def ? def.label : (block ? block.type : ''));
       },
-      onSort: function (info) {
-        // One flat list: blocks that share a row through their Width are drawn side by side, and dragging only changes the order.
-        move(info.from, info.to, info.via === 'keyboard' ? 'move' : '');
-      }
+      // Blocks that share a row through their Width are drawn side by side and dragging only changes the order; a block can also be
+      // dropped into a column of a container, and out of it.
+      onSort: onSortBlocks
     });
   }
   var empty = el('div', { class: 'bk-empty' }, [
@@ -928,7 +1531,7 @@
     closePicker(true);
     pickerTarget = blocks.length;
     languageButtons.forEach(function (button) { button.setAttribute('aria-pressed', button.getAttribute('data-set') === key ? 'true' : 'false'); });
-    expandAll.textContent = blocks.length && blocks.every(function (b) { return b._open; }) ? 'Collapse all' : 'Expand all';
+    expandAll.textContent = blocks.length && everyBlock(blocks).every(function (b) { return b._open; }) ? 'Collapse all' : 'Expand all';
     render(null);
     syncSaveBar();
   }
@@ -947,7 +1550,7 @@
         render(blocks.length ? blocks[0]._id : null, 'toggle');
         return;
       }
-      blocks.splice(lastRemoved.index, 0, lastRemoved.block);
+      (lastRemoved.list || blocks).splice(lastRemoved.index, 0, lastRemoved.block);
       var id = lastRemoved.block._id;
       lastRemoved = null;
       undoBar.classList.add('hidden');
@@ -962,8 +1565,8 @@
     // Blocks narrower than the page that follow each other share a row on the page, so they are drawn side by side here too.
     var row = null;
     blocks.forEach(function (block, index) {
-      var card = renderBlock(block, index);
-      if (widthOf(block) < 100 && definitions[block.type]) {
+      var card = isContainer(block) ? renderContainer(block, index) : renderBlock(block, index, { list: blocks, path: String(index) });
+      if (!isContainer(block) && widthOf(block) < 100 && definitions[block.type]) {
         if (!row) {
           row = el('div', { class: 'bk-sharing', role: 'group', 'aria-label': 'Blocks sharing a row' });
           list.appendChild(row);
@@ -1002,12 +1605,16 @@
   var picker = el('div', { class: 'bk-picker hidden', 'data-block-picker': '' });
   var pickerTarget = blocks.length;
   var pickerReturn = null;
+  // Where the picker puts what is chosen: the top level (null) or a column of a container.
+  var pickerList = null;
+  var pickerColumn = null;
+  function targetList() { return pickerList || blocks; }
 
   var pickerTab = 'blocks';
 
-  function insertBlocks(list, position) {
+  function insertBlocks(list, position, into) {
     var added = list.map(function (b) { return withId(b, false); });
-    Array.prototype.splice.apply(blocks, [position, 0].concat(added));
+    Array.prototype.splice.apply(into || blocks, [position, 0].concat(added));
     if (added.length) added[0]._open = true;
     return added;
   }
@@ -1053,13 +1660,14 @@
     return card;
   }
 
-  var CATEGORY_ORDER = ['Openers', 'Content', 'Media', 'Showcase', 'Convert'];
+  var CATEGORY_ORDER = ['Openers', 'Content', 'Media', 'Showcase', 'Convert', 'Layout'];
   var pickerCategory = '';
 
   function renderPicker() {
     var position = pickerTarget;
     picker.innerHTML = '';
-    var tabs = [['blocks', 'Blocks'], ['sections', 'Ready-made sections']].concat(footerMode ? [] : [['pages', 'Page layouts']]);
+    var tabs = [['blocks', 'Blocks'], ['sections', 'Ready-made sections']].concat(footerMode || pickerColumn ? [] : [['pages', 'Page layouts']]);
+    if (pickerTab === 'pages' && pickerColumn) pickerTab = 'blocks';
     var tabBar = el('div', { class: 'bk-pills', role: 'tablist' });
     tabs.forEach(function (tab) {
       var active = pickerTab === tab[0];
@@ -1070,7 +1678,7 @@
     picker.appendChild(el('div', { class: 'bk-picker-head' }, [
       tabBar,
       el('div', { class: 'bk-picker-side' }, [
-        el('span', { class: 'bk-help', text: position < blocks.length ? 'Inserts at position ' + (position + 1) : 'Adds at the end' }),
+        el('span', { class: 'bk-help', text: (pickerColumn ? 'In column ' + (pickerColumnNumber() + 1) + ': ' : '') + (position < targetList().length ? 'inserts at position ' + (position + 1) : 'adds at the end') }),
         el('button', { type: 'button', class: CLS.btn, text: 'Cancel', onclick: closePicker })
       ])
     ]));
@@ -1081,6 +1689,7 @@
       var categoryOf = function (def) { return def.category || (def.origin === 'custom' ? 'Custom' : 'Other'); };
       var present = [];
       Object.keys(definitions).forEach(function (type) {
+        if (type === 'container' && pickerColumn) return;
         var cat = categoryOf(definitions[type]);
         if (present.indexOf(cat) === -1) present.push(cat);
       });
@@ -1088,7 +1697,7 @@
         var ia = CATEGORY_ORDER.indexOf(a), ib = CATEGORY_ORDER.indexOf(b);
         return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib) || a.localeCompare(b);
       });
-      Object.keys(definitions).sort(function (x, y) {
+      Object.keys(definitions).filter(function (type) { return type !== 'container'; }).sort(function (x, y) {
         var cx = present.indexOf(categoryOf(definitions[x])), cy = present.indexOf(categoryOf(definitions[y]));
         return cx - cy;
       }).forEach(function (type) {
@@ -1102,13 +1711,34 @@
         ]);
         option.addEventListener('click', function () {
           var block = newBlock(type);
-          blocks.splice(pickerTarget, 0, block);
+          targetList().splice(pickerTarget, 0, block);
           closePicker(true);
           render(block._id, 'toggle');
         });
         options.push({ node: option, category: categoryOf(def), text: (def.label + ' ' + def.description + ' ' + type + ' ' + categoryOf(def)).toLowerCase() });
         grid.appendChild(option);
       });
+      // A container, with its ready-made column layouts (not inside a column: one level only).
+      if (containerDef && !pickerColumn) {
+        var row = el('div', { class: 'bk-pcontainers', role: 'group', 'aria-label': 'Add a container' }, [
+          el('span', { class: 'bk-pname', text: 'Container' }),
+          el('span', { class: 'bk-pdesc', text: 'A row with columns; blocks go inside the columns. Pick a layout:' })
+        ]);
+        var chipsRow = el('span', { class: 'bk-presets' });
+        containerDef.presets.forEach(function (preset) {
+          var chip = el('button', { type: 'button', class: 'bk-preset', 'aria-label': 'Container, ' + preset.label }, [bars(preset.widths), el('span', { text: preset.label })]);
+          chip.addEventListener('click', function () {
+            var container = newContainer(preset.widths);
+            blocks.splice(pickerTarget, 0, container);
+            closePicker(true);
+            render(container._id, 'toggle');
+          });
+          chipsRow.appendChild(chip);
+        });
+        row.appendChild(chipsRow);
+        options.push({ node: row, category: 'Layout', text: 'container columns row layout flexbox grid' });
+        grid.insertBefore(row, grid.firstChild);
+      }
       var none = el('p', { class: 'bk-help hidden', text: 'No block matches.' });
       var search = el('input', { type: 'search', class: 'lc-input bk-search', placeholder: 'Search blocks', 'aria-label': 'Search blocks' });
       var chips = el('div', { class: 'bk-pills is-light', role: 'group', 'aria-label': 'Kinds of block' });
@@ -1133,11 +1763,12 @@
       grid.appendChild(none);
       apply();
     } else if (pickerTab === 'sections') {
-      var sections = presets.filter(function (p) { return p.kind === 'section'; });
+      // A section that holds a container does not go into a column.
+      var sections = presets.filter(function (p) { return p.kind === 'section' && !(pickerColumn && p.blocks.some(isContainer)); });
       if (!sections.length) grid.appendChild(el('p', { class: 'bk-help', text: 'No sections yet.' }));
       sections.forEach(function (preset) {
         grid.appendChild(presetCard(preset, function () {
-          var added = insertBlocks(preset.blocks, pickerTarget);
+          var added = insertBlocks(preset.blocks, pickerTarget, targetList());
           closePicker(true);
           render(added[0]._id, 'toggle');
           if (window.adminToast) window.adminToast(preset.label + ' added.', 'success');
@@ -1186,9 +1817,19 @@
     if (window.adminToast) window.adminToast(preset.label + ' added' + (preset.template ? ' (template: ' + preset.template + ')' : '') + '.', 'success');
   }
 
-  function openPicker(position, returnTo) {
+  function pickerColumnNumber() {
+    var found = 0;
+    blocks.forEach(function (block) {
+      if (isContainer(block)) block.columns.forEach(function (column, c) { if (column === pickerColumn) found = c; });
+    });
+    return found;
+  }
+
+  function openPicker(position, returnTo, into, column) {
     pickerTarget = position;
     pickerReturn = returnTo || null;
+    pickerList = into && into !== blocks ? into : null;
+    pickerColumn = column || null;
     if (!blocks.length && presets.some(function (p) { return p.kind === 'page'; }) && pickerTab === 'blocks' && returnTo === addButton) {
       pickerTab = 'pages';
     }
@@ -1302,8 +1943,8 @@
   addButton.addEventListener('click', function () { openPicker(blocks.length, addButton); });
   var expandAll = el('button', { type: 'button', class: CLS.btn, text: 'Expand all' });
   expandAll.addEventListener('click', function () {
-    var open = !blocks.every(function (b) { return b._open; });
-    blocks.forEach(function (b) { b._open = open; });
+    var open = !everyBlock(blocks).every(function (b) { return b._open; });
+    everyBlock(blocks).forEach(function (b) { b._open = open; });
     expandAll.textContent = open ? 'Collapse all' : 'Expand all';
     render(null);
   });

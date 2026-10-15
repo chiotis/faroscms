@@ -51,6 +51,7 @@ python3 scripts/validate_content.py content/pages/ypiresies.md content/pages/ypi
 
 Essentials (details in `references/content-format.md`):
 - One file per page per language: `content/pages/about.md` (default language), `about.en.md` (English). Two-letter language codes only. Both files share `translation_id`. A language without a file is a 404 for that page.
+- A **container** (`type: container` with `settings` and `columns: [{settings, blocks}]`, one to six columns, one level) puts blocks side by side with flexbox settings and per-screen stacking; see "Containers" in `references/blocks.md`. A block's `width` is ignored inside a column.
 - First block `hero` = the page's `<h1>`; body Markdown starts at `##`; the `content` block places the body between blocks; `template: landing` for campaign pages.
 - Pictures: put the file in the library first (`python3 scripts/add_media.py photo.jpg --alt "what it shows"`), then use the printed `/uploads/media/<id>.<ext>`; always give `image_alt`.
 - Links in blocks and menus: `contact` (same language), `/path`, full URL, `#anchor`, `mailto:`, `tel:`.

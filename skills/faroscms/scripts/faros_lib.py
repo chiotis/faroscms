@@ -573,12 +573,100 @@ def load_blocks(root):
     return blocks
 
 
+_SPACES = ["none", "xs", "s", "m", "l", "xl"]
+_ALIGNS = ["stretch", "start", "center", "end", "baseline"]
+_JUSTIFY = ["start", "center", "end", "between", "around", "evenly"]
+# The settings of a container (rows with columns) and of one column, as the CMS checks them (src/BlockContainer.php).
+CONTAINER_SETTINGS = {
+    "direction": ["row", "row-reverse"], "justify": _JUSTIFY, "align": _ALIGNS, "align_content": ["stretch"] + _JUSTIFY, "wrap": ["wrap", "nowrap", "wrap-reverse"],
+    "gap": _SPACES, "row_gap": _SPACES, "stack_desktop": ["row", "two", "one"], "stack_tablet": ["auto", "row", "two", "one"], "stack_phone": ["row", "two", "one"],
+    "reverse_phone": bool, "tone": list(TONES), "image": str, "overlay": ["none", "light", "dark"], "inner": ["container", "narrow", "full"],
+    "spacing": list(SPACINGS), "min_height": ["none", "s", "m", "l", "screen"], "anchor": str, "class": str, "hidden": bool,
+}
+CONTAINER_COLUMN = {
+    "width": "width", "min_width": "length", "max_width": "length", "basis": "basis", "grow": (0, 12), "shrink": (0, 12), "order": (-6, 6),
+    "align_self": ["auto"] + _ALIGNS, "valign": ["top", "center", "bottom"], "padding": _SPACES, "tone": list(TONES), "radius": ["none", "s", "m", "l"],
+}
+
+
+def _container_value_problem(spec, key, value):
+    """Why the CMS would change a container setting, or '' when it keeps it as written."""
+    if spec is bool:
+        return "" if isinstance(value, bool) else "must be true or false"
+    if spec is str:
+        return "" if isinstance(value, str) else "must be text"
+    if isinstance(spec, list):
+        return "" if str(value) in spec else "must be one of %s" % ", ".join(spec)
+    if isinstance(spec, tuple):
+        return "" if isinstance(value, int) and not isinstance(value, bool) and spec[0] <= value <= spec[1] else "must be a whole number from %d to %d" % spec
+    text = str(value).strip().lower()
+    length = re.fullmatch(r"(\d{1,4}(?:\.\d{1,2})?)(px|rem|em|ch|%)", text)
+    ok_length = bool(length) and float(length.group(1)) > 0 and (length.group(2) != "%" or float(length.group(1)) <= 100)
+    if spec == "width":
+        ok = text in ("fill", "auto") or ok_length or bool(re.fullmatch(r"([1-9])/([2-9])", text) and int(text[0]) < int(text[2]))
+        return "" if ok and text == str(value) else "must be fill, auto, a fraction (1/3), a percentage (37%) or a size (20rem)"
+    if spec == "basis":
+        return "" if (text == "auto" or ok_length) and text == str(value) else "must be auto, a size (20rem) or a percentage"
+    return "" if ok_length and text == str(value) else "must be a size (12rem) or a percentage"
+
+
+def check_container(blocks, block, where):
+    """Problems of a container: its settings, its columns (one to six), and the blocks inside (no container among them)."""
+    problems = []
+    for key in block:
+        if key not in ("type", "settings", "columns"):
+            problems.append("%s (container): unknown key `%s` (the CMS drops it)" % (where, key))
+    settings = block.get("settings", {})
+    if not isinstance(settings, dict):
+        problems.append("%s (container): `settings` must be a map" % where)
+        settings = {}
+    for key, value in settings.items():
+        if key not in CONTAINER_SETTINGS:
+            problems.append("%s (container): unknown setting `%s` (the CMS ignores it)" % (where, key))
+        else:
+            why = _container_value_problem(CONTAINER_SETTINGS[key], key, value)
+            if why:
+                problems.append("%s (container.%s): %s" % (where, key, why))
+    columns = block.get("columns")
+    if not isinstance(columns, list) or not 1 <= len(columns) <= 6:
+        problems.append("%s (container): `columns` must be a list of 1 to 6 columns" % where)
+        return problems
+    for c, column in enumerate(columns):
+        here = "%s.columns[%d]" % (where, c)
+        if not isinstance(column, dict):
+            problems.append("%s: a column must be a map with `settings` and `blocks`" % here)
+            continue
+        for key in column:
+            if key not in ("settings", "blocks"):
+                problems.append("%s: unknown key `%s` (the CMS drops it)" % (here, key))
+        own = column.get("settings", {})
+        for key, value in (own.items() if isinstance(own, dict) else []):
+            if key not in CONTAINER_COLUMN:
+                problems.append("%s (column settings): unknown setting `%s` (the CMS ignores it)" % (here, key))
+            else:
+                why = _container_value_problem(CONTAINER_COLUMN[key], key, value)
+                if why:
+                    problems.append("%s (column.%s): %s" % (here, key, why))
+        inside = column.get("blocks", [])
+        if not isinstance(inside, list):
+            problems.append("%s: `blocks` must be a list" % here)
+            continue
+        for k, inner in enumerate(inside):
+            if isinstance(inner, dict) and inner.get("type") == "container":
+                problems.append("%s.blocks[%d]: a container cannot be inside a column (one level only; the CMS drops it)" % (here, k))
+            else:
+                problems.extend(check_block(blocks, inner, "%s.blocks[%d]" % (here, k)))
+    return problems
+
+
 def check_block(blocks, block, where):
     """Problems of one block of a page, as a list of strings (empty means the CMS would keep every value as written)."""
     problems = []
     if not isinstance(block, dict):
         return ["%s: a block must be a map with a `type`" % where]
     type_ = block.get("type")
+    if type_ == "container":
+        return check_container(blocks, block, where)
     definition = blocks.get(type_) if isinstance(type_, str) else None
     if definition is None:
         return ["%s: unknown block type %r (the CMS skips it)" % (where, type_)]

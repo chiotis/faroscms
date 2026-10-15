@@ -1,0 +1,19 @@
+{#
+  Section wrapper for a container (rendered by BlockRenderer): a row of columns, with blocks inside each column.
+  Variables: container (checked settings: tone, spacing, inner, min_height, overlay, image, has_picture, anchor, class),
+  container_row (the classes of the row of columns), container_columns (each: class, style, html), plus the page context.
+  The column markup is drawn by BlockRenderer; this file only places it. In the editor's live preview (block_preview) the
+  section also says where it stands in the editor's list (data-bk-block).
+#}
+<section class="block block-container bkc tone-{{ container.tone }} space-{{ container.spacing }}{% if container.min_height != 'none' %} bkc--min bkc--min-{{ container.min_height }}{% endif %}{% if container.has_picture %} bkc--picture{% if container.overlay != 'none' %} bkc--overlay-{{ container.overlay }}{% endif %}{% endif %}{% if container.class %} {{ container.class }}{% endif %}"{% if container.anchor %} id="{{ container.anchor }}"{% endif %}{% if block_preview|default(false) %} data-bk-block="{{ container_source }}"{% endif %}>
+  {% if container.has_picture %}
+  <div class="bkc-media" aria-hidden="true">{{ image(container.image, {alt: '', sizes: '100vw', max_width: 2000}) }}</div>
+  {% endif %}
+  <div class="bkc-inner bkc-inner--{{ container.inner }}">
+    <div class="{{ container_row }}">
+      {% for column in container_columns %}
+      <div class="{{ column.class }}"{% if column.style %} style="{{ column.style }}"{% endif %}>{{ column.html|raw }}</div>
+      {% endfor %}
+    </div>
+  </div>
+</section>

@@ -95,6 +95,30 @@ COMMON = """## Fields every block has
 | `hidden` | `true` keeps the block in the file but not on the site |
 
 Kinds of value: **link** is a page (`contact`, relative to the page's language), a path (`/en/contact`), a full URL, `#anchor`, `mailto:` or `tel:`. **image**, **video** and **file** are `/uploads/media/<id>.<ext>` (a library file) or a full https URL; no spaces, quotes or brackets. **icon** is a name from the icon set (`python3 scripts/site_info.py --icons`). **Markdown** fields take Markdown. A **choice** must be exactly one of the listed values. Values equal to the default can be left out. A value the CMS does not accept is replaced by the default without any message, so check with `validate_content.py`.
+
+## Containers: rows with columns
+
+A **container** is an entry of `blocks:` that is not a block: a section with one to six columns and blocks inside each column. Use it for what a block's `width` cannot do: a text beside a picture beside a form, a 25 / 50 / 25 row, a band with a picture behind its columns. **One level only**: a container inside a column is dropped. A page without containers is not affected.
+
+```yaml
+blocks:
+  - type: container
+    settings: {gap: l, justify: center}        # only what differs from the default
+    columns:
+      - settings: {width: 1/3, padding: m}     # 1/3 of the row
+        blocks:
+          - {type: text, heading: One}
+      - settings: {width: 2/3}
+        blocks:
+          - {type: image, image: /uploads/media/<id>.jpg}
+          - {type: cta, heading: Go on, actions: [{label: Contact, url: contact}]}
+```
+
+Container `settings` (all optional): `direction` (`row`, `row-reverse`), `justify` (`start center end between around evenly`), `align` (`stretch start center end baseline`), `align_content`, `wrap` (`wrap nowrap wrap-reverse`), `gap` and `row_gap` (`none xs s m l xl`, default `m`), `stack_desktop`, `stack_tablet`, `stack_phone` (how columns stack on that screen: `row`, `two` = wrap to 2, `one` = stack to 1; tablet default `auto`, phone default `one`), `reverse_phone` (`true` reverses the order when stacked), `tone` (`default muted contrast accent`), `image` + `overlay` (`none light dark`), `inner` (`container narrow full`), `spacing`, `min_height` (`none s m l screen`), `anchor`, `class`, `hidden`.
+
+Column `settings` (all optional): `width` (`fill` = an equal share, the default; `auto`; a fraction like `1/3` or `2/3`; a percentage like `37%`; a fixed size like `20rem` or `320px`), `min_width`, `max_width`, `grow`, `shrink`, `basis` (set any of these and the column is `flex: grow shrink basis`, replacing `width`), `align_self` (`auto start center end stretch baseline`), `valign` (`top center bottom`), `order` (-6 to 6), `padding` (`none xs s m l xl`), `tone`, `radius` (`none s m l`). Gaps and paddings are the theme's spacing steps, never free sizes.
+
+A block inside a column takes the room of the column: its own `width` is ignored there (and not shown in the editor). A `content` block inside a column places the page text. Presets in the editor: 50/50 (`1/2 1/2`), 33/67 (`1/3 2/3`), 67/33, 3×33 (`1/3 1/3 1/3`), 25/50/25 (`1/4 1/2 1/4`), 4×25. `validate_content.py` checks containers (settings, one to six columns, the blocks inside).
 """
 
 

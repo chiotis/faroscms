@@ -138,6 +138,15 @@ The wrapper (`<section class="block block-quote block--boxed tone-default space-
 
 To restyle a **theme** block for one site, add `custom/blocks/<type>/block.css`: it loads after the theme's CSS for that block. A theme block's fields and variants cannot be changed from `custom/`; for that, create a new block with another name.
 
+### Containers (rows with columns) in your theme
+
+A container is an entry of a page's `blocks:` that holds blocks in columns (format and every setting: `docs/theming.md`, *Containers*). The default theme draws it with two files; a theme made from it has them already, and `custom/` can override either by path:
+
+- `components/block-container.twig`: the section, the optional `.bkc-media` picture, `.bkc-inner` and the row. It receives `container` (checked settings: `tone`, `spacing`, `inner`, `min_height`, `overlay`, `image`, `has_picture`, `anchor`, `class`), `container_row` (the classes of the row of columns), `container_columns` (a list of `{class, style, html}`: the classes and the custom properties of a column, and the markup of the blocks inside it, already drawn: print it with `|raw`) and, in the editor's live preview only, `container_source`. A theme without this file shows the blocks of the columns one under another.
+- `assets/css/block-container.css`: the row, the columns and the stacking. It is added to the page's block stylesheet only when the page has a container (the stylesheet name `_container`, like `_row`), with the stylesheets of the blocks inside. Keep to classes and custom properties (`--bkc-f`, `--bkc-w`, `--bkc-min`, `--bkc-max`, `--bkc-grow`, `--bkc-shrink`, `--bkc-basis`, `--bkc-order`) and to the theme's spacing steps (`--space-*`); there is no JavaScript.
+
+The blocks inside a column are ordinary sections; `BlockRenderer` gives each the narrow class that fits its column (`block--w-25|33|50`), so the rules for narrow blocks in `block-row.css` (written for `.block-row > .block--w-*`, now also `.bkc-col > .block--w-*`) apply: if your own block has a grid with fixed columns, make sure it has a rule for a narrow column. Check a page with containers at desktop, tablet and phone widths with `themeAudit.containers(['/a-page'])` (`scripts/theme-audit.js`) and `themeAudit.pages(...)` for accessibility.
+
 ### Change part of a template
 
 Extend the theme's template and override one Twig block (see rule 4 above). To restyle without touching markup, put CSS in `custom/assets/css/custom.css`.

@@ -123,6 +123,12 @@
 
   function cards() { return document.querySelectorAll('[data-block-editor] [data-block-card]'); }
 
+  /** The card of a place in the list: '3' is the fourth block, '3.1.0' the first block of the second column of the fourth block (a container). */
+  function cardFor(path) {
+    var found = document.querySelector('[data-block-editor] [data-block-card][data-block-path="' + path + '"]');
+    return found || (/^\d+$/.test(String(path)) ? cards()[parseInt(path, 10)] : null);
+  }
+
   // The picture is drawn again after each change: the outline that is still due is put back, and clicks are caught.
   panel.addEventListener('preview:drawn', function () {
     var doc = frameDocument();
@@ -132,21 +138,28 @@
       var block = event.target.closest ? event.target.closest('[data-bk-block]') : null;
       // Nothing inside the picture is followed or sent: it shows the page, the builder changes it.
       if (link) { event.preventDefault(); }
-      if (block) { openBlock(parseInt(block.getAttribute('data-bk-block'), 10)); }
+      if (block) { openBlock(block.getAttribute('data-bk-block')); }
     }, true);
     doc.addEventListener('submit', function (event) { event.preventDefault(); }, true);
-    if (outlined.index >= 0 && Date.now() < outlined.until) { outline(outlined.index, false); }
+    if (outlined.index !== -1 && Date.now() < outlined.until) { outline(outlined.index, false); }
   });
 
   function openBlock(index) {
-    var card = cards()[index];
-    if (!card) { return; }
     var tab = document.querySelector('[data-tab="blocks"]');
     if (tab && !tab.classList.contains('active')) { tab.click(); }
     if (narrow.matches) { show(false, false); }
+    // A block inside a container: the container opens first (the builder draws itself again each time), then the block.
+    var steps = String(index).split('.');
+    if (steps.length === 3) {
+      var outer = cardFor(steps[0]);
+      var outerButton = outer ? outer.querySelector('[aria-expanded]') : null;
+      if (outerButton && outerButton.getAttribute('aria-expanded') !== 'true') { outerButton.click(); }
+    }
+    var card = cardFor(index);
+    if (!card) { return; }
     var button = card.querySelector('[aria-expanded]');
     if (button && button.getAttribute('aria-expanded') !== 'true') { button.click(); }
-    var now = cards()[index] || card;
+    var now = cardFor(index) || card;
     try { now.scrollIntoView({ block: 'nearest' }); } catch (e) { /* no scrolling */ }
     var target = now.querySelector('[aria-expanded]');
     if (target) { target.focus({ preventScroll: true }); }
@@ -159,7 +172,8 @@
     var head = event.target.closest('[data-block-editor] .bk-toggle');
     var card = head ? head.closest('[data-block-card]') : null;
     if (!card) { return; }
-    var index = Array.prototype.indexOf.call(cards(), card);
-    if (index >= 0) { outline(index, true); }
+    var path = card.getAttribute('data-block-path');
+    var index = path !== null ? path : Array.prototype.indexOf.call(cards(), card);
+    if (index !== -1) { outline(index, true); }
   }, true); // while the card is still there: opening it draws the builder again
 })();

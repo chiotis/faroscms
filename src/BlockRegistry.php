@@ -42,7 +42,7 @@ final class BlockRegistry
         foreach ($this->theme->blockRoots() as $origin => $root) {
             foreach (glob($root . '/*/block.yaml') ?: [] as $file) {
                 $type = basename(dirname($file));
-                if (!preg_match('/^[a-z][a-z0-9-]*$/', $type) || isset($definitions[$type])) {
+                if (!preg_match('/^[a-z][a-z0-9-]*$/', $type) || isset($definitions[$type]) || $type === BlockContainer::TYPE) {
                     continue;
                 }
                 $definition = $this->load($type, $file, $origin);
@@ -62,6 +62,31 @@ final class BlockRegistry
     }
 
     /**
+     * Fields as the editor reads them: select options become ordered [value, label] pairs, so JSON keeps their order and string values.
+     *
+     * @param array<string, array<string, mixed>> $fields normalized definitions
+     * @return array<int, array<string, mixed>>
+     */
+    public static function fieldsForEditor(array $fields): array
+    {
+        $list = [];
+        foreach ($fields as $field) {
+            if (isset($field['options'])) {
+                $pairs = [];
+                foreach ($field['options'] as $value => $label) {
+                    $pairs[] = [(string)$value, (string)$label];
+                }
+                $field['options'] = $pairs;
+            }
+            if (isset($field['fields'])) {
+                $field['fields'] = self::fieldsForEditor($field['fields']);
+            }
+            $list[] = $field;
+        }
+        return $list;
+    }
+
+    /**
      * Definitions for the admin block editor: fields with defaults, and select options as ordered
      * [value, label] pairs so JSON keeps their order and string values.
      *
@@ -69,23 +94,7 @@ final class BlockRegistry
      */
     public function editorDefinitions(): array
     {
-        $prepare = static function (array $fields) use (&$prepare): array {
-            $list = [];
-            foreach ($fields as $field) {
-                if (isset($field['options'])) {
-                    $pairs = [];
-                    foreach ($field['options'] as $value => $label) {
-                        $pairs[] = [(string)$value, (string)$label];
-                    }
-                    $field['options'] = $pairs;
-                }
-                if (isset($field['fields'])) {
-                    $field['fields'] = $prepare($field['fields']);
-                }
-                $list[] = $field;
-            }
-            return $list;
-        };
+        $prepare = static fn(array $fields): array => self::fieldsForEditor($fields);
         $definitions = [];
         foreach ($this->all() as $definition) {
             $definitions[] = [
@@ -145,6 +154,30 @@ final class BlockRegistry
     }
 
     /**
+     * The blocks of a page as the editor shows them: each migrated, also the blocks inside the columns of a container.
+     *
+     * @param array<int, mixed> $blocks
+     * @return array<int, mixed>
+     */
+    public function forEditor(array $blocks): array
+    {
+        return array_map(function (mixed $block): mixed {
+            if (!is_array($block)) {
+                return $block;
+            }
+            if (($block['type'] ?? null) === BlockContainer::TYPE) {
+                foreach (is_array($block['columns'] ?? null) ? array_values($block['columns']) : [] as $c => $column) {
+                    if (is_array($column) && is_array($column['blocks'] ?? null)) {
+                        $block['columns'][$c]['blocks'] = $this->forEditor(array_values($column['blocks']));
+                    }
+                }
+                return $block;
+            }
+            return $this->migrate($block);
+        }, $blocks);
+    }
+
+    /**
      * The Slider block of before 0.1.110 as the Hero slider it became: its layouts are slide layouts (the large slide and the
      * banner are a text over a picture, the cards a picture beside the text), a slide's first two links are its buttons, and the
      * arrows, the automatic movement and what every block has (background, spacing, anchor, hidden) stay. The third link of a
@@ -197,6 +230,10 @@ final class BlockRegistry
         $blocks = [];
         foreach ($rawBlocks as $raw) {
             if (!is_array($raw) || !is_string($raw['type'] ?? null) || !preg_match('/^[a-z][a-z0-9-]*$/', $raw['type'])) {
+                continue;
+            }
+            if ($raw['type'] === BlockContainer::TYPE) {
+                $blocks[] = BlockContainer::sanitize($raw, fn(array $inside): array => $this->sanitizeForStorage($inside));
                 continue;
             }
             $raw = $this->migrate($raw);
