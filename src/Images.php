@@ -199,6 +199,7 @@ final class Images
             // Never break the page: fall back to the original file.
             header('Location: /uploads/' . implode('/', array_map('rawurlencode', explode('/', $relative))), true, 302);
             header('Cache-Control: no-store');
+            FrontCache::doNotKeep();
             return true;
         }
 

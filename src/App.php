@@ -64,6 +64,7 @@ final class App
     private ?AnalyticsAdmin $analyticsAdminService = null;
     private ?TaxonomyPage $taxonomyPageService = null;
     private ?PublicForms $publicFormsService = null;
+    private ?FrontCache $frontCacheService = null;
     private ?SettingsAdmin $settingsAdminService = null;
     private ?AdminChrome $adminChromeService = null;
     private ?UpdateInstaller $updateInstallerService = null;
@@ -165,6 +166,7 @@ final class App
 
         // While an update replaces the code the public site says so; the admin stays open.
         if (!str_starts_with($path, 'admin') && (new MaintenanceMode($this->basePath))->blocks((string)($_SERVER['HTTP_X_FAROS_UPDATE'] ?? ''))) {
+            FrontCache::doNotKeep();
             http_response_code(503);
             header('Retry-After: 60');
             header('Cache-Control: no-store');
@@ -580,6 +582,9 @@ final class App
         if (headers_sent()) {
             return;
         }
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            FrontCache::doNotKeep();
+        }
         header(session_status() === PHP_SESSION_ACTIVE ? 'Cache-Control: private, no-store' : 'Cache-Control: public, max-age=0, s-maxage=' . self::PUBLIC_CACHE_SECONDS);
     }
 
@@ -967,6 +972,15 @@ final class App
         'new' => 'handleNew',
     ];
 
+    /** Admin addresses whose POST only reads, previews or exports, so the cache in front of the site stays as it is. */
+    private const ADMIN_POSTS_THAT_CHANGE_NOTHING = ['search', 'markdown-visual', 'media-picker', 'block-presets', 'notification-read', 'notifications-read-all', 'forms-export', 'export', 'omni', 'activity-logs', 'email-logs'];
+
+    private function frontCache(): FrontCache
+    {
+        $host = (string)(parse_url((string)($this->settings['base_url'] ?? ''), PHP_URL_HOST) ?: ($_SERVER['HTTP_HOST'] ?? 'localhost'));
+        return $this->frontCacheService ??= new FrontCache($this->systemMeta, $host);
+    }
+
     private function handleAdmin(string $path): void
     {
         $segments = explode('/', $path);
@@ -1000,6 +1014,12 @@ final class App
         if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
             $this->backupManager()->runIfDue();
             register_shutdown_function(fn() => $this->sendOmniReportAfterResponse());
+        }
+
+        // Whatever is sent from the admin may change what visitors see: the cache in front of the site is emptied (once, before
+        // the handler, which may end the request with a redirect). Screens that only read, preview or export do not count.
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && !in_array($action, self::ADMIN_POSTS_THAT_CHANGE_NOTHING, true) && !isset($_GET['preview'])) {
+            $this->frontCache()->purgeAll();
         }
 
         if (isset(self::ADMIN_ROUTES[$action])) {
@@ -1121,6 +1141,7 @@ final class App
     /** The platform's analytics: the script of a page reports a view or an event, and nothing comes back. */
     private function handleCollect(): void
     {
+        FrontCache::doNotKeep();
         header('Cache-Control: no-store');
         header('X-Content-Type-Options: nosniff');
         if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
@@ -2469,6 +2490,27 @@ final class App
             return;
         }
 
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && in_array((string)($_POST['system_action'] ?? ''), ['purge_cache', 'cache_address'], true)) {
+            $cache = $this->frontCache();
+            if ((string)$_POST['system_action'] === 'cache_address') {
+                $address = trim((string)($_POST['cache_address'] ?? ''));
+                if (!$cache->setAddress($address)) {
+                    $this->redirect('/admin/system?cache=bad_address');
+                    return;
+                }
+                $this->logActivity('system.cache_address', 'info', 'system', 'front_cache', $address === '' ? 'Page cache address removed.' : 'Page cache address saved.', ['address' => $address]);
+                $this->redirect('/admin/system?cache=saved');
+                return;
+            }
+            // The purge itself was asked for by handleAdmin (every POST of the admin); here it is told how it went.
+            $mode = $cache->mode();
+            $status = $mode === 'varnish' ? $cache->sendPurge($cache->address()) : 0;
+            $ok = $mode === 'cloudpanel' ? $cache->cloudPanelTag() !== '' : ($status >= 200 && $status < 300);
+            $this->logActivity($ok ? 'system.cache_purge' : 'system.cache_purge_failure', $ok ? 'info' : 'warning', 'system', 'front_cache', $ok ? 'Page cache emptied.' : 'The page cache could not be emptied.', ['mode' => $mode, 'status' => $status]);
+            $this->redirect('/admin/system?cache=' . ($ok ? 'purged' : 'purge_failed') . ($mode === 'varnish' ? '&cache_status=' . $status : ''));
+            return;
+        }
+
         if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && (string)($_POST['system_action'] ?? '') === 'add_demo') {
             $result = $this->starterContent()->add(is_array($_POST['demo'] ?? null) ? array_map('strval', $_POST['demo']) : []);
             if ($result['added'] > 0) {
@@ -2500,6 +2542,13 @@ final class App
                 ['name' => 'Sign-in attempt cleanup', 'schedule' => 'continuous', 'last' => '', 'how' => 'Entries older than a day are removed while new attempts are recorded.'],
             ],
             'storage' => $storage,
+            'front_cache' => [
+                'mode' => $this->frontCache()->mode(),
+                'tag' => $this->frontCache()->cloudPanelTag(),
+                'address' => $this->frontCache()->address(),
+                'notice' => (string)($_GET['cache'] ?? ''),
+                'status' => (int)($_GET['cache_status'] ?? 0),
+            ],
             'rebuilt' => (string)($_GET['rebuilt'] ?? ''),
             'rebuilt_message' => trim((string)($_GET['msg'] ?? '')),
             'demo_groups' => $this->starterContent()->available() ? $this->starterContent()->groups() : [],
