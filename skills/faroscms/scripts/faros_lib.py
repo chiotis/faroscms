@@ -264,6 +264,7 @@ def list_entries(root, ctype):
 TYPES = ["text", "textarea", "markdown", "email", "url", "link", "image", "video", "file", "location", "color", "number",
          "decimal", "date", "select", "icon", "toggle", "repeater"]
 TONES = {"default": "Default", "muted": "Muted", "contrast": "Contrast", "accent": "Accent"}
+WIDTHS = {"100": "100%", "75": "75%", "50": "50%", "25": "25%"}
 SPACINGS = {"default": "Default", "compact": "Compact", "spacious": "Spacious", "none": "None"}
 KEY = re.compile(r"^[a-z][a-z0-9_]*$")
 
@@ -558,6 +559,7 @@ def load_blocks(root):
                 "variant": {"type": "select", "options": variants, "default": next(iter(variants))},
                 "tone": {"type": "select", "options": TONES, "default": tone if tone in TONES else "default"},
                 "spacing": {"type": "select", "options": SPACINGS, "default": spacing if spacing in SPACINGS else "default"},
+                "width": {"type": "select", "options": WIDTHS, "default": "100"},
                 "anchor": {"type": "text"},
                 "hidden": {"type": "toggle"},
             })
@@ -566,6 +568,7 @@ def load_blocks(root):
                 "description": str(raw.get("description") or ""), "category": str(raw.get("category") or ""),
                 "variants": variants, "fields": fields, "common": common,
                 "variant_when": raw.get("variant_when") or {},
+                "width_moved_to": str(raw.get("width_moved_to") or "") if str(raw.get("width_moved_to") or "") in fields else "",
             }
     return blocks
 
@@ -580,6 +583,12 @@ def check_block(blocks, block, where):
     if definition is None:
         return ["%s: unknown block type %r (the CMS skips it)" % (where, type_)]
     fields = {**definition["common"], **definition["fields"]}
+    moved = definition.get("width_moved_to") or ""
+    original_width = block.get("width")
+    if moved and "width" in block and str(block["width"]) not in WIDTHS:
+        # the block's own old `width` (the divider's line) is read as its new field, as the CMS does
+        block = {k: v for k, v in block.items() if k != "width"}
+        block.setdefault(moved, original_width)
     for key, value in block.items():
         if key == "type":
             continue

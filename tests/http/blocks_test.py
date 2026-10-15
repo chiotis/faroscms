@@ -76,7 +76,7 @@ import json
 data = json.loads(re.search(r'id="block-editor-data"[^>]*>(.*?)</script>', ed, re.S).group(1))
 defs = {d['type']: d for d in data['definitions']}
 check('each block says what kind it is, for the picker', all(d.get('category') for d in data['definitions']) and defs['hero']['category'] == 'Openers' and defs['pricing']['category'] == 'Convert', {t: d.get('category') for t, d in defs.items()})
-check('and its layout, background and spacing are the settings every block has', [f['key'] for f in defs['hero']['common']] == ['variant', 'tone', 'spacing', 'anchor', 'hidden'])
+check('and its layout, background and spacing are the settings every block has', [f['key'] for f in defs['hero']['common']] == ['variant', 'tone', 'spacing', 'width', 'anchor', 'hidden'])
 js = root.get('/assets/js/admin-blocks.js')[2]
 check('the editor script draws a block as a line that opens to Content and Design', 'bk-card' in js and "['content', 'Content'], ['design', 'Design']" in js)
 check('the script keeps what it needs for drawing out of the saved blocks', "'_tab'" in js and 'WeakMap' in js)

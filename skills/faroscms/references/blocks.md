@@ -1,4 +1,4 @@
-# Blocks of this installation (FarosCMS 0.1.119)
+# Blocks of this installation (FarosCMS 0.1.122)
 
 ## Fields every block has
 
@@ -8,6 +8,7 @@
 | `variant` | the layout; each block lists its own, the first is the default |
 | `tone` | background: `default`, `muted`, `contrast`, `accent` (a block can have another default, see its entry) |
 | `spacing` | space around it: `default`, `compact`, `spacious`, `none` |
+| `width` | how much of the row it takes: `25`, `50`, `75` (a number; `100`, the whole width, is the default and is not written). Blocks under 100% that follow each other sit side by side and wrap when the row is full (`25 + 25 + 50`, `50 + 50`, `75 + 25`); a 100% block starts a new row. On a tablet 25 becomes 50 and 75 becomes 100, on a phone every block is full width. The block that opens a page (a hero) is always full width |
 | `anchor` | an id for in-page links (`services` makes `#services`) |
 | `hidden` | `true` keeps the block in the file but not on the site |
 
@@ -180,7 +181,7 @@ Space between two sections, or a line, optionally with a short label in the midd
 | `label` | text; only when `variant` is `l` or `a` or `b` or `e` or `l` |  |
 | `height` | choice; one of `s`, `m`, `l`, `xl`; default `m`; only when `variant` is `s` or `p` or `a` or `c` or `e` |  |
 | `style` | choice; one of `solid`, `dashed`, `dotted`; default `solid`; only when `variant` is `line` or `label` |  |
-| `width` | choice; one of `page`, `narrow`, `short`; default `narrow`; only when `variant` is `line` or `label` |  |
+| `line_width` | choice; one of `page`, `narrow`, `short`; default `narrow`; only when `variant` is `line` or `label` |  |
 
 ### `downloads` — Downloads
 Documents to download, each with its kind of file and size. Pick the files from the media library; the size is read from the file.
@@ -363,7 +364,7 @@ The newest posts, projects, or any content type, shown from a quiet text list to
 | `eyebrow` | text |  |
 | `heading` | text |  |
 | `intro` | text (several lines) |  |
-| `source` | choice; a content type of the site |  |
+| `source` | choice; a content type of the site; default `posts` |  |
 | `term` | text | Optional. The slug of a category or tag, as in Taxonomies. |
 | `limit` | whole number; 1 to 12; default `3` |  |
 | `columns` | choice; one of `2`, `3`, `4`; default `3` |  |

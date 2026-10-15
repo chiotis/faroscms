@@ -16,6 +16,8 @@ use Symfony\Component\Yaml\Yaml;
 final class Theme
 {
     public const DEFAULT_NAME = 'default';
+    /** The name, among the block types of a page, of the styles for blocks that share a row (assets/css/block-row.css). */
+    public const ROW_STYLES = '_row';
 
     private string $name;
     /** @var array<string, mixed>|null */
@@ -318,7 +320,7 @@ final class Theme
         foreach ($files as $file) {
             $stamp .= $file . ':' . self::fileVersion($file) . ';';
         }
-        $names = array_values(array_unique(array_filter($types, static fn(string $type): bool => (bool)preg_match('/^[a-z][a-z0-9-]*$/', $type))));
+        $names = array_values(array_unique(array_filter($types, static fn(string $type): bool => $type === self::ROW_STYLES || (bool)preg_match('/^[a-z][a-z0-9-]*$/', $type))));
         return $baseUrl . '/_themes/' . $this->name . '/_blocks.css?b=' . implode(',', $names) . '&v=' . substr(sha1($stamp), 0, 10);
     }
 
@@ -357,6 +359,14 @@ final class Theme
     {
         $files = [];
         foreach (array_slice(array_values(array_unique($types)), 0, 40) as $type) {
+            if ($type === self::ROW_STYLES && $filename === 'block.css') {
+                // The styles of a row of blocks live with the theme's assets and ride along only where a page has one.
+                $file = self::assetFile($themePath . '/assets', 'css/block-row.css');
+                if ($file !== null) {
+                    $files[] = $file;
+                }
+                continue;
+            }
             if (!is_string($type) || !preg_match('/^[a-z][a-z0-9-]*$/', $type)) {
                 continue;
             }

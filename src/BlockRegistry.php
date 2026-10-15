@@ -18,6 +18,8 @@ use Symfony\Component\Yaml\Yaml;
 final class BlockRegistry
 {
     public const TONES = ['default' => 'Default', 'muted' => 'Muted', 'contrast' => 'Contrast', 'accent' => 'Accent'];
+    /** Share of the row a block takes (percent); 100 is today's full-width section and is never written to a page. */
+    public const WIDTHS = ['100' => '100%', '75' => '75%', '50' => '50%', '25' => '25%'];
     public const SPACINGS = ['default' => 'Default', 'compact' => 'Compact', 'spacious' => 'Spacious', 'none' => 'None'];
 
     /** @var array<string, array<string, mixed>>|null */
@@ -117,6 +119,15 @@ final class BlockRegistry
             return self::slideToHeroSlider($raw);
         }
         $definition = is_string($raw['type'] ?? null) ? $this->get($raw['type']) : null;
+        // A block that used `width` for something of its own before every block got a Width (the divider's line) keeps that choice in
+        // the field named by `width_moved_to`; only a value that is not one of the shared Width's is moved.
+        $moved = $definition['width_moved_to'] ?? '';
+        if ($moved !== '' && array_key_exists('width', $raw) && !array_key_exists((string)(is_scalar($raw['width']) ? $raw['width'] : ''), self::WIDTHS)) {
+            if (!array_key_exists($moved, $raw)) {
+                $raw[$moved] = $raw['width'];
+            }
+            unset($raw['width']);
+        }
         foreach ($definition['variant_migrations'] ?? [] as $migration) {
             $matches = true;
             foreach ($migration['when'] as $key => $wanted) {
@@ -218,7 +229,8 @@ final class BlockRegistry
                     if ($value === $field['default'] || $value === []) {
                         continue;
                     }
-                    $block[$key] = $value;
+                    // A width is written as the number it is (width: 50), like a person would type it.
+                    $block[$key] = $key === 'width' && is_numeric($value) ? (int)$value : $value;
                 }
             }
             $blocks[] = $block;
@@ -293,6 +305,8 @@ final class BlockRegistry
             'variant_when' => $variantWhen,
             'variant_extends' => $variantExtends,
             'variant_migrations' => $variantMigrations,
+            // The field a block's own old `width` setting moved to (block.yaml `width_moved_to`), so `width` is the shared Width everywhere.
+            'width_moved_to' => preg_match('/^[a-z][a-z0-9_]*$/', (string)($raw['width_moved_to'] ?? '')) && isset($fields[(string)$raw['width_moved_to']]) ? (string)$raw['width_moved_to'] : '',
             'variant_previews' => self::variantPreviews(dirname($file) . '/variants', array_keys($variants), $designFields, $fields),
             'design_fields' => $designFields,
             'fields' => $fields,
@@ -301,6 +315,7 @@ final class BlockRegistry
                 'variant' => ['type' => 'select', 'label' => 'Layout', 'options' => $variants, 'default' => (string)array_key_first($variants)],
                 'tone' => ['type' => 'select', 'label' => 'Background', 'options' => self::TONES, 'default' => isset(self::TONES[$tone]) ? $tone : 'default'],
                 'spacing' => ['type' => 'select', 'label' => 'Spacing', 'options' => self::SPACINGS, 'default' => isset(self::SPACINGS[$spacing]) ? $spacing : 'default'],
+                'width' => ['type' => 'select', 'label' => 'Width', 'options' => self::WIDTHS, 'default' => '100', 'help' => 'Under 100% a block sits beside the next ones in a row.'],
                 'anchor' => ['type' => 'text', 'label' => 'Anchor id', 'help' => 'Optional id for in-page links, e.g. services.'],
                 'hidden' => ['type' => 'toggle', 'label' => 'Hide this block'],
             ]),

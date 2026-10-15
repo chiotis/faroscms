@@ -144,6 +144,12 @@
     if (count) count.textContent = total ? String(total) : '';
   }
 
+  /** The share of the row a block takes (25, 50, 75 or 100). */
+  function widthOf(block) {
+    var value = Number(block.width);
+    return value === 25 || value === 50 || value === 75 ? value : 100;
+  }
+
   function summaryOf(block) {
     var keys = ['heading', 'eyebrow', 'text', 'intro', 'body'];
     for (var i = 0; i < keys.length; i++) {
@@ -575,6 +581,18 @@
       }));
       row.appendChild(swatches);
     }
+    // How much of the row the block takes; under 100% it sits beside the next blocks.
+    var width = field('width');
+    if (width) {
+      var chips = el('div', { class: 'bk-field' }, [el('span', { class: 'bk-label', text: width.label })]);
+      chips.appendChild(choiceButtons(width, block.width == null ? width['default'] : block.width, function (value) {
+        block.width = value;
+        serialize();
+        render(block._id, 'keep');
+      }, 'bk-choices bk-widths'));
+      if (width.help) chips.appendChild(el('span', { class: 'bk-help', text: width.help }));
+      row.appendChild(chips);
+    }
     var spacing = field('spacing');
     if (spacing) row.appendChild(fieldControl(Object.assign({}, spacing, { span: '' }), block.spacing == null ? spacing['default'] : block.spacing, change('spacing'), idBase));
     ['anchor', 'hidden'].forEach(function (key) {
@@ -582,7 +600,7 @@
       if (f) row.appendChild(fieldControl(Object.assign({}, f, { span: '' }), block[key], change(key), idBase));
     });
     def.common.forEach(function (f) {
-      if (['variant', 'tone', 'spacing', 'anchor', 'hidden'].indexOf(f.key) === -1) row.appendChild(fieldControl(Object.assign({}, f, { span: '' }), block[f.key], change(f.key), idBase));
+      if (['variant', 'tone', 'width', 'spacing', 'anchor', 'hidden'].indexOf(f.key) === -1) row.appendChild(fieldControl(Object.assign({}, f, { span: '' }), block[f.key], change(f.key), idBase));
     });
     panel.appendChild(row);
     return panel;
@@ -661,6 +679,8 @@
         toggle.appendChild(el('span', { class: 'bk-tag', text: optionLabel(variantField, block.variant) }));
       }
     }
+    var share = widthOf(block);
+    if (def && share < 100) toggle.appendChild(el('span', { class: 'bk-tag bk-width-tag', title: 'Width: ' + share + '% of the row', text: share + '%' }));
     if (block.hidden) {
       toggle.appendChild(el('span', { class: 'bk-tag is-warn', html: svg('eyeOff', 'h-3 w-3') + 'Hidden' }));
     }
@@ -826,7 +846,23 @@
 
   function render(focusId, focusWhat) {
     list.innerHTML = '';
-    blocks.forEach(function (block, index) { list.appendChild(renderBlock(block, index)); });
+    // Blocks narrower than the page that follow each other share a row on the page, so they are drawn side by side here too.
+    var row = null;
+    blocks.forEach(function (block, index) {
+      var card = renderBlock(block, index);
+      if (widthOf(block) < 100 && definitions[block.type]) {
+        if (!row) {
+          row = el('div', { class: 'bk-sharing', role: 'group', 'aria-label': 'Blocks sharing a row' });
+          list.appendChild(row);
+        }
+        // An open block takes the whole row to have room for its fields.
+        card.style.gridColumn = 'span ' + (block._open ? 4 : widthOf(block) / 25);
+        row.appendChild(card);
+      } else {
+        row = null;
+        list.appendChild(card);
+      }
+    });
     empty.classList.toggle('hidden', blocks.length > 0);
     if (copyNote) copyNote.classList.toggle('hidden', blocks.length > 0 || activeKey === languages[0].key || !sets[languages[0].key].length);
     serialize();

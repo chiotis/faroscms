@@ -109,6 +109,7 @@ blocks:
     variant: split          # layout, from the block's variants
     tone: default           # default | muted | contrast | accent (background)
     spacing: default        # default | compact | spacious | none
+    width: 50               # 25 | 50 | 75; left out for the whole width (100)
     anchor: intro           # optional id for in-page links (#intro)
     heading: Websites that work as hard as you do.
     actions:
@@ -169,6 +170,20 @@ Third block family (dynamic and interactive):
 | `marquee` | text, logos | A band that scrolls by itself: big words with a dot between them, or logos (their names when there is no image). Slow, normal or fast, to the left or the right. It runs on CSS alone, stops while the mouse or the keyboard is on it, has a pause button, and for visitors who ask for less motion it is still and wraps. |
 
 The blocks showcase page (`/blocks`, hidden, admins only) shows every block and variant.
+
+### Block widths and rows
+
+Every block has a **Width** in its Design tab (25, 50, 75 or 100%, stored as `width: 25|50|75`; 100 is the default and is never written, so content without widths renders exactly as before). It is one of the settings every block gets from `BlockRegistry`, not from `block.yaml`.
+
+Blocks under 100% that follow each other are gathered by `BlockRenderer` into one `<div class="block-row space-…">` (plus `block-row--plain` when none has a background tone) and each section gets `block--w-25|50|75`. A 100% block, a hidden block excepted, ends the row. The row is a four-column grid as wide as a container (so it lines up with the standard, landing and sidebar templates) with the `--space-l` gap; a block takes 1, 2 or 3 columns and wraps when the row is full. The row carries the vertical space of **one** section (the spacing of its first block); the blocks inside add none. Phone (up to 640px): every block is full width. Tablet (up to 960px): 25% becomes 50% and 75% becomes 100%. The block that opens the page (a hero or hero slider) is always full width, because the header, the title area and the page's `<h1>` belong to it. Heading levels do not change.
+
+The styles are `assets/css/block-row.css` of the theme. They are added to the page's block stylesheet (`_blocks.css?b=…,_row`) **only when the page has a narrow block**, and there is no JavaScript. A theme that has no such file simply shows the blocks one under another.
+
+A narrow block cannot use the layouts made for a full row, so `block-row.css` has a small set of rules for narrow blocks (a quarter or a half of the row, and both on a tablet): side-by-side layouts (Text split, contents and image beside text, FAQ/Form/Map split, Hero split, Tabs vertical, Latest featured and editorial, Pricing list, Quote with photo, Video split, Playlist featured) and grids of items (Features, Gallery, Team, Latest, Cards, Video, Testimonials, Pricing) fall back to one column, or two in a half row on a desktop; the large headings come down a step; Logos show one per row in a quarter. A block with a background of its own (a tone other than default, a cover Hero, a Hero slider) becomes a **contained card** in its column (rounded, with padding), and a cover is only as tall as its content (minimum 24rem), not as tall as the screen. Blocks that already fit their column by width (Stats, Checklist, Downloads, Portfolio, Timeline steps) are left to adapt. When you write a block with a grid of its own that has fixed columns, add a rule for it in `block-row.css` (or your own `custom/` override of that file); in the CSS the narrow blocks are `.block-row > .block--w-25` and `.block--w-50`.
+
+A block that had a field called `width` of its own (the Divider's line) names the new field in `block.yaml` (`width_moved_to: line_width`): a stored `width` that is not 25/50/75/100 is read as that field, so old content renders as before.
+
+`scripts/theme-audit.js` has `themeAudit.rows(paths)` to check a page with rows at desktop, tablet and phone widths.
 
 ### Writing a block
 

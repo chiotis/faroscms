@@ -6,6 +6,7 @@ variants:
   space: Empty space
   line: Line
   label: Line with a label
+width_moved_to: line_width
 fields:
   label:
     type: text
@@ -24,9 +25,9 @@ fields:
     default: solid
     options: { solid: Solid, dashed: Dashed, dotted: Dotted }
     when: { variant: [line, label] }
-  width:
+  line_width:
     type: select
-    label: Width
+    label: Line width
     default: narrow
     options: { page: Page, narrow: Text, short: Short }
     when: { variant: [line, label] }

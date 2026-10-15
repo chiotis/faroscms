@@ -1,0 +1,193 @@
+/*
+ * Blocks that share a row (a block's Width under 100%). Loaded only on a page that has such a block.
+ * The row is a four-column grid as wide as a container; a block takes 1, 2 or 3 columns (25, 50, 75%)
+ * and wraps to the next line when the row is full. The row carries the vertical space of a section once,
+ * so the blocks in it add none of their own. Phone: every block is full width. Tablet: 25% -> 50%, 75% -> 100%.
+ */
+.block-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-l);
+  align-items: stretch;
+  width: min(100% - 2 * var(--gutter), var(--container));
+  margin-inline: auto;
+  padding-block: var(--section-space);
+}
+
+.block-row > .block {
+  grid-column: span 4;
+  min-width: 0;
+  padding-block: 0;
+}
+
+.block-row > .block--w-25 { grid-column: span 1; }
+.block-row > .block--w-50 { grid-column: span 2; }
+.block-row > .block--w-75 { grid-column: span 3; }
+
+/* The block's own content is as wide as its column, whatever width the block would have on a full row. */
+.block-row > .block :is(.container, .container-narrow, .site-wrap) {
+  width: 100%;
+}
+
+/* A block with a background of its own (a tone, a cover picture, a slider, a map) is a contained card in its column. */
+.block-row > .block:is(:not(.tone-default), .block-hero-slider, .block-hero:is(.block--cover, .block--steps)) {
+  padding: var(--space-l);
+  border-radius: var(--radius-l);
+  overflow: hidden;
+}
+
+/* What is as tall as the screen on a full row is only as tall as its content in a column. */
+.block-row > .block-hero:is(.block--cover, .block--steps) {
+  min-height: 24rem;
+  padding-top: var(--space-xl);
+}
+.block-row > .block-hero-slider .slide-hero:is(.block--cover, .block--steps) {
+  min-height: 24rem;
+}
+
+/* The gap between two sections on the same background is shared (site.css); a row keeps the same rhythm. */
+.block.tone-default:not(.block--cover, .block-hero.block--steps, .space-none) + .block-row--plain,
+.block-row--plain + .block.tone-default:not(.block-hero),
+.block-row--plain + .block-row--plain {
+  padding-top: 0;
+}
+
+@media (max-width: 960px) {
+  .block-row > .block--w-25 { grid-column: span 2; }
+  .block-row > .block--w-75 { grid-column: span 4; }
+}
+
+@media (max-width: 640px) {
+  .block-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .block-row {
+    gap: var(--space-m);
+  }
+  .block-row > .block:is(:not(.tone-default), .block-hero-slider, .block-hero:is(.block--cover, .block--steps)) {
+    padding: var(--space-m);
+  }
+  .block-row > .block,
+  .block-row > .block--w-25,
+  .block-row > .block--w-50,
+  .block-row > .block--w-75 {
+    grid-column: auto;
+  }
+}
+
+/*
+ * Narrow blocks. A block in a quarter or half of the row cannot use the layouts made for a full row: side-by-side halves,
+ * sidebars and four-column grids fall back to one column (grids of items to two columns in a half row on a desktop), and the
+ * large headings come down a step. Lists that fit their columns by width (cards, plans, stats, logos) already adapt.
+ * Not for a phone: there every block is full width and uses its own phone layout.
+ */
+@media (min-width: 641px) {
+.block-row > :is(.block--w-25, .block--w-50).block--split .checklist-layout,
+.block-row > :is(.block--w-25, .block--w-50) .contact-layout.has-form,
+.block-row > :is(.block--w-25, .block--w-50).block-faq.block--split .faq-layout,
+.block-row > :is(.block--w-25, .block--w-50).block-form.block--split .form-block-layout,
+.block-row > :is(.block--w-25, .block--w-50).block-hero.block--split .hero-inner,
+.block-row > :is(.block--w-25, .block--w-50) .latest-featured,
+.block-row > :is(.block--w-25, .block--w-50).block-latest.block--editorial .latest-item,
+.block-row > :is(.block--w-25, .block--w-50) .map-split,
+.block-row > :is(.block--w-25, .block--w-50) .geo-layout,
+.block-row > :is(.block--w-25, .block--w-50) .pl-featured-layout,
+.block-row > :is(.block--w-25, .block--w-50).block--photo .quote-figure,
+.block-row > :is(.block--w-25, .block--w-50) .tabs-panel-inner,
+.block-row > :is(.block--w-25, .block--w-50) .tabs-vertical.is-enhanced,
+.block-row > :is(.block--w-25, .block--w-50) .ti-grid,
+.block-row > :is(.block--w-25, .block--w-50) .text-split,
+.block-row > :is(.block--w-25, .block--w-50) .text-contents,
+.block-row > :is(.block--w-25, .block--w-50) .video-split,
+.block-row > :is(.block--w-25, .block--w-50).block-pricing.block--list .plan-card,
+.block-row > :is(.block--w-25, .block--w-50) .cols {
+    grid-template-columns: minmax(0, 1fr);
+  }
+.block-row > :is(.block--w-25, .block--w-50) .features-grid,
+.block-row > :is(.block--w-25, .block--w-50) .gallery-list,
+.block-row > :is(.block--w-25, .block--w-50) .team-list,
+.block-row > :is(.block--w-25, .block--w-50) .block-latest .latest-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .block-row > .block--w-25 :is(.section-title, .hero-title, .cta-title) {
+    font-size: var(--step-3);
+  }
+  .block-row > .block--w-50 :is(.section-title, .hero-title, .cta-title) {
+    font-size: var(--step-4);
+  }
+}
+
+@media (min-width: 961px) {
+.block-row > .block--w-50 .features-grid,
+.block-row > .block--w-50 .gallery-list,
+.block-row > .block--w-50 .team-list,
+.block-row > .block--w-50 .block-latest .latest-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Special cases of single blocks. */
+.block-row > .block {
+  overflow-wrap: anywhere;
+}
+@media (min-width: 641px) {
+  .block-row > :is(.block--w-25, .block--w-50) :is(.testimonials-list, .testimonials-list.is-featured, .pricing-list, .cards-grid, .cards-grid[class*="cols-"]) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .block-row > :is(.block--w-25, .block--w-50) .text-split-head {
+    position: static;
+  }
+  .block-row > :is(.block--w-25, .block--w-50).block-gallery.block--masonry .gallery-list {
+    columns: 1;
+  }
+  /* A list of cards with the picture beside the text puts it above, as on a phone. */
+  .block-row > :is(.block--w-25, .block--w-50).block-cards.block--list .content-item {
+    flex-direction: column;
+  }
+  .block-row > :is(.block--w-25, .block--w-50).block-cards.block--list .content-item-media {
+    flex-basis: auto;
+    aspect-ratio: 16 / 10;
+  }
+  .block-row > .block--w-25 .logos-list {
+    --logo-per-row: 1;
+    --logo-height: 2.75rem;
+  }
+  .block-row > .block--w-50 .logos-list {
+    --logo-per-row: min(var(--logo-cols, 4), 3);
+  }
+  .block-row > :is(.block--w-25, .block--w-50) :is(.testimonial-quote, .quote-text, .stat-value) {
+    font-size: var(--step-2);
+  }
+}
+@media (min-width: 961px) {
+  .block-row > .block--w-50.block-gallery.block--masonry .gallery-list {
+    columns: 2;
+  }
+  .block-row > .block--w-50 :is(.testimonials-list, .pricing-list, .cards-grid[class*="cols-"]) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 641px) {
+  .block-row > :is(.block--w-25, .block--w-50) :is(.cols-2, .cols-3, .cols-4, .cols-5, .cols-6):not(.logos-list) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .block-row > .block--w-25 .logo-wordmark {
+    font-size: var(--step-0);
+  }
+}
+@media (min-width: 961px) {
+  .block-row > .block--w-50 :is(.cols-2, .cols-3, .cols-4, .cols-5, .cols-6):not(.logos-list) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Logos in a column: wordmarks are smaller, and a half row on a tablet holds two. */
+.block-row > :is(.block--w-25, .block--w-50, .block:not(.tone-default)) .logo-wordmark {
+  font-size: var(--step-0);
+}
+@media (min-width: 641px) and (max-width: 960px) {
+  .block-row > .block--w-50 .logos-list {
+    --logo-per-row: 2;
+  }
+}

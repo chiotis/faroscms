@@ -9,6 +9,8 @@
  *        await themeAudit.pages(['/'], {width: 375, menu: true})  the same on a phone, with the menu open
  *        await themeAudit.reflow(['/', '/en/services'])           no sideways scrolling at 320 px
  *        await themeAudit.tokens()                                contrast of the main colour pairs, all palettes
+ *        await themeAudit.rows(['/a-page-with-widths'])           blocks that share a row (a Width under 100%): desktop, tablet and phone,
+ *                                                                 nothing wider than its column, a phone shows every block full width
  *
  * `pages` loads axe-core from cdnjs into the page being audited, so it needs internet access and is
  * a development tool only. Results are plain objects; an empty `violations` list means clean.
@@ -88,6 +90,34 @@
     return { scanned: paths.length, problems };
   }
 
+  /** Blocks that share a row: at desktop, tablet and phone widths each stays inside its column, and on a phone each is as wide as the row. */
+  async function rows(paths, { widths = [1280, 800, 375] } = {}) {
+    const problems = {};
+    let rowsSeen = 0;
+    for (const path of paths) {
+      for (const width of widths) {
+        const { frame, doc } = await open(path, width, null);
+        for (const row of doc.querySelectorAll('.block-row')) {
+          rowsSeen++;
+          const box = row.getBoundingClientRect();
+          for (const block of row.children) {
+            const rect = block.getBoundingClientRect();
+            const label = `${path} @${width} ${block.className.split(' ').slice(1, 3).join('.')}`;
+            const wide = [...block.querySelectorAll('*')].filter((el) => {
+              const r = el.getBoundingClientRect();
+              return r.width > 0 && (r.right > rect.right + 1 || r.left < rect.left - 1) && !el.closest('.slider-track, .tabs-list, .table-wrap, .gallery-list, [tabindex="0"], .sr-only, .form-honeypot');
+            });
+            if (wide.length) (problems[label] ||= []).push(`${wide.length} element(s) wider than the column, e.g. ${wide[0].tagName}.${String(wide[0].className).slice(0, 30)}`);
+            if (rect.right > box.right + 1) (problems[label] ||= []).push('outside the row');
+            if (width <= 640 && Math.abs(rect.width - box.width) > 1) (problems[label] ||= []).push(`phone: ${Math.round(rect.width)}px of ${Math.round(box.width)}px`);
+          }
+        }
+        frame.remove();
+      }
+    }
+    return { scanned: paths.length, rows: rowsSeen, problems };
+  }
+
   /** Contrast of the colour pairs the theme relies on, in every palette and both modes (AA needs 4.5). */
   async function tokens() {
     const parse = (value) => {
@@ -144,5 +174,5 @@
     return { worst, below45: Object.entries(rows).flatMap(([label, pairs]) => Object.entries(pairs).filter(([, v]) => v < 4.5).map(([k, v]) => `${label}: ${k} ${v}`)), rows };
   }
 
-  window.themeAudit = { pages, reflow, tokens };
+  window.themeAudit = { pages, reflow, rows, tokens };
 })();
