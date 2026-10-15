@@ -26,6 +26,16 @@ final class ContentRepository
     /** @var (\Closure(): string[])|null the content types the theme ships, which a site switches on and off */
     private ?\Closure $catalogue;
 
+    /** Where the parsed files are kept between visits (null: parsed on every visit), and what makes that store stale. */
+    private ?string $storeDir = null;
+    private string $storeSalt = '';
+
+    /** @var array<string, array{0: int, 1: int, 2: ContentItem}> parsed in this request, by path, with its time and size, so a second language or listing does not parse it again */
+    private array $parsed = [];
+
+    /** @var array<string, array<string, array{0: int, 1: int, 2: array, 3: string, 4: string}>> type => path => [mtime, size, meta, markdown, html] */
+    private array $stored = [];
+
     /** @param (\Closure(): string[])|null $catalogue */
     public function __construct(string $contentDir, MarkdownConverter $markdown, array $settings, ?\Closure $catalogue = null)
     {
@@ -33,6 +43,17 @@ final class ContentRepository
         $this->contentDir = rtrim($contentDir, '/');
         $this->markdown = $markdown;
         $this->settings = $settings;
+    }
+
+    /**
+     * Keeps each parsed file (front matter and its Markdown as HTML) in `$dir`, one file per type, so a visit reads that instead
+     * of parsing every file of the type again. A file counts as unchanged while its time and size are; `$salt` (the version of the
+     * code) throws the whole store away when the way files are read may have changed.
+     */
+    public function storeParsedIn(string $dir, string $salt): void
+    {
+        $this->storeDir = rtrim($dir, '/');
+        $this->storeSalt = $salt . '|' . (string)($this->settings['languages']['default'] ?? 'en');
     }
 
     /** Called once for each file whose front matter cannot be read, so the site can tell someone. @param \Closure(string, string, string): void $callback */
@@ -124,8 +145,10 @@ final class ContentRepository
         }
 
         $itemsBySlug = [];
-        foreach (glob($this->contentDir . '/' . $type . '/*.md') ?: [] as $path) {
-            $item = $this->parseFile($type, $path);
+        $paths = glob($this->contentDir . '/' . $type . '/*.md') ?: [];
+        $changed = false;
+        foreach ($paths as $path) {
+            $item = $this->item($type, $path, $changed);
             if ($lang === null) {
                 $itemsBySlug[$item->slug . '|' . $item->lang] = $item;
                 continue;
@@ -141,6 +164,10 @@ final class ContentRepository
             }
         }
 
+        if ($this->storeDir !== null && ($changed || array_diff_key($this->stored[$type] ?? [], array_flip($paths)) !== [])) {
+            $this->keepStore($type, $paths);
+        }
+
         $items = array_values($itemsBySlug);
         usort($items, function (ContentItem $a, ContentItem $b): int {
             $dateA = strtotime((string)($a->meta['date'] ?? '')) ?: $a->mtime;
@@ -150,6 +177,71 @@ final class ContentRepository
 
         $this->cache[$cacheKey] = $items;
         return $this->filterVisibility($items, $includeHidden);
+    }
+
+    /** The file at `$path` as an entry: from this request, from the store when the file has not changed since, or parsed. */
+    private function item(string $type, string $path, bool &$changed): ContentItem
+    {
+        $mtime = (int)@filemtime($path);
+        $size = (int)@filesize($path);
+        $seen = $this->parsed[$path] ?? null;
+        if ($seen !== null && $seen[0] === $mtime && $seen[1] === $size) {
+            return $seen[2];
+        }
+        if ($this->storeDir === null) {
+            return ($this->parsed[$path] = [$mtime, $size, $this->parseFile($type, $path)])[2];
+        }
+        $stored = $this->storedFor($type);
+        $entry = $stored[$path] ?? null;
+        if ($entry !== null && $entry[0] === $mtime && $entry[1] === $size) {
+            return ($this->parsed[$path] = [$mtime, $size, new ContentItem($type, (string)$entry[2]['slug'], (string)$entry[2]['lang'], $entry[2], $entry[3], $entry[4], $path, $mtime)])[2];
+        }
+        $item = $this->parseFile($type, $path);
+        // A file that cannot be read is parsed again each time, so it is reported until someone fixes it.
+        if (!isset($this->unreadable[$path])) {
+            $this->stored[$type][$path] = [$mtime, $size, $item->meta, $item->markdown, $item->html];
+            $changed = true;
+        }
+        return ($this->parsed[$path] = [$mtime, $size, $item])[2];
+    }
+
+    /** @return array<string, array{0: int, 1: int, 2: array, 3: string, 4: string}> */
+    private function storedFor(string $type): array
+    {
+        if (!isset($this->stored[$type])) {
+            $this->stored[$type] = [];
+            $raw = @file_get_contents($this->storeFile($type));
+            if (is_string($raw) && $raw !== '') {
+                $data = @unserialize($raw, ['allowed_classes' => false]);
+                if (is_array($data) && ($data['salt'] ?? null) === $this->storeSalt && is_array($data['files'] ?? null)) {
+                    $this->stored[$type] = $data['files'];
+                }
+            }
+        }
+        return $this->stored[$type];
+    }
+
+    /** @param string[] $paths the files the type has now; the store forgets the others. */
+    private function keepStore(string $type, array $paths): void
+    {
+        if ($this->storeDir === null) {
+            return;
+        }
+        $this->stored[$type] = array_intersect_key($this->stored[$type] ?? [], array_flip($paths));
+        // A store that cannot be written only costs speed: the files are parsed as before.
+        if (!is_dir($this->storeDir) && !@mkdir($this->storeDir, 0775, true) && !is_dir($this->storeDir)) {
+            return;
+        }
+        $file = $this->storeFile($type);
+        $temp = $file . '.' . bin2hex(random_bytes(4)) . '.tmp';
+        if (@file_put_contents($temp, serialize(['salt' => $this->storeSalt, 'files' => $this->stored[$type]])) === false || !@rename($temp, $file)) {
+            @unlink($temp);
+        }
+    }
+
+    private function storeFile(string $type): string
+    {
+        return $this->storeDir . '/' . preg_replace('/[^a-z0-9_-]/i', '_', $type) . '.ser';
     }
 
     public function find(string $type, string $slug, ?string $lang = null, bool $includeHidden = false, bool $fallbackDefault = true): ?ContentItem

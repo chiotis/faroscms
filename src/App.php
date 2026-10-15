@@ -18,6 +18,9 @@ use Twig\TwigFunction;
 
 final class App
 {
+    /** How long a cache in front of the site may keep a public page (see sendPublicCacheHeaders). */
+    private const PUBLIC_CACHE_SECONDS = 60;
+
     private string $basePath;
     private string $contentDir;
     private array $settings;
@@ -139,6 +142,7 @@ final class App
         $this->mediaUsage = new MediaUsage($this->contentDir, fn(): array => $this->mediaUsageSettingsSources(), (string)($this->settings['languages']['default'] ?? 'en'), $this->systemMeta);
         $this->images = new Images($this->basePath . '/public', $this->contentDir . '/media');
         $this->content = new ContentRepository($this->contentDir, $markdown, $this->settings, fn(): array => $this->contentTypes()->catalogue());
+        $this->content->storeParsedIn($this->basePath . '/storage/cache/content', trim((string)@file_get_contents($this->basePath . '/VERSION')));
         $this->content->onUnreadable(fn(string $type, string $path, string $message) => $this->reportUnreadableContent($type, $path, $message));
         $this->auth = new Auth($this->contentDir . '/users/users.yaml', $this->users);
 
@@ -149,13 +153,15 @@ final class App
 
     public function handle(): void
     {
-        if (session_status() !== PHP_SESSION_ACTIVE) {
+        $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
+        $path = trim($path, '/');
+
+        // A visitor of the public site gets no session (and no cookie), so the page can be kept by a cache in front of the site;
+        // the admin, a form that is sent and anyone who already has a session (an editor who sees drafts) get one.
+        if (session_status() !== PHP_SESSION_ACTIVE && $this->needsSession($path)) {
             $this->configureSession();
             session_start();
         }
-
-        $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
-        $path = trim($path, '/');
 
         // While an update replaces the code the public site says so; the admin stays open.
         if (!str_starts_with($path, 'admin') && (new MaintenanceMode($this->basePath))->blocks((string)($_SERVER['HTTP_X_FAROS_UPDATE'] ?? ''))) {
@@ -186,6 +192,7 @@ final class App
         }
 
         $this->sendSecurityHeaders(false);
+        $this->sendPublicCacheHeaders();
 
         // A scheduled backup that is due starts after the page has been sent, so it does not depend on someone opening the admin.
         if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
@@ -552,6 +559,28 @@ final class App
         $environment->addExtension(new StrikethroughExtension());
         $environment->addExtension(new AttributesExtension());
         return $environment;
+    }
+
+    private function needsSession(string $path): bool
+    {
+        if (str_starts_with($path, 'admin') || isset($_COOKIE[session_name()])) {
+            return true;
+        }
+        // The analytics script reports each visit with a POST; it must not hand every visitor a cookie.
+        return !in_array($_SERVER['REQUEST_METHOD'] ?? 'GET', ['GET', 'HEAD'], true) && $path !== '_a/collect';
+    }
+
+    /**
+     * A public page seen without a session is the same for everyone, so a cache in front of the site (Varnish, a CDN) may keep it
+     * for a minute; the browser asks again each time. With a session (an editor, who may see drafts) nothing keeps it. A response
+     * that must never be kept says so itself later (no-store), which replaces this.
+     */
+    private function sendPublicCacheHeaders(): void
+    {
+        if (headers_sent()) {
+            return;
+        }
+        header(session_status() === PHP_SESSION_ACTIVE ? 'Cache-Control: private, no-store' : 'Cache-Control: public, max-age=0, s-maxage=' . self::PUBLIC_CACHE_SECONDS);
     }
 
     private function configureSession(): void
