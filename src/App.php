@@ -2118,6 +2118,8 @@ final class App
         // The two tabs that gather how pages look come after the header's.
         $at = array_search('header', $tabs, true);
         array_splice($tabs, $at === false ? min(1, count($tabs)) : $at + 1, 0, $single->declared() ? ['single_layouts', 'archive_layouts'] : ['archive_layouts']);
+        // The site's own stylesheet has the last tab.
+        $tabs[] = 'custom_css';
         $activeTab = (string)($_GET['tab'] ?? '');
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // The live preview of Branding asks what the unsaved choices make of the pages (nothing is stored).
@@ -2138,6 +2140,9 @@ final class App
                 is_array($_POST['archive_search'] ?? null) ? $_POST['archive_search'] : null
             );
             $this->themeSettings = $this->loadThemeSettings();
+            if (($save['ok'] ?? false) === true && is_string($_POST['custom_css'] ?? null)) {
+                $save = (new CustomCss($this->theme->customPath()))->save($_POST['custom_css']);
+            }
             if (($save['ok'] ?? false) === true && (is_array($_POST['archive_types'] ?? null) || is_array($_POST['archive_taxonomies'] ?? null))) {
                 $failed = $this->layoutsAdmin()->saveArchives(
                     is_array($_POST['archive_types'] ?? null) ? $_POST['archive_types'] : [],
@@ -2169,7 +2174,8 @@ final class App
             'theme_message' => trim((string)($_GET['theme_msg'] ?? '')),
             'theme_schema' => $schema,
             'theme_tabs' => $tabs,
-            'tab_labels' => ['branding' => 'Branding', 'single_layouts' => 'Single Layouts', 'archive_layouts' => 'Archive Layouts', 'footer_blocks' => 'Footer Blocks'],
+            'tab_labels' => ['branding' => 'Branding', 'single_layouts' => 'Single Layouts', 'archive_layouts' => 'Archive Layouts', 'footer_blocks' => 'Footer Blocks', 'custom_css' => 'Custom CSS'],
+            'custom_css' => (new CustomCss($this->theme->customPath()))->read(),
             'footer_blocks_json' => $this->footerBlocksEditorJson($default),
             'branding' => $branding ? $this->brandingScreen() : null,
             'preview_url' => (string)($this->settings['base_url'] ?? '') . '/',

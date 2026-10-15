@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.124 — 2026-10-15 — Custom CSS in Theme settings
+- **Theme > Custom CSS** is a new last tab: the site's own stylesheet as an editable text area (monospace, Tab inserts two spaces, Escape then Tab moves on). It reads and writes `custom/assets/css/custom.css`, the file that is already loaded after the theme's stylesheet on every page, so a file edited by hand or kept in git shows up in the box and the other way round. It is saved with the rest of the theme settings; the file is written whole or not at all, line endings are made `\n`, an unchanged text is not rewritten (the file keeps its version), and an empty box empties the file. Up to 512 KB.
+
 ## 0.1.123 — 2026-10-15 — Thirds, for three equal columns
 - **Width also offers 33% and 66%** (25, 33, 50, 66, 75, 100), stored as `width: 33` or `66`. Three Text blocks at 33 + 33 + 33 are three exactly equal columns (the row is twelve columns, so a third is exactly a third of the row minus the gaps); 66 + 33, 33 + 66 and 25 + 75 work too, and rows wrap as before. On a tablet 33 becomes 50 and 66 becomes 100, on a phone every block is full width; a 33% block is treated as a narrow block like 25% and 50%.
 

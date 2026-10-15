@@ -19,7 +19,7 @@ st, _, html = root.get('/admin/theme')
 check('the theme has its own screen', st == 200 and re.search(r'<h1[^>]*>\s*Theme\s*</h1>', html) is not None, st)
 labels = re.findall(r'role="tab"[^>]*data-tab="([a-z_]+)"[^>]*>([^<]+)</button>', html)
 keys = [k for k, _ in labels]
-check('every section the theme declares is a tab: Branding gathers appearance, brand and design; the two that gather how pages look come after the header; Footer Blocks follows the footer', keys == ['branding', 'header', 'single_layouts', 'archive_layouts', 'social', 'footer', 'footer_blocks'], keys)
+check('every section the theme declares is a tab: Branding gathers appearance, brand and design; the two that gather how pages look come after the header; Footer Blocks follows the footer, Custom CSS is last', keys == ['branding', 'header', 'single_layouts', 'archive_layouts', 'social', 'footer', 'footer_blocks', 'custom_css'], keys)
 check('with the section names as labels', ('Branding' in [l for _, l in labels]) and ('Appearance' not in [l for _, l in labels]) and ('Brand' not in [l for _, l in labels]) and ('Header' in [l for _, l in labels]) and ('Single Layouts' in [l for _, l in labels]) and ('Archive Layouts' in [l for _, l in labels]) and 'Hero Layouts' not in [l for _, l in labels], labels)
 check('the first tab is open, the others hidden', html.count('data-panel=') == len(keys) and re.search(r'data-panel="%s"' % keys[0], html) is not None and html.count('tab-panel space-y-4 hidden') == len(keys) - 1, (len(keys), html.count('space-y-4 hidden')))
 check('tabs say which is selected', html.count('aria-selected="true"') == 1)
@@ -40,6 +40,22 @@ st, _, html = root.get(hdr.get('Location') or '/admin/theme?saved=1&tab=header')
 check('with a confirmation', 'Saved.' in html)
 st, _, html = root.get('/admin/activity-logs')
 check('the change is in the activity log', 'theme.update' in html or 'Theme settings updated' in html)
+
+# ---- Custom CSS: the site's own stylesheet is a text area, written to custom/assets/css/custom.css
+import os
+cssfile = 'app/custom/assets/css/custom.css'
+st, _, html = root.get('/admin/theme?tab=custom_css')
+check('Custom CSS shows a text area for the stylesheet, empty when the site has none', re.search(r'<textarea id="custom-css" name="custom_css"[^>]*></textarea>', html) is not None and not os.path.exists(cssfile), st)
+st, hdr, _ = root.request('/admin/theme', data=fields + [('custom_css', '.mine { color: red; }\r\n'), ('active_tab', 'custom_css')])
+check('saving writes the file and stays on the tab', st == 302 and 'tab=custom_css' in (hdr.get('Location') or '') and os.path.exists(cssfile) and open(cssfile).read() == '.mine { color: red; }\n', (st, hdr.get('Location')))
+st, _, html = root.get('/admin/theme?tab=custom_css')
+check('and the box shows it again', '.mine { color: red; }' in html)
+st, _, html = root.get('/')
+check('the pages load it after the theme', '/_custom/css/custom.css' in html, st)
+st, _, css = root.get('/_custom/css/custom.css')
+check('and it is served', st == 200 and '.mine' in css, st)
+root.request('/admin/theme', data=fields + [('custom_css', ''), ('active_tab', 'custom_css')])
+check('an empty box empties the file', os.path.exists(cssfile) and open(cssfile).read() == '')
 
 # ---- Settings no longer has it, and no longer touches it
 st, _, html = root.get('/admin/settings')
