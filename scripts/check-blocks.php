@@ -37,7 +37,7 @@ foreach ($files_list as $file) {
                         if ($cv !== $v && !(is_string($v) && trim($v) === $cv)) { echo "PROBLEM $rel #$i ({$block['type']}.$key[$r].$k) value changed by validation: " . json_encode($v) . " -> " . json_encode($cv) . "\n"; $problems++; }
                     }
                 }
-            } elseif ($clean !== $value && !(is_string($value) && trim($value) === $clean) && !(is_string($value) && str_replace("\r\n", "\n", trim($value)) === $clean)) {
+            } elseif ($clean !== $value && !(is_int($value) && (string)$value === $clean) && !(is_string($value) && trim($value) === $clean) && !(is_string($value) && str_replace("\r\n", "\n", trim($value)) === $clean)) {
                 echo "PROBLEM $rel #$i ({$block['type']}.$key) value changed by validation: " . json_encode($value) . " -> " . json_encode($clean) . "\n"; $problems++;
             }
         }

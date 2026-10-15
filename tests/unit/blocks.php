@@ -154,6 +154,15 @@ check('YouTube in the privacy host, silent, no controls, in a loop', BlockRender
 check('a YouTube link of any kind', array_map(fn($u) => BlockRenderer::backgroundVideo($u)['provider'] ?? null, ['https://www.youtube.com/watch?v=dQw4w9WgXcQ', 'https://www.youtube.com/shorts/dQw4w9WgXcQ', 'https://m.youtube.com/embed/dQw4w9WgXcQ']), ['youtube', 'youtube', 'youtube']);
 check('Vimeo in background mode', str_contains(BlockRenderer::backgroundVideo('https://vimeo.com/76979871')['src'], 'player.vimeo.com/video/76979871?dnt=1&background=1&autoplay=1&loop=1&muted=1'), true);
 check('what is not a video, or not safe, is refused', [BlockRenderer::backgroundVideo(''), BlockRenderer::backgroundVideo('https://example.test/page'), BlockRenderer::backgroundVideo('javascript:alert(1)'), BlockRenderer::backgroundVideo('https://evil.test/embed/dQw4w9WgXcQ'), BlockRenderer::backgroundVideo('https://www.youtube.com/watch?v=short')], [null, null, null, null, null]);
+// ---- Width: the share of a row a block takes
+check('every block has a Width of 100, 75, 50 or 25 percent, 100 by default', [array_keys($registry->get('text')['common']['width']['options']), $registry->get('hero')['common']['width']['default']], [[100, 75, 50, 25], '100']);
+$widthStored = fn($w) => $registry->sanitizeForStorage([['type' => 'text', 'heading' => 'H', 'width' => $w]])[0];
+check('a width is stored as a number, and 100 is never written', [$widthStored('50')['width'], $widthStored(25)['width'], $widthStored('75')['width'], isset($widthStored('100')['width']), isset($widthStored(100)['width'])], [50, 25, 75, false, false]);
+check('a width that is not one of the four is dropped', [isset($widthStored('33')['width']), isset($widthStored('abc')['width']), isset($widthStored(0)['width'])], [false, false, false]);
+check('read from a page, a number or a string resolves to the same width, and none is 100', [FieldSchema::resolve($registry->get('text')['common'], ['width' => 50])['width'], FieldSchema::resolve($registry->get('text')['common'], ['width' => '25'])['width'], FieldSchema::resolve($registry->get('text')['common'], [])['width']], ['50', '25', '100']);
+// the divider's own old `width` (the length of its line) moved to `line_width`, so `width` is the shared Width in every block
+check('a divider saved with the old width setting reads as before, and saves under the new name', [$registry->migrate(['type' => 'divider', 'variant' => 'line', 'width' => 'short']), $registry->sanitizeForStorage([['type' => 'divider', 'variant' => 'line', 'width' => 'page']])[0]], [['type' => 'divider', 'variant' => 'line', 'line_width' => 'short'], ['type' => 'divider', 'variant' => 'line', 'line_width' => 'page']]);
+check('a divider with the shared Width keeps it', [$registry->migrate(['type' => 'divider', 'variant' => 'line', 'width' => 50])['width'], $registry->sanitizeForStorage([['type' => 'divider', 'variant' => 'line', 'width' => '50']])[0]['width']], [50, 50]);
 echo $fail === 0 ? "\nALL PASSED\n" : "\n$fail FAILED\n"; exit($fail ? 1 : 0); }
 $md = file_get_contents($showcase);
 preg_match('/^---\n(.*?)\n---/s', $md, $m);

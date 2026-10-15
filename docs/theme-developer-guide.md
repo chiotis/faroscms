@@ -120,13 +120,13 @@ blocks:
 
 | Variable | Meaning |
 |----------|---------|
-| `block` | the checked values: your fields, plus `variant`, `tone`, `spacing`, `anchor` |
+| `block` | the checked values: your fields, plus `variant`, `tone`, `spacing`, `width`, `anchor` |
 | `heading_tag`, `item_heading_tag` | `h1` (an opening hero only) or `h2`, and the level for items under the heading (`h3`, or `h2` when the block has no heading). Use them so the page's heading outline stays correct. |
 | `block_uid` | a unique id for the block; the heading id is `{{ block_uid }}-title` |
 | `block_first` | true for the first block on the page |
 | `item`, `lang`, `lang_prefix` | the page being rendered, its language, and the URL prefix (`''` or `en/`) |
 
-The wrapper (`<section class="block block-quote block--boxed tone-default space-default">`) is added for you, together with the background tone (default, muted, contrast, accent) and spacing. Style your block with `.block-<type>` and `.block--<variant>` and it will follow tones automatically, because the tone classes re-scope the colour tokens.
+The wrapper (`<section class="block block-quote block--boxed tone-default space-default">`) is added for you, together with the background tone (default, muted, contrast, accent) and spacing. A block with a Width under 100% also gets `block--w-25|50|75` and sits in a `.block-row` with its neighbours: write the block so it still works in a quarter of the row (one column, no fixed widths), and see "Block widths and rows" in `docs/theming.md`. Style your block with `.block-<type>` and `.block--<variant>` and it will follow tones automatically, because the tone classes re-scope the colour tokens.
 
 **Kind of block:** give a block `category: Openers` (or `Content`, `Media`, `Showcase`, `Convert`, or a name of your own) so the block picker can filter by it; a block without one is listed under *Other*.
 

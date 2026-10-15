@@ -42,6 +42,8 @@ final class BlockRenderer
     {
         $blocks = $this->prepare($rawBlocks, (string)($context['body_html'] ?? ''));
         $html = '';
+        // Each shown block as [html, width, tone, spacing]; blocks narrower than the page are gathered into rows afterwards.
+        $sections = [];
         $types = [];
         $faq = [];
         $leadsWithHero = false;
@@ -78,7 +80,11 @@ final class BlockRenderer
             }
             $uid = $values['anchor'] !== '' ? $values['anchor'] : 'block-' . ($index + 1);
 
-            $html .= $this->twig->render('components/block.twig', $context + [
+            // The block that opens the page stays full width: the header, the title and the page's <h1> belong to it.
+            if ($isFirst && ($type === 'hero' || self::isOpeningSlider($type, $values))) {
+                $values['width'] = '100';
+            }
+            $sections[] = [(int)$values['width'], (string)$values['tone'], (string)$values['spacing'], $this->twig->render('components/block.twig', $context + [
                 'block' => $values,
                 'block_type' => $type,
                 'block_uid' => $uid,
@@ -91,7 +97,7 @@ final class BlockRenderer
                 // Items sit one level below their block's heading; a block without a heading has none to sit under.
                 'item_heading_tag' => $isFirst && $type === 'hero' ? 'h2' : (trim((string)($values['heading'] ?? '')) !== '' ? 'h3' : 'h2'),
                 'block_labelled' => trim((string)($values['heading'] ?? '')) !== '',
-            ]);
+            ])];
             $types[$type] = true;
 
             if ($type === 'faq' && ($values['schema'] ?? true) === true) {
@@ -109,6 +115,12 @@ final class BlockRenderer
             }
         }
 
+        $html = self::rows($sections);
+        $narrow = false;
+        foreach ($sections as $section) {
+            $narrow = $narrow || $section[0] < 100;
+        }
+
         // The playlist block draws its videos with the picture, the play button and the viewer of the video block.
         $assetTypes = array_keys($types);
         if (isset($types['playlist']) && !isset($types['video'])) {
@@ -117,6 +129,10 @@ final class BlockRenderer
         // The hero slider draws its slides with the hero's styles and plays their videos with the hero's script.
         if (isset($types['hero-slider'])) {
             $assetTypes = array_values(array_unique(array_merge(['hero'], array_diff($assetTypes, ['hero']))));
+        }
+        // Only a page with a block narrower than the page carries the styles of a row.
+        if ($narrow) {
+            $assetTypes[] = Theme::ROW_STYLES;
         }
         $stylesheet = $this->theme->blockStylesheetUrl($this->baseUrl, $assetTypes);
         $styles = $stylesheet !== '' ? [$stylesheet] : [];
@@ -139,6 +155,40 @@ final class BlockRenderer
             'count' => count($blocks),
             'image' => $firstImage,
         ];
+    }
+
+    /**
+     * The sections of a page as markup. Blocks at 100% follow each other as they always did; blocks narrower than that, one
+     * after another, share a row (`block-row`) that wraps when it is full. The row carries the spacing of its first block, so
+     * a row has the spacing of one section however many blocks it holds.
+     *
+     * @param array<int, array{0: int, 1: string, 2: string, 3: string}> $sections width, tone, spacing, markup
+     */
+    private static function rows(array $sections): string
+    {
+        $html = '';
+        $row = [];
+        $flush = static function () use (&$row, &$html): void {
+            if ($row === []) {
+                return;
+            }
+            $plain = true;
+            foreach ($row as $section) {
+                $plain = $plain && $section[1] === 'default';
+            }
+            $html .= '<div class="block-row space-' . $row[0][2] . ($plain ? ' block-row--plain' : '') . '">' . implode('', array_column($row, 3)) . '</div>';
+            $row = [];
+        };
+        foreach ($sections as $section) {
+            if ($section[0] >= 100) {
+                $flush();
+                $html .= $section[3];
+            } else {
+                $row[] = $section;
+            }
+        }
+        $flush();
+        return $html;
     }
 
     /**

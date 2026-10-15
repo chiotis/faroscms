@@ -90,6 +90,7 @@ COMMON = """## Fields every block has
 | `variant` | the layout; each block lists its own, the first is the default |
 | `tone` | background: `default`, `muted`, `contrast`, `accent` (a block can have another default, see its entry) |
 | `spacing` | space around it: `default`, `compact`, `spacious`, `none` |
+| `width` | how much of the row it takes: `25`, `50`, `75` (a number; `100`, the whole width, is the default and is not written). Blocks under 100% that follow each other sit side by side and wrap when the row is full (`25 + 25 + 50`, `50 + 50`, `75 + 25`); a 100% block starts a new row. On a tablet 25 becomes 50 and 75 becomes 100, on a phone every block is full width. The block that opens a page (a hero) is always full width |
 | `anchor` | an id for in-page links (`services` makes `#services`) |
 | `hidden` | `true` keeps the block in the file but not on the site |
 
