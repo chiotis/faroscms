@@ -19,7 +19,9 @@
 {% set position = geo_position(item) %}
 {% set nearby_radius = opt.nearby_radius|default(is_route ? 2 : 5) %}
 {% set near_types = is_route ? ['points', 'businesses'] : (kind == 'business' ? ['routes', 'points', 'businesses'] : ['routes', 'businesses', 'points']) %}
-{% set near = (opt.show_nearby ?? true) ? geo_nearby(item, near_types, nearby_radius, 18) : [] %}
+{# A limit for each kind, so a crowded route cannot push the points out; the old single `nearby_limit` is the fallback for all, then 18. #}
+{% set near_limit = {routes: opt.nearby_limit_routes|default(opt.nearby_limit|default(18)), points: opt.nearby_limit_points|default(opt.nearby_limit|default(18)), businesses: opt.nearby_limit_businesses|default(opt.nearby_limit|default(18))} %}
+{% set near = (opt.show_nearby ?? true) ? geo_nearby(item, near_types, nearby_radius, near_limit) : [] %}
 {% set show_map = (opt.show_map ?? true) and position %}
 {% set map_height = opt.map_height|default(is_route ? 'large' : 'medium') %}
 {% set booking = link_url(fields.booking_url ?? '', prefix) %}
@@ -68,7 +70,7 @@
 
 {% if is_route and show_map %}
   <section class="site-wrap place-map-wide" aria-label="{{ t('map.title', 'Map') }}">
-    {% include 'components/geo-map.twig' with {geo: geo_single(item, {types: near_types, radius: nearby_radius, limit: 18}), height: map_height, list: 'none', cluster: false, label: item.meta.title ~ ' — ' ~ t('map.title', 'Map')} only %}
+    {% include 'components/geo-map.twig' with {geo: geo_single(item, {types: near_types, radius: nearby_radius, limit: near_limit}), height: map_height, list: 'none', cluster: false, label: item.meta.title ~ ' — ' ~ t('map.title', 'Map')} only %}
     {% if route and route.profile|length > 1 and (opt.show_profile ?? true) %}
       <figure class="route-profile-figure">
         <figcaption>{{ t('route.profile', 'Height profile') }}{% if route.min_m is not null %} <span>{{ route.min_m }}–{{ route.max_m }} m</span>{% endif %}</figcaption>
@@ -112,7 +114,7 @@
     {% endif %}
     {% if not is_route and show_map %}
       <section class="place-card place-map-card" aria-label="{{ t('map.title', 'Map') }}">
-        {% include 'components/geo-map.twig' with {geo: geo_single(item, {types: near_types, radius: nearby_radius, limit: 18}), height: map_height, list: 'none', cluster: false, label: item.meta.title ~ ' — ' ~ t('map.title', 'Map')} only %}
+        {% include 'components/geo-map.twig' with {geo: geo_single(item, {types: near_types, radius: nearby_radius, limit: near_limit}), height: map_height, list: 'none', cluster: false, label: item.meta.title ~ ' — ' ~ t('map.title', 'Map')} only %}
         {% if position %}<p class="place-map-links"><a class="text-link" href="https://www.openstreetmap.org/?mlat={{ position.lat }}&amp;mlon={{ position.lng }}#map=16/{{ position.lat }}/{{ position.lng }}" rel="noopener">{{ t('map.open', 'Open in OpenStreetMap') }}{{ icon('arrow-up-right', 'btn-icon') }}</a> <a class="text-link" href="https://www.openstreetmap.org/directions?route=%3B{{ position.lat }}%2C{{ position.lng }}" rel="noopener">{{ t('map.directions', 'Directions') }}{{ icon('arrow-up-right', 'btn-icon') }}</a></p>{% endif %}
       </section>
     {% endif %}

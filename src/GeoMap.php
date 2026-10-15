@@ -90,7 +90,7 @@ final class GeoMap
         $fields = self::fields($item);
         $excerpt = isset($item->meta['excerpt']) && is_string($item->meta['excerpt']) ? trim(strip_tags($item->meta['excerpt'])) : '';
         if ($excerpt === '') {
-            $excerpt = trim((string)preg_replace('/\s+/u', ' ', html_entity_decode(strip_tags($item->html), ENT_QUOTES | ENT_HTML5, 'UTF-8')));
+            $excerpt = Feed::plainText($item->html, true);
         }
         $facts = [];
         $area = isset($fields['area']) && is_string($fields['area']) ? trim($fields['area']) : '';
@@ -130,9 +130,10 @@ final class GeoMap
      * is near an entry when its line passes close to it; two points are near when their positions are.
      *
      * @param ContentItem[] $candidates
+     * @param int|array<string, int> $limit how many in all, or how many of each content type
      * @return array<int, array{item: ContentItem, km: float}> nearest first
      */
-    public function nearby(ContentItem $subject, array $candidates, float $radiusKm, int $limit): array
+    public function nearby(ContentItem $subject, array $candidates, float $radiusKm, int|array $limit): array
     {
         $position = $this->position($subject);
         $ownLine = $this->line($subject);
@@ -163,6 +164,19 @@ final class GeoMap
             }
         }
         usort($found, static fn(array $a, array $b): int => $a['km'] <=> $b['km']);
+        if (is_array($limit)) {
+            // A limit for each kind (content type), so a crowded kind cannot push another out; a kind with no limit is not cut.
+            $count = [];
+            $kept = [];
+            foreach ($found as $entry) {
+                $type = $entry['item']->type;
+                $count[$type] = ($count[$type] ?? 0) + 1;
+                if (!isset($limit[$type]) || $count[$type] <= max(0, (int)$limit[$type])) {
+                    $kept[] = $entry;
+                }
+            }
+            return $kept;
+        }
         return array_slice($found, 0, max(0, $limit));
     }
 

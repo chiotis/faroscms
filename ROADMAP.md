@@ -29,7 +29,6 @@ Gaps the site finds go to `faroscms-requests.md` in its folder and come here as 
 Several releases were merged with only the tests of the change run, and CI was red on ten of them without anyone reading it. The suite and CI were read and mended in 0.1.62 (see `CHANGELOG.md`), and the visual editor's serializer has its own test. What is left of the debt is below; and from now on a merge is not finished until CI on `main` is green.
 
 1. **Look at what was only built, not seen**: dark mode and phone width of the visual editor, the block editor and the maps; Safari, Firefox and touch; the map with the list over it in an archive; the YouTube Data API with a real key; real GPX files from a device (a long recording, one with no heights, one in KML from Google Earth). Screen readers by hand are still to do.
-2. **Known rough edges of the new maps** (small): the automatic text in a popup starts with the entry's headings when there is no excerpt; "near" lists share one limit for points and businesses, so a crowded route can push the points out (the limit should be per kind); the Map block's `list: below` means nothing over a map (read as right).
 
 ## Next: in this order *(proposal)*
 
@@ -40,7 +39,7 @@ Several releases were merged with only the tests of the change run, and CI was r
 5. **Form translation (to rethink).** A translation should not be a new form with its own builder, but a translation of the same form. Found while testing: a change made to the Greek form did not reach the English one, so the two drift apart. Wanted: the form is built once, in the first language only; every other language is a set of translation settings on each field (label, placeholder, help text, option labels, button text, messages), edited from the field's inspector with a language switch. Adding or removing a field or option happens once and shows up in every language, with missing translations falling back to the first language and flagged. This replaces the older "clone fields/options into a new language version" idea. Submissions and emails use the language the form was shown in. It fixes a design that loses data, and every multilingual site with a form has it; it moves to the top as soon as a client site needs a form in two languages.
 6. **Places and routes, second phase.** What the first version left out, in the order it matters for the sites it was made for:
    - a gallery for an entry (a list of pictures, with a Library that adds several at once) and a strip of it under the title, as on the reference business page;
-   - a way to say that a point belongs to a route (a list of related entries that wins over distance), and a "nearby" limit for each kind;
+   - a way to say that a point belongs to a route (a list of related entries that wins over distance);
    - filters of the type (activity, difficulty, price range) inside the map's own bar, instantly, with counts;
    - the profile of the height linked to the map (a mark on the line under the pointer), and the places a route file marks as entries of their own on request;
    - custom single templates for a site (the three templates are three lines each; document how to start from them).

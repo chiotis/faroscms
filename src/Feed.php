@@ -145,6 +145,19 @@ final class Feed
         return strtotime((string)$date) ?: $item->mtime;
     }
 
+    /**
+     * The text of an entry's HTML as one line, without the code of its blocks (fenced code in the Markdown is not text for a
+     * reader). With `$skipHeadings` the headings go too, so the text starts at the first paragraph.
+     */
+    public static function plainText(string $html, bool $skipHeadings = false): string
+    {
+        $html = (string)preg_replace('#<pre\b.*?</pre>#is', ' ', $html);
+        if ($skipHeadings) {
+            $html = (string)preg_replace('#<h[1-6]\b.*?</h[1-6]>#is', ' ', $html);
+        }
+        return trim((string)preg_replace('/\s+/u', ' ', html_entity_decode(strip_tags(str_replace('<', ' <', $html)), ENT_QUOTES | ENT_HTML5, 'UTF-8')));
+    }
+
     /** The excerpt of an entry, or the start of its text (without the code of its blocks), as plain text. */
     private function summary(ContentItem $item): string
     {
@@ -152,9 +165,7 @@ final class Feed
         if ($excerpt !== '') {
             return $excerpt;
         }
-        // The blocks of a page are fenced code in its Markdown: they are not text for a reader.
-        $html = (string)preg_replace('#<pre\b.*?</pre>#is', ' ', $item->html);
-        $text = trim((string)preg_replace('/\s+/u', ' ', html_entity_decode(strip_tags(str_replace('<', ' <', $html)), ENT_QUOTES | ENT_HTML5, 'UTF-8')));
+        $text = self::plainText($item->html);
         if (mb_strlen($text) <= self::SUMMARY) {
             return $text;
         }

@@ -119,9 +119,19 @@ check('with the distance in kilometres', array_map(static fn(array $n): float =>
 $back = $geo->nearby($pointNear, [$route, $pointFar, $shop], 3.0, 10);
 check('near a point: the route whose line passes by, and the shop', array_map(static fn(array $n): string => $n['item']->slug, $back), ['loop', 'shop']);
 check('the number can be limited, and a place with no position has nothing near', [count($geo->nearby($route, [$pointNear, $shop], 3.0, 1)), $geo->nearby($nowhere, [$pointNear], 3.0, 5)], [1, []]);
+// a limit for each kind: a crowded kind cannot push the other out
+$crowd = [$item('businesses', 's1', ['location' => '35.001, 26.0']), $item('businesses', 's2', ['location' => '35.002, 26.0']), $item('businesses', 's3', ['location' => '35.003, 26.0']), $pointNear];
+$slugs = static fn(array $n): array => array_map(static fn(array $e): string => $e['item']->slug, $n);
+check('one limit for all lets the nearest kind take every place', $slugs($geo->nearby($route, $crowd, 3.0, 2)), ['s1', 's2']);
+check('a limit for each kind keeps both kinds', $slugs($geo->nearby($route, $crowd, 3.0, ['businesses' => 2, 'points' => 5])), ['s1', 's2', 'near']);
+check('a kind with no limit is not cut, and 0 leaves a kind out', [count($geo->nearby($route, $crowd, 3.0, ['points' => 1])), $slugs($geo->nearby($route, $crowd, 3.0, ['businesses' => 0]))], [4, ['near']]);
 $feature = $geo->feature($route, ['type_label' => 'Routes', 'url' => '/routes/loop', 'terms' => [['slug' => 'hiking', 'label' => 'Hiking']], 'lines' => true]);
 check('an entry as a map draws it: kind, place, facts, categories, and the line of a route', [$feature['id'], $feature['kind'], $feature['facts'][0], $feature['cats'], count($feature['line']) > 0, $feature['lat']], ['routes/loop', 'Routes', '12.5 km', ['hiking'], true, 35.0]);
 check('a line is left out when many are drawn without lines', $geo->feature($route, ['type_label' => 'R', 'url' => '/r', 'terms' => [], 'lines' => false])['line'], []);
+
+// ---- the text of a popup starts at the first paragraph
+$withHeads = new ContentItem('points', 'heads', 'en', ['title' => 'Heads', 'custom_fields' => ['location' => '35.1, 26.1']], '', "<h2>History</h2>\n<pre><code>block: code</code></pre>\n<p>The old &amp; quiet harbour.</p>\n<h3>More</h3><p>Second.</p>", '', 0);
+check('the popup text skips the headings and the code, and starts at the first paragraph', $geo->feature($withHeads, ['type_label' => 'P', 'url' => '/p', 'terms' => [], 'lines' => false])['text'], 'The old & quiet harbour. Second.');
 
 // ---- a set of entries, and the tiles
 $view = new GeoView($geo, fn(string $type, string $lang): array => $type === 'points' ? [$pointNear, $pointFar, $nowhere] : [], fn(string $t, string $l): string => ucfirst($t), fn(string $s, string $l): string => ucfirst($s), fn(ContentItem $i, string $l): string => '/' . $i->type . '/' . $i->slug, fn(): array => ['points'], ['tiles_url' => '', 'attribution' => '']);

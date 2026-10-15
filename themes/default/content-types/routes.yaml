@@ -96,6 +96,8 @@ single:
     show_facts: { type: toggle, label: { el: Πληροφορίες, en: Information }, default: true }
     show_nearby: { type: toggle, label: { el: 'Κοντινά σημεία και επιχειρήσεις', en: Nearby places and businesses }, default: true }
     nearby_radius: { type: number, label: { el: 'Ακτίνα κοντινών (χλμ.)', en: Nearby radius (km) }, default: 2, min: 1, max: 50 }
+    nearby_limit_points: { type: number, label: { el: 'Κοντινά: μέγιστο — Σημεία', en: 'Nearby: most places' }, blank: true, placeholder: '18', min: 0, max: 50 }
+    nearby_limit_businesses: { type: number, label: { el: 'Κοντινά: μέγιστο — Επιχειρήσεις', en: 'Nearby: most businesses' }, blank: true, placeholder: '18', min: 0, max: 50 }
 archive:
   title: { el: Διαδρομές, en: Routes }
   subtitle: { el: 'Διαδρομές στον χάρτη, με φίλτρα ανά δραστηριότητα και δυσκολία.', en: 'Routes on the map, with filters by activity and difficulty.' }

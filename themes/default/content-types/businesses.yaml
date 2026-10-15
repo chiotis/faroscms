@@ -72,6 +72,9 @@ single:
     show_facts: { type: toggle, label: { el: 'Πληροφορίες επιχείρησης', en: Business information }, default: true }
     show_nearby: { type: toggle, label: { el: 'Σχετικές διαδρομές και σημεία', en: Related routes and places }, default: true }
     nearby_radius: { type: number, label: { el: 'Ακτίνα κοντινών (χλμ.)', en: Nearby radius (km) }, default: 5, min: 1, max: 50 }
+    nearby_limit_routes: { type: number, label: { el: 'Κοντινά: μέγιστο — Διαδρομές', en: 'Nearby: most routes' }, blank: true, placeholder: '18', min: 0, max: 50 }
+    nearby_limit_points: { type: number, label: { el: 'Κοντινά: μέγιστο — Σημεία', en: 'Nearby: most places' }, blank: true, placeholder: '18', min: 0, max: 50 }
+    nearby_limit_businesses: { type: number, label: { el: 'Κοντινά: μέγιστο — Επιχειρήσεις', en: 'Nearby: most businesses' }, blank: true, placeholder: '18', min: 0, max: 50 }
 archive:
   title: { el: Επιχειρήσεις, en: Businesses }
   subtitle: { el: 'Επιχειρήσεις στον χάρτη και σε λίστα, με φίλτρα ανά κατηγορία.', en: 'Businesses on the map and in a list, with filters by category.' }

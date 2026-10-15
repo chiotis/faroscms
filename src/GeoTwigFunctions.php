@@ -31,7 +31,7 @@ final class GeoTwigFunctions
         $add('geo_single', static function (ContentItem $item, array $options = []) use ($geoView, $language): array {
             return $geoView()->single($item, $language(), $options);
         });
-        $add('geo_nearby', static function (ContentItem $item, array $types, float $radius = 5.0, int $limit = 6) use ($geoView, $language): array {
+        $add('geo_nearby', static function (ContentItem $item, array $types, float $radius = 5.0, int|array $limit = 6) use ($geoView, $language): array {
             return $geoView()->nearby($item, $types, $radius, $limit, $language());
         });
         $add('geo_json', static function (array $data): string {
