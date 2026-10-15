@@ -1,6 +1,6 @@
 # Content format
 
-Everything a visitor reads is a file. The facts below were checked against FarosCMS 0.1.87 (read `VERSION` in the installation; the format is deliberately stable, but check `CHANGELOG.md` if the version is much newer).
+Everything a visitor reads is a file. The facts below were checked against FarosCMS 0.1.118 (read `VERSION` in the installation; the format is deliberately stable, but check `CHANGELOG.md` if the version is much newer).
 
 ## Where things live
 
@@ -80,6 +80,8 @@ If the page has blocks, the body appears where a `content` block puts it, or rig
 | any other type | `/<type>/<slug>` (projects: `/projects/alpha`) |
 | a list of a type | `/<type>` (`/projects`, `/en/projects`) |
 | a category / tag / own taxonomy term | `/category/<slug>`, `/tag/<slug>`, `/<taxonomy>/<slug>`; a child term has its parents' slugs in front: `/category/books/english` |
+| page 2 of any list | `?page=2` on the list's address; the WordPress form `/category/news/page/2/` (and `/tag/…`, `/<type>/page/2/`) answers a 301 to it by itself, so it needs no redirect |
+| RSS feed | `/feed` (newest posts), `/en/feed`, `/<type>/feed`, `/category/<slug>/feed`, `/tag/<slug>/feed`: built by the CMS (on/off and size in Admin > SEO > Crawling & sitemap). Old WordPress `/feed/` links keep working; a page called `feed` keeps its address |
 
 The slug is the file name without `.md` / `.<lang>.md`: lowercase Latin letters, digits, `-` and `_`. The admin makes it from the title (Greek is transliterated by the ELOT 743 rules: `Υπηρεσίες` → `ypiresies`, `Μπάμπης` → `bampis`); `scripts/faros_lib.slugify()` does exactly the same, so use it (or `new_entry.py`) instead of inventing slugs. Reserved at the root: `admin assets uploads custom pages search tag tags category categories sitemap robots favicon api storage themes vendor`, any content type name and any language code. Changing a slug later breaks old links unless a redirect is added (Admin > Redirects, or paste lines `old-path new-path` into Redirects > Import).
 
@@ -111,6 +113,7 @@ terms:
     slug: news          # the address part (/category/news); may change
     labels: { el: Νέα, en: News }
     # descriptions: { el: …, en: … }   optional
+    # hero_layout: cover                optional: the title area of every entry filed here (default centered split cover minimal)
   - id: reviews
     slug: reviews
     parent: news        # optional: the id of another term of this file. Its address is /category/news/reviews
@@ -119,7 +122,7 @@ archive: { layout: cards }              # optional, only what differs from the d
 # hierarchical: true                    # whether terms can have a parent; written only when it differs from the default
 ```
 
-An entry is filed with `categories: [news]` (term **ids**). A term used in an entry but missing here appears in no list. Categories and tags exist by default; a site may add its own taxonomy in Admin > Taxonomies > New taxonomy.
+An entry is filed with `categories: [news]` (term **ids**). The title area of an entry is its own `hero_layout`, else the first of its terms that has one, else its content type's (Theme > Single Layouts). A term used in an entry but missing here appears in no list. Categories and tags exist by default; a site may add its own taxonomy in Admin > Taxonomies > New taxonomy.
 
 **A tree of terms.** `parent` is the id of another term of the same file; a term without one is at the top. Categories are a tree by default; tags and a site's own taxonomies are not, unless the file says `hierarchical: true` (a `parent` in a taxonomy that is not a tree is ignored). A child's address holds its parents' slugs (`/category/books/english`, `/en/category/books/english`); a slug has to be unique only among the terms of one parent, so `english` can sit under `books` and under `plays`. A parent that is not a term, or that would make a loop, is dropped when the file is read. File an entry under the term it belongs to (`categories: [english]`), not under its parents too: the page and the feed of a parent also list what is filed under its children (`archive: { include_children: false }` turns that off). Changing a slug, or a parent, changes the address of the term and of everything below it: add a redirect for each old address (the admin does it by itself; for a file you edit, use Redirects > Import). In the file, the order of terms is the order among siblings.
 
@@ -152,6 +155,10 @@ items:
 ## Media
 
 An uploaded file is `public/uploads/media/<id>.<ext>` plus `content/media/<id>.yaml` (`alt`, `tags`, size, original name). Content refers to it as `/uploads/media/<id>.<ext>`. Alt text of the note is used wherever the picture is placed without its own description. The theme makes responsive WebP copies on demand (`/uploads/_v/…`), so upload one good original (about 2400 px wide at most; the upload limit is 20 MB unless the site changed it). `scripts/add_media.py` does the whole upload for you.
+
+## Caches (when a file you wrote does not show)
+
+The CMS keeps the parsed front matter and HTML of every content file in `storage/cache/content` and reads a file again when its time or size changes, so files you write are seen at once. A cache *in front of* the site (Varnish on CloudPanel, or another Varnish set in System > Page cache) keeps whole public pages and is emptied only when something is **saved in the admin**: files written by a script or by hand do not empty it. After writing files on such a site, ask the person to press *Admin > System > Page cache > Empty the page cache* (or save anything in the admin), otherwise visitors may see the old page for as long as the cache keeps it (on CloudPanel up to its Cache Lifetime, often a week). `site_info.py` does not see that cache; the System screen says which one the site found.
 
 ## What the CMS does with a mistake
 

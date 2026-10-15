@@ -11,6 +11,21 @@
 
 **When the site was installed from the release zip** (no `scripts/import-wordpress.php` in it), do not fall back to the scripts of this skill for a WordPress site. Look for a clone of the repository on the machine (a `faroscms` folder with `scripts/import-wordpress.php`), ask the person for its path, or clone it into a scratch folder (`git clone https://github.com/chiotis/faroscms`). Run the script from there and pass every path of the site, because its defaults point at the clone's own folders: `--content=<site>/content --uploads=<site>/public/uploads --custom=<site>/custom --out=<site>/storage/import`. Never copy the script into the site: an update would refuse a package that holds it.
 
+WordPress importer, the parts that matter for a whole site: `--profile=FILE` reads what the REST API does not give (a theme's own post types, the home page slider, menus) with XPath; `docs/wordpress-profiles/themelio.yaml` is a worked example with every key, and a profile's home slider becomes a `hero-slider` block. `--menus` brings the menus, `--lang`/`--default-lang` decide the language of the content, `--only-used-media` skips unused library files. It writes `redirects.txt` for *Admin > Redirects > Import*.
+
+## Moving a whole website (migration)
+
+The aim is the same site on FarosCMS with the CMS **as it is**: content, look and addresses carried over, nothing changed in `src/`, `admin/` or `themes/`.
+
+1. **Survey the old site** before writing anything: every page and post (its sitemap is the fastest list), the content types (events, books, projects…), categories and tags, menus, forms, the languages and how their addresses look, the home page sections, the footer, the palette, fonts and logo. Write the list down; it is also the checklist at the end.
+2. **Map each part onto what the CMS has**: a page section onto a block (`references/blocks.md`; the home slider onto `hero-slider`, a logo row onto `logos`, a contact strip onto `contact` or `form`), a post type onto a content type (on in *Admin > Content types*, or a new one with its fields), the look onto Theme settings (`theme-settings.md`: palette or your own colours, heading colour, fonts, header layout and background, footer layout, Footer Blocks, title areas per type and per term, breadcrumbs). Use `custom/assets/css/custom.css` only for what no setting does.
+3. **When something has no place** (a widget, a layout the blocks cannot make, a plugin's feature), do not imitate it with raw HTML in the body or edit the CMS's code: note it with the page it is on and tell the person. It is a request for the CMS, not something to patch on the site.
+4. **Keep the addresses.** Prefer the old slug for every entry; pages and posts share one namespace. Write a redirect for every address that changes (a WordPress post at `/2024/05/title/` → `/title`, a page under a parent → its slug). The CMS already answers `/category/x/page/2/` (301 to `?page=2`), `/feed` and the feeds of lists, so those need no redirect.
+5. **Import** (the WordPress importer, or the steps below), pictures first, everything as `draft` unless the person said otherwise.
+6. **Check**: `validate_content.py` on all of `content/`, then open one entry of each kind and each list in each language next to the old one. On a site behind Varnish/CloudPanel empty the page cache first (*Admin > System > Page cache*), or you are looking at old pages.
+7. **After launch**, watch *Admin > Redirects > Not found* for a few days: redirect the real old addresses, *Ignore all* the bot noise.
+8. **Report** against the list from step 1: carried over, carried over differently, not carried over (and why), what only the person can do (mail, users, the cron job for backups, DNS).
+
 ## The steps for given material
 
 1. **Inventory.** List the items: what each is (page, post, project…), its language(s), title, its old address if any, its pictures, its place in the menu. Decide the content type for each (`pages` for standing pages, `posts` for dated articles, another type only if the site has it: `python3 scripts/site_info.py`).

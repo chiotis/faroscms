@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.118 — 2026-10-15 — Categories in a tree
+## 0.1.119 — 2026-10-15 — Categories in a tree
 - **A category can have a parent.** Its address holds its parents' (`/category/books/english`, and `/en/category/books/english`), its page, its feed (`/category/books/english/feed`), its pages of results (`?page=2`, and the old WordPress `/page/2`) and its place in the sitemap all follow. Categories are a tree by default; tags are not, and a taxonomy of a site's own says whether it is when it is made (or later, under its settings). A site with no parents set works exactly as before.
 - **The same name can sit under two parents**: "Logicomix" under News and under Reviews are two terms with the same address ending, each under its own parent.
 - **Moving a term, or renaming a parent, keeps the old addresses working**: the term and everything below it leave a redirect behind, in every language, and links in menus are updated. Deleting a parent moves its children up a level.
@@ -8,6 +8,12 @@
 - **Breadcrumbs follow the tree**: Home, the parents, then the term.
 - **Taxonomies screen**: the term dialog has a *Parent* (never the term itself or something below it; a loop is refused with a message), the list shows the tree indented with each term's whole address, and the arrows move a term among its brothers. A taxonomy can be turned into a tree, or back to a flat list (the changed addresses are redirected). The entry editor lists a tree's terms in tree order.
 - **The WordPress importer keeps the categories' tree** instead of flattening names like "Logicomix (News)": a category keeps its name, its parent and its old address, and a post is filed under the categories it has. Run it again on a site imported before to get the tree. Checked by `tests/unit/taxonomies.php`, `taxonomy-editor.php`, `wordpress-import.php`, `public-site.php` and `tests/http/category_tree_test.py`.
+
+## 0.1.118 — 2026-10-15 — The skill knows this version, and how to move a whole site
+- **`skills/faroscms` is brought to this version of the CMS.** The snapshot and the generated references (blocks, theme settings) are refreshed; the hand-written ones now cover the Hero slider in place of the Slider, the feed and the WordPress list pages that need no redirect, a title area per term (`hero_layout` on a term), heading colour, the fading header, breadcrumbs, the page cache, System > Page cache, Not found > Ignore all, backups from cron and in remote storage, and Omni (left to the superadmin).
+- **A new section, *Moving a whole website*, in `references/importing.md`:** survey the old site, map each part onto blocks, content types and theme settings, keep the old addresses, report what the CMS cannot do instead of patching its code, check, then watch Not found after launch. The WordPress importer's profiles are described.
+- **Files written outside the admin do not empty a page cache in front of the site**, so the skill tells the assistant to have *System > Page cache > Empty the page cache* pressed before checking and at hand-over.
+- The README says how to install the skill in Codex.
 
 ## 0.1.117 — 2026-10-15 — Maps: three rough edges smoothed
 - **A popup's text starts at the first paragraph.** An entry with no excerpt used to show its Markdown headings first; now the headings and any block code are skipped, the same way the RSS feed builds its text.
