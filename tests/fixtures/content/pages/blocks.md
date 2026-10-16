@@ -132,6 +132,27 @@ blocks:
         answer: 'Προς το παρόν από το πεδίο **Front Matter** στη σελίδα επεξεργασίας. Ο οπτικός επεξεργαστής blocks έρχεται στην επόμενη φάση.'
       - question: Μπορώ να κρύψω ένα block προσωρινά;
         answer: 'Ναι, με `hidden: true`. Το block μένει αποθηκευμένο αλλά δεν εμφανίζεται.'
+  - type: accordion
+    eyebrow: 'Accordion · compact'
+    heading: Συμπαγή ακορντεόν δίπλα δίπλα
+    width: 50
+    initial: first
+    items:
+      - title: Πρώτο θέμα
+        content: "Σύντομο κείμενο με λίστα:\n\n- πρώτο\n- δεύτερο"
+      - title: Δεύτερο θέμα
+        content: Σύντομη εξήγηση με [σύνδεσμο](contact).
+  - type: accordion
+    heading: Ο ένας ανοιχτός κάθε φορά
+    width: 50
+    multiple: false
+    icon: plus
+    style: cards
+    items:
+      - title: Πρώτο θέμα
+        content: Σύντομη εξήγηση.
+      - title: Δεύτερο θέμα
+        content: Σύντομη εξήγηση.
   - type: cta
     variant: band
     eyebrow: 'CTA · band · accent'

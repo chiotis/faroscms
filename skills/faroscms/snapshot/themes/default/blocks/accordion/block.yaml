@@ -1,0 +1,42 @@
+label: Accordion
+description: Compact titles that open and close, made to sit in a narrow column. Smaller than FAQ and without FAQ structured data; use FAQ for a page of questions.
+category: Content
+# The choices that change how it looks are in the Design tab.
+design_fields: [multiple, icon, style]
+fields:
+  eyebrow:
+    type: text
+    label: Eyebrow
+  heading:
+    type: text
+    label: Heading
+  intro:
+    type: textarea
+    label: Introduction
+  items:
+    type: repeater
+    label: Items
+    item_label: Item
+    max: 30
+    fields:
+      title: { type: text, label: Title }
+      content: { type: markdown, label: Content }
+  initial:
+    type: select
+    label: When the page opens
+    default: closed
+    options: { closed: All closed, first: First item open }
+  multiple:
+    type: toggle
+    label: Allow several open at once
+    default: true
+  icon:
+    type: select
+    label: Icon
+    default: chevron
+    options: { chevron: Chevron, plus: Plus and minus }
+  style:
+    type: select
+    label: Items
+    default: lines
+    options: { lines: Lines between items, cards: Separate cards }

@@ -1,0 +1,10 @@
+kind: section
+label: { el: 'Ακορντεόν σε στήλες', en: 'Accordions in columns' }
+description: { el: 'Δύο συμπαγή ακορντεόν δίπλα δίπλα, για λεπτομέρειες χωρίς να μακραίνει η σελίδα.', en: 'Two compact accordions side by side, for details that do not make the page long.' }
+blocks:
+  el:
+    - { type: accordion, width: 50, eyebrow: 'Λεπτομέρειες', heading: 'Τι περιλαμβάνεται', initial: first, items: [{ title: 'Πρώτο θέμα', content: 'Σύντομη εξήγηση, με λίστες και συνδέσμους.' }, { title: 'Δεύτερο θέμα', content: 'Σύντομη εξήγηση.' }, { title: 'Τρίτο θέμα', content: 'Σύντομη εξήγηση.' }] }
+    - { type: accordion, width: 50, heading: 'Πριν και μετά', items: [{ title: 'Πριν την έναρξη', content: 'Σύντομη εξήγηση.' }, { title: 'Μετά την παράδοση', content: 'Σύντομη εξήγηση.' }] }
+  en:
+    - { type: accordion, width: 50, eyebrow: 'Details', heading: 'What is included', initial: first, items: [{ title: 'First topic', content: 'A short explanation, with lists and links.' }, { title: 'Second topic', content: 'A short explanation.' }, { title: 'Third topic', content: 'A short explanation.' }] }
+    - { type: accordion, width: 50, heading: 'Before and after', items: [{ title: 'Before we start', content: 'A short explanation.' }, { title: 'After delivery', content: 'A short explanation.' }] }
