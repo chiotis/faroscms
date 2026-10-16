@@ -123,7 +123,7 @@
   {% if branding_style %}
   <style id="faros-branding">{{ branding_style|raw }}</style>
   {% endif %}
-  {{ branding_head() }}
+  {{ branding_head(current_language|default('')) }}
   {% set custom_css = custom_asset('css/custom.css') %}
   {% if custom_css %}
   <link rel="stylesheet" href="{{ custom_css }}">

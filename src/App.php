@@ -2199,6 +2199,11 @@ final class App
         $tabs[] = 'custom_css';
         $activeTab = (string)($_GET['tab'] ?? '');
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            // The fonts of the Branding screen: a file uploaded, or the old single font file read as a family (nothing is saved yet).
+            if ($branding && ($_GET['preview'] ?? '') === 'fonts') {
+                $this->brandingFontsRequest();
+                return;
+            }
             // The live preview of Branding asks what the unsaved choices make of the pages (nothing is stored).
             if ($branding && ($_GET['preview'] ?? '') === 'branding') {
                 $this->previewBranding(is_array($_POST['theme_settings'] ?? null) ? $_POST['theme_settings'] : []);
@@ -2298,11 +2303,38 @@ final class App
         if ($file !== '' && !preg_match('#^(https?://|/)#i', $file) && !str_contains($file, '..')) {
             $found = is_file($this->theme->customPath() . '/assets/' . ltrim($file, '/'));
         }
+        $languages = array_map('strval', $this->settings['languages']['available'] ?? []);
+        $greek = in_array('el', $languages, true) || $this->defaultLanguage() === 'el';
         return [
             'stacks' => Branding::FONT_STACKS,
             'preview_url' => (string)($this->settings['base_url'] ?? '') . '/',
             'font_found' => $found,
+            'fonts' => BrandingFonts::screen(
+                is_array($this->themeSettings['design'] ?? null) ? $this->themeSettings['design'] : [],
+                $this->theme->customPath(),
+                (string)($this->settings['base_url'] ?? ''),
+                $greek
+            ),
         ];
+    }
+
+    /** JSON for the fonts of the Branding screen: takes an uploaded font file in, or reads the single font file of earlier versions. */
+    private function brandingFontsRequest(): void
+    {
+        header('Content-Type: application/json; charset=utf-8');
+        header('Cache-Control: no-store');
+        if (($_POST['action'] ?? '') === 'convert') {
+            $result = BrandingFonts::describeExisting($this->theme->customPath(), (string)($_POST['path'] ?? ''), (string)($_POST['family'] ?? ''));
+        } else {
+            $upload = is_array($_FILES['font'] ?? null) ? $_FILES['font'] : [];
+            $result = is_string($upload['tmp_name'] ?? null) && is_uploaded_file($upload['tmp_name'])
+                ? BrandingFonts::receive($upload, $this->theme->customPath(), (string)($_POST['family'] ?? ''))
+                : ['ok' => false, 'error' => 'No file was uploaded. It may be larger than the server accepts.'];
+            if ($result['ok']) {
+                $this->logActivity('theme.font_upload', 'info', 'settings', $this->theme->name(), 'A font file was uploaded for Branding.', ['file' => $result['entry']['file'] ?? '']);
+            }
+        }
+        echo json_encode($result, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG);
     }
 
     /** JSON for the live preview of the Branding tab: the CSS and attributes the submitted choices would give a page. */

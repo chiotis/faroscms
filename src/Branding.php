@@ -127,18 +127,27 @@ final class Branding
 
         // ---- type: families, size, scale, headings
         $customFont = self::fontFile((string)($design['font_file'] ?? ''), $baseUrl);
-        foreach (['heading_font' => '--font-heading', 'body_font' => '--font-body'] as $key => $var) {
+        // A role that uses "Your own font" takes the family chosen for it (BrandingFonts); without one it takes the single file.
+        $stacks = BrandingFonts::stacks($design);
+        $legacyUsed = false;
+        foreach (['heading_font' => ['--font-heading', 'heading'], 'body_font' => ['--font-body', 'body']] as $key => [$var, $role]) {
             $choice = (string)($design[$key] ?? 'pairing');
-            if (isset(self::FONT_STACKS[$choice]) && ($choice !== 'custom' || $customFont !== null)) {
+            if ($choice === 'custom' && isset($stacks[$role])) {
+                $vars[$var] = $stacks[$role];
+                if ($role === 'heading') {
+                    $vars['--heading-font-custom'] = 'var(--font-heading)';
+                }
+            } elseif (isset(self::FONT_STACKS[$choice]) && ($choice !== 'custom' || $customFont !== null)) {
                 $vars[$var] = self::FONT_STACKS[$choice];
-                if ($key === 'heading_font') {
+                $legacyUsed = $legacyUsed || $choice === 'custom';
+                if ($role === 'heading') {
                     $vars['--heading-font-custom'] = 'var(--font-heading)';
                 }
             }
         }
-        $uses = [(string)($design['heading_font'] ?? ''), (string)($design['body_font'] ?? '')];
-        if ($customFont !== null && in_array('custom', $uses, true)) {
-            $fontFace = '@font-face{font-family:"Brand Font";font-style:normal;font-weight:100 900;font-display:swap;src:url("'
+        $fontFace = BrandingFonts::fontFaces($design, $baseUrl);
+        if ($customFont !== null && $legacyUsed) {
+            $fontFace .= '@font-face{font-family:"Brand Font";font-style:normal;font-weight:100 900;font-display:swap;src:url("'
                 . $customFont['url'] . '") format("' . $customFont['format'] . '")}';
         }
         $base = self::number($design['base_size'] ?? '');
@@ -300,8 +309,9 @@ final class Branding
      * address bar and, for a font file of the site's own, a hint to fetch it early.
      *
      * @param array<string, mixed> $settings the resolved theme settings
+     * @param string $language the language of the page, to preload the script of a font that it needs
      */
-    public static function head(array $settings, string $baseUrl = ''): string
+    public static function head(array $settings, string $baseUrl = '', string $language = ''): string
     {
         $brand = is_array($settings['brand'] ?? null) ? $settings['brand'] : [];
         $design = is_array($settings['design'] ?? null) ? $settings['design'] : [];
@@ -321,10 +331,17 @@ final class Branding
             $html .= '<meta name="theme-color" content="' . $colour . "\">\n";
         }
         $font = self::fontFile((string)($design['font_file'] ?? ''), $baseUrl);
-        $uses = [(string)($design['heading_font'] ?? ''), (string)($design['body_font'] ?? '')];
+        $stacks = BrandingFonts::stacks($design);
+        $uses = [];
+        foreach (['heading', 'body'] as $role) {
+            if (!isset($stacks[$role])) {
+                $uses[] = (string)($design[$role . '_font'] ?? '');
+            }
+        }
         if ($font !== null && $font['format'] === 'woff2' && in_array('custom', $uses, true)) {
             $html .= '<link rel="preload" href="' . self::attr($font['url']) . "\" as=\"font\" type=\"font/woff2\" crossorigin>\n";
         }
+        $html .= BrandingFonts::preloads($design, $baseUrl, $language);
         return $html;
     }
 
