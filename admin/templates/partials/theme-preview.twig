@@ -8,6 +8,7 @@
     <div class="lc-seg" role="radiogroup" aria-label="Preview content">
       <label><input type="radio" name="bp_view_branding" value="site" checked data-bp-view><span>Site</span></label>
       <label><input type="radio" name="bp_view_branding" value="styles" data-bp-view data-url="{{ branding_samples_url }}"><span>Style samples</span></label>
+      {% if branding_specimen_url|default('') %}<label><input type="radio" name="bp_view_branding" value="specimen" data-bp-view data-url="{{ branding_specimen_url }}" data-title="Buttons and links"><span>Buttons and links</span></label>{% endif %}
     </div>
   {% endif %}
   <div class="bp-bar">

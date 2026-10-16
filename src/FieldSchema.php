@@ -13,7 +13,7 @@ namespace FarosCMS;
  */
 final class FieldSchema
 {
-    public const TYPES = ['text', 'textarea', 'markdown', 'email', 'url', 'link', 'image', 'video', 'file', 'location', 'color', 'number', 'decimal', 'date', 'select', 'icon', 'toggle', 'repeater'];
+    public const TYPES = ['text', 'textarea', 'markdown', 'email', 'url', 'link', 'image', 'video', 'file', 'location', 'color', 'tone', 'number', 'decimal', 'date', 'select', 'icon', 'toggle', 'repeater'];
 
     /**
      * @param array<string, mixed> $definitions raw map of key => definition
@@ -334,6 +334,11 @@ final class FieldSchema
                     return $hex ?? $fallback;
                 }
                 return $value === '' || self::isSafeColor($value) ? $value : $fallback;
+
+            case 'tone':
+                // A palette role (accent, text, …) or a #rrggbb; empty means the theme's own.
+                $value = is_scalar($value) ? trim((string)$value) : '';
+                return $value === '' || BrandingButtons::tone($value) !== null ? (isset(BrandingButtons::ROLES[$value]) ? $value : (self::normalizeHex($value) ?? $value)) : $fallback;
 
             case 'image':
             case 'video':

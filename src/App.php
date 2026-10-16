@@ -2160,6 +2160,15 @@ final class App
             ]);
             return;
         }
+        if ($branding && $_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['preview'] ?? '') === 'specimen') {
+            // The three button styles in their states and a paragraph with a link, in light and dark, drawn with the site's own styles.
+            header('Cache-Control: no-store');
+            header('X-Robots-Tag: noindex, nofollow');
+            echo $this->twig->render('@admin/theme-button-specimen.twig', [
+                'attributes' => Branding::attributes($this->themeSettings),
+            ]);
+            return;
+        }
         foreach ($schema as $key => $section) {
             // The sidebar card is part of Single Layouts when the theme has them.
             if ($key === 'sidebar' && $single->declared()) {

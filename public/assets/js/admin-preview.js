@@ -177,7 +177,7 @@
       input.addEventListener('change', function () {
         if (!input.checked) { return; }
         var viewRequest = ++viewSequence;
-        if (input.value === 'styles') {
+        if (input.value !== 'site') {
           try {
             var address = new URL(frame.contentWindow.location.href);
             if (address.origin === window.location.origin) { siteAddress = address.href; }
@@ -191,7 +191,7 @@
             })
             .then(function (html) {
               if (viewRequest !== viewSequence || !input.checked) { return; }
-              frame.title = 'Style samples';
+              frame.title = input.getAttribute('data-title') || 'Style samples';
               frame.srcdoc = html;
             })
             .catch(function () {

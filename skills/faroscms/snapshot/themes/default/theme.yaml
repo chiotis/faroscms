@@ -716,6 +716,112 @@ settings:
         options:
           auto: As typed
           uppercase: Capitals
+      # Links and buttons (BrandingButtons.php). A tone is a palette role or a custom #rrggbb that passes AA; empty keeps the theme's own.
+      link_color: {type: tone, label: Link colour, default: ''}
+      link_hover: {type: tone, label: Link hover colour, default: ''}
+      link_color_dark: {type: tone, label: Link colour, dark, default: ''}
+      link_hover_dark: {type: tone, label: Link hover colour, dark, default: ''}
+      link_underline:
+        type: select
+        label: Link underline
+        default: auto
+        options:
+          auto: Theme
+          always: Always
+          hover: On hover
+          never: Never
+      link_thickness:
+        type: select
+        label: Underline thickness
+        default: auto
+        options:
+          auto: Theme
+          thin: Thin
+          medium: Medium
+          thick: Thick
+      link_offset:
+        type: select
+        label: Underline distance
+        default: auto
+        options:
+          auto: Theme
+          near: Near
+          far: Far
+      btn_primary_bg: {type: tone, label: Primary background, default: ''}
+      btn_primary_text: {type: tone, label: Primary text, default: ''}
+      btn_primary_border: {type: tone, label: Primary border, default: ''}
+      btn_primary_hover_bg: {type: tone, label: Primary hover background, default: ''}
+      btn_primary_hover_text: {type: tone, label: Primary hover text, default: ''}
+      btn_primary_hover_border: {type: tone, label: Primary hover border, default: ''}
+      btn_primary_border_width:
+        type: select
+        label: Primary border width
+        default: auto
+        options:
+          auto: Theme
+          '0': None
+          '1': 1px
+          '2': 2px
+          '3': 3px
+      btn_primary_radius:
+        type: select
+        label: Primary corners
+        default: auto
+        options:
+          auto: Inherit
+          pill: Pill
+          rounded: Rounded
+          square: Square
+      btn_secondary_bg: {type: tone, label: Secondary background, default: ''}
+      btn_secondary_text: {type: tone, label: Secondary text, default: ''}
+      btn_secondary_border: {type: tone, label: Secondary border, default: ''}
+      btn_secondary_hover_bg: {type: tone, label: Secondary hover background, default: ''}
+      btn_secondary_hover_text: {type: tone, label: Secondary hover text, default: ''}
+      btn_secondary_hover_border: {type: tone, label: Secondary hover border, default: ''}
+      btn_secondary_border_width:
+        type: select
+        label: Secondary border width
+        default: auto
+        options:
+          auto: Theme
+          '0': None
+          '1': 1px
+          '2': 2px
+          '3': 3px
+      btn_secondary_radius:
+        type: select
+        label: Secondary corners
+        default: auto
+        options:
+          auto: Inherit
+          pill: Pill
+          rounded: Rounded
+          square: Square
+      btn_text_bg: {type: tone, label: Text background, default: ''}
+      btn_text_text: {type: tone, label: Text text, default: ''}
+      btn_text_border: {type: tone, label: Text border, default: ''}
+      btn_text_hover_bg: {type: tone, label: Text hover background, default: ''}
+      btn_text_hover_text: {type: tone, label: Text hover text, default: ''}
+      btn_text_hover_border: {type: tone, label: Text hover border, default: ''}
+      btn_text_border_width:
+        type: select
+        label: Text border width
+        default: auto
+        options:
+          auto: Theme
+          '0': None
+          '1': 1px
+          '2': 2px
+          '3': 3px
+      btn_text_radius:
+        type: select
+        label: Text corners
+        default: auto
+        options:
+          auto: Inherit
+          pill: Pill
+          rounded: Rounded
+          square: Square
 
   social:
     label: Social profiles
