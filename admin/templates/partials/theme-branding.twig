@@ -102,41 +102,12 @@
       </details>
 
       <details class="bp-card" open>
-        <summary><span>Colour</span><small>Palette, mode, your own colours</small></summary>
+        <summary><span>Colour</span><small>Palette, mode, headings</small></summary>
         <div class="bp-body">
+          {% include '@admin/partials/theme-palettes.twig' %}
           <dl class="m-0 space-y-2.5">
-            {% if a.palette is defined %}
-              <div class="lc-row">
-                <dt>{{ a.palette.label }}</dt>
-                <dd class="m-0">{{ c.palette(pa ~ 'palette]', a.palette.options, va.palette, dots) }}</dd>
-              </div>
-            {% endif %}
             {% if a.mode is defined %}{{ c.choice(a.mode, pa ~ 'mode]', va.mode, 'seg', short.mode) }}{% endif %}
           </dl>
-          {% include '@admin/partials/theme-palettes.twig' %}
-          <table class="bp-colours">
-            <caption class="sr-only">Your own colours. An empty one keeps the colour of the palette.</caption>
-            <thead>
-              <tr><th scope="col"><span class="sr-only">Colour</span></th><th scope="col">Light</th><th scope="col">Dark</th></tr>
-            </thead>
-            <tbody>
-              {% for role in roles %}
-                <tr>
-                  <th scope="row">{{ role[1] }}</th>
-                  {% for mode in ['light', 'dark'] %}
-                    {% set key = mode ~ '_' ~ role[0] %}
-                    <td>{% if d[key] is defined %}{{ c.colour(role[1] ~ ', ' ~ mode, pd ~ key ~ ']', vd[key]) }}{% endif %}</td>
-                  {% endfor %}
-                </tr>
-              {% endfor %}
-              {% if d.ink is defined %}
-                <tr>
-                  <th scope="row">Dark panels</th>
-                  <td colspan="2">{{ c.colour('Dark panels and footer', pd ~ 'ink]', vd.ink) }}</td>
-                </tr>
-              {% endif %}
-            </tbody>
-          </table>
           {% if d.heading_color is defined %}
             <dl class="m-0 space-y-2.5">{{ c.choice(d.heading_color, pd ~ 'heading_color]', vd.heading_color, 'seg', short.heading_color) }}</dl>
           {% endif %}
@@ -154,8 +125,8 @@
               </tbody>
             </table>
           {% endif %}
-          <p class="m-0 text-[11px] leading-4 text-slate-500">Empty keeps the palette’s colour. The hover and soft shades and the text colour on the accent are worked out from the accent you choose. Heading colours apply when Heading colour is “Own”; an empty heading colour follows the text.</p>
-          <button type="button" class="bp-reset" data-bp-reset="colour">Reset colour overrides</button>
+          <p class="m-0 text-[11px] leading-4 text-slate-500">The mode (system, light or dark) is not part of a palette. Heading colours apply when Heading colour is “Own”; an empty heading colour follows the text.</p>
+          <button type="button" class="bp-reset" data-bp-reset="colour">Reset heading colour</button>
         </div>
       </details>
 

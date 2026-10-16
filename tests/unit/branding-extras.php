@@ -129,7 +129,8 @@ check('the preview lists what changes and changes nothing', [
 ], ['auto', '4', 'medium', 'rose', [['path' => 'fonts/brand.woff2', 'status' => 'new']], [], true, false]);
 $result = $import->apply($read);
 check('applying writes the settings and the font file', [$result['ok'], $result['files'], $result['changed'] > 5, file_get_contents($clean . '/custom/assets/fonts/brand.woff2')], [true, 1, true, 'FONTDATA']);
-check('what the other parts add (secondary colour, site palettes, Duo) travels without being listed anywhere', [$store2['settings']['design']['light_secondary'], $store2['settings']['design']['site_palettes'], $store2['settings']['design']['duo_picker']], ['#aa3355', '[{"id":"p1","name":"Mine"}]', false]);
+$importedPalette = FarosCMS\SitePalettes::active($store2['settings']['design']);
+check('what the other parts add (secondary colour, Duo) travels without being listed anywhere; the colour overrides of this old export became a site palette', [$store2['settings']['design']['light_secondary'], $importedPalette['name'] ?? null, $importedPalette['secondary']['light'] ?? null, $importedPalette['light']['accent'] ?? null, $store2['settings']['design']['light_accent'], $store2['settings']['design']['duo_picker']], ['', 'Rose (custom)', '#aa3355', '#1d4ed8', '', false]);
 check('the CSS and the attributes of the clean site are now identical', [Branding::css($store2['settings'], ''), Branding::attributes($store2['settings'])], [Branding::css($store['settings'], ''), Branding::attributes($store['settings'])]);
 check('and the CSS before was empty', $cleanCss, '');
 check('importing again shows nothing to change', [$import->preview($import->read((string)file_get_contents($zipPath)))['changes'], $import->apply($import->read((string)file_get_contents($zipPath)))['changed']], [[], 0]);

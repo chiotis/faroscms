@@ -25,7 +25,8 @@
 
   // Use the schema, not a guessed "auto" option: for example, Heading colour defaults to "text".
   root.querySelectorAll('[name]').forEach(function (field) {
-    if (!Object.prototype.hasOwnProperty.call(defaults, field.name) || field.type === 'hidden') { return; }
+    // The palette (.pl) keeps its own state; it has no theme value to go back to.
+    if (!Object.prototype.hasOwnProperty.call(defaults, field.name) || field.type === 'hidden' || field.closest('.pl')) { return; }
     if (!groups[field.name]) { groups[field.name] = { fields: [], definition: defaults[field.name] }; }
     groups[field.name].fields.push(field);
   });

@@ -69,4 +69,43 @@ final class Contrast
         }
         return $out;
     }
+
+    /**
+     * The nearest shade of $colour that reaches $minimum against every background, found along OKLCH lightness with the hue and
+     * the chroma kept (a colour that does not fit sRGB at that lightness loses chroma, as everywhere else). The colour itself
+     * when it already does; null when no lightness can (a background that is too much in the middle for the minimum).
+     *
+     * @param string[] $backgrounds
+     */
+    public static function fix(string $colour, array $backgrounds, float $minimum = 4.5): ?string
+    {
+        $colour = FieldSchema::normalizeHex($colour);
+        $backgrounds = array_values(array_filter(array_map(static fn(string $hex): ?string => FieldSchema::normalizeHex($hex), $backgrounds)));
+        if ($colour === null || $backgrounds === []) {
+            return null;
+        }
+        $reaches = static function (string $hex) use ($backgrounds, $minimum): bool {
+            foreach ($backgrounds as $background) {
+                if (self::ratio($hex, $background) < $minimum + 0.005) {
+                    return false;
+                }
+            }
+            return true;
+        };
+        if ($reaches($colour)) {
+            return $colour;
+        }
+        [$l, $c, $h] = Oklch::fromHex($colour);
+        for ($i = 1; $i <= 500; $i++) {
+            $step = $i * 0.002;
+            // Nearest first: the darker and the lighter shade at the same distance, the one that is closer in contrast first.
+            $candidates = [Oklch::toHex($l - $step, $c, $h), Oklch::toHex($l + $step, $c, $h)];
+            $passing = array_values(array_filter($candidates, $reaches));
+            if ($passing !== []) {
+                usort($passing, static fn(string $a, string $b): int => self::ratio($a, $backgrounds[0]) <=> self::ratio($b, $backgrounds[0]));
+                return $passing[0];
+            }
+        }
+        return null;
+    }
 }

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.143 — 2026-10-16 — Branding: the palette is the one place for colours
+- **One row of palettes.** *Branding > Colour* now starts with one row of chips: the seven ready-made palettes, then the palettes made on your site (for example "Wemetrix"), then **+ Custom**. Exactly one is in use, and the row works with the keyboard (arrow keys, Home and End).
+- **Ready-made palettes are read-only.** Choosing one shows its colours, light and dark, with their hex codes. **Customise** makes a copy ("Teal (custom)"), chooses it and opens it for editing.
+- **A palette of your site is edited right there.** Accent, Background, Surface, Text, Muted text, Border, Secondary and Dark panels, for light and dark, each with its contrast. Changes go into that palette, and the preview follows at once. You can rename it or delete it; deleting the palette in use puts the site back on the ready-made palette it started from.
+- **The separate colour fields under the palette are gone**, with their "Theme value" and Reset links. There is one place to change a colour, so there is no longer a question of which one wins.
+- **Nothing changes on sites you already have.** Colours you had set by hand under a ready-made palette become a palette called "<Palette> (custom)" with those colours, and it is the one in use; colours set on top of a site palette are added to that palette. This happens by itself, once, and every page is exactly as it was. A Branding export made before this version imports the same way.
+- **+ Custom** starts a new palette in three ways: from two colours, from a pair in Duo (its address and on/off switch are now in *Settings* inside that start), or as a copy of a ready-made palette. The new palette is chosen and opened.
+- **Fix for contrast.** Every failing check in the Contrast panel has a **Fix** button. It suggests the nearest shade of that colour, with the same hue, that reaches AA (4.5:1), shows before and after, and applies only when you click **Apply**, to that colour and that mode only. **Fix all** does it for every failing colour of the palette.
+- Checked in the admin in light and dark, at computer and phone width, and on a public page before and after the change. Described in `docs/theming.md` and the FarosCMS skill.
+
 ## 0.1.142 — 2026-10-16 — Branding: checked together, two fixes
 - **The secondary colour now works in buttons.** A button set to the *Secondary* colour (and a text button) fell back to the accent, because the button styles looked for a variable the palette never sets. They now use the secondary colour of the palette, in light and dark, and still fall back to the accent when no secondary colour is set.
 - **Honest font coverage.** A WOFF2 file cannot be read on a server without the PHP brotli extension. The Branding screen now says "Cannot check this file on this server" and offers a TTF/OTF/WOFF of the same font for the check, instead of leaving it unclear. The check in your browser is also stricter: if the browser blocks or randomises canvas drawing, or the file does not draw at all, the chips stay "not checked" rather than showing "no Greek".
