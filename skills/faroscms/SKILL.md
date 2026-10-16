@@ -76,6 +76,8 @@ Menus (`content/menus/*.yaml`), taxonomies (`content/taxonomies/*.yaml`), forms 
 
 Order that works: (1) `site_info.py`; confirm languages, name, tagline, base address, palette, logo, what pages and sections the business needs; (2) Theme settings (palette, font, header and footer layouts, logo, social); (3) upload pictures and logo; (4) create the pages from ready-made layouts, filling in real content, both languages; (5) menus; (6) the contact form (`content/forms/contact.md`, mail settings by the person); (7) SEO titles and descriptions per page, Admin > SEO for the site-wide choices; (8) validate everything; (9) hand over a list of drafts, TODOs and the screens only the owner can finish (mail, users, backups). The demo site in the repository's `starter/` shows a complete bilingual example; `php scripts/use-starter.php` copies it into an empty site.
 
+Colours: besides the seven ready-made palettes, Admin > Theme > Branding > Colour makes a **site palette** from two colours (an accent and a base, the background or the ink); it fills all six roles (accent, background, surface, text, muted, border) for light and dark and always meets WCAG AA. In the files it is `design.site_palettes` (JSON) with the one in use in `design.site_palette`; colours set by hand in `design.light_*`/`design.dark_*` win over it. `design.light_secondary`/`design.dark_secondary` is an optional second brand colour (CSS `--color-secondary`). The Duo colour-pair picker (`design.duo_picker`, `design.duo_url`) is fetched live in the admin; never copy Duo's list into a site or the repository, it has no licence.
+
 ## 7. Scripts (run from the installation folder; `--help` on each)
 
 | Script | Does |

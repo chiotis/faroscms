@@ -84,6 +84,12 @@ Set with `python3 scripts/site_settings.py set theme section.field=value`. A tex
 | `dark_text` | color | (empty) | Text |
 | `dark_muted` | color | (empty) | Muted text |
 | `dark_border` | color | (empty) | Border |
+| `light_secondary` | color | (empty) | Secondary. An optional second brand colour, available to blocks as --color-secondary. |
+| `dark_secondary` | color | (empty) | Secondary |
+| `site_palette` | text | (empty) | Site palette in use. The id of the palette made on this site that is in use. Empty uses the palette chosen under Appearance. |
+| `site_palettes` | textarea | (empty) | Site palettes. The palettes made on this site, as JSON; edited on the Branding screen. |
+| `duo_picker` | toggle | true | Colour pairings from Duo. Lets the palette studio show colour pairs fetched from Duo when it is opened. The public site never contacts Duo. |
+| `duo_url` | text | (empty) | Address of the colour pairings |
 | `ink` | color | (empty) | Dark panels and footer. The near-black behind pictures, dark panels and the footer. |
 | `heading_font` | select; one of `pairing`, `inter`, `system`, `humanist`, `geometric`, `neo_grotesque`, `rounded`, `industrial`, `classical`, `transitional`, `old_style`, `slab`, `didone`, `mono`, `custom` | pairing | Headings |
 | `body_font` | select; one of `pairing`, `inter`, `system`, `humanist`, `geometric`, `neo_grotesque`, `rounded`, `industrial`, `classical`, `transitional`, `old_style`, `slab`, `didone`, `mono`, `custom` | pairing | Text |
