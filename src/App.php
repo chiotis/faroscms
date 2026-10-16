@@ -761,13 +761,7 @@ final class App
         }
 
         if ($route['kind'] === 'search') {
-            $query = (string)($_GET['q'] ?? '');
-            $results = $this->content->search($query, $lang, $includeHidden);
-            $this->render('templates/search.twig', [
-                'query' => $query,
-                'results' => $results,
-                'seo_kind' => 'search',
-            ] + $viewDefaults);
+            $this->handleSearch($route, $viewDefaults, $includeHidden);
             return;
         }
 
@@ -966,6 +960,60 @@ final class App
         header('Cache-Control: public, max-age=86400');
         header('X-Content-Type-Options: nosniff');
         readfile($file);
+    }
+
+    private function handleSearch(array $route, array $viewDefaults, bool $includeHidden): void
+    {
+        $lang = $route['lang'];
+        $documents = new SearchDocument(
+            $this->blockRuntime()->registry(),
+            $this->contentTypes(),
+            fn(string $text): string => (string)$this->markdown->convert($text),
+            $this->defaultLanguage()
+        );
+        $documents->cacheIn($this->basePath . '/storage/cache/search', trim((string)file_get_contents($this->basePath . '/VERSION')));
+        $search = (new ContentSearch($this->content, $documents))->search(
+            $_GET['q'] ?? '', $lang, $includeHidden, $_GET['type'] ?? '', $_GET['page'] ?? 1
+        );
+        $base = $this->buildAbsoluteUrl($route['lang_prefix'] . 'search');
+        $link = static function (string $type, int $page = 1) use ($base, $search): string {
+            $params = ['q' => $search['query']];
+            if ($type !== '') {
+                $params['type'] = $type;
+            }
+            if ($page > 1) {
+                $params['page'] = $page;
+            }
+            return $base . '?' . http_build_query($params, '', '&', PHP_QUERY_RFC3986);
+        };
+        $search['types'] = [];
+        if ($search['counts'] !== [] || $search['type'] !== '') {
+            $search['types'][] = ['value' => '', 'label' => $this->translate('search.all_types', 'All types'),
+                'count' => array_sum($search['counts']), 'url' => $link(''), 'active' => $search['type'] === ''];
+            $counts = $search['counts'];
+            if ($search['type'] !== '') {
+                $counts[$search['type']] ??= 0;
+            }
+            ksort($counts);
+            foreach ($counts as $type => $count) {
+                $definition = $this->contentTypes()->definition($type, $lang, $this->defaultLanguage());
+                $label = $definition['origin'] === '' ? $this->translate('type.' . $type, $definition['label']) : $definition['label'];
+                $search['types'][] = ['value' => $type, 'label' => $label, 'count' => $count,
+                    'url' => $link($type), 'active' => $type === $search['type']];
+            }
+        }
+        $numbers = $search['pages'] > 1
+            ? array_values(array_unique(array_merge([1], range(max(1, $search['page'] - 2), min($search['pages'], $search['page'] + 2)), [$search['pages']]))) : [];
+        $search['pagination'] = [
+            'page' => $search['page'], 'pages' => $search['pages'],
+            'previous' => $search['page'] > 1 ? $link($search['type'], $search['page'] - 1) : '',
+            'next' => $search['page'] < $search['pages'] ? $link($search['type'], $search['page'] + 1) : '',
+            'links' => array_map(static fn(int $n): array => ['page' => $n, 'url' => $link($search['type'], $n), 'current' => $n === $search['page']], $numbers),
+        ];
+        $this->render('templates/search.twig', [
+            'query' => $search['query'], 'results' => $search['results'], 'search' => $search,
+            'seo_kind' => 'search', 'noindex_page' => true,
+        ] + $viewDefaults);
     }
 
     private function blockRuntime(): BlockRuntime

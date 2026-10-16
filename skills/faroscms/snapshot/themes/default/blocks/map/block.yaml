@@ -70,6 +70,7 @@ fields:
     options: { site: 'As the site says (Settings > APIs)', click: 'After the visitor clicks (privacy friendly)', auto: 'As soon as it comes into view' }
   term:
     type: text
+    searchable: false
     label: Only this category
     placeholder: hotels
     help: The address of a category, to show only its entries.

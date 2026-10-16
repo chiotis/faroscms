@@ -22,6 +22,7 @@ fields:
     label: Introduction
   playlist:
     type: text
+    searchable: false
     label: Playlist
     required: true
     placeholder: https://www.youtube.com/playlist?list=PL…

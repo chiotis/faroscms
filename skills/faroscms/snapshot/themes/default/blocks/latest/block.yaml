@@ -28,6 +28,7 @@ fields:
     options_from: content_types
   term:
     type: text
+    searchable: false
     label: Only this category or tag
     placeholder: news
     help: Optional. The slug of a category or tag, as in Taxonomies.

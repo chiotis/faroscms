@@ -284,6 +284,10 @@ archive:
 - **Per-type templates** still work: `custom/templates/archive-<type>.twig` and `single-<type>.twig` win over the defaults.
 - **Latest content block:** the block lists any type, so a new type is available in it straight away.
 
+## Search results
+
+The public search page keeps its title-area settings and uses `templates/search.twig` for the results. It searches block text and public custom fields, matches Greek accents/case/final sigma, and shows ranked results, excerpts, type filters and pagination. Existing custom templates keep the complete `results` list; the new presentation uses `search.hits` and `search.pagination`. Field definitions can exclude text with `searchable: false`. See [Public search](search.md) for matching, visibility, schema options and the template contract.
+
 ## Single layouts and archive layouts
 
 **Admin > Theme > Single Layouts** has one card for each content type the site has (pages, posts, projects, forms, books, and any type added later gets its card by itself). A card sets, for the page of one entry of that type:

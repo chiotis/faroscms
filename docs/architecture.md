@@ -15,7 +15,8 @@ Before the application boots, `public/index.php` hands `/_themes/…` and `/_cus
 | Class | Responsibility |
 |-------|----------------|
 | `App` | Routing, request handlers, and the wiring of the classes below. Still the largest file (about 3,500 lines); new behaviour should go into a focused class, as content saving did (`ContentEditor`). |
-| `ContentRepository` / `ContentItem` | Reads Markdown files with YAML front matter; listing, lookup, and frontend search. |
+| `ContentRepository` / `ContentItem` | Reads Markdown files with YAML front matter; listing, lookup and visibility, backed by the parsed-content cache. |
+| `SearchDocument` / `ContentSearch` / `SearchText` | Public search: schema-based text extraction and caching, Greek-aware matching, relevance, filters, pagination and escaped display parts. `docs/search.md`. |
 | `ContentIndex` | SQLite `content_index` kept in sync with the files; admin search and staleness checks. |
 | `Auth` | Session sign-in (SQLite users, YAML fallback), session rotation, per-request user refresh, shipped-password detection. |
 | `UserRepository` | SQLite users: CRUD, YAML import, superadmin guarantee. |

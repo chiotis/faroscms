@@ -41,6 +41,10 @@ final class FieldSchema
                 'hidden' => ($definition['hidden'] ?? false) === true,
                 'required' => ($definition['required'] ?? false) === true,
             ];
+            // Public search can omit an otherwise visible field, or explicitly include text a custom template displays.
+            if (is_bool($definition['searchable'] ?? null)) {
+                $field['searchable'] = $definition['searchable'];
+            }
             // A text that has a version for each language of the site (see sanitizeTranslations).
             if ($type === 'text' || $type === 'textarea') {
                 if (($definition['translatable'] ?? false) === true) {

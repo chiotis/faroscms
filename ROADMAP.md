@@ -30,7 +30,13 @@ Several releases were merged with only the tests of the change run, and CI was r
 
 1. **Look at what was only built, not seen**: dark mode and phone width of the visual editor, the block editor and the maps; Safari, Firefox and touch; the map with the list over it in an archive; the YouTube Data API with a real key; real GPX files from a device (a long recording, one with no heights, one in KML from Google Earth). Screen readers by hand are still to do.
 
-## Next: in this order *(proposal)*
+## Current product priorities (2026-10-16)
+
+Public search was chosen as the first delivery: 0.1.146 adds block/custom-field text, Greek-aware matching, relevance, excerpts, type filters and pagination (`docs/search.md`). Suggestions while typing are not requested. Follow-up search work can add area/category filters and an index if measured site sizes justify it.
+
+The owner's next priorities are content relationships, general repeaters (including content-type fields and nesting), a block builder for single and archive templates, unified block settings in an off-canvas panel, and a shop later. Relationships and repeaters should share the existing field schema. The common settings panel should be available before the template builder, which also needs dynamic field bindings and archive/loop context. The shop's catalogue can use these foundations; transactions are a separate future scope. Saved working drafts for published pages are not a current priority.
+
+## Site-specific follow-ups *(proposal)*
 
 1. **Nested repeaters** (from *Later*). A repeater inside a repeater item: several buy links for a book, several buttons for each slide. Today `FieldSchema` keeps repeater items flat and drops a repeater field inside one, so the slider's buttons are flat fields (`link_label`, `link_label_2`, `link_label_3`). Needs: the schema and its checks, the editor (add, remove and reorder inner rows), storage, the CSV and revision handling, and the block templates.
 2. **Theme options a migration asked for: what is left.** Done in 0.1.95: headings in the palette colour (or colours of one's own), a fading header, a title area for each term, visible breadcrumbs, a picture beside the text. Left: *slides of one height on phones*. A row of slides already takes the height of the tallest, so what was meant needs to be seen on the second site (a fixed ratio for the pictures, or text that is cut, or the dark panel under the picture that grows with the text).
@@ -42,7 +48,7 @@ Several releases were merged with only the tests of the change run, and CI was r
    - the profile of the height linked to the map (a mark on the line under the pointer), and the places a route file marks as entries of their own on request;
    - custom single templates for a site (the three templates are three lines each; document how to start from them).
 5. **Runtime cache** (see Caching below). The map pages compute what is near what on every visit and read the route cache of every route; with hundreds of places that becomes the slowest page of the site. The marker datasets are named in layer 2 of the plan, so build the layers with that in mind.
-6. **Search improvements** (weighted fields, highlights; places by area and category). Bigger content sites need it before they need anything else here.
+6. **Search for places**: area/category filters beyond the general search delivered in 0.1.146.
 
 ## Later
 

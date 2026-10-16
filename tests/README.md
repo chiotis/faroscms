@@ -31,6 +31,9 @@ python3 tests/runner_test.py  # verifies that failing subprocesses cannot report
 
 | Check | What it proves |
 |---|---|
+| `tests/unit/search-document.php` | Text extraction from public fields, blocks, repeaters and containers; exclusion of technical/private fields; extracted-text cache invalidation and fallback |
+| `tests/unit/search.php` | Greek matching and original spelling, relevance, cross-field multiword matching, snippets, visibility/language boundaries, paging and custom-template compatibility |
+| `tests/http/search_test.py` | Public results through real requests: counts, filters, paging, block/custom field matches, visibility, language isolation, malformed parameters and HTML escaping |
 | `tests/unit/blocks.php` | Block definitions, defaults, tampered values, video links, storage sanitising |
 | `tests/unit/revisions.php` | The line diff and the history store: capture, dedupe, outside changes, renames, pruning, deleted items |
 | `tests/unit/taxonomies.php` | Term addresses from names, address changes, removals, the layout choices a taxonomy stores |

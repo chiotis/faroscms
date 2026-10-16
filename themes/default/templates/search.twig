@@ -21,27 +21,60 @@
     <form method="get" action="{{ url(prefix ~ 'search') }}" class="search-form" role="search">
       <label class="visually-hidden" for="search-q">{{ t('search.title') }}</label>
       <input type="search" id="search-q" name="q" value="{{ query }}" placeholder="{{ t('search.placeholder') }}">
+      {% if search.type|default('') != '' %}<input type="hidden" name="type" value="{{ search.type }}">{% endif %}
       <button type="submit">{{ t('search.button') }}</button>
     </form>
   {% endset %}
   {% include 'components/title-area.twig' with {layout: search_layout, title: search_title, hero_text: search_subtitle, hero_extra: search_form, meta_html: '', meta_inline: '', hero_image: search_picture, hero_bg: '', hero_parallax: search_image_behind and search_page.title_parallax|default(false)} only %}
 
-  <section class="site-wrap section-stack single-body">
-    {% if query %}
-      <h2>{{ t('search.results_for') }} "{{ query }}"</h2>
-      {% if results is empty %}
-        <p>{{ t('search.no_results') }}</p>
+  <section class="site-wrap section-stack single-body search-body"{% if query != '' %} aria-labelledby="search-heading"{% endif %}>
+    {% if query != '' %}
+      <div class="search-summary">
+        <h2 id="search-heading">{{ t('search.results_for') }} “{{ query }}”</h2>
+        <p class="search-count">{{ t(search.total == 1 ? 'search.result_count_one' : 'search.result_count')|replace({'{count}': search.total}) }}</p>
+      </div>
+      {% if search.types|length > 1 %}
+        <nav class="search-filters" aria-label="{{ t('search.filter_by_type') }}">
+          <ul role="list">
+            {% for type in search.types %}
+              <li><a href="{{ type.url }}"{% if type.active %} aria-current="true"{% endif %}>{{ type.label }} <span class="search-filter-count">({{ type.count }})</span></a></li>
+            {% endfor %}
+          </ul>
+        </nav>
+      {% endif %}
+      {% if search.hits is empty %}
+        <div class="search-empty">
+          <p>{{ t('search.no_results') }}</p>
+          <p>{{ t('search.try_again') }}</p>
+        </div>
       {% else %}
-        <ul class="search-results">
-          {% for item in results %}
+        <ul class="search-results" role="list">
+          {% for hit in search.hits %}
+            {% set item = hit.item %}
             {% set path = item_path(item, prefix) %}
-            <li>
-              <a href="{{ url(path) }}">{{ item.meta.title }}</a>
-              <small>{{ t('type.' ~ item.type, item.type|title) }}</small>
+            <li class="search-result">
+              <article>
+                <p class="search-result-type">{{ t('type.' ~ item.type, item.type|title) }}</p>
+                <h3 class="search-result-title"><a href="{{ url(path) }}">{% for part in hit.title_parts %}{% if part.match %}<mark>{{ part.text }}</mark>{% else %}{{ part.text }}{% endif %}{% endfor %}</a></h3>
+                {% if hit.snippet_parts %}<p class="search-result-snippet">{% for part in hit.snippet_parts %}{% if part.match %}<mark>{{ part.text }}</mark>{% else %}{{ part.text }}{% endif %}{% endfor %}</p>{% endif %}
+              </article>
             </li>
           {% endfor %}
         </ul>
       {% endif %}
+      {% if search.pagination.pages > 1 %}
+        <nav class="pagination" aria-label="{{ t('pagination.label') }}">
+          {% if search.pagination.previous %}<a class="pagination-step" rel="prev" href="{{ search.pagination.previous }}">{{ t('pagination.previous') }}</a>{% endif %}
+          <ul class="pagination-pages" role="list">
+            {% for link in search.pagination.links %}
+              <li><a href="{{ link.url }}"{% if link.current %} aria-current="page"{% endif %}><span class="visually-hidden">{{ t('pagination.page') }} </span>{{ link.page }}</a></li>
+            {% endfor %}
+          </ul>
+          {% if search.pagination.next %}<a class="pagination-step" rel="next" href="{{ search.pagination.next }}">{{ t('pagination.next') }}</a>{% endif %}
+        </nav>
+      {% endif %}
+    {% else %}
+      <p class="search-hint">{{ t('search.enter_query') }}</p>
     {% endif %}
   </section>
 {% endblock %}

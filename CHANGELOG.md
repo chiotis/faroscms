@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.146 — 2026-10-16 — Public search: content, relevance and results
+- **Search finds the content in blocks and declared public fields**, including repeaters and container columns, book authors and ISBNs. Hidden blocks, retired/private fields, technical settings, URLs and form definitions are excluded. Field definitions may opt out with `searchable: false`.
+- **Greek matching ignores case, accents and final sigma.** All words in a query must match, in any order and across fields; titles rank above mentions in the body. The original spelling stays in the results. Results belong to the current language, without links to missing translations.
+- **A fuller results page:** a result count, relevant excerpts with highlighted words, filters by content type and ten results per page. The title-area settings and header search keep working, with no suggestions while typing. Existing custom search templates still receive the complete ranked `results` list; the new paginated presentation uses `search.hits`.
+- Search uses the existing parsed-content cache and a disposable cache of extracted text, invalidated by content, schema and version changes. No content migration or new server dependency is needed. The admin's separate search is unchanged. See `docs/search.md`.
+
 ## 0.1.145 — 2026-10-16 — PHP 8.5, update checks and CI diagnostics
 - **PHP 8.5 or newer is required.** Releases are built and tested on PHP 8.5. The installer checks the package requirement, system checks use the same minimum, and a fresh installation on an older PHP explains what to upgrade before loading the application.
 - **A short check after installing an update** asks the login page, home page, one published internal page when available, and the sitemap (including the site's choice to disable it). Each request proves that the expected version answered freshly, bypasses page caching and uses a short timeout. A definite failure puts the previous code back; a timeout, redirect, restricted or stale response leaves an explicit *Unverified* result and the option to roll back. The result lists what was checked. The extended check applies to updates started by this version or later; the first upgrade uses the updater already installed.
