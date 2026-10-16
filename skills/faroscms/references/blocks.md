@@ -1,4 +1,4 @@
-# Blocks of this installation (FarosCMS 0.1.137)
+# Blocks of this installation (FarosCMS 0.1.138)
 
 ## Fields every block has
 
@@ -211,7 +211,7 @@ A short, focused invitation with one or two buttons.
 | `actions` | list of rows; at most 2 rows |  |
 | &nbsp;&nbsp;`actions[].label` | text |  |
 | &nbsp;&nbsp;`actions[].url` | link |  |
-| &nbsp;&nbsp;`actions[].style` | choice; one of `primary`, `secondary`; default `primary` |  |
+| &nbsp;&nbsp;`actions[].style` | choice; one of `primary`, `secondary`, `text`; default `primary` |  |
 
 ### `divider` — Divider
 Space between two sections, or a line, optionally with a short label in the middle.
@@ -256,7 +256,7 @@ Questions and answers that open one at a time. Adds FAQ structured data for sear
 | `items` | list of rows; at most 30 rows |  |
 | &nbsp;&nbsp;`items[].question` | text |  |
 | &nbsp;&nbsp;`items[].answer` | Markdown |  |
-| `initial` | choice; one of `closed`, `first`; default `closed` | "When the page opens": all answers closed, or the first one open. Older pages with `open_first: true` still open the first |
+| `initial` | choice; one of `closed`, `first`; default `closed` |  |
 | `schema` | true / false; default `true` |  |
 
 ### `features` — Features
@@ -321,7 +321,7 @@ Opening section with a strong heading, supporting text, buttons, and an image or
 | `actions` | list of rows; at most 2 rows |  |
 | &nbsp;&nbsp;`actions[].label` | text |  |
 | &nbsp;&nbsp;`actions[].url` | link | A page ("contact"), a path ("/en/contact"), a full URL, #anchor, mailto: or tel: |
-| &nbsp;&nbsp;`actions[].style` | choice; one of `primary`, `secondary`; default `primary` |  |
+| &nbsp;&nbsp;`actions[].style` | choice; one of `primary`, `secondary`, `text`; default `primary` |  |
 | `highlights` | list of rows; at most 3 rows |  |
 | &nbsp;&nbsp;`highlights[].text` | text |  |
 | `items` | list of rows; at most 4 rows |  |
@@ -351,10 +351,10 @@ Slides that each are a Hero. Every slide picks its own Hero layout (including th
 | &nbsp;&nbsp;`items[].text` | text (several lines) |  |
 | &nbsp;&nbsp;`items[].label` | text |  |
 | &nbsp;&nbsp;`items[].url` | link | A page ("contact"), a path ("/en/contact"), a full URL, #anchor, mailto: or tel: |
-| &nbsp;&nbsp;`items[].style` | choice; one of `primary`, `secondary`; default `primary` |  |
+| &nbsp;&nbsp;`items[].style` | choice; one of `primary`, `secondary`, `text`; default `primary` |  |
 | &nbsp;&nbsp;`items[].label_2` | text |  |
 | &nbsp;&nbsp;`items[].url_2` | link |  |
-| &nbsp;&nbsp;`items[].style_2` | choice; one of `primary`, `secondary`; default `secondary` |  |
+| &nbsp;&nbsp;`items[].style_2` | choice; one of `primary`, `secondary`, `text`; default `secondary` |  |
 | &nbsp;&nbsp;`items[].highlight_1` | text |  |
 | &nbsp;&nbsp;`items[].highlight_2` | text |  |
 | &nbsp;&nbsp;`items[].highlight_3` | text |  |
@@ -662,7 +662,7 @@ A heading with rich text. Use it for introductions, statements, and longer copy.
 | `actions` | list of rows; at most 2 rows |  |
 | &nbsp;&nbsp;`actions[].label` | text |  |
 | &nbsp;&nbsp;`actions[].url` | link |  |
-| &nbsp;&nbsp;`actions[].style` | choice; one of `primary`, `secondary`; default `primary` |  |
+| &nbsp;&nbsp;`actions[].style` | choice; one of `primary`, `secondary`, `text`; default `primary` |  |
 
 ### `text-image` — Text and image
 Text with an image beside it, above it or below it. Alternate left and right to give long pages a rhythm.
@@ -677,7 +677,7 @@ Text with an image beside it, above it or below it. Alternate left and right to 
 | `actions` | list of rows; at most 2 rows |  |
 | &nbsp;&nbsp;`actions[].label` | text |  |
 | &nbsp;&nbsp;`actions[].url` | link |  |
-| &nbsp;&nbsp;`actions[].style` | choice; one of `primary`, `secondary`; default `primary` |  |
+| &nbsp;&nbsp;`actions[].style` | choice; one of `primary`, `secondary`, `text`; default `primary` |  |
 | `image` | image |  |
 | `image_alt` | text | What the image shows. Leave empty if it is purely decorative. |
 | `image_ratio` | choice; one of `landscape`, `wide`, `portrait`, `square`; default `landscape` |  |

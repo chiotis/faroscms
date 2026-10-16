@@ -231,5 +231,23 @@ check('nor can a request without the form token', st in (302, 403, 419) and '"cs
 st, _, _ = pub.request('/admin/theme?preview=branding', data=[('_csrf', token)])
 check('nor someone who is not signed in', st in (302, 403, 419), st)
 
+# ---- links and button styles
+html = root.get('/admin/theme?tab=branding')[2]
+check('Branding has the Links and Button styles cards, with the colours as roles, and the specimen view', 'data-bt-card="links"' in html and 'data-bt-card="buttons"' in html and html.count('data-tone-role') >= 20 and 'theme?preview=specimen' in html and 'admin-branding-buttons.js' in html)
+check('the specimen and its screen are not in a site that sets nothing: the page has no button or link CSS', 'btn-text' not in style(page()) and 'where(:root' not in style(page()))
+post_theme(d(btn_primary_bg='ink', btn_primary_radius='square', btn_secondary_border_width='2', btn_text_text='accent', link_color='text', link_underline='hover', btn_primary_hover_bg='#ffff00', btn_primary_hover_text='#ffffff'))
+css = style(page())
+check('saved choices reach every page', '--btn-bg:var(--ink)' in css and 'border-radius:0px' in css and 'border-width:2px' in css and ':is(.prose,.prose-block) a' in css and 'color:var(--color-text)' in css, css[:300])
+check('a custom pair that does not read is not used', '#ffff00' not in css)
+html = root.get('/admin/theme?tab=branding')[2]
+check('and the screen shows them chosen', re.search(r'name="theme_settings\[design\]\[btn_primary_bg\]" value="ink"', html) is not None and re.search(r'name="theme_settings\[design\]\[link_underline\]" value="hover" checked', html) is not None)
+st, hdr, body = root.get('/admin/theme?preview=specimen')
+check('the specimen draws the three styles in light and dark with their states, using the unsaved-free current CSS', st == 200 and body.count('btn-primary') >= 8 and 'btn-text' in body and 'data-state="focus"' in body and ' disabled>' in body and 'mode-dark' in body and 'id="faros-branding"' in body and '--btn-bg:var(--ink)' in body)
+check('it needs theme access', ed.get('/admin/theme?preview=specimen')[0] in (302, 403) and pub.get('/admin/theme?preview=specimen')[0] in (302, 403))
+st, _, body = preview(root, **{'theme_settings[design][btn_secondary_text]': 'accent', 'theme_settings[design][link_color]': 'javascript:x'})
+check('the live preview follows an unsaved button choice and refuses a bad one', st == 200 and '.btn:not(.btn-primary):not(.btn-text){--btn-text:var(--accent)' in json.loads(body)['css'] and 'javascript' not in body)
+post_theme(d(btn_primary_bg='', btn_primary_radius='auto', btn_secondary_border_width='auto', btn_text_text='', link_color='', link_underline='auto', btn_primary_hover_bg='', btn_primary_hover_text=''))
+check('emptying them restores the page to the theme\'s own', 'where(:root' not in style(page()) and 'btn-primary' not in style(page()))
+
 print('\nALL PASSED' if not fails else '\n%d FAILED: %s' % (len(fails), fails))
 sys.exit(1 if fails else 0)

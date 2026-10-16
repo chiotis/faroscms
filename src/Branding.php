@@ -288,7 +288,9 @@ final class Branding
             $rules[] = ':root.dark[data-theme][data-mode]{--heading-color:' . $headingDark . '}';
             $rules[] = '@media(prefers-color-scheme:dark){:root[data-mode="system"]:not(.light)[data-theme]{--heading-color:' . $headingDark . '}}';
         }
-        return $css . implode('', $rules);
+        // Links and the three button styles (BrandingButtons): nothing when none is chosen.
+        $appearance = is_array($settings['appearance'] ?? null) ? $settings['appearance'] : [];
+        return $css . implode('', $rules) . BrandingButtons::css($design, (string)($appearance['palette'] ?? 'slate'));
     }
 
     /**

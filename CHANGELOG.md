@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.138 — 2026-10-16 — Branding: links and button styles
+- **Links in Theme > Branding**: choose the link colour and hover colour for light and for dark from the palette (accent, text, secondary and so on), the underline (always, on hover or never), and how thick it is and how far from the text. A link colour of your own is used only when it is readable (4.5:1) on the page in light and in dark, and a badge shows the ratio.
+- **Three button styles, set in one place**: Primary, Secondary (outline) and Text (looks like a link). For each, choose the background, text and border colour for the normal and hover states, the border width and its own corners. Hover is worked out for you unless you choose it. Form buttons follow Primary. Hero, CTA, Text and Text and image blocks can now use the Text style as well.
+- **Focus and disabled are not settings**: a visible focus ring and a clearly dimmed but readable disabled button are built in, so a button never loses them.
+- **A specimen beside the preview**: *Buttons and links* shows the three styles in normal, hover, focus and disabled states, and a paragraph with links, in light and dark, following your unsaved choices.
+- **Nothing changes unless you choose something**: a site that sets none of these looks exactly as before. The new settings are `design.link_*` and `design.btn_*`.
+
 ## 0.1.137 — 2026-10-16 — Branding: clearer inherited styles
 - **Button controls show the matching concrete choice instead of a redundant Theme option**: Semi for the default text weight, and Pill for the Soft and Rounded shape presets. They still inherit until you explicitly choose a value; Reset restores inheritance. Sharp retains *From shape*, because its 4 px button radius differs from the fixed choices. Changing a shape keeps any button radius you chose yourself.
 - **Inherited styles have more useful names**: Normal spacing, Soft shadows, *By element* for heading weight, letter spacing and line height, and *Theme scale* for the theme's responsive heading sizes. The Theme value / Your value status also describes each control to assistive technology.

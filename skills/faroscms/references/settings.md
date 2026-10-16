@@ -28,7 +28,7 @@ Rules the CMS enforces (the script applies the same): a value not among a select
 
 Also inside theme settings, but **edit these in the admin**: `single_layouts.<type>` (Theme > Single Layouts: page layout, title area, sidebar, a *Breadcrumbs* chip, and for points/routes/businesses how many places *near* it to list), `search_page` (Theme > Archive Layouts > Search) and `footer_blocks` (Theme > Footer Blocks: blocks shown above the footer on every page, one set per language: a logo row, a call to action, a form).
 
-In the admin: **Theme** has a tab per section plus *Branding* (identity, colours, typography, layout, shape, buttons, with a live preview), *Single Layouts*, *Archive Layouts* and *Footer Blocks*. Save with the Save bar at the bottom.
+In the admin: **Theme** has a tab per section plus *Branding* (identity, colours, typography, layout, shape, buttons, links, button styles, with a live preview), *Single Layouts*, *Archive Layouts* and *Footer Blocks*. Save with the Save bar at the bottom.
 
 Colour and font choices go further than the palette: `design.light_accent`, `design.dark_accent`, `design.heading_font`, `design.body_font`, `design.scale`, `design.container`, `design.radius`… (`#rrggbb`; empty means "the theme's own").
 

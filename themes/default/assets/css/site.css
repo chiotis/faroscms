@@ -526,7 +526,8 @@ hr {
   transition: background-color 0.2s var(--ease), border-color 0.2s var(--ease), color 0.2s var(--ease);
 }
 
-.btn:hover {
+.btn:hover,
+.btn[data-state="hover"] {
   --btn-border: var(--color-text);
   color: var(--btn-text);
 }
@@ -537,9 +538,42 @@ hr {
   --btn-border: var(--accent);
 }
 
-.btn-primary:hover {
+.btn-primary:hover,
+.btn-primary[data-state="hover"] {
   --btn-bg: var(--accent-hover);
   --btn-border: var(--accent-hover);
+}
+
+/* The Text style: a button that reads as a link, with the same size and focus area as the others. */
+.btn-text {
+  --btn-bg: transparent;
+  --btn-text: var(--accent);
+  --btn-border: transparent;
+}
+
+.btn-text:hover,
+.btn-text[data-state="hover"] {
+  --btn-text: var(--accent-hover);
+  --btn-border: transparent;
+  text-decoration: underline;
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.18em;
+}
+
+/* Focus and disabled are not settings. The focus ring is the theme's own (:focus-visible, in --color-focus: the accent, which reads on the
+   page in every palette and both modes); [data-state] only lets the Branding specimen show it. A disabled button is dimmed, still readable. */
+.btn[data-state="focus"] {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 3px;
+}
+
+.btn:disabled,
+.btn[aria-disabled="true"],
+.form-grid button:disabled,
+.search-form button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .btn-icon {
@@ -2811,13 +2845,16 @@ body.has-transparent-header:not(.header-solid) .site-header.is-on-dark[data-stic
 
 .form-grid button,
 .search-form button {
+  --btn-bg: var(--accent);
+  --btn-text: var(--accent-contrast);
+  --btn-border: var(--accent);
   justify-self: start;
   min-height: var(--btn-height, 2.875rem);
   padding: 0.7rem var(--btn-pad-x, 1.5rem);
-  border: 1px solid var(--accent);
+  border: 1px solid var(--btn-border);
   border-radius: var(--radius-button);
-  background: var(--accent);
-  color: var(--accent-contrast);
+  background: var(--btn-bg);
+  color: var(--btn-text);
   font: inherit;
   font-size: var(--btn-size, 0.95rem);
   font-weight: var(--btn-weight, 600);
@@ -2829,8 +2866,8 @@ body.has-transparent-header:not(.header-solid) .site-header.is-on-dark[data-stic
 
 .form-grid button:hover,
 .search-form button:hover {
-  border-color: var(--accent-hover);
-  background: var(--accent-hover);
+  --btn-bg: var(--accent-hover);
+  --btn-border: var(--accent-hover);
 }
 
 .form-required {
