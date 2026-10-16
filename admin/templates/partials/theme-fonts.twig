@@ -1,0 +1,52 @@
+{#
+  Theme > Branding > Typography: the person's own font families. Files are uploaded one at a time (admin-branding-fonts.js sends each to
+  ?preview=fonts, which stores it in custom/assets/fonts/ and answers with what it read), and the list is part of the Branding form as
+  `design.fonts` (one hidden input group for each file), saved with the rest. Without the script the list is kept as it is.
+
+  fonts   info.fonts: the files with their address and state, and the site's languages   pd   the name prefix of the design fields
+#}
+{% set fonts = info.fonts %}
+{% set names = [] %}
+{% for file in fonts.files %}{% if file.family not in names %}{% set names = names|merge([file.family]) %}{% endif %}{% endfor %}
+<div class="bf" data-bf data-bf-endpoint="{{ url('admin/theme?preview=fonts') }}" data-bf-state="{{ fonts|json_encode }}" data-bf-prefix="{{ pd }}" data-bf-legacy="{{ vd.font_file|trim }}">
+  <div class="bf-head">
+    <strong>Your own fonts</strong>
+    <span>Upload font files (WOFF2 is best), then choose the family for Headings or Text by setting it to “Your own font”.</span>
+  </div>
+  <div class="bf-roles" data-bf-roles>
+    {% for role, label in {heading: 'Headings use', body: 'Text uses'} %}
+      {% set key = role ~ '_family' %}
+      <div class="bf-role" data-bf-role="{{ role }}">
+        <label for="f-{{ key }}">{{ label }}</label>
+        <select id="f-{{ key }}" class="lc-input" name="{{ pd ~ key }}]">
+          <option value="">{{ names is empty ? 'No family yet' : (names|length == 1 ? 'Automatic (' ~ names|first ~ ')' : 'Choose a family') }}</option>
+          {% for name in names %}<option value="{{ name }}"{{ name == vd[key] ? ' selected' }}>{{ name }}</option>{% endfor %}
+        </select>
+      </div>
+    {% endfor %}
+  </div>
+  <div class="bf-notes" data-bf-notes role="status"></div>
+  <div class="bf-list" data-bf-list>
+    {% for name in names %}
+      <p class="bf-plain"><strong>{{ name }}</strong>: {{ fonts.files|filter(f => f.family == name)|map(f => f.file)|join(', ') }}</p>
+    {% endfor %}
+  </div>
+  <div class="bf-add">
+    <label class="bf-upload"><input type="file" multiple accept=".woff2,.woff,.ttf,.otf,font/woff2,font/woff,font/ttf,font/otf" data-bf-file><span>Upload font files</span></label>
+    <input type="text" class="lc-input bf-name" maxlength="40" placeholder="Family name (optional)" aria-label="Family name for the files you upload" data-bf-family>
+    <button type="button" class="bp-reset" data-bf-convert hidden>Turn the earlier single font file into a family</button>
+  </div>
+  <p class="bf-status" role="status" aria-live="polite" data-bf-status></p>
+  <div data-bf-inputs>
+    {% if vd.font_file|trim == '' %}<input type="hidden" name="{{ pd }}font_file]" value="">{% endif %}
+    {% if fonts.files is empty %}
+      <input type="hidden" name="{{ pd }}fonts]" value="">
+    {% else %}
+      {% for file in fonts.files %}
+        {% for field in ['family', 'file', 'weight', 'style', 'range', 'cover', 'adjust', 'v'] %}
+          <input type="hidden" name="{{ pd }}fonts][{{ loop.parent.loop.index0 }}][{{ field }}]" value="{{ file[field] }}">
+        {% endfor %}
+      {% endfor %}
+    {% endif %}
+  </div>
+</div>

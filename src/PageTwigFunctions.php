@@ -27,7 +27,7 @@ final class PageTwigFunctions
 
         // What Theme > Branding adds to a page: a style sheet of the choices made there, and the icons and colour of the browser.
         $add('branding_css', static fn(): string => Branding::css($themeSettings(), $baseUrl), true);
-        $add('branding_head', static fn(): string => Branding::head($themeSettings(), $baseUrl), true);
+        $add('branding_head', static fn(string $language = ''): string => Branding::head($themeSettings(), $baseUrl, $language), true);
 
         // The tracking of Admin > Analytics: the owner's code (or the platform's script) for the head, and the owner's code for the end of the page.
         $add('analytics_head', static fn(string $scriptUrl = '', string $apiUrl = ''): string => AnalyticsSettings::head(AnalyticsSettings::from($settings()), $signedIn(), $scriptUrl, $apiUrl), true);

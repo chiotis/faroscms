@@ -34,7 +34,7 @@
 } %}
 {% set known_a = ['mode', 'palette', 'font', 'glow', 'shape'] %}
 {% set known_b = ['logo', 'logo_dark', 'show_name', 'logo_height', 'logo_height_mobile', 'footer_logo_height', 'name_size', 'favicon', 'touch_icon', 'theme_color', 'share_image'] %}
-{% set known_d = ['light_accent', 'light_background', 'light_surface', 'light_text', 'light_muted', 'light_border', 'dark_accent', 'dark_background', 'dark_surface', 'dark_text', 'dark_muted', 'dark_border', 'ink', 'heading_font', 'body_font', 'font_file', 'base_size', 'line_height', 'scale', 'heading_weight', 'heading_tracking', 'heading_leading', 'heading_case', 'heading_color', 'heading_color_light', 'heading_color_dark', 'container', 'reading_width', 'gutter', 'section_space', 'header_height', 'spacing', 'radius', 'button_radius', 'shadows', 'button_height', 'button_pad', 'button_size', 'button_weight', 'button_case'] %}
+{% set known_d = ['light_accent', 'light_background', 'light_surface', 'light_text', 'light_muted', 'light_border', 'dark_accent', 'dark_background', 'dark_surface', 'dark_text', 'dark_muted', 'dark_border', 'ink', 'heading_font', 'body_font', 'font_file', 'heading_family', 'body_family', 'fonts', 'base_size', 'line_height', 'scale', 'heading_weight', 'heading_tracking', 'heading_leading', 'heading_case', 'heading_color', 'heading_color_light', 'heading_color_dark', 'container', 'reading_width', 'gutter', 'section_space', 'header_height', 'spacing', 'radius', 'button_radius', 'shadows', 'button_height', 'button_pad', 'button_size', 'button_weight', 'button_case'] %}
 {% set roles = [['accent', 'Accent'], ['background', 'Background'], ['surface', 'Surface'], ['text', 'Text'], ['muted', 'Muted text'], ['border', 'Border']] %}
 {% set defaults = {} %}
 {# These defaults are known only for the bundled theme without a site stylesheet that may override them. #}
@@ -164,9 +164,9 @@
             {% if a.font is defined %}{{ c.choice(a.font, pa ~ 'font]', va.font, 'select', {}) }}{% endif %}
             {% if d.heading_font is defined %}{{ c.choice(d.heading_font, pd ~ 'heading_font]', vd.heading_font, 'select', {}) }}{% endif %}
             {% if d.body_font is defined %}{{ c.choice(d.body_font, pd ~ 'body_font]', vd.body_font, 'select', {}) }}{% endif %}
-            {% if d.font_file is defined %}
+            {% if d.font_file is defined and vd.font_file|trim != '' %}
               <div class="lc-row" data-bp-custom-font>
-                <dt><label for="f-font-file">{{ d.font_file.label }}</label></dt>
+                <dt><label for="f-font-file">{{ d.font_file.label }} <small>(earlier setting)</small></label></dt>
                 <dd class="m-0">
                   <input id="f-font-file" type="text" name="{{ pd }}font_file]" value="{{ vd.font_file }}" placeholder="{{ d.font_file.placeholder }}" class="lc-input">
                   <span class="mt-1 block text-[11px] leading-4 text-slate-500">{{ d.font_file.help }}
@@ -176,6 +176,7 @@
               </div>
             {% endif %}
           </dl>
+          {% if d.fonts is defined %}{% include '@admin/partials/theme-fonts.twig' %}{% endif %}
           <div class="bp-nums">
             {% if d.base_size is defined %}{{ c.num(d.base_size, pd ~ 'base_size]', vd.base_size, 'px') }}{% endif %}
             {% if d.line_height is defined %}{{ c.num(d.line_height, pd ~ 'line_height]', vd.line_height, '') }}{% endif %}
@@ -265,3 +266,4 @@
   </div>
 </div>
 <script src="{{ asset('js/admin-branding.js') }}" defer></script>
+<script src="{{ asset('js/admin-branding-fonts.js') }}" defer></script>
