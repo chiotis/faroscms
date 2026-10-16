@@ -1,11 +1,12 @@
 label: Image
-description: One image with a caption, an optional link, and the shape you choose.
+description: One image with a caption, an optional link, and the shape you choose. It can be narrower than its column.
 category: Media
 spacing: compact
 variants:
   wide: Page width
   narrow: Text width
   full: Edge to edge
+design_fields: [image_width, image_width_unit, image_align, image_full_mobile]
 fields:
   image:
     type: image
@@ -38,3 +39,32 @@ fields:
     label: Caption alignment
     default: left
     options: { left: Left, center: Center }
+  image_width:
+    type: number
+    label: Picture width
+    blank: true
+    min: 10
+    max: 2000
+    units: image_width_unit
+    ranges: { '%': [10, 100], px: [40, 2000] }
+    presets: [25, 33, 50, 66, 75, 100]
+    help: 'Empty is the whole column. In % (10 to 100) of the column, or in px (40 to 2000), never wider than the column. The height follows the picture.'
+  image_width_unit:
+    type: select
+    label: Width unit
+    help: '% of the column, or px.'
+    default: '%'
+    options: { '%': '%', px: px }
+  image_align:
+    type: select
+    label: Picture position
+    help: Where a picture narrower than its column sits. The caption follows.
+    default: center
+    needs_size: image_width
+    options: { left: Left, center: Center, right: Right }
+  image_full_mobile:
+    type: toggle
+    label: Full width on a phone
+    help: A narrower picture fills the column on a phone, so small columns stay readable.
+    default: true
+    needs_size: image_width

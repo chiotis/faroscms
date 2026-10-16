@@ -677,6 +677,77 @@
 
   var TONE_SWATCH = { 'default': '#ffffff', muted: '#f1f5f9', contrast: '#0f172a', accent: '#2563eb' };
 
+  /** A size with a unit, in one control: preset chips (percentages), a number box and a unit switch. Empty is the whole column. */
+  function sizeControl(field, unitField, block, def, idBase, changed) {
+    var id = idBase + '-' + field.key;
+    var unitOf = function () { return String(valueFor(def, block, unitField.key)) === 'px' ? 'px' : '%'; };
+    var wrapper = el('div', { class: 'bk-field is-wide' }, [el('label', { class: 'bk-label', for: id, text: field.label })]);
+    var row = el('div', { class: 'bk-size' });
+    var chips = el('div', { class: 'bk-choices bk-widths', role: 'group', 'aria-label': field.label });
+    var buttons = [];
+    var input = el('input', { type: 'number', id: id, class: 'lc-input bk-size-input', step: '1', inputmode: 'numeric' });
+    var refresh = function () {
+      var unit = unitOf();
+      var range = (field.ranges || {})[unit] || [field.min, field.max];
+      var size = block[field.key] == null ? '' : block[field.key];
+      var percent = size === '' ? 100 : Number(size);
+      chips.hidden = unit === 'px';
+      buttons.forEach(function (b) { b.setAttribute('aria-pressed', unit === '%' && Number(b.getAttribute('data-value')) === percent ? 'true' : 'false'); });
+      input.min = range[0];
+      input.max = range[1];
+      input.placeholder = unit === 'px' ? 'auto' : '100';
+      input.setAttribute('aria-label', field.label + ' (' + unit + ')');
+      if (document.activeElement !== input) input.value = size === '' ? '' : String(size);
+    };
+    var set = function (value) {
+      block[field.key] = value;
+      serialize();
+      refresh();
+      changed();
+    };
+    (field.presets || []).forEach(function (percent) {
+      var button = el('button', { type: 'button', 'data-value': String(percent), text: percent + '%' });
+      button.addEventListener('click', function () {
+        if (unitOf() !== '%') { block[unitField.key] = '%'; unitSeg.querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-value') === '%' ? 'true' : 'false'); }); }
+        input.value = percent >= 100 ? '' : String(percent);
+        set(percent >= 100 ? '' : percent);
+      });
+      buttons.push(button);
+      chips.appendChild(button);
+    });
+    input.addEventListener('input', function () {
+      var number = parseInt(input.value, 10);
+      set(input.value === '' || isNaN(number) ? '' : number);
+    });
+    input.addEventListener('change', function () {
+      // Left empty or out of range, the box shows what will be kept.
+      var number = parseInt(input.value, 10);
+      var range = (field.ranges || {})[unitOf()] || [field.min, field.max];
+      if (input.value !== '' && !isNaN(number)) {
+        number = Math.max(range[0], Math.min(range[1], number));
+        input.value = unitOf() === '%' && number >= 100 ? '' : String(number);
+        set(unitOf() === '%' && number >= 100 ? '' : number);
+      }
+    });
+    var unitSeg = choiceButtons(unitField, unitOf(), function (value) {
+      block[unitField.key] = value;
+      // The number is kept inside the range of the new unit (320 px is the whole column in percent).
+      var range = (field.ranges || {})[value] || [field.min, field.max];
+      var size = block[field.key] == null || block[field.key] === '' ? '' : Math.max(range[0], Math.min(range[1], Number(block[field.key])));
+      if (value === '%' && size !== '' && size >= 100) size = '';
+      input.value = size === '' ? '' : String(size);
+      set(size);
+    }, 'bk-seg');
+    unitSeg.setAttribute('aria-label', unitField.label);
+    row.appendChild(chips);
+    row.appendChild(input);
+    row.appendChild(unitSeg);
+    wrapper.appendChild(row);
+    if (field.help) wrapper.appendChild(el('span', { class: 'bk-help', text: field.help }));
+    refresh();
+    return wrapper;
+  }
+
   function designPanel(block, def, idBase, inColumn) {
     var panel = el('div', { class: 'bk-design', role: 'tabpanel' });
     var field = function (key) { return def.common.filter(function (f) { return f.key === key; })[0]; };
@@ -718,13 +789,36 @@
     });
     if (beside.length) {
       var besideRow = el('div', { class: 'bk-grid' });
+      // A size with a unit (the picture width) takes its unit field into one control; a field with `needs_size` shows only while that size is narrower than the column.
+      var unitKeys = beside.map(function (f) { return f.units; }).filter(Boolean);
+      var dependents = [];
+      var narrower = function (key) {
+        var sizeField = def.fields.filter(function (f) { return f.key === key; })[0];
+        var size = block[key];
+        if (size === '' || size == null || isNaN(Number(size))) return false;
+        return valueFor(def, block, sizeField && sizeField.units) === 'px' || Number(size) < 100;
+      };
+      var showDependents = function () {
+        dependents.forEach(function (entry) { entry.node.hidden = !narrower(entry.key); });
+      };
       beside.forEach(function (f) {
-        besideRow.appendChild(fieldControl(Object.assign({}, f, { span: '' }), block[f.key], function (value) {
-          block[f.key] = value;
-          serialize();
-          render(block._id, 'keep');
-        }, idBase));
+        if (unitKeys.indexOf(f.key) !== -1) return;
+        var node;
+        if (f.units) {
+          var unitField = def.fields.filter(function (u) { return u.key === f.units; })[0];
+          node = unitField ? sizeControl(f, unitField, block, def, idBase, showDependents) : null;
+        }
+        if (!node) {
+          node = fieldControl(Object.assign({}, f, { span: '' }), block[f.key], function (value) {
+            block[f.key] = value;
+            serialize();
+            render(block._id, 'keep');
+          }, idBase);
+        }
+        if (f.needs_size) dependents.push({ key: f.needs_size, node: node });
+        besideRow.appendChild(node);
       });
+      showDependents();
       panel.appendChild(besideRow);
     }
     var row = el('div', { class: 'bk-grid' });

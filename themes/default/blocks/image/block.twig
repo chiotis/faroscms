@@ -1,9 +1,25 @@
 {% set prefix = lang_prefix|default('') %}
 {% set href = link_url(block.link, prefix) %}
 {% set sizes = block.variant == 'full' ? '100vw' : (block.variant == 'narrow' ? '(min-width: 800px) 46rem, 94vw' : '(min-width: 1200px) 1200px, 94vw') %}
+{# A picture narrower than its column (a percentage under 100, or pixels): its width goes in one custom property, the rest is classes. #}
+{% set unit = block.image_width_unit == 'px' ? 'px' : '%' %}
+{% set size = block.image_width is same as('') ? 0 : block.image_width|default(0) %}
+{% set sized = size > 0 and (unit == 'px' or size < 100) %}
+{% if sized %}
+  {% set phone = block.image_full_mobile is same as(false) ? '' : '(max-width: 640px) 94vw, ' %}
+  {% if unit == 'px' %}
+    {% set sizes = phone ~ size ~ 'px' %}
+  {% elseif block.variant == 'full' %}
+    {% set sizes = phone ~ size ~ 'vw' %}
+  {% elseif block.variant == 'narrow' %}
+    {% set sizes = phone ~ '(min-width: 800px) ' ~ (736 * size / 100)|round ~ 'px, ' ~ (94 * size / 100)|round ~ 'vw' %}
+  {% else %}
+    {% set sizes = phone ~ '(min-width: 1200px) ' ~ (1200 * size / 100)|round ~ 'px, ' ~ (94 * size / 100)|round ~ 'vw' %}
+  {% endif %}
+{% endif %}
 {% set picture %}{{ image(block.image, {alt: block.alt ?: null, sizes: sizes, max_width: block.variant == 'full' ? 2400 : 1800, class: 'image-block-img'}) }}{% endset %}
 <div class="{{ block.variant == 'full' ? 'image-block-full' : (block.variant == 'narrow' ? 'container-narrow' : 'container') }}">
-  <figure class="image-block ratio-{{ block.ratio }}{% if block.rounded and block.variant != 'full' %} is-rounded{% endif %}">
+  <figure class="image-block ratio-{{ block.ratio }}{% if block.rounded and block.variant != 'full' %} is-rounded{% endif %}{% if sized %} is-sized is-align-{{ block.image_align in ['left', 'right'] ? block.image_align : 'center' }}{% if block.image_full_mobile is not same as(false) %} is-full-mobile{% endif %}{% endif %}"{% if sized %} style="--image-width: {{ size }}{{ unit }}"{% endif %}>
     {% if href %}
       <a class="image-block-link" href="{{ href }}"{% if block.new_tab %} target="_blank" rel="noopener noreferrer"{% endif %}>
         {{ picture }}

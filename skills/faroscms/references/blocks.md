@@ -1,4 +1,4 @@
-# Blocks of this installation (FarosCMS 0.1.133)
+# Blocks of this installation (FarosCMS 0.1.134)
 
 ## Fields every block has
 
@@ -381,7 +381,7 @@ Slides that each are a Hero. Every slide picks its own Hero layout (including th
 | &nbsp;&nbsp;`items[].video_poster` | image; only when `background` is `v` or `i` or `d` or `e` or `o` and `layout` is `split` or `centered` or `cover` or `cover-centered` or `steps` or `steps-centered` | Shown while the video loads, when the visitor has asked their device for less motion, and under a video that is paused. |
 
 ### `image` — Image
-One image with a caption, an optional link, and the shape you choose.
+One image with a caption, an optional link, and the shape you choose. It can be narrower than its column.
 
 **Layouts** (`variant`): `wide` (Page width), `narrow` (Text width), `full` (Edge to edge). First is the default.
 
@@ -395,6 +395,10 @@ One image with a caption, an optional link, and the shape you choose.
 | `ratio` | choice; one of `original`, `landscape`, `classic`, `square`, `portrait`, `panorama`; default `original` |  |
 | `rounded` | true / false; default `true` |  |
 | `caption_align` | choice; one of `left`, `center`; default `left` |  |
+| `image_width` | whole number; 10 to 2000 | Empty is the whole column. In % (10 to 100) of the column, or in px (40 to 2000), never wider than the column. The height follows the picture. |
+| `image_width_unit` | choice; one of `%`, `px`; default `%` | % of the column, or px. |
+| `image_align` | choice; one of `left`, `center`, `right`; default `center` | Where a picture narrower than its column sits. The caption follows. |
+| `image_full_mobile` | true / false; default `true` | A narrower picture fills the column on a phone, so small columns stay readable. |
 
 ### `latest` — Latest content
 The newest posts, projects, or any content type, shown from a quiet text list to a magazine layout. Updates by itself when you publish.

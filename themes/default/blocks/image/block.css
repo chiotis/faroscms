@@ -58,6 +58,28 @@
   margin-inline: auto;
 }
 
+/* A picture narrower than its column: --image-width is a percentage of the column or a size in pixels, never wider than the column. The
+   height follows the picture and the caption sits under it, in the same width. */
+.image-block.is-sized {
+  width: var(--image-width);
+  max-width: 100%;
+}
+
+.image-block.is-align-left { margin-inline: 0 auto; }
+.image-block.is-align-center { margin-inline: auto; }
+.image-block.is-align-right { margin-inline: auto 0; }
+
+.image-block-full .image-block.is-sized .image-block-caption {
+  width: auto;
+  margin-inline: 0;
+}
+
+@media (max-width: 640px) {
+  .image-block.is-sized.is-full-mobile {
+    width: 100%;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .image-block-link:hover .image-block-img {
     transform: none;
