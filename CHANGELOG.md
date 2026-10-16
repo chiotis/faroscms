@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.144 — 2026-10-16 — Block editor: Image and Text first
+- **Image and Text are the first two choices in Add block**, followed by the container layouts and the remaining blocks. The order applies to pages, blocks inside container columns and Footer Blocks. Category filters and search keep working as before; existing page content is unchanged.
+
 ## 0.1.143 — 2026-10-16 — Branding: the palette is the one place for colours
 - **One row of palettes.** *Branding > Colour* now starts with one row of chips: the seven ready-made palettes, then the palettes made on your site (for example "Wemetrix"), then **+ Custom**. Exactly one is in use, and the row works with the keyboard (arrow keys, Home and End).
 - **Ready-made palettes are read-only.** Choosing one shows its colours, light and dark, with their hex codes. **Customise** makes a copy ("Teal (custom)"), chooses it and opens it for editing.
