@@ -3,14 +3,29 @@
 One command runs everything:
 
 ```bash
-tests/run.sh          # all checks (about 10 seconds)
+tests/run.sh          # all checks (several minutes, depending on the machine)
 tests/run.sh unit     # PHP checks only, no server
 tests/run.sh js       # JavaScript checks: editors, branding controls and previews
 tests/run.sh http     # the browser-level tests
 tests/run.sh redirects   # one HTTP test: editor, roles, import, redirects, save, history, taxonomies, links, delete
 ```
 
-It needs PHP, Python 3 (standard library only) and, for the JavaScript checks, Node 20 or later; the first run installs the one tool they use (jsdom) into `tests/js/node_modules` from `tests/js/package-lock.json`. Nothing touches your site: the HTTP tests run against a temporary copy of the code on a free local port, seeded from `tests/fixtures/content`, and remove it afterwards. The exit code is non-zero when anything fails, so it can run in CI.
+It needs PHP 8.5+, Python 3 (standard library only) and, for the JavaScript checks, Node 20 or later; the first run installs the one tool they use (jsdom) into `tests/js/node_modules` from `tests/js/package-lock.json`. Nothing touches your site: the HTTP tests run against a temporary copy of the code on a free local port, seeded from `tests/fixtures/content`, and remove it afterwards. The exit code is non-zero when anything fails, including a test process that prints a success message but exits with an error.
+
+## CI results without delaying releases
+
+GitHub Actions runs this suite on PHP 8.5 after pushes to `main` and for pull requests. A newer push cancels the superseded run. Pushes and the release workflow do not wait for the test result.
+
+Open **Actions → Tests → the latest run** to see the failed groups in the job summary. The **test-logs-php-8.5** artifact keeps each test's complete output, npm installation output when it runs, and the PHP server log for seven days. Tests still fail the job normally; collecting diagnostics never turns a failure into a pass. Cancelled runs are superseded checks, not passing checks.
+
+When a run fails, check the log for the failing group and reproduce it locally (`tests/run.sh save`, `tests/run.sh unit` or `tests/run.sh js`). Distinguish a regression from an intentionally changed expectation before changing a fixture. Send the fix in the next push, then verify the newest run succeeds. For a live regression, use the updater's rollback if appropriate; reverting code alone does not undo content or database changes.
+
+Keep the same full logs locally with an absolute path outside the installation:
+
+```bash
+FAROS_TEST_LOG_DIR=/tmp/faros-test-logs tests/run.sh save
+python3 tests/runner_test.py  # verifies that failing subprocesses cannot report a green suite
+```
 
 ## What is covered
 

@@ -32,8 +32,8 @@ if (!preg_match('/^\d+\.\d+\.\d+$/', $version)) {
     exit(1);
 }
 $composer = json_decode((string)file_get_contents($root . '/composer.json'), true);
-preg_match('/\d+(\.\d+)?/', (string)($composer['require']['php'] ?? '8.1'), $php);
-$minPhp = $php[0] ?? '8.1';
+preg_match('/\d+(\.\d+)?/', (string)($composer['require']['php'] ?? '8.5'), $php);
+$minPhp = $php[0] ?? '8.5';
 
 $files = [];
 foreach (FILES as $file) {

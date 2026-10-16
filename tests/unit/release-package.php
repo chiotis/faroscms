@@ -17,7 +17,7 @@ check('it says what it built', str_starts_with($said, "Built faroscms-$version.z
 $manifest = json_decode((string)file_get_contents($out . '/a/release.json'), true);
 $zipPath = $out . "/a/faroscms-$version.zip";
 check('the manifest names the version, the package and where it is', [$manifest['version'], $manifest['package'], $manifest['package_url']], [$version, "faroscms-$version.zip", "https://github.com/acme/site/releases/download/v$version/faroscms-$version.zip"]);
-check('and the lowest PHP, from composer.json', $manifest['min_php'], '8.1');
+check('and the lowest PHP, from composer.json', $manifest['min_php'], '8.5');
 check('and the checksum and size of the package', [$manifest['sha256'], $manifest['size']], [hash_file('sha256', $zipPath), filesize($zipPath)]);
 check('a backup is required before installing it', $manifest['requires_backup'], true);
 

@@ -3,6 +3,7 @@ name: Tests
 # The whole suite (PHP unit checks and the browser-level HTTP tests) on every push to main and on pull requests.
 # It needs PHP, Python 3 and Node 20 or later (the last two are on the runner); the repository already contains vendor/ and the compiled
 # admin CSS, and tests/run.sh installs the one JavaScript test tool (jsdom) from tests/js/package-lock.json, so there is no install step here.
+# This workflow reports failures asynchronously; the release workflow does not wait for it.
 on:
   push:
     branches: [main]
@@ -17,21 +18,56 @@ concurrency:
 
 jobs:
   suite:
-    name: PHP ${{ matrix.php }}
+    name: PHP 8.5
     runs-on: ubuntu-24.04
     timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        php: ['8.1', '8.3', '8.5']
     steps:
       - uses: actions/checkout@v7
 
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: ${{ matrix.php }}
+          php-version: '8.5'
           extensions: pdo_sqlite, mbstring, gd, zip, curl, fileinfo, exif, intl, simplexml, openssl
           coverage: none
 
+      - name: Check the test runner
+        run: python3 tests/runner_test.py
+
       - name: Run the suite
-        run: tests/run.sh
+        id: suite
+        shell: bash
+        env:
+          FAROS_TEST_LOG_DIR: ${{ runner.temp }}/faroscms-test-logs
+        run: |
+          mkdir -p "$FAROS_TEST_LOG_DIR"
+          set -o pipefail
+          tests/run.sh 2>&1 | tee "$FAROS_TEST_LOG_DIR/suite.log"
+
+      - name: Summarize the result
+        if: always()
+        env:
+          SUITE_OUTCOME: ${{ steps.suite.outcome }}
+          FAROS_TEST_LOG_DIR: ${{ runner.temp }}/faroscms-test-logs
+        run: |
+          {
+            printf '## PHP 8.5 tests: %s\n\n' "$SUITE_OUTCOME"
+            printf 'Commit: `%s`\n\n' "$GITHUB_SHA"
+            printf 'Releases remain immediate and independent of this test run.\n\n'
+            if [ -f "$FAROS_TEST_LOG_DIR/suite.log" ]; then
+              printf '```text\n'
+              grep -E '^  FAIL|^FAILED:|^ALL GOOD' "$FAROS_TEST_LOG_DIR/suite.log" || true
+              printf '```\n\n'
+              printf 'Download **test-logs-php-8.5** for the full output of each test and the PHP server log.\n'
+            else
+              printf 'The suite did not start. Check the failed setup or runner step above.\n'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep diagnostic logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-logs-php-8.5
+          path: ${{ runner.temp }}/faroscms-test-logs
+          if-no-files-found: ignore
+          retention-days: 7

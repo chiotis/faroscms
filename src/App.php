@@ -20,6 +20,7 @@ final class App
 {
     /** How long a cache in front of the site may keep a public page (see sendPublicCacheHeaders). */
     private const PUBLIC_CACHE_SECONDS = 60;
+    private bool $updateCheck = false;
 
     private string $basePath;
     private string $contentDir;
@@ -172,8 +173,23 @@ final class App
             session_start();
         }
 
+        // Only the current install's token can ask for an uncached proof of the version that actually booted.
+        $maintenance = new MaintenanceMode($this->basePath);
+        $updateToken = (string)($_SERVER['HTTP_X_FAROS_UPDATE'] ?? '');
+        $state = $updateToken !== '' ? $maintenance->state() : null;
+        $this->updateCheck = $state !== null && hash_equals($state['token'], $updateToken);
+        if ($this->updateCheck) {
+            FrontCache::doNotKeep();
+            header('Cache-Control: private, no-store');
+            $nonce = is_string($_GET['_faros_check'] ?? null) ? $_GET['_faros_check'] : '';
+            if (preg_match('/^[a-f0-9]{32}$/', $nonce)) {
+                $version = trim((string)file_get_contents($this->basePath . '/VERSION'));
+                header(UpdateNetwork::CHECK_HEADER . ': ' . hash_hmac('sha256', $version . '|' . $nonce, $updateToken));
+            }
+        }
+
         // While an update replaces the code the public site says so; the admin stays open.
-        if (!str_starts_with($path, 'admin') && (new MaintenanceMode($this->basePath))->blocks((string)($_SERVER['HTTP_X_FAROS_UPDATE'] ?? ''))) {
+        if (!str_starts_with($path, 'admin') && $maintenance->blocks($updateToken)) {
             FrontCache::doNotKeep();
             http_response_code(503);
             header('Retry-After: 60');
@@ -212,7 +228,7 @@ final class App
         $this->sendPublicCacheHeaders();
 
         // A scheduled backup that is due starts after the page has been sent, so it does not depend on someone opening the admin.
-        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
+        if (!$this->updateCheck && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
             register_shutdown_function(fn() => $this->runScheduledAfterResponse());
         }
 
@@ -403,12 +419,24 @@ final class App
 
     private function updateInstaller(): UpdateInstaller
     {
+        if ($this->updateInstallerService !== null) {
+            return $this->updateInstallerService;
+        }
+        // Resolve a real public entry before the code swap; the health request must render it with the new code.
+        $contentPath = null;
+        foreach ($this->publicPaths()->map() as $path => $title) {
+            if ($path !== '' && !in_array($path, $this->settings['languages']['available'] ?? [], true)) {
+                $contentPath = '/' . $path;
+                break;
+            }
+        }
+        $sitemapEnabled = $this->sitemap()->enabled();
         return $this->updateInstallerService ??= new UpdateInstaller(
             $this->basePath,
             $this->systemDatabase,
             new MaintenanceMode($this->basePath),
             fn(string $url, string $destination, int $maxBytes): ?string => UpdateNetwork::download($url, $destination, $maxBytes),
-            fn(string $token, string $version): array => UpdateNetwork::checkSite($this->getBaseUrl(), $token),
+            fn(string $token, string $version): array => UpdateNetwork::checkSite($this->getBaseUrl(), $token, $version, $contentPath, $sitemapEnabled),
             fn(string $level, string $message, array $context) => $this->logActivity('updates.install_step', $level, 'updates', 'install', $message, $context)
         );
     }
@@ -604,10 +632,10 @@ final class App
         if (headers_sent()) {
             return;
         }
-        if (session_status() === PHP_SESSION_ACTIVE) {
+        if ($this->updateCheck || session_status() === PHP_SESSION_ACTIVE) {
             FrontCache::doNotKeep();
         }
-        header(session_status() === PHP_SESSION_ACTIVE ? 'Cache-Control: private, no-store' : 'Cache-Control: public, max-age=0, s-maxage=' . self::PUBLIC_CACHE_SECONDS);
+        header($this->updateCheck || session_status() === PHP_SESSION_ACTIVE ? 'Cache-Control: private, no-store' : 'Cache-Control: public, max-age=0, s-maxage=' . self::PUBLIC_CACHE_SECONDS);
     }
 
     private function configureSession(): void

@@ -30,7 +30,7 @@ final class UpdateInstaller
 
     /**
      * @param \Closure(string, string, int): ?string $download fetches a URL into a file, giving up past that many bytes: url, destination, limit; an error message, or null
-     * @param \Closure(string, string): array{reached: bool, ok: bool, message: string} $health asks the site, in a request of its own, whether this version works: the token that gets past the maintenance page, the version expected
+     * @param \Closure(string, string): array{reached: bool, ok: bool, complete?: bool, message: string} $health asks the site, in a request of its own, whether this version works: the token that gets past the maintenance page, the version expected
      * @param \Closure(string, string, array<string, mixed>): void $log level, message, context
      */
     public function __construct(
@@ -188,10 +188,10 @@ final class UpdateInstaller
             if ($stale !== '') {
                 return $result('unverified', 'health', 'Version ' . $to . ' is installed. ' . $stale);
             }
-            if (!$health['reached']) {
+            if (!$health['reached'] || !($health['complete'] ?? true)) {
                 return $result('unverified', 'health', 'Version ' . $to . ' is installed, but the site could not be asked whether it works (' . $health['message'] . '). Open the site and the admin now; if something is wrong, roll back from this page.');
             }
-            return $result('installed', 'done', 'Version ' . $to . ' is installed and the site answered the check.');
+            return $result('installed', 'done', 'Version ' . $to . ' is installed. ' . $health['message'] . '.');
         } catch (\Throwable $e) {
             if ($swapped !== []) {
                 $this->unswap($swapped, $previous, $run . '/failed');

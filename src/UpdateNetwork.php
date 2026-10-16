@@ -10,8 +10,10 @@ namespace FarosCMS;
  */
 final class UpdateNetwork
 {
-    /** The paths asked: the sign-in page must answer 200; the home page only must not fail (a site with no pages yet answers 404 there). */
-    private const CHECKS = ['/admin/login', '/'];
+    public const CHECK_HEADER = 'X-Faros-Update-Check';
+    private const CHECK_SECONDS = 20;
+    private const REQUEST_SECONDS = 5;
+    private const MAX_CHECK_BYTES = 2097152;
 
     /** Whether cURL can be used: hosts often switch off `curl_exec` while leaving the extension in place. */
     public static function hasCurl(): bool
@@ -95,52 +97,126 @@ final class UpdateNetwork
     }
 
     /**
-     * Asks the site, in requests of their own, whether the new version works: the sign-in page must answer, the home
-     * page must not fail, and neither may show a PHP error.
+     * A short, read-only smoke check of the login, home, one known published entry and the sitemap.
+     * A fresh challenge proves the expected version answered instead of an intermediary's cached page.
+     * Inconclusive requests keep the install unverified; a definite bad response still triggers rollback.
      *
-     * @return array{reached: bool, ok: bool, message: string} reached is false when the site could not be asked at all (then nothing is known)
+     * @return array{reached: bool, ok: bool, complete: bool, message: string}
      */
-    public static function checkSite(string $baseUrl, string $token): array
+    public static function checkSite(string $baseUrl, string $token, string $version = '', ?string $contentPath = null, bool $sitemapEnabled = true): array
     {
+        $checks = ['/admin/login' => [200], '/' => [200, 404]];
+        if ($contentPath !== null && str_starts_with($contentPath, '/') && !str_starts_with($contentPath, '//') && !preg_match('/[?#\r\n]/', $contentPath)) {
+            $checks[$contentPath] = [200];
+        }
+        $checks['/sitemap.xml'] = [$sitemapEnabled ? 200 : 404];
+        $deadline = microtime(true) + self::CHECK_SECONDS;
         $reached = false;
         $problems = [];
-        foreach (self::CHECKS as $path) {
-            [$status, $body] = self::get(rtrim($baseUrl, '/') . $path, $token);
+        $unknown = [];
+        foreach ($checks as $path => $statuses) {
+            $remaining = $deadline - microtime(true);
+            if ($remaining <= 0) {
+                $unknown[] = $path . ' was not checked (time limit)';
+                continue;
+            }
+            $nonce = bin2hex(random_bytes(16));
+            [$status, $body, $proof] = self::get(rtrim($baseUrl, '/') . $path . '?_faros_check=' . $nonce, $token, min(self::REQUEST_SECONDS, $remaining));
             if ($status === 0) {
+                $unknown[] = $path . ' could not be checked (no complete response)';
                 continue;
             }
             $reached = true;
-            if ($status >= 500 || ($path === '/admin/login' && $status !== 200)) {
+            if ($status >= 500) {
                 $problems[] = $path . ' answered ' . $status;
             } elseif (preg_match('/(?:^|<br \/>\s*|<b>)\s*(?:PHP )?(?:Fatal error|Parse error)(?:<\/b>)?:/mi', $body)) {
                 $problems[] = $path . ' shows a PHP error';
+            } elseif ($status >= 300 && $status < 400) {
+                $unknown[] = $path . ' redirected (not followed by the check)';
+            } elseif ($version !== '' && !hash_equals(hash_hmac('sha256', $version . '|' . $nonce, $token), $proof)) {
+                $unknown[] = $path . ' did not confirm version ' . $version . ' (cache, redirect or access restriction)';
+            } elseif (!in_array($status, $statuses, true)) {
+                $problems[] = $path . ' answered ' . $status;
+            } elseif ($status === 200 && trim($body) === '') {
+                $problems[] = $path . ' returned an empty page';
+            } elseif ($path === '/sitemap.xml' && $status === 200 && !preg_match('/<(urlset|sitemapindex)\b[^>]*(?:\/>|>[\s\S]*<\/\1\s*>)/', $body)) {
+                $problems[] = $path . ' did not return a sitemap';
             }
         }
         if (!$reached) {
-            return ['reached' => false, 'ok' => false, 'message' => 'no answer from ' . $baseUrl];
+            return ['reached' => false, 'ok' => false, 'complete' => false, 'message' => 'no answer from ' . $baseUrl];
         }
-        return ['reached' => true, 'ok' => $problems === [], 'message' => $problems === [] ? 'the site answered' : implode('; ', $problems)];
+        return ['reached' => true, 'ok' => $problems === [], 'complete' => $unknown === [],
+            'message' => $problems === [] && $unknown === [] ? 'Checked ' . implode(', ', array_keys($checks)) : implode('; ', array_merge($problems, $unknown))];
     }
 
-    /** @return array{0: int, 1: string} the status (0 when there was no answer) and the body */
-    private static function get(string $url, string $token): array
+    /** @return array{0: int, 1: string, 2: string} status (0 for an incomplete response), body, fresh-version proof */
+    private static function get(string $url, string $token, float $timeout): array
     {
-        $header = MaintenanceMode::HEADER . ': ' . $token;
+        $headers = [MaintenanceMode::HEADER . ': ' . $token, 'Accept: text/html, application/xml', 'Cache-Control: no-cache, no-store'];
+        $proof = '';
         if (self::hasCurl()) {
+            $body = '';
             $ch = curl_init($url);
-            curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 20, CURLOPT_CONNECTTIMEOUT => 10, CURLOPT_FOLLOWLOCATION => false, CURLOPT_HTTPHEADER => [$header, 'Accept: text/html'], CURLOPT_USERAGENT => 'FarosCMS updater']);
-            $body = curl_exec($ch);
+            curl_setopt_array($ch, [CURLOPT_TIMEOUT_MS => max(1, (int)($timeout * 1000)), CURLOPT_CONNECTTIMEOUT_MS => max(1, (int)($timeout * 1000)), CURLOPT_FOLLOWLOCATION => false, CURLOPT_HTTPHEADER => $headers, CURLOPT_USERAGENT => 'FarosCMS updater',
+                CURLOPT_HEADERFUNCTION => static function ($handle, string $line) use (&$proof): int {
+                    if (stripos($line, self::CHECK_HEADER . ':') === 0) {
+                        $proof = trim(substr($line, strlen(self::CHECK_HEADER) + 1));
+                    }
+                    return strlen($line);
+                },
+                CURLOPT_WRITEFUNCTION => static function ($handle, string $chunk) use (&$body): int {
+                    if (strlen($body) + strlen($chunk) > self::MAX_CHECK_BYTES) {
+                        return 0;
+                    }
+                    $body .= $chunk;
+                    return strlen($chunk);
+                },
+            ]);
+            $ok = curl_exec($ch);
             $status = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
             unset($ch);
-            return [is_string($body) ? $status : 0, is_string($body) ? $body : ''];
+            return [$ok !== false ? $status : 0, $body, $proof];
         }
-        $body = @file_get_contents($url, false, stream_context_create(['http' => ['timeout' => 20, 'ignore_errors' => true, 'follow_location' => 0, 'header' => $header . "\r\nAccept: text/html\r\n"]]));
+        $deadline = microtime(true) + $timeout;
+        $stream = @fopen($url, 'rb', false, stream_context_create(['http' => ['timeout' => $timeout, 'ignore_errors' => true, 'follow_location' => 0, 'header' => implode("\r\n", $headers) . "\r\n"]]));
+        if ($stream === false) {
+            return [0, '', ''];
+        }
         $status = 0;
-        foreach ($http_response_header ?? [] as $line) {
+        $length = null;
+        $chunked = false;
+        foreach (stream_get_meta_data($stream)['wrapper_data'] ?? [] as $line) {
             if (preg_match('#^HTTP/\S+\s+(\d{3})#', $line, $m)) {
                 $status = (int)$m[1];
+                $length = null;
+                $chunked = false;
+                $proof = '';
+            } elseif (preg_match('/^Content-Length:\s*(\d+)\s*$/i', $line, $m)) {
+                $length = (int)$m[1];
+            } elseif (preg_match('/^Transfer-Encoding:.*\bchunked\b/i', $line)) {
+                $chunked = true;
+            } elseif (stripos($line, self::CHECK_HEADER . ':') === 0) {
+                $proof = trim(substr($line, strlen(self::CHECK_HEADER) + 1));
             }
         }
-        return [is_string($body) ? $status : 0, is_string($body) ? $body : ''];
+        $body = '';
+        while (!feof($stream)) {
+            $remaining = $deadline - microtime(true);
+            if ($remaining <= 0 || strlen($body) > self::MAX_CHECK_BYTES) {
+                $status = 0;
+                break;
+            }
+            stream_set_timeout($stream, (int)$remaining, (int)(($remaining - (int)$remaining) * 1000000));
+            $chunk = fread($stream, min(65536, self::MAX_CHECK_BYTES + 1 - strlen($body)));
+            if ($chunk === false || stream_get_meta_data($stream)['timed_out']) {
+                $status = 0;
+                break;
+            }
+            $body .= $chunk;
+        }
+        fclose($stream);
+        $complete = strlen($body) <= self::MAX_CHECK_BYTES && ($chunked || $length === null || strlen($body) === $length);
+        return [$complete ? $status : 0, $body, $proof];
     }
 }

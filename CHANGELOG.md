@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.145 — 2026-10-16 — PHP 8.5, update checks and CI diagnostics
+- **PHP 8.5 or newer is required.** Releases are built and tested on PHP 8.5. The installer checks the package requirement, system checks use the same minimum, and a fresh installation on an older PHP explains what to upgrade before loading the application.
+- **A short check after installing an update** asks the login page, home page, one published internal page when available, and the sitemap (including the site's choice to disable it). Each request proves that the expected version answered freshly, bypasses page caching and uses a short timeout. A definite failure puts the previous code back; a timeout, redirect, restricted or stale response leaves an explicit *Unverified* result and the option to roll back. The result lists what was checked. The extended check applies to updates started by this version or later; the first upgrade uses the updater already installed.
+- **Pushes and releases remain immediate.** The full test suite runs independently in GitHub Actions, on PHP 8.5 only, with a result summary and full diagnostic logs retained for seven days. A test that exits with an error can no longer pass just because its output says `ALL PASSED`; HTTP setup failures are reported immediately.
+
 ## 0.1.144 — 2026-10-16 — Block editor: Image and Text first
 - **Image and Text are the first two choices in Add block**, followed by the container layouts and the remaining blocks. The order applies to pages, blocks inside container columns and Footer Blocks. Category filters and search keep working as before; existing page content is unchanged.
 

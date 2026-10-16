@@ -192,7 +192,7 @@ final class UpdateAdmin
             [
                 'label' => 'PHP compatibility',
                 'value' => PHP_VERSION,
-                'status' => version_compare(PHP_VERSION, '8.1.0', '>=') ? 'ok' : 'error',
+                'status' => version_compare(PHP_VERSION, '8.5.0', '>=') ? 'ok' : 'error',
             ],
             ['label' => 'Content writable', 'value' => $content ? 'yes' : 'no', 'status' => $content ? 'ok' : 'error'],
             ['label' => 'Storage writable', 'value' => $storage ? 'yes' : 'no', 'status' => $storage ? 'ok' : 'error'],

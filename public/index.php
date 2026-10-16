@@ -2,6 +2,12 @@
 
 declare(strict_types=1);
 
+if (PHP_VERSION_ID < 80500) {
+    http_response_code(503);
+    header('Content-Type: text/plain; charset=utf-8');
+    exit("FarosCMS requires PHP 8.5 or newer. Please update the site's PHP version.\n");
+}
+
 // PHP's built-in server (`php -S … -t public public/index.php`): let it serve files that exist.
 if (PHP_SAPI === 'cli-server') {
     $requested = realpath(__DIR__ . rawurldecode((string)parse_url((string)($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH)));

@@ -7,7 +7,7 @@
 Markdown and YAML content · Twig themes with a block editor · multilingual · no database server
 
 [![Version](https://img.shields.io/github/v/release/chiotis/faroscms?label=version&color=4f46e5)](https://github.com/chiotis/faroscms/releases)
-[![PHP 8.1+](https://img.shields.io/badge/PHP-8.1%2B-777bb4?logo=php&logoColor=white)](#requirements)
+[![PHP 8.5+](https://img.shields.io/badge/PHP-8.5%2B-777bb4?logo=php&logoColor=white)](#requirements)
 [![License: MIT](https://img.shields.io/badge/license-MIT-2ea44f)](LICENSE)
 [![Tests](https://github.com/chiotis/faroscms/actions/workflows/tests.yml/badge.svg)](https://github.com/chiotis/faroscms/actions/workflows/tests.yml)
 [![No build step](https://img.shields.io/badge/server-no%20Node%20%C2%B7%20no%20Composer-4f46e5)](#requirements)
@@ -80,7 +80,7 @@ That is the whole setup. The repository includes its PHP dependencies (`vendor/`
 
 ### Requirements
 
-- PHP **8.1 or newer** with `pdo_sqlite` and `mbstring`
+- PHP **8.5 or newer** with `pdo_sqlite` and `mbstring`
 - The `gd` extension (with WebP) if you want responsive WebP image variants generated on demand; `exif` for photo orientation
 - A web server that points its document root at `public/`: Apache works with the shipped `.htaccess`; nginx needs one `try_files` line (see [docs/theming.md](docs/theming.md#server-configuration))
 
@@ -153,7 +153,7 @@ tests/run.sh unit     # the fast PHP checks
 tests/run.sh blocks   # one HTTP test by name
 ```
 
-GitHub Actions runs the same suite on PHP 8.1, 8.3 and 8.5 for every push to `main` and every pull request ([workflow](.github/workflows/tests.yml)).
+GitHub Actions runs the same suite on PHP 8.5 for every push to `main` and every pull request ([workflow](.github/workflows/tests.yml)).
 
 See [tests/README.md](tests/README.md) for what is covered and what is not (real browsers and screen readers are checked by hand and with the audit script).
 

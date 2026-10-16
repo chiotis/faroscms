@@ -247,6 +247,10 @@ $makeSite('0.1.0');
 $health = ['reached' => false, 'ok' => false, 'message' => 'no answer from https://site.test'];
 $r = $build()->install($pkg['manifest'], '0.1.0', true);
 check('when the site cannot be asked, the new version stays, the site is opened, and it says to look (' . $r['message'] . ')', [$ok($r), str_contains($r['message'], 'no answer from https://site.test'), $code('VERSION'), (new MaintenanceMode($site))->state(), $build()->rollbackTarget('0.2.0')], [['unverified', 'health'], true, "0.2.0\n", null, '0.1.0']);
+$build()->rollback('0.2.0', '0.2.0');
+$health = ['reached' => true, 'ok' => true, 'complete' => false, 'message' => '/about did not confirm version 0.2.0'];
+$r = $build()->install($pkg['manifest'], '0.1.0', true);
+check('a partial check is explicitly unverified, with a way back', [$ok($r), str_contains($r['message'], '/about'), $code('VERSION'), $build()->rollbackTarget('0.2.0')], [['unverified', 'health'], true, "0.2.0\n", '0.1.0']);
 $health = ['reached' => true, 'ok' => true, 'message' => 'the site answered'];
 
 // ---- a swap that fails half way is undone
@@ -282,12 +286,20 @@ $path = parse_url($_SERVER["REQUEST_URI"], PHP_URL_PATH);
 $state = trim((string)file_get_contents(__DIR__ . "/state"));
 $seen = $_SERVER["HTTP_X_FAROS_UPDATE"] ?? "";
 file_put_contents(__DIR__ . "/seen", $path . " " . $seen . "\n", FILE_APPEND);
+$nonce = $_GET["_faros_check"] ?? "";
+if ($state !== "cached" && $seen === "tok123" && preg_match("/^[a-f0-9]{32}$/", $nonce)) {
+    header("X-Faros-Update-Check: " . hash_hmac("sha256", "0.2.0|" . $nonce, $seen));
+}
+if ($state === "truncated") { header("Content-Length: 100000"); echo "<urlset"; return; }
+if ($state === "redirect" && $path === "/") { header("Location: /about", true, 302); return; }
 if ($path === "/release.json") { header("Content-Type: application/json"); echo file_get_contents(__DIR__ . "/release.json"); return; }
 if ($path === "/package.zip") { header("Content-Type: application/zip"); readfile(__DIR__ . "/package.zip"); return; }
 if ($path === "/go") { header("Location: /package.zip", true, 302); return; }
 if ($path === "/missing") { http_response_code(404); echo "no"; return; }
 if ($path === "/admin/login") { http_response_code($state === "login500" ? 500 : 200); echo $state === "loginerror" ? "<br />\n<b>Fatal error</b>: Uncaught Error: boom in /x.php" : "<html>login</html>"; return; }
 if ($path === "/") { http_response_code($state === "home500" ? 500 : ($state === "home404" ? 404 : 200)); echo "home"; return; }
+if ($path === "/about") { http_response_code($state === "entry500" ? 500 : ($state === "entry404" ? 404 : 200)); echo $state === "empty" ? "" : "about"; return; }
+if ($path === "/sitemap.xml") { http_response_code($state === "sitemap-off" ? 404 : 200); echo $state === "badxml" ? "<html>not a sitemap</html>" : "<urlset></urlset>"; return; }
 http_response_code(404);');
 file_put_contents($server . '/package.zip', str_repeat('Z', 5000));
 $port = (function (): int { $s = stream_socket_server('tcp://127.0.0.1:0', $e, $m); $n = stream_socket_get_name($s, false); fclose($s); return (int)substr($n, strrpos($n, ':') + 1); })();
@@ -302,15 +314,32 @@ check('an address that is not there is an error and nothing is kept', [UpdateNet
 check('an address that is not allowed is refused without a request', [UpdateNetwork::download('http://example.com/p.zip', $dest, 10000), is_file($dest)], ['The address is not allowed (it must be https).', false]);
 check('nobody listening is an error', UpdateNetwork::download('http://127.0.0.1:1/p.zip', $dest, 10000) !== null, true);
 $ask = fn(string $state) => (function () use ($server, $url, $state): array { file_put_contents($server . '/state', $state); return UpdateNetwork::checkSite($url, 'tok123'); })();
-check('a site that answers is fine', $ask('ok'), ['reached' => true, 'ok' => true, 'message' => 'the site answered']);
+check('a site that answers is fine', $ask('ok'), ['reached' => true, 'ok' => true, 'complete' => true, 'message' => 'Checked /admin/login, /, /sitemap.xml']);
 check('the token goes with the request, so the maintenance page lets it in', str_contains((string)file_get_contents($server . '/seen'), '/admin/login tok123'), true);
 check('a home page that does not exist yet is fine, as on a new site', $ask('home404')['ok'], true);
 check('a sign-in page that fails is not', [$ask('login500')['ok'], $ask('login500')['message']], [false, '/admin/login answered 500']);
 check('a home page that fails is not', [$ask('home500')['ok'], $ask('home500')['message']], [false, '/ answered 500']);
 check('a PHP error on a page that says 200 is not fine either', [$ask('loginerror')['ok'], $ask('loginerror')['message']], [false, '/admin/login shows a PHP error']);
-check('a site that cannot be reached is not known to be bad', UpdateNetwork::checkSite('http://127.0.0.1:1', 'tok'), ['reached' => false, 'ok' => false, 'message' => 'no answer from http://127.0.0.1:1']);
+check('a site that cannot be reached is not known to be bad', UpdateNetwork::checkSite('http://127.0.0.1:1', 'tok'), ['reached' => false, 'ok' => false, 'complete' => false, 'message' => 'no answer from http://127.0.0.1:1']);
+$probe = function (string $state, string $version = '0.2.0', bool $sitemap = true) use ($server, $url): array {
+    file_put_contents($server . '/state', $state);
+    return UpdateNetwork::checkSite($url, 'tok123', $version, '/about', $sitemap);
+};
+check('all four requests prove the expected version answered freshly', $probe('ok'), ['reached' => true, 'ok' => true, 'complete' => true, 'message' => 'Checked /admin/login, /, /about, /sitemap.xml']);
+check('an entry failure is caught even when login and home work', $probe('entry500')['message'], '/about answered 500');
+check('a known published entry becoming a 404 fails the check', $probe('entry404')['ok'], false);
+check('an empty page with status 200 fails the check', $probe('empty')['message'], '/about returned an empty page');
+check('HTML returned instead of the sitemap fails the check', $probe('badxml')['message'], '/sitemap.xml did not return a sitemap');
+check('a deliberately disabled sitemap is allowed', $probe('sitemap-off', '0.2.0', false)['complete'], true);
+check('a missing enabled sitemap is a failure', $probe('sitemap-off')['ok'], false);
+$cached = $probe('cached');
+check('cached or restricted responses do not falsely verify or roll back an install', [$cached['reached'], $cached['ok'], $cached['complete'], str_contains($cached['message'], 'did not confirm version')], [true, true, false, true]);
+check('a different version cannot satisfy the fresh-version proof', $probe('ok', '0.3.0')['complete'], false);
+check('an existing homepage redirect is unverified rather than an automatic rollback', array_intersect_key($probe('redirect'), array_flip(['reached', 'ok', 'complete'])), ['reached' => true, 'ok' => true, 'complete' => false]);
+check('a truncated HTTP response cannot verify an install', $probe('truncated')['complete'], false);
 
 // ---- the release manifest, read from where it is published
+file_put_contents($server . '/state', 'ok');
 $db = new SystemDatabase($site . '/storage');
 $db->initialize();
 $meta = new SystemMetaRepository($db);

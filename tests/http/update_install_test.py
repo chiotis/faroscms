@@ -2,7 +2,7 @@
 port, the install button, the check of the new version, the roll back, an automatic undo when the new version does not
 start, a package that is not the one published, and the maintenance page. Through all of it the site's own pages, media,
 custom files and settings are never touched."""
-import hashlib, http.server, json, os, re, shutil, subprocess, sys, tempfile, threading
+import hashlib, http.server, json, os, re, shutil, subprocess, sys, tempfile, threading, urllib.parse
 sys.path.insert(0, '.')
 from client import Client, has_field
 
@@ -23,7 +23,7 @@ def md5(path):
 def exists(path): return os.path.exists(os.path.join(APP, path))
 
 old_version = read('VERSION').strip()
-NEW, BROKEN = '99.0.0', '99.1.0'
+NEW, BROKEN, BROKEN_ENTRY = '99.0.0', '99.1.0', '99.2.0'
 
 # ---- the site's own data, which must survive everything
 os.makedirs(os.path.join(APP, 'content/pages'), exist_ok=True)
@@ -54,10 +54,17 @@ def good_change(src):
 def broken_change(src):
     # A new version that answers every request with an error.
     with open(os.path.join(src, 'public/index.php'), 'w') as f: f.write('<?php http_response_code(500); echo "broken";\n')
+def broken_entry_change(src):
+    # Login and home work; the sampled public content page alone fails.
+    path = os.path.join(src, 'public/index.php')
+    with open(path) as f: code = f.read()
+    code = code.replace('declare(strict_types=1);', 'declare(strict_types=1);\nif (parse_url($_SERVER["REQUEST_URI"], PHP_URL_PATH) === "/about") { http_response_code(500); echo "broken entry"; return; }')
+    with open(path, 'w') as f: f.write(code)
 
 served = os.path.join(work, 'served'); os.makedirs(served)
 make_release(NEW, os.path.join(work, 'out-good'), good_change)
 make_release(BROKEN, os.path.join(work, 'out-broken'), broken_change)
+make_release(BROKEN_ENTRY, os.path.join(work, 'out-broken-entry'), broken_entry_change)
 
 class Quiet(http.server.SimpleHTTPRequestHandler):
     def log_message(self, *a): pass
@@ -125,6 +132,7 @@ check('then the install button is there', any(install_form(root)(f) for f in roo
 sessions_before = md5('storage/db/app.sqlite')
 st, loc = post_action('install')
 check('installing goes back to the Updates screen with a success', 'install=installed' in loc, loc)
+check('the result names the login, homepage, published entry and sitemap checked', all(path in urllib.parse.unquote(loc) for path in ['/admin/login', '/about', '/sitemap.xml']), loc)
 check('the code is the new version', read('VERSION').strip() == NEW and read('themes/default/marker.txt') == 'new theme file' and exists('src/UpdateTestMarker.php'))
 check('the site is open: no maintenance flag, and the pages answer', not exists('storage/maintenance.flag') and Client().get('/survives')[0] == 200 and Client().get('/admin/login')[0] == 200)
 untouched('after the install')
@@ -157,6 +165,15 @@ check('and nothing of the failed version is kept', not exists('storage/updates/'
 html = updates_page()
 check('the screen says it was undone, and why', 'did not pass the check' in html or 'was put back' in html)
 
+# ---- a content regression is caught even though the homepage and login still work
+publish(os.path.join(work, 'out-broken-entry'), BROKEN_ENTRY)
+root.submit('/admin/updates', lambda f: any(x[0] == 'updates_action' and x[1] == 'check' for x in f['fields']), {})
+post_action('pre_update_backup')
+st, loc = post_action('install')
+check('a broken internal page triggers rollback and identifies the page', 'install=rolled_back' in loc and '/about' in urllib.parse.unquote(loc), loc)
+check('the previous version serves the entry again', read('VERSION').strip() == old_version and Client().get('/about')[0] == 200)
+untouched('after the internal-page regression')
+
 # ---- a package that is not the one that was published
 publish(os.path.join(work, 'out-good'), NEW, tamper=True)
 root.submit('/admin/updates', lambda f: any(x[0] == 'updates_action' and x[1] == 'check' for x in f['fields']), {})
@@ -176,6 +193,12 @@ check('while an update runs visitors get the maintenance page, with a request to
 check('the pages are not cached by anyone', 'no-store' in (h.get('Cache-Control') or ''))
 check('the admin is still open', pub.get('/admin/login')[0] == 200)
 check('and the request that carries the token of the update gets in', pub.request('/survives', headers={'X-Faros-Update': 'letmein'})[0] == 200)
+nonce = 'a' * 32
+st, h, _ = pub.request('/survives?_faros_check=' + nonce, headers={'X-Faros-Update': 'letmein'})
+import hmac
+proof = hmac.new(b'letmein', (old_version + '|' + nonce).encode(), hashlib.sha256).hexdigest()
+check('the probe proves which version answered and is never cached', st == 200 and h.get('X-Faros-Update-Check') == proof and 'no-store' in h.get('Cache-Control', ''), dict(h))
+check('a normal admin request cannot get a version proof', pub.get('/admin/login?_faros_check=' + nonce)[1].get('X-Faros-Update-Check') is None)
 check('a wrong token does not', pub.request('/survives', headers={'X-Faros-Update': 'nope'})[0] == 503)
 with open(flag, 'w') as f: json.dump({'since': int(time.time()) - 3600, 'version': '1', 'token': 'old'}, f)
 check('a flag an hour old is ignored, so a failed update cannot close the site for ever', pub.get('/survives')[0] == 200)

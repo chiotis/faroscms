@@ -46,7 +46,7 @@ The Install button on Admin > Updates installs a release package with every safe
 ```json
 {
   "version": "0.2.0",
-  "min_php": "8.1",
+  "min_php": "8.5",
   "package": "faroscms-0.2.0.zip",
   "package_url": "https://github.com/chiotis/faroscms/releases/download/v0.2.0/faroscms-0.2.0.zip",
   "sha256": "…",
@@ -56,7 +56,7 @@ The Install button on Admin > Updates installs a release package with every safe
 }
 ```
 
-The Release workflow runs the script when `VERSION` changes and attaches both files to the GitHub Release. The site reads `https://github.com/<repository>/releases/latest/download/release.json` (or the address in Settings > Updates), validates it (`UpdateService::validateManifest`: version, PHP, https address, SHA-256, size within 100 MB) and keeps it for as long as the update status.
+The Release workflow runs the script on PHP 8.5 when `VERSION` changes and attaches both files to the GitHub Release. Releases remain independent of the full test suite: pushes and packages do not wait for CI. The Tests workflow runs on PHP 8.5, cancels superseded runs, and publishes a result summary and diagnostic logs; see [tests/README.md](../tests/README.md) for investigating failures. The site reads `https://github.com/<repository>/releases/latest/download/release.json` (or the address in Settings > Updates), validates it (`UpdateService::validateManifest`: version, PHP, https address, SHA-256, size within 100 MB) and keeps it for as long as the update status.
 
 ### Install steps (`UpdateInstaller`)
 
@@ -70,10 +70,20 @@ The Release workflow runs the script when `VERSION` changes and attaches both fi
 | 6 | Copy the database (`VACUUM INTO`) and note how many migrations it has. | Remove, stop. |
 | 7 | Maintenance mode: `storage/maintenance.flag` with a token. Public requests get 503 with `Retry-After`; the admin stays open; a request with the token (`X-Faros-Update`) gets through. A flag older than 15 minutes is ignored. | — |
 | 8 | Swap: each folder (`src`, `admin`, `vendor`, `starter`, `public/assets`, each `themes/<name>` in the package) and file (`VERSION` last) is renamed into `previous/` and the staged one renamed in. | Reverse every completed rename, remove the flag, stop. |
-| 9 | Clear OPcache. Ask the site in a request of its own (`/admin/login` must answer 200, `/` must not fail, neither may show a PHP error), carrying the maintenance token. | If it answered badly: reverse step 8, put the database copy back **if the migrations changed**, remove the flag, report `rolled_back`. If it could not be reached: keep the new version, report `unverified`. |
+| 9 | Clear OPcache. Run the short HTTP checks described below, carrying the maintenance token. | A definite bad response: reverse step 8, put the database copy back **if the migrations changed**, remove the flag, report `rolled_back`. Incomplete checks: keep the new version, report `unverified`. |
 | 10 | Remove the flag, log `updates.install_*`, notify, keep `previous/` and the database copy for the last two updates. | — |
 
 Classes the rest of the install needs are loaded before step 8, so the running request never reads half of its code from the old version and half from the new.
+
+### Short post-install checks
+
+The updater asks `/admin/login`, `/`, one published internal content path selected before the swap (if the site has one), and `/sitemap.xml`. Login and the selected entry must answer 200. A home page that has not been created yet may answer 404; the sitemap must answer 200 when enabled and 404 when disabled or search indexing is discouraged. Empty successful pages, PHP fatal/parse errors, and a sitemap returning ordinary HTML fail the check.
+
+Requests have a five-second timeout each and a twenty-second overall request budget, with a 2 MB response limit. cURL enforces total request time; the PHP-stream fallback also checks the remaining budget while reading, but its DNS/connection/header waits are subject to PHP's transport timeout behavior, so it cannot promise a strict wall-clock limit. Redirects are not followed. Incomplete responses, redirects and access restrictions are reported as unverified rather than treated as proof of a broken installation.
+
+Each request has a new random query value and cache-control headers. The application returns a proof of the installed version and that random value only with the active maintenance token; probe responses are private/no-store and do not start scheduled background work. A cached page cannot make an old version pass as the new one. The status message lists the checked paths or explains what failed or could not be verified. These are read-only smoke checks; manually check the particular feature that changed after updating.
+
+The first upgrade from a version before 0.1.145 uses the updater already loaded by that version. These extended checks apply to subsequent updates started by 0.1.145 or newer.
 
 ### Putting the old version back
 

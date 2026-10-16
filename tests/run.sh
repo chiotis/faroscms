@@ -17,66 +17,117 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 MODE="${1:-all}"
 FAILED=()
 TOTAL_OK=0
+LOG_DIR="${FAROS_TEST_LOG_DIR:-}"
+PHASE=""
+HTTP_WORK=""
+HTTP_PID=""
+if [ -n "$LOG_DIR" ]; then
+  mkdir -p "$LOG_DIR" || exit 1
+  LOG_DIR="$(cd "$LOG_DIR" && pwd)" || exit 1
+fi
 
-report() { # name output
+save_log() { # name output
+  if [ -n "$LOG_DIR" ]; then
+    printf '%s\n' "$2" > "$LOG_DIR/$PHASE-$1.log" || { echo "  FAIL  cannot save $1 log"; FAILED+=("log write"); }
+  fi
+}
+
+run_check() { # name working-directory command [arguments...]
+  local name="$1" directory="$2" out status
+  shift 2
+  out=$(cd "$directory" && "$@" 2>&1)
+  status=$?
+  save_log "$name" "$out"
+  report "$name" "$out" "$status"
+}
+
+report() { # name output exit-status
   local ok bad
   ok=$(printf '%s\n' "$2" | grep -c '^ok')
   bad=$(printf '%s\n' "$2" | grep -c '^FAIL')
-  if [ "$bad" -eq 0 ] && printf '%s\n' "$2" | grep -q 'ALL PASSED'; then
+  if [ "$3" -eq 0 ] && [ "$bad" -eq 0 ] && printf '%s\n' "$2" | grep -q 'ALL PASSED'; then
     printf '  pass  %-28s %s checks\n' "$1" "$ok"
     TOTAL_OK=$((TOTAL_OK + ok))
   else
-    printf '  FAIL  %-28s %s failed\n' "$1" "$bad"
+    printf '  FAIL  %-28s %s failed (exit %s)\n' "$1" "$bad" "$3"
     printf '%s\n' "$2" | grep -vE '^ok|^note' | sed 's/^/          /' | head -20
     FAILED+=("$1")
   fi
 }
 
 run_unit() {
+  PHASE=unit
   echo "Unit checks"
   for spec in "blocks:tests/unit/blocks.php" "content-types:tests/unit/content-types.php" "revisions:tests/unit/revisions.php" "taxonomies:tests/unit/taxonomies.php" "links:tests/unit/links.php" "robots:tests/unit/robots.php" "seo:tests/unit/seo.php" "feed:tests/unit/feed.php" "content-store:tests/unit/content-store.php" "front-cache:tests/unit/front-cache.php" "analytics:tests/unit/analytics.php" "menus:tests/unit/menus.php" "content-csv:tests/unit/content-csv.php" "form-fields:tests/unit/form-fields.php" "form-translations:tests/unit/form-translations.php" "form-templates:tests/unit/form-templates.php" "branding:tests/unit/branding.php" "branding-extras:tests/unit/branding-extras.php" "branding-fonts:tests/unit/branding-fonts.php" "branding-buttons:tests/unit/branding-buttons.php" "palettes:tests/unit/palettes.php" "palette-unify:tests/unit/palette-unify.php" "footer-blocks:tests/unit/footer-blocks.php" "cron-status:tests/unit/cron-status.php" "starter-content:tests/unit/starter-content.php" "single-layouts:tests/unit/single-layouts.php" "layouts-admin:tests/unit/layouts-admin.php" "site-settings:tests/unit/site-settings.php" "backup-manager:tests/unit/backup-manager.php" "taxonomy-editor:tests/unit/taxonomy-editor.php" "redirect-admin:tests/unit/redirect-admin.php" "translations:tests/unit/translations.php" "media-admin:tests/unit/media-admin.php" "site-limits:tests/unit/site-limits.php" "system-status:tests/unit/system-status.php" "omni-report:tests/unit/omni-report.php" "omni-client:tests/unit/omni-client.php" "dashboard:tests/unit/dashboard.php" "visual-markdown:tests/unit/visual-markdown.php" "youtube-playlist:tests/unit/youtube-playlist.php" "twig-site-functions:tests/unit/twig-site-functions.php" "block-runtime:tests/unit/block-runtime.php" "login-controller:tests/unit/login-controller.php" "content-paths:tests/unit/content-paths.php" "geo:tests/unit/geo.php" "forms:tests/unit/forms.php" "form-uploads:tests/unit/form-uploads.php" "accounts:tests/unit/accounts.php" "content-type-admin:tests/unit/content-type-admin.php" "archive-builder:tests/unit/archive-builder.php" "backup-admin:tests/unit/backup-admin.php" "content-screens:tests/unit/content-screens.php" "admin-screens:tests/unit/admin-screens.php" "public-site:tests/unit/public-site.php" "settings-and-front:tests/unit/settings-and-front.php" "release-package:tests/unit/release-package.php" "update-installer:tests/unit/update-installer.php" "update-installer-restricted:tests/unit/update-installer-restricted.php" "first-admin:tests/unit/first-admin.php" "content-type-catalogue:tests/unit/content-type-catalogue.php" "html-to-markdown:tests/unit/html-to-markdown.php" "wordpress-import:tests/unit/wordpress-import.php" "skill:tests/unit/skill.php" "permissions:scripts/check-permissions.php" "slugs-and-redirects:scripts/check-slugs.php" "block-containers:tests/unit/block-containers.php" "image-width:tests/unit/image-width.php" "content-blocks:scripts/check-blocks.php"; do
-    local name="${spec%%:*}" file="${spec#*:}" out
+    local name="${spec%%:*}" file="${spec#*:}" out status
     out=$(cd "$ROOT" && php "$file" 2>&1)
+    status=$?
+    save_log "$name" "$out"
     if [ "$name" = "content-blocks" ]; then
       # This one prints a summary instead of "ALL PASSED".
-      if printf '%s\n' "$out" | tail -1 | grep -q ' 0 problems'; then printf '  pass  %-28s %s\n' "$name" "$(printf '%s\n' "$out" | tail -1)"; else printf '  FAIL  %-28s\n' "$name"; printf '%s\n' "$out" | tail -5 | sed 's/^/          /'; FAILED+=("$name"); fi
+      if [ "$status" -eq 0 ] && printf '%s\n' "$out" | tail -1 | grep -q ' 0 problems'; then printf '  pass  %-28s %s\n' "$name" "$(printf '%s\n' "$out" | tail -1)"; else printf '  FAIL  %-28s (exit %s)\n' "$name" "$status"; printf '%s\n' "$out" | tail -5 | sed 's/^/          /'; FAILED+=("$name"); fi
     else
-      report "$name" "$out"
+      report "$name" "$out" "$status"
     fi
   done
 }
 
 run_js() {
+  PHASE=js
   echo "JavaScript checks"
   if ! command -v node >/dev/null 2>&1 || ! command -v npm >/dev/null 2>&1; then
     echo "  FAIL  node and npm are needed for the JavaScript checks"; FAILED+=("node missing"); return
   fi
   # The one tool they need (jsdom) is installed beside them, once, from the lock file. Nothing outside tests/js is touched.
   if [ ! -d "$ROOT/tests/js/node_modules/jsdom" ]; then
-    (cd "$ROOT/tests/js" && npm ci --no-audit --no-fund >/dev/null 2>&1) || { echo "  FAIL  npm ci in tests/js did not work"; FAILED+=("npm ci"); return; }
+    local out status
+    out=$(cd "$ROOT/tests/js" && npm ci --no-audit --no-fund 2>&1)
+    status=$?
+    save_log "npm-install" "$out"
+    if [ "$status" -ne 0 ]; then
+      echo "  FAIL  npm ci in tests/js did not work (exit $status)"
+      printf '%s\n' "$out" | tail -20
+      FAILED+=("npm ci"); return
+    fi
   fi
-  report "visual-editor-serializer" "$(cd "$ROOT" && node tests/js/serializer.test.js 2>&1)"
-  report "visual-editor-toolbar" "$(cd "$ROOT" && node tests/js/editor-tools.test.js 2>&1)"
-  report "seo-count" "$(cd "$ROOT" && node tests/js/seo-count.test.js 2>&1)"
-  report "entry-preview" "$(cd "$ROOT" && node tests/js/entry-preview.test.js 2>&1)"
-  report "branding-preview" "$(cd "$ROOT" && node tests/js/branding-preview.test.js 2>&1)"
-  report "branding-controls" "$(cd "$ROOT" && node tests/js/branding-controls.test.js 2>&1)"
-  report "branding-inheritance" "$(cd "$ROOT" && node tests/js/branding-inheritance.test.js 2>&1)"
-  report "branding-buttons" "$(cd "$ROOT" && node tests/js/branding-buttons.test.js 2>&1)"
-  report "palettes-ui" "$(cd "$ROOT" && node tests/js/palettes.test.js 2>&1)"
-  report "block-sortable" "$(cd "$ROOT" && node tests/js/sortable.test.js 2>&1)"
-  report "block-containers" "$(cd "$ROOT" && node tests/js/block-containers.test.js 2>&1)"
-  report "image-width-editor" "$(cd "$ROOT" && node tests/js/image-width.test.js 2>&1)"
+  run_check "visual-editor-serializer" "$ROOT" node tests/js/serializer.test.js
+  run_check "visual-editor-toolbar" "$ROOT" node tests/js/editor-tools.test.js
+  run_check "seo-count" "$ROOT" node tests/js/seo-count.test.js
+  run_check "entry-preview" "$ROOT" node tests/js/entry-preview.test.js
+  run_check "branding-preview" "$ROOT" node tests/js/branding-preview.test.js
+  run_check "branding-controls" "$ROOT" node tests/js/branding-controls.test.js
+  run_check "branding-inheritance" "$ROOT" node tests/js/branding-inheritance.test.js
+  run_check "branding-buttons" "$ROOT" node tests/js/branding-buttons.test.js
+  run_check "palettes-ui" "$ROOT" node tests/js/palettes.test.js
+  run_check "block-sortable" "$ROOT" node tests/js/sortable.test.js
+  run_check "block-containers" "$ROOT" node tests/js/block-containers.test.js
+  run_check "image-width-editor" "$ROOT" node tests/js/image-width.test.js
+}
+
+cleanup_http() {
+  if [ -n "$HTTP_PID" ]; then
+    kill "$HTTP_PID" 2>/dev/null
+    wait "$HTTP_PID" 2>/dev/null
+  fi
+  if [ -n "$HTTP_WORK" ]; then
+    if [ -n "$LOG_DIR" ] && [ -f "$HTTP_WORK/server.log" ]; then
+      cp "$HTTP_WORK/server.log" "$LOG_DIR/http-server.log"
+    fi
+    rm -rf "$HTTP_WORK"
+  fi
 }
 
 run_http() {
+  PHASE=http
   local only="${1:-}"
   command -v python3 >/dev/null 2>&1 || { echo "python3 is needed for the HTTP tests"; FAILED+=("python3 missing"); return; }
-  local work port pid
-  work="$(mktemp -d)"
+  local work port pid ready=0
+  work="$(mktemp -d)" || { FAILED+=("temporary directory"); return; }
+  HTTP_WORK="$work"
+  trap cleanup_http EXIT
   mkdir -p "$work/app"
   # Copy the code but not the site itself (content, storage, custom, uploads) or the tests.
-  python3 - "$ROOT" "$work/app" <<'PYCOPY'
+  if ! python3 - "$ROOT" "$work/app" <<'PYCOPY'
 import os, shutil, sys
 root, dst = sys.argv[1:3]
 def ignore(directory, names):
@@ -85,11 +136,25 @@ def ignore(directory, names):
     return [n for n in names if n in skip]
 shutil.copytree(root, dst, ignore=ignore, dirs_exist_ok=True)
 PYCOPY
-  port="$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); print(s.getsockname()[1])')"
+  then
+    echo "  FAIL  could not prepare the temporary site"; FAILED+=("HTTP setup"); return
+  fi
+  port="$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); print(s.getsockname()[1])')" || {
+    echo "  FAIL  could not allocate a local HTTP port"; FAILED+=("HTTP port"); return
+  }
   (cd "$work/app" && export PHP_CLI_SERVER_WORKERS=4 && exec php -d disable_functions=set_time_limit,ignore_user_abort,disk_free_space,opcache_reset,curl_exec -S "127.0.0.1:$port" -t public public/index.php >"$work/server.log" 2>&1) &
   pid=$!
-  trap 'kill '"$pid"' 2>/dev/null; wait '"$pid"' 2>/dev/null; rm -rf '"$work" EXIT
-  for _ in $(seq 1 50); do curl -s -o /dev/null "http://127.0.0.1:$port/" && break; sleep 0.1; done
+  HTTP_PID="$pid"
+  for _ in $(seq 1 50); do
+    if curl -s --max-time 1 -o /dev/null "http://127.0.0.1:$port/"; then ready=1; break; fi
+    kill -0 "$pid" 2>/dev/null || break
+    sleep 0.1
+  done
+  if [ "$ready" -ne 1 ]; then
+    echo "  FAIL  the PHP test server did not start"
+    tail -20 "$work/server.log"
+    FAILED+=("HTTP server"); return
+  fi
 
   echo "HTTP tests (temporary copy on port $port)"
   for name in editor roles import redirects save history taxonomies links delete blocks hero_layouts mobile_menu bottom_bar logs users_tabs sidebar sidebar_brand theme_page media_upload upload_limits notifications bad_yaml custom_roles storage storage_cache line_endings media_usage media_picker admin_a11y seo_jsonld robots media_usage_cache update_install setup fresh_install catalogue menu_editor form_builder form_translation layouts header_footer branding branding_transfer custom_taxonomies type_options demo_content hero_video seo analytics translations content_types media dashboard editor_visual youtube_playlist blocks_pack geo clean_addresses footer_blocks updates_screen backup_schedule backup_remote feed omni category_tree form_upload block_widths entry_preview block_reorder block_containers accordion faq_initial palettes branding_fonts; do
@@ -98,9 +163,7 @@ PYCOPY
     rm -rf "$work/app/content" "$work/app/storage" "$work/app/custom" "$work/app/public/uploads"
     mkdir -p "$work/app/storage/db" "$work/app/storage/backups" "$work/app/custom" "$work/app/public/uploads"
     cp -R "$ROOT/tests/fixtures/content" "$work/app/content"
-    local out
-    out=$(cd "$work" && FAROS_TEST_BASE="http://127.0.0.1:$port" PYTHONPATH="$ROOT/tests/http" python3 "$ROOT/tests/http/${name}_test.py" 2>&1)
-    report "$name" "$out"
+    run_check "$name" "$work" env FAROS_TEST_BASE="http://127.0.0.1:$port" PYTHONPATH="$ROOT/tests/http" python3 "$ROOT/tests/http/${name}_test.py"
   done
   if grep -qiE 'fatal|warning:|deprecated' "$work/server.log" 2>/dev/null; then
     echo "  note  the server log has PHP warnings or errors:"; grep -iE 'fatal|warning:|deprecated' "$work/server.log" | sort | uniq -c | head -5 | sed 's/^/          /'

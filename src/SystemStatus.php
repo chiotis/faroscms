@@ -51,7 +51,7 @@ final class SystemStatus
         $memory = ini_get('memory_limit') ?: '';
         $uploads = $this->basePath . '/public/uploads';
         return [
-            ['label' => 'PHP', 'value' => PHP_VERSION, 'status' => version_compare(PHP_VERSION, '8.0.0', '>=') ? 'ok' : 'error'],
+            ['label' => 'PHP', 'value' => PHP_VERSION, 'status' => version_compare(PHP_VERSION, '8.5.0', '>=') ? 'ok' : 'error'],
             ['label' => 'Upload limit', 'value' => $upload !== '' ? $upload : 'unknown', 'status' => $upload !== '' ? 'ok' : 'warning'],
             ['label' => 'Memory limit', 'value' => $memory !== '' ? $memory : 'unknown', 'status' => $memory !== '' ? 'ok' : 'warning'],
             [
