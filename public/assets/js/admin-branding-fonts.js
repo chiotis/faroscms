@@ -319,6 +319,11 @@
         context.fillText(character, 4, 44);
         return canvas.toDataURL();
       }
+      // A browser that blanks or randomises canvas pixels would make every character look "covered" or none of them: a control
+      // drawn without the probe font must differ between two fallbacks, or the answer is not trusted and the chips stay unchecked.
+      context.clearRect(0, 0, 60, 60); context.font = '40px monospace'; context.fillText('W', 4, 44); var controlA = canvas.toDataURL();
+      context.clearRect(0, 0, 60, 60); context.font = '40px serif'; context.fillText('W', 4, 44); var controlB = canvas.toDataURL();
+      if (controlA === controlB) { return; }
       var found = [];
       GROUPS.forEach(function (group) {
         var all = true;
@@ -327,6 +332,8 @@
         });
         if (all) { found.push(group[0]); }
       });
+      // A file that shows none of the groups, not even Latin, was most likely not drawn at all: that is "cannot check", not "no Greek".
+      if (!found.length) { return; }
       if (file.cover === '' && state.files.indexOf(file) !== -1) {
         file.cover = found.length ? found.join(',') : 'none';
         file._warn = (file._warn || []).filter(function (text) { return text.indexOf('browser') === -1; });

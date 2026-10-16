@@ -317,7 +317,7 @@ final class BrandingFonts
             $warnings[] = 'This is a ' . strtoupper($stored) . ' file. WOFF2 is much smaller to download; convert it (for example with Google’s woff2 tool or a font service) when you can.';
         }
         if (!$info['readable']) {
-            $warnings[] = 'Which scripts this file covers could not be read on this server. The browser checks it, or tick what it covers.';
+            $warnings[] = 'Cannot check this file on this server (a WOFF2 needs the PHP brotli extension). Your browser checks it, or tick what it covers; a TTF, OTF or WOFF of the same font can be checked here.';
         }
         return ['ok' => true, 'entry' => $entry, 'info' => self::describeInfo($info, $size), 'warnings' => $warnings];
     }

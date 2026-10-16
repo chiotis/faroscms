@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.142 — 2026-10-16 — Branding: checked together, two fixes
+- **The secondary colour now works in buttons.** A button set to the *Secondary* colour (and a text button) fell back to the accent, because the button styles looked for a variable the palette never sets. They now use the secondary colour of the palette, in light and dark, and still fall back to the accent when no secondary colour is set.
+- **Honest font coverage.** A WOFF2 file cannot be read on a server without the PHP brotli extension. The Branding screen now says "Cannot check this file on this server" and offers a TTF/OTF/WOFF of the same font for the check, instead of leaving it unclear. The check in your browser is also stricter: if the browser blocks or randomises canvas drawing, or the file does not draw at all, the chips stay "not checked" rather than showing "no Greek".
+- Checked together on a scratch site: a palette with a secondary colour, two custom families, the three button styles, heading overrides, styled forms and export then import into a clean copy (identical CSS), in light and dark at desktop and phone width. A site that sets none of these renders as before 0.1.138.
+
 ## 0.1.141 — 2026-10-16 — Branding: type per element, forms, corners, shadows, phones, export and import
 - **Type per element**: in *Typography > Sizes per element*, H1, H2, H3, the lead paragraph and small text can each take a size, weight, line height and letter spacing. The size is a *step* of the scale (5 largest to 0 for text), not pixels, so headings stay fluid and still follow *Text size* and *Heading scale*. H4 to H6 follow the scale. New: text weight and the space between paragraphs.
 - **Forms**: a new *Forms* card sets the field background, border colour and width, label size and weight, and how focus and errors look. They apply to the public forms, the form block and the search field. The choices are built from your palette, so the text keeps its contrast; focus is always a visible ring (the theme's, an accent outline, or a high-contrast outline), and errors do not rely on colour alone.

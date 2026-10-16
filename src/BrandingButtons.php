@@ -34,7 +34,7 @@ final class BrandingButtons
     public const ROLES = [
         'accent' => 'var(--accent)',
         'on_accent' => 'var(--accent-contrast)',
-        'secondary' => 'var(--secondary, var(--accent))',
+        'secondary' => 'var(--color-secondary, var(--accent))',
         'text' => 'var(--color-text)',
         'muted' => 'var(--color-muted)',
         'background' => 'var(--color-bg)',

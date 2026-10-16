@@ -68,11 +68,11 @@ check('its hover is worked out from the background (toward the text colour) and 
 check('and has a twin for the specimen to show it', has($primary, '.btn-primary[data-state="hover"]'), true);
 check('the accent keeps the theme\'s own hover', has($css(['btn_primary_bg' => 'accent']), '--btn-bg:var(--accent-hover)'), true);
 $hover = $css(['btn_primary_hover_bg' => 'secondary', 'btn_primary_hover_text' => 'surface', 'btn_primary_hover_border' => 'ink']);
-check('a hover that is chosen is used', has($hover, '[data-state="hover"]{--btn-bg:var(--secondary, var(--accent));--btn-text:var(--color-surface);--btn-border:var(--ink);}'), true);
+check('a hover that is chosen is used', has($hover, '[data-state="hover"]{--btn-bg:var(--color-secondary, var(--accent));--btn-text:var(--color-surface);--btn-border:var(--ink);}'), true);
 $secondary = $css(['btn_secondary_text' => 'accent', 'btn_secondary_border' => 'accent', 'btn_secondary_border_width' => '3', 'btn_secondary_radius' => 'pill']);
 check('Secondary is the buttons that are not Primary or Text, so the outline buttons of the header and the pricing plans too', has($secondary, ':root[data-theme][data-mode] .btn:not(.btn-primary):not(.btn-text){--btn-text:var(--accent);--btn-border:var(--accent);border-width:3px;border-radius:999px;}'), true);
 $text = $css(['btn_text_text' => 'secondary', 'btn_text_hover_text' => 'ink']);
-check('Text is .btn-text', has($text, ':root[data-theme][data-mode] .btn-text{--btn-text:var(--secondary, var(--accent));}') && has($text, '.btn-text:hover,:root[data-theme][data-mode] .btn-text[data-state="hover"]{--btn-text:var(--ink);}'), true);
+check('Text is .btn-text', has($text, ':root[data-theme][data-mode] .btn-text{--btn-text:var(--color-secondary, var(--accent));}') && has($text, '.btn-text:hover,:root[data-theme][data-mode] .btn-text[data-state="hover"]{--btn-text:var(--ink);}'), true);
 check('a background without a text colour gets the text that reads on it', has($css(['btn_secondary_bg' => '#112233']), '--btn-bg:#112233;--btn-text:#ffffff;'), true);
 check('a background that reads better with another text colour in dark mode says so there', has($css(['btn_secondary_bg' => 'surface']), ':root.dark[data-theme][data-mode] .btn:not(.btn-primary):not(.btn-text)'), true);
 check('Primary with no background but transparent takes the text colour, not the one made for the accent', has($css(['btn_primary_bg' => 'none']), '--btn-text:var(--color-text);'), true);
