@@ -285,8 +285,11 @@ final class Branding
             $rules[] = ':root.dark[data-theme][data-mode]{--heading-color:' . $headingDark . '}';
             $rules[] = '@media(prefers-color-scheme:dark){:root[data-mode="system"]:not(.light)[data-theme]{--heading-color:' . $headingDark . '}}';
         }
+        // Links and the three button styles (BrandingButtons): nothing when none is chosen.
+        $appearance = is_array($settings['appearance'] ?? null) ? $settings['appearance'] : [];
         // The per-element type, the forms and the corner, border and phone presets are made by their own classes.
-        return $css . implode('', $rules) . BrandingTypography::css($design) . BrandingForms::css($design) . BrandingShape::css($design);
+        return $css . implode('', $rules) . BrandingTypography::css($design) . BrandingForms::css($design) . BrandingShape::css($design)
+            . BrandingButtons::css($design, (string)($appearance['palette'] ?? 'slate'));
     }
 
     /**

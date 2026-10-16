@@ -1,0 +1,86 @@
+{#
+  Theme > Branding: the Links card and the Button styles card (BrandingButtons.php). Included by theme-branding.twig; the colours are
+  tones (branding-tone.twig), the rest are the usual choices. Nothing is stored until the page is saved.
+
+  d   the design section of the theme's schema        vd   its stored values        pd   the field name prefix
+#}
+{% import '@admin/partials/layout-controls.twig' as c %}
+{% import '@admin/partials/branding-tone.twig' as t %}
+{% set has_secondary = d.light_secondary is defined %}
+{% set short_link = {
+  link_underline: {auto: 'Theme', always: 'Always', hover: 'On hover', never: 'Never'},
+  link_thickness: {auto: 'Theme', thin: 'Thin', medium: 'Medium', thick: 'Thick'},
+  link_offset: {auto: 'Theme', near: 'Near', far: 'Far'}
+} %}
+{% set styles = [['primary', 'Primary', 'Filled: the main action. Form buttons follow it.'], ['secondary', 'Secondary', 'Outline: a quieter action.'], ['text', 'Text', 'Looks like a link: the lightest action.']] %}
+{% set rows = [['bg', 'Background', true], ['text', 'Text', false], ['border', 'Border', true]] %}
+
+<details class="bp-card" data-bt-card="links">
+  <summary><span>Links</span><small>Colour, underline</small></summary>
+  <div class="bp-body" data-bt data-bt-kind="links">
+    <table class="bp-colours bt-table">
+      <caption class="sr-only">Link colours for light and dark mode. Theme keeps the palette’s accent.</caption>
+      <thead><tr><th scope="col"><span class="sr-only">Colour</span></th><th scope="col">Light</th><th scope="col">Dark</th></tr></thead>
+      <tbody>
+        <tr>
+          <th scope="row">Link</th>
+          <td>{{ t.tone('Link colour, light', pd ~ 'link_color]', vd.link_color, 'Theme', false, has_secondary) }}</td>
+          <td>{{ t.tone('Link colour, dark', pd ~ 'link_color_dark]', vd.link_color_dark, 'Same', false, has_secondary) }}</td>
+        </tr>
+        <tr>
+          <th scope="row">Hover</th>
+          <td>{{ t.tone('Link hover colour, light', pd ~ 'link_hover]', vd.link_hover, 'Auto', false, has_secondary) }}</td>
+          <td>{{ t.tone('Link hover colour, dark', pd ~ 'link_hover_dark]', vd.link_hover_dark, 'Same', false, has_secondary) }}</td>
+        </tr>
+        <tr class="bt-check">
+          <th scope="row">Contrast</th>
+          <td><span class="bt-badges" data-bt-badge="link" data-bt-mode="light"></span></td>
+          <td><span class="bt-badges" data-bt-badge="link" data-bt-mode="dark"></span></td>
+        </tr>
+      </tbody>
+    </table>
+    <dl class="m-0 space-y-2.5">
+      {% for key in ['link_underline', 'link_thickness', 'link_offset'] %}
+        {% if d[key] is defined %}{{ c.choice(d[key], pd ~ key ~ ']', vd[key], 'seg', short_link[key]) }}{% endif %}
+      {% endfor %}
+    </dl>
+    <p class="m-0 text-[11px] leading-4 text-slate-500">Colours are chosen from the palette, so they follow the mode. A custom colour is used only while it reaches 4.5:1 on the page in light and in dark. Links without an underline should differ from the text by more than colour.</p>
+    <button type="button" class="bp-reset" data-bp-reset="links">Reset link choices</button>
+  </div>
+</details>
+
+<details class="bp-card" data-bt-card="buttons">
+  <summary><span>Button styles</span><small>Primary, Secondary, Text</small></summary>
+  <div class="bp-body" data-bt data-bt-kind="buttons">
+    {% for style in styles %}
+      {% set sk = 'btn_' ~ style[0] ~ '_' %}
+      <section class="bt-style" data-bt-style="{{ style[0] }}" aria-labelledby="bt-h-{{ style[0] }}">
+        <h3 class="bt-h" id="bt-h-{{ style[0] }}">{{ style[1] }} <small>{{ style[2] }}</small></h3>
+        <table class="bp-colours bt-table">
+          <caption class="sr-only">{{ style[1] }} button colours: normal and hover.</caption>
+          <thead><tr><th scope="col"><span class="sr-only">Colour</span></th><th scope="col">Normal</th><th scope="col">Hover</th></tr></thead>
+          <tbody>
+            {% for row in rows %}
+              <tr>
+                <th scope="row">{{ row[1] }}</th>
+                <td>{{ t.tone(style[1] ~ ' ' ~ row[1]|lower, pd ~ sk ~ row[0] ~ ']', vd[sk ~ row[0]], 'Theme', row[2], has_secondary) }}</td>
+                <td>{{ t.tone(style[1] ~ ' hover ' ~ row[1]|lower, pd ~ sk ~ 'hover_' ~ row[0] ~ ']', vd[sk ~ 'hover_' ~ row[0]], 'Auto', row[2], has_secondary) }}</td>
+              </tr>
+            {% endfor %}
+            <tr class="bt-check">
+              <th scope="row">Contrast</th>
+              <td><span class="bt-badges" data-bt-badge="button" data-bt-state="normal"></span></td>
+              <td><span class="bt-badges" data-bt-badge="button" data-bt-state="hover"></span></td>
+            </tr>
+          </tbody>
+        </table>
+        <dl class="m-0 bt-pair">
+          {% if d[sk ~ 'border_width'] is defined %}{{ c.choice(d[sk ~ 'border_width'], pd ~ sk ~ 'border_width]', vd[sk ~ 'border_width'], 'select', {}) }}{% endif %}
+          {% if d[sk ~ 'radius'] is defined %}{{ c.choice(d[sk ~ 'radius'], pd ~ sk ~ 'radius]', vd[sk ~ 'radius'], 'select', {}) }}{% endif %}
+        </dl>
+      </section>
+    {% endfor %}
+    <p class="m-0 text-[11px] leading-4 text-slate-500">Hover is worked out from the normal colours unless you choose one. Focus and disabled are not settings: the focus ring always shows, and a disabled button is dimmed but readable. Size, padding, weight and case are in Buttons above and apply to all three styles.</p>
+    <button type="button" class="bp-reset" data-bp-reset="button-styles">Reset button styles</button>
+  </div>
+</details>

@@ -17,13 +17,13 @@
   {% for action in items|default([]) %}
     {% set href = link_url(action.url|default(''), prefix) %}
     {% if action.label|default('') and href %}
-      {% set buttons = buttons|merge([{label: action.label, href: href, secondary: action.style|default('primary') == 'secondary'}]) %}
+      {% set buttons = buttons|merge([{label: action.label, href: href, secondary: action.style|default('primary') == 'secondary', style: action.style|default('primary')}]) %}
     {% endif %}
   {% endfor %}
   {% if buttons is not empty %}
     <div class="actions{% if extra_class %} {{ extra_class }}{% endif %}">
       {% for button in buttons %}
-        <a class="btn {{ button.secondary ? 'btn-secondary' : 'btn-primary' }}" href="{{ button.href }}">
+        <a class="btn {{ button.style == 'text' ? 'btn-text' : (button.secondary ? 'btn-secondary' : 'btn-primary') }}" href="{{ button.href }}">
           {{- button.label -}}
           {% if not button.secondary %}{{ icon('arrow-right', 'btn-icon') }}{% endif %}
         </a>

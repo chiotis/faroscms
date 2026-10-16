@@ -40,7 +40,7 @@ final class BrandingTransfer
         'layout' => ['label' => 'Layout and spacing', 'patterns' => ['/^(container|reading_width|gutter|section_space|header_height|spacing)$/', '/^mobile_/']],
         'shape' => ['label' => 'Shape and depth', 'patterns' => ['/^radius(_|$)/', '/^(border_width|shadows)$/']],
         'forms' => ['label' => 'Forms', 'patterns' => ['/^(input_|label_)/', '/^(focus_style|error_style)$/']],
-        'buttons' => ['label' => 'Buttons', 'patterns' => ['/^button_/', '/^buttons?$/', '/^links?$/', '/^link_/']],
+        'buttons' => ['label' => 'Buttons', 'patterns' => ['/^(button_|btn_|link_)/', '/^(buttons?|links?)$/']],
     ];
 
     /**
