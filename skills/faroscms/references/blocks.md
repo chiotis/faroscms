@@ -256,7 +256,7 @@ Questions and answers that open one at a time. Adds FAQ structured data for sear
 | `items` | list of rows; at most 30 rows |  |
 | &nbsp;&nbsp;`items[].question` | text |  |
 | &nbsp;&nbsp;`items[].answer` | Markdown |  |
-| `initial` | choice; one of `closed`, `first`; default `closed` | "When the page opens": all answers closed, or the first one open. Older pages with `open_first: true` still open the first |
+| `initial` | choice; one of `closed`, `first`; default `closed` |  |
 | `schema` | true / false; default `true` |  |
 
 ### `features` — Features
