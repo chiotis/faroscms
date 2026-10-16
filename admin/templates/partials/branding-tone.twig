@@ -1,0 +1,28 @@
+{#
+  One colour of Links or Button styles: a palette role, or "Custom" (a hex that must pass AA, see BrandingButtons.php).
+  The value that is stored is in the hidden input (a role name, a #rrggbb, or empty); admin-branding-buttons.js keeps it in step with
+  the list and the custom colour, and draws the contrast badge.
+    label    what the colour is, for screen readers          name   the field's name           value   what is stored
+    auto     the word for "not set": Theme, or Auto for a hover that is worked out
+    clear    whether "None" (transparent) is offered       secondary   whether the palette has a Secondary role
+#}
+{% macro tone(label, name, value, auto, clear, secondary) %}
+  {% set id = 'f-' ~ name|replace({'[': '-', ']': ''}) %}
+  {% set roles = {accent: 'Accent', on_accent: 'On accent', text: 'Text', muted: 'Muted', background: 'Background', surface: 'Surface', border: 'Border', ink: 'Ink', white: 'White'} %}
+  {% if secondary %}{% set roles = roles|merge({secondary: 'Secondary'}) %}{% endif %}
+  {% if clear %}{% set roles = roles|merge({none: 'None'}) %}{% endif %}
+  {% set is_role = value in roles|keys %}
+  <span class="bt-tone" data-tone data-tone-label="{{ label }}">
+    <label class="sr-only" for="{{ id }}">{{ label }}</label>
+    <select id="{{ id }}" class="lc-input lc-select" data-tone-role>
+      <option value=""{% if not value %} selected{% endif %}>{{ auto }}</option>
+      {% for role, text in roles %}<option value="{{ role }}"{% if value == role %} selected{% endif %}>{{ text }}</option>{% endfor %}
+      <option value="custom"{% if value and not is_role %} selected{% endif %}>Custom…</option>
+    </select>
+    <span class="bt-custom"{% if is_role or not value %} hidden{% endif %}>
+      <input type="color" value="{{ value and not is_role ? value : '#336699' }}" aria-label="{{ label }}, pick a colour" data-tone-picker>
+      <input type="text" value="{{ value and not is_role ? value : '' }}" maxlength="7" spellcheck="false" autocomplete="off" aria-label="{{ label }}, hex code" class="lc-input" data-tone-hex>
+    </span>
+    <input type="hidden" name="{{ name }}" value="{{ value }}" data-tone-value>
+  </span>
+{% endmacro %}

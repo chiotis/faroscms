@@ -1,4 +1,4 @@
-# Theme settings of this installation (FarosCMS 0.1.137)
+# Theme settings of this installation (FarosCMS 0.1.138)
 
 Set with `python3 scripts/site_settings.py set theme section.field=value`. A text marked *translatable* takes a plain text or a map `{default: …, en: …}`.
 
@@ -118,6 +118,37 @@ Set with `python3 scripts/site_settings.py set theme section.field=value`. A tex
 | `button_size` | number; 11 to 24 | (empty) | Button text size |
 | `button_weight` | select; one of `auto`, `500`, `600`, `700`, `800` | auto | Button text weight |
 | `button_case` | select; one of `auto`, `uppercase` | auto | Button text case |
+| `link_color` | text | (empty) | Link colour |
+| `link_hover` | text | (empty) | Link hover colour |
+| `link_color_dark` | text | (empty) | Link colour |
+| `link_hover_dark` | text | (empty) | Link hover colour |
+| `link_underline` | select; one of `auto`, `always`, `hover`, `never` | auto | Link underline |
+| `link_thickness` | select; one of `auto`, `thin`, `medium`, `thick` | auto | Underline thickness |
+| `link_offset` | select; one of `auto`, `near`, `far` | auto | Underline distance |
+| `btn_primary_bg` | text | (empty) | Primary background |
+| `btn_primary_text` | text | (empty) | Primary text |
+| `btn_primary_border` | text | (empty) | Primary border |
+| `btn_primary_hover_bg` | text | (empty) | Primary hover background |
+| `btn_primary_hover_text` | text | (empty) | Primary hover text |
+| `btn_primary_hover_border` | text | (empty) | Primary hover border |
+| `btn_primary_border_width` | select; one of `auto`, `0`, `1`, `2`, `3` | auto | Primary border width |
+| `btn_primary_radius` | select; one of `auto`, `pill`, `rounded`, `square` | auto | Primary corners |
+| `btn_secondary_bg` | text | (empty) | Secondary background |
+| `btn_secondary_text` | text | (empty) | Secondary text |
+| `btn_secondary_border` | text | (empty) | Secondary border |
+| `btn_secondary_hover_bg` | text | (empty) | Secondary hover background |
+| `btn_secondary_hover_text` | text | (empty) | Secondary hover text |
+| `btn_secondary_hover_border` | text | (empty) | Secondary hover border |
+| `btn_secondary_border_width` | select; one of `auto`, `0`, `1`, `2`, `3` | auto | Secondary border width |
+| `btn_secondary_radius` | select; one of `auto`, `pill`, `rounded`, `square` | auto | Secondary corners |
+| `btn_text_bg` | text | (empty) | Text background |
+| `btn_text_text` | text | (empty) | Text text |
+| `btn_text_border` | text | (empty) | Text border |
+| `btn_text_hover_bg` | text | (empty) | Text hover background |
+| `btn_text_hover_text` | text | (empty) | Text hover text |
+| `btn_text_hover_border` | text | (empty) | Text hover border |
+| `btn_text_border_width` | select; one of `auto`, `0`, `1`, `2`, `3` | auto | Text border width |
+| `btn_text_radius` | select; one of `auto`, `pill`, `rounded`, `square` | auto | Text corners |
 
 ## `social` — Social profiles
 

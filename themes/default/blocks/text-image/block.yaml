@@ -25,7 +25,7 @@ fields:
     fields:
       label: { type: text, label: Label }
       url: { type: link, label: Link }
-      style: { type: select, label: Style, default: primary, options: { primary: Primary, secondary: Secondary } }
+      style: { type: select, label: Style, default: primary, options: { primary: Primary, secondary: Secondary, text: Text } }
   image:
     type: image
     label: Image

@@ -34,7 +34,7 @@
 } %}
 {% set known_a = ['mode', 'palette', 'font', 'glow', 'shape'] %}
 {% set known_b = ['logo', 'logo_dark', 'show_name', 'logo_height', 'logo_height_mobile', 'footer_logo_height', 'name_size', 'favicon', 'touch_icon', 'theme_color', 'share_image'] %}
-{% set known_d = ['light_accent', 'light_background', 'light_surface', 'light_text', 'light_muted', 'light_border', 'dark_accent', 'dark_background', 'dark_surface', 'dark_text', 'dark_muted', 'dark_border', 'light_secondary', 'dark_secondary', 'site_palette', 'site_palettes', 'duo_picker', 'duo_url', 'ink', 'heading_font', 'body_font', 'font_file', 'base_size', 'line_height', 'scale', 'heading_weight', 'heading_tracking', 'heading_leading', 'heading_case', 'heading_color', 'heading_color_light', 'heading_color_dark', 'container', 'reading_width', 'gutter', 'section_space', 'header_height', 'spacing', 'radius', 'button_radius', 'shadows', 'button_height', 'button_pad', 'button_size', 'button_weight', 'button_case'] %}
+{% set known_d = ['light_accent', 'light_background', 'light_surface', 'light_text', 'light_muted', 'light_border', 'dark_accent', 'dark_background', 'dark_surface', 'dark_text', 'dark_muted', 'dark_border', 'light_secondary', 'dark_secondary', 'site_palette', 'site_palettes', 'duo_picker', 'duo_url', 'ink', 'heading_font', 'body_font', 'font_file', 'base_size', 'line_height', 'scale', 'heading_weight', 'heading_tracking', 'heading_leading', 'heading_case', 'heading_color', 'heading_color_light', 'heading_color_dark', 'container', 'reading_width', 'gutter', 'section_space', 'header_height', 'spacing', 'radius', 'button_radius', 'shadows', 'button_height', 'button_pad', 'button_size', 'button_weight', 'button_case', 'link_color', 'link_hover', 'link_color_dark', 'link_hover_dark', 'link_underline', 'link_thickness', 'link_offset', 'btn_primary_bg', 'btn_primary_text', 'btn_primary_border', 'btn_primary_hover_bg', 'btn_primary_hover_text', 'btn_primary_hover_border', 'btn_primary_border_width', 'btn_primary_radius', 'btn_secondary_bg', 'btn_secondary_text', 'btn_secondary_border', 'btn_secondary_hover_bg', 'btn_secondary_hover_text', 'btn_secondary_hover_border', 'btn_secondary_border_width', 'btn_secondary_radius', 'btn_text_bg', 'btn_text_text', 'btn_text_border', 'btn_text_hover_bg', 'btn_text_hover_text', 'btn_text_hover_border', 'btn_text_border_width', 'btn_text_radius', 'light_secondary', 'dark_secondary'] %}
 {% set roles = [['accent', 'Accent'], ['background', 'Background'], ['surface', 'Surface'], ['text', 'Text'], ['muted', 'Muted text'], ['border', 'Border'], ['secondary', 'Secondary (optional)']] %}
 {% set defaults = {} %}
 {# These defaults are known only for the bundled theme without a site stylesheet that may override them. #}
@@ -247,6 +247,8 @@
         </div>
       </details>
 
+      {% include '@admin/partials/theme-branding-buttons.twig' with {d: d, vd: vd, pd: pd} %}
+
       {% set more_a = a|filter((field, key) => key not in known_a and not field.hidden) %}
       {% set more_d = d|filter((field, key) => key not in known_d and not field.hidden) %}
       {% if more_a is not empty or more_d is not empty %}
@@ -262,8 +264,9 @@
       {% endif %}
     </div>
 
-    {% include '@admin/partials/theme-preview.twig' with {preview_key: 'branding', preview_url: info.preview_url, branding_samples_url: url('admin/theme?preview=styles')} %}
+    {% include '@admin/partials/theme-preview.twig' with {preview_key: 'branding', preview_url: info.preview_url, branding_samples_url: url('admin/theme?preview=styles'), branding_specimen_url: url('admin/theme?preview=specimen')} %}
   </div>
 </div>
 <script src="{{ asset('js/admin-branding.js') }}" defer></script>
 <script src="{{ asset('js/admin-palettes.js') }}" defer></script>
+<script src="{{ asset('js/admin-branding-buttons.js') }}" defer></script>
