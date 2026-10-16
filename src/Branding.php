@@ -243,13 +243,10 @@ final class Branding
         } elseif ($buttonRadius === 'square') {
             $vars['--radius-button'] = '0px';
         }
-        $shadows = (string)($design['shadows'] ?? '');
-        if ($shadows === 'none') {
-            $vars['--shadow-s'] = 'none';
-            $vars['--shadow-m'] = 'none';
-        } elseif ($shadows === 'strong') {
-            $vars['--shadow-s'] = '0 2px 6px rgb(15 23 42 / 0.16), 0 1px 2px rgb(15 23 42 / 0.12)';
-            $vars['--shadow-m'] = '0 30px 60px -24px rgb(15 23 42 / 0.65)';
+        $shadow = BrandingShape::shadow((string)($design['shadows'] ?? ''));
+        if ($shadow !== null) {
+            $vars['--shadow-s'] = $shadow[0];
+            $vars['--shadow-m'] = $shadow[1];
         }
 
         // ---- buttons
@@ -288,7 +285,8 @@ final class Branding
             $rules[] = ':root.dark[data-theme][data-mode]{--heading-color:' . $headingDark . '}';
             $rules[] = '@media(prefers-color-scheme:dark){:root[data-mode="system"]:not(.light)[data-theme]{--heading-color:' . $headingDark . '}}';
         }
-        return $css . implode('', $rules);
+        // The per-element type, the forms and the corner, border and phone presets are made by their own classes.
+        return $css . implode('', $rules) . BrandingTypography::css($design) . BrandingForms::css($design) . BrandingShape::css($design);
     }
 
     /**

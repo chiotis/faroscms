@@ -28,13 +28,14 @@
   heading_color: {text: 'Text', accent: 'Palette', custom: 'Own'},
   spacing: {auto: 'Theme', tight: 'Tight', airy: 'Airy', roomy: 'Roomy'},
   button_radius: {auto: 'Theme', pill: 'Pill', rounded: 'Rounded', square: 'Square'},
-  shadows: {auto: 'Theme', none: 'None', strong: 'Strong'},
+  shadows: {auto: 'Theme', none: 'None', soft: 'Soft', medium: 'Medium', strong: 'Strong'},
+  border_width: {auto: 'Theme', none: 'None', thin: '1px', medium: '2px', thick: '3px'},
   button_weight: {auto: 'Theme', '500': 'Medium', '600': 'Semi', '700': 'Bold', '800': 'Black'},
   button_case: {auto: 'As typed', uppercase: 'CAPITALS'}
 } %}
 {% set known_a = ['mode', 'palette', 'font', 'glow', 'shape'] %}
 {% set known_b = ['logo', 'logo_dark', 'show_name', 'logo_height', 'logo_height_mobile', 'footer_logo_height', 'name_size', 'favicon', 'touch_icon', 'theme_color', 'share_image'] %}
-{% set known_d = ['light_accent', 'light_background', 'light_surface', 'light_text', 'light_muted', 'light_border', 'dark_accent', 'dark_background', 'dark_surface', 'dark_text', 'dark_muted', 'dark_border', 'ink', 'heading_font', 'body_font', 'font_file', 'base_size', 'line_height', 'scale', 'heading_weight', 'heading_tracking', 'heading_leading', 'heading_case', 'heading_color', 'heading_color_light', 'heading_color_dark', 'container', 'reading_width', 'gutter', 'section_space', 'header_height', 'spacing', 'radius', 'button_radius', 'shadows', 'button_height', 'button_pad', 'button_size', 'button_weight', 'button_case'] %}
+{% set known_d = ['light_accent', 'light_background', 'light_surface', 'light_text', 'light_muted', 'light_border', 'dark_accent', 'dark_background', 'dark_surface', 'dark_text', 'dark_muted', 'dark_border', 'ink', 'heading_font', 'body_font', 'font_file', 'base_size', 'line_height', 'scale', 'heading_weight', 'heading_tracking', 'heading_leading', 'heading_case', 'heading_color', 'heading_color_light', 'heading_color_dark', 'container', 'reading_width', 'gutter', 'section_space', 'header_height', 'spacing', 'radius', 'button_radius', 'shadows', 'button_height', 'button_pad', 'button_size', 'button_weight', 'button_case', 'h1_step', 'h1_weight', 'h1_leading', 'h1_tracking', 'h2_step', 'h2_weight', 'h2_leading', 'h2_tracking', 'h3_step', 'h3_weight', 'h3_leading', 'h3_tracking', 'lead_step', 'lead_weight', 'lead_leading', 'lead_tracking', 'small_step', 'small_weight', 'small_leading', 'small_tracking', 'body_weight', 'paragraph_space', 'input_bg', 'input_border', 'input_border_width', 'label_size', 'label_weight', 'focus_style', 'error_style', 'radius_card', 'radius_image', 'radius_input', 'border_width', 'mobile_gutter', 'mobile_section_space'] %}
 {% set roles = [['accent', 'Accent'], ['background', 'Background'], ['surface', 'Surface'], ['text', 'Text'], ['muted', 'Muted text'], ['border', 'Border']] %}
 {% set defaults = {} %}
 {# These defaults are known only for the bundled theme without a site stylesheet that may override them. #}
@@ -190,6 +191,7 @@
             {% endfor %}
           </dl>
           {% if default_theme %}<p class="m-0 text-[11px] leading-4 text-slate-500">“By element” keeps the weight, letter spacing and line height designed for each heading. “Theme scale” keeps the theme’s responsive sizes.</p>{% endif %}
+          {% include '@admin/partials/theme-branding-type.twig' %}
           <button type="button" class="bp-reset" data-bp-reset="type">Reset type overrides</button>
         </div>
       </details>
@@ -216,10 +218,12 @@
             {% if a.shape is defined %}{{ c.choice(a.shape, pa ~ 'shape]', va.shape, 'seg', short.shape) }}{% endif %}
           </dl>
           <div class="bp-nums">
-            {% if d.radius is defined %}{{ c.num(d.radius, pd ~ 'radius]', vd.radius, 'px') }}{% endif %}
+            {% for key in ['radius', 'radius_card', 'radius_image', 'radius_input'] %}
+              {% if d[key] is defined %}{{ c.num(d[key], pd ~ key ~ ']', vd[key], 'px') }}{% endif %}
+            {% endfor %}
           </div>
           <dl class="m-0 space-y-2.5">
-            {% for key in ['shadows'] %}
+            {% for key in ['shadows', 'border_width'] %}
               {% if d[key] is defined %}{{ c.choice(d[key], pd ~ key ~ ']', vd[key], 'seg', short[key]) }}{% endif %}
             {% endfor %}
             {% if a.glow is defined %}{{ c.choice(a.glow, pa ~ 'glow]', va.glow, 'seg', short.glow) }}{% endif %}
@@ -246,6 +250,8 @@
         </div>
       </details>
 
+      {% include '@admin/partials/theme-branding-more.twig' %}
+
       {% set more_a = a|filter((field, key) => key not in known_a and not field.hidden) %}
       {% set more_d = d|filter((field, key) => key not in known_d and not field.hidden) %}
       {% if more_a is not empty or more_d is not empty %}
@@ -265,3 +271,4 @@
   </div>
 </div>
 <script src="{{ asset('js/admin-branding.js') }}" defer></script>
+<script src="{{ asset('js/admin-branding-transfer.js') }}" defer></script>

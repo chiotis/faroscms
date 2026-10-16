@@ -2151,6 +2151,10 @@ final class App
         $tabs = [];
         // A theme that declares the design section has the Branding screen: appearance, brand and design in one tab.
         $branding = isset($schema['design']);
+        if ($branding && isset($_GET['branding'])) {
+            $this->handleBrandingTransfer((string)$_GET['branding']);
+            return;
+        }
         if ($branding && $_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['preview'] ?? '') === 'styles') {
             // An admin-only specimen, using the site's actual styles. It is never content and stores nothing.
             header('Cache-Control: no-store');
@@ -2263,6 +2267,84 @@ final class App
         ]);
     }
 
+    /** Export, import (preview and apply), undo and reset of Branding (the whole of /admin/theme?branding=…; the route already needs the right to change the theme). */
+    private function handleBrandingTransfer(string $action): void
+    {
+        $transfer = $this->brandingTransfer();
+        if ($action === 'export' && $_SERVER['REQUEST_METHOD'] === 'GET') {
+            $path = tempnam(sys_get_temp_dir(), 'branding');
+            if ($path === false) {
+                $this->redirect('/admin/theme?theme=fail&tab=branding&theme_msg=' . urlencode('The export could not be made.'));
+                return;
+            }
+            $transfer->export($path);
+            $this->logActivity('theme.branding_export', 'info', 'settings', $this->theme->name(), 'Branding exported.');
+            header('Content-Type: application/zip');
+            header('Content-Disposition: attachment; filename="branding-' . gmdate('Y-m-d') . '.zip"');
+            header('Content-Length: ' . (string)(filesize($path) ?: 0));
+            header('Cache-Control: no-store');
+            readfile($path);
+            @unlink($path);
+            exit;
+        }
+        header('Content-Type: application/json; charset=utf-8');
+        header('Cache-Control: no-store');
+        $answer = static function (array $data, int $status = 200): void {
+            http_response_code($status);
+            echo json_encode($data + ['ok' => $status < 400], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG);
+        };
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $answer(['error' => 'Use the buttons of the Branding screen.'], 405);
+            return;
+        }
+        if ($action === 'preview' || $action === 'import') {
+            $upload = $_FILES['branding_file'] ?? null;
+            $tmp = is_array($upload) && ($upload['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK && is_uploaded_file((string)$upload['tmp_name']) && (int)$upload['size'] <= 20 * 1048576 ? (string)$upload['tmp_name'] : '';
+            $read = $tmp !== '' ? $transfer->read((string)file_get_contents($tmp)) : ['ok' => false, 'error' => 'Choose a Branding file (the zip from Export).'];
+            if (($read['ok'] ?? false) !== true) {
+                $answer(['error' => (string)($read['error'] ?? 'The file could not be read.')], 422);
+                return;
+            }
+            if ($action === 'preview') {
+                $answer($transfer->preview($read));
+                return;
+            }
+            $result = $transfer->apply($read);
+            $this->themeSettings = $this->loadThemeSettings();
+            $this->logActivity('theme.branding_import', 'info', 'settings', $this->theme->name(), 'Branding imported.', ['changed' => $result['changed'] ?? 0]);
+            $answer($result, ($result['ok'] ?? false) ? 200 : 500);
+            return;
+        }
+        if ($action === 'undo') {
+            $done = $transfer->undo();
+            $this->logActivity('theme.branding_undo', 'info', 'settings', $this->theme->name(), 'Branding put back as before.');
+            $answer(['restored' => $done], $done ? 200 : 404);
+            return;
+        }
+        if ($action === 'reset') {
+            $changed = $transfer->reset((string)($_POST['section'] ?? ''));
+            if ($changed >= 0) {
+                $this->logActivity('theme.branding_reset', 'info', 'settings', $this->theme->name(), 'A Branding section was reset to its defaults.', ['section' => (string)$_POST['section']]);
+            }
+            $answer(['changed' => max(0, $changed)], $changed >= 0 ? 200 : 422);
+            return;
+        }
+        $answer(['error' => 'Unknown action.'], 404);
+    }
+
+    private function brandingTransfer(): BrandingTransfer
+    {
+        return new BrandingTransfer(
+            $this->theme,
+            fn(): array => $this->loadThemeSettings(),
+            function (array $settings): void {
+                $this->setSystemMeta('theme_settings', Yaml::dump($settings, 6, 2));
+            },
+            $this->systemMeta,
+            trim((string)@file_get_contents($this->basePath . '/VERSION'))
+        );
+    }
+
     /** What the Branding tab needs besides the settings: the font stacks, the address of the preview, the state of the font file. */
     private function brandingScreen(): array
     {
@@ -2275,6 +2357,8 @@ final class App
             'stacks' => Branding::FONT_STACKS,
             'preview_url' => (string)($this->settings['base_url'] ?? '') . '/',
             'font_found' => $found,
+            'backup' => $this->brandingTransfer()->backup(),
+            'sections' => array_map(static fn(array $section): string => $section['label'], BrandingTransfer::SECTIONS),
         ];
     }
 

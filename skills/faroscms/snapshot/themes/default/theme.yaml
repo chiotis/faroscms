@@ -677,6 +677,8 @@ settings:
         options:
           auto: Theme
           none: None
+          soft: Soft
+          medium: Medium
           strong: Strong
       button_height:
         type: number
@@ -716,6 +718,372 @@ settings:
         options:
           auto: As typed
           uppercase: Capitals
+
+      # Typography overrides: a STEP of the type scale (so the fluid sizing stays), a weight, a line height and a letter spacing for
+      # H1, H2, H3, the lead paragraph and small text. H4 to H6 follow the scale. BrandingTypography.php turns them into CSS.
+      h1_step:
+        type: select
+        label: H1 size
+        default: auto
+        options:
+          auto: Theme
+          '5': Step 5 (largest)
+          '4': Step 4
+          '3': Step 3
+          '2': Step 2
+          '1': Step 1
+          '0': Step 0 (body text)
+          '-1': Step -1
+          '-2': Step -2
+      h1_weight:
+        type: select
+        label: H1 weight
+        default: auto
+        options:
+          auto: Theme
+          '300': Light
+          '400': Regular
+          '500': Medium
+          '600': Semibold
+          '700': Bold
+          '800': Extra bold
+      h1_leading:
+        type: select
+        label: H1 line height
+        default: auto
+        options:
+          auto: Theme
+          tight: Tight
+          normal: Normal
+          relaxed: Relaxed
+          loose: Loose
+      h1_tracking:
+        type: select
+        label: H1 letter spacing
+        default: auto
+        options:
+          auto: Theme
+          tighter: Tighter
+          tight: Tight
+          normal: Normal
+          wide: Wide
+      h2_step:
+        type: select
+        label: H2 size
+        default: auto
+        options:
+          auto: Theme
+          '5': Step 5 (largest)
+          '4': Step 4
+          '3': Step 3
+          '2': Step 2
+          '1': Step 1
+          '0': Step 0 (body text)
+          '-1': Step -1
+          '-2': Step -2
+      h2_weight:
+        type: select
+        label: H2 weight
+        default: auto
+        options:
+          auto: Theme
+          '300': Light
+          '400': Regular
+          '500': Medium
+          '600': Semibold
+          '700': Bold
+          '800': Extra bold
+      h2_leading:
+        type: select
+        label: H2 line height
+        default: auto
+        options:
+          auto: Theme
+          tight: Tight
+          normal: Normal
+          relaxed: Relaxed
+          loose: Loose
+      h2_tracking:
+        type: select
+        label: H2 letter spacing
+        default: auto
+        options:
+          auto: Theme
+          tighter: Tighter
+          tight: Tight
+          normal: Normal
+          wide: Wide
+      h3_step:
+        type: select
+        label: H3 size
+        default: auto
+        options:
+          auto: Theme
+          '5': Step 5 (largest)
+          '4': Step 4
+          '3': Step 3
+          '2': Step 2
+          '1': Step 1
+          '0': Step 0 (body text)
+          '-1': Step -1
+          '-2': Step -2
+      h3_weight:
+        type: select
+        label: H3 weight
+        default: auto
+        options:
+          auto: Theme
+          '300': Light
+          '400': Regular
+          '500': Medium
+          '600': Semibold
+          '700': Bold
+          '800': Extra bold
+      h3_leading:
+        type: select
+        label: H3 line height
+        default: auto
+        options:
+          auto: Theme
+          tight: Tight
+          normal: Normal
+          relaxed: Relaxed
+          loose: Loose
+      h3_tracking:
+        type: select
+        label: H3 letter spacing
+        default: auto
+        options:
+          auto: Theme
+          tighter: Tighter
+          tight: Tight
+          normal: Normal
+          wide: Wide
+      lead_step:
+        type: select
+        label: Lead paragraph size
+        default: auto
+        options:
+          auto: Theme
+          '5': Step 5 (largest)
+          '4': Step 4
+          '3': Step 3
+          '2': Step 2
+          '1': Step 1
+          '0': Step 0 (body text)
+          '-1': Step -1
+          '-2': Step -2
+      lead_weight:
+        type: select
+        label: Lead paragraph weight
+        default: auto
+        options:
+          auto: Theme
+          '300': Light
+          '400': Regular
+          '500': Medium
+          '600': Semibold
+          '700': Bold
+          '800': Extra bold
+      lead_leading:
+        type: select
+        label: Lead paragraph line height
+        default: auto
+        options:
+          auto: Theme
+          tight: Tight
+          normal: Normal
+          relaxed: Relaxed
+          loose: Loose
+      lead_tracking:
+        type: select
+        label: Lead paragraph letter spacing
+        default: auto
+        options:
+          auto: Theme
+          tighter: Tighter
+          tight: Tight
+          normal: Normal
+          wide: Wide
+      small_step:
+        type: select
+        label: Small text size
+        default: auto
+        options:
+          auto: Theme
+          '5': Step 5 (largest)
+          '4': Step 4
+          '3': Step 3
+          '2': Step 2
+          '1': Step 1
+          '0': Step 0 (body text)
+          '-1': Step -1
+          '-2': Step -2
+      small_weight:
+        type: select
+        label: Small text weight
+        default: auto
+        options:
+          auto: Theme
+          '300': Light
+          '400': Regular
+          '500': Medium
+          '600': Semibold
+          '700': Bold
+          '800': Extra bold
+      small_leading:
+        type: select
+        label: Small text line height
+        default: auto
+        options:
+          auto: Theme
+          tight: Tight
+          normal: Normal
+          relaxed: Relaxed
+          loose: Loose
+      small_tracking:
+        type: select
+        label: Small text letter spacing
+        default: auto
+        options:
+          auto: Theme
+          tighter: Tighter
+          tight: Tight
+          normal: Normal
+          wide: Wide
+      body_weight:
+        type: select
+        label: Text weight
+        default: auto
+        options:
+          auto: Theme
+          '300': Light
+          '400': Regular
+          '500': Medium
+      paragraph_space:
+        type: select
+        label: Space between paragraphs
+        default: auto
+        options:
+          auto: Theme
+          tight: Tight
+          normal: Normal
+          relaxed: Relaxed
+          loose: Loose
+
+      # Forms (the public forms, the form block and the search field). BrandingForms.php; every choice keeps AA contrast.
+      input_bg:
+        type: select
+        label: Field background
+        default: auto
+        options:
+          auto: Theme
+          background: Page background
+          surface: Surface
+          surface_2: Surface, deeper
+      input_border:
+        type: select
+        label: Field border colour
+        default: auto
+        options:
+          auto: Theme
+          strong: Strong border
+          muted: Muted text colour
+          text: Text colour
+          accent: Accent
+      input_border_width:
+        type: select
+        label: Field border width
+        default: auto
+        options:
+          auto: Theme
+          thin: Thin (1px)
+          medium: Medium (2px)
+      label_size:
+        type: select
+        label: Label size
+        default: auto
+        options:
+          auto: Theme
+          small: Small
+          normal: Normal
+          large: Large
+      label_weight:
+        type: select
+        label: Label weight
+        default: auto
+        options:
+          auto: Theme
+          '400': Regular
+          '500': Medium
+          '600': Semibold
+          '700': Bold
+      focus_style:
+        type: select
+        label: Focus
+        default: auto
+        options:
+          auto: Theme ring
+          outline: Accent outline
+          high: High contrast
+      error_style:
+        type: select
+        label: Errors
+        default: auto
+        options:
+          auto: Theme
+          strong: Strong border
+          tinted: Tinted field
+
+      # Corners and borders per kind of element; empty follows Corner radius.
+      radius_card:
+        type: number
+        blank: true
+        min: 0
+        max: 48
+        label: Card corners
+        placeholder: '20'
+      radius_image:
+        type: number
+        blank: true
+        min: 0
+        max: 48
+        label: Image corners
+        placeholder: '14'
+      radius_input:
+        type: number
+        blank: true
+        min: 0
+        max: 48
+        label: Field corners
+        placeholder: '8'
+      border_width:
+        type: select
+        label: Card border
+        default: auto
+        options:
+          auto: Theme
+          none: None
+          thin: Thin (1px)
+          medium: Medium (2px)
+          thick: Thick (3px)
+
+      # Phones only. Empty keeps the automatic responsive sizes.
+      mobile_gutter:
+        type: number
+        blank: true
+        min: 8
+        max: 60
+        label: Side margin on phones
+        placeholder: '20'
+      mobile_section_space:
+        type: number
+        blank: true
+        min: 16
+        max: 160
+        label: Space between sections on phones
+        placeholder: '58'
+        help: Pixels on a typical phone; the sections grow a little on larger ones.
 
   social:
     label: Social profiles
