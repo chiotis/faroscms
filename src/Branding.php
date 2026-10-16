@@ -52,7 +52,7 @@ final class Branding
      */
     public static function css(array $settings, string $baseUrl = ''): string
     {
-        $design = is_array($settings['design'] ?? null) ? $settings['design'] : [];
+        $design = SitePalettes::apply(is_array($settings['design'] ?? null) ? $settings['design'] : []);
         $brand = is_array($settings['brand'] ?? null) ? $settings['brand'] : [];
         $vars = [];
         $rules = [];
@@ -122,6 +122,8 @@ final class Branding
             $vars['--ink-rgb'] = $r . ' ' . $g . ' ' . $b;
             $vars['--ink-2'] = self::mix($ink, '#ffffff', 0.08);
         }
+
+        SecondaryColour::add($design, $darkBase, $vars, $rules);
 
         // ---- type: families, size, scale, headings
         $customFont = self::fontFile((string)($design['font_file'] ?? ''), $baseUrl);
@@ -297,7 +299,9 @@ final class Branding
             $rules[] = ':root.dark[data-theme][data-mode]{--heading-color:' . $headingDark . '}';
             $rules[] = '@media(prefers-color-scheme:dark){:root[data-mode="system"]:not(.light)[data-theme]{--heading-color:' . $headingDark . '}}';
         }
-        return $css . implode('', $rules);
+        // Links and the three button styles (BrandingButtons): nothing when none is chosen.
+        $appearance = is_array($settings['appearance'] ?? null) ? $settings['appearance'] : [];
+        return $css . implode('', $rules) . BrandingButtons::css($design, (string)($appearance['palette'] ?? 'slate'));
     }
 
     /**

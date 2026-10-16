@@ -35,7 +35,7 @@ fields:
     fields:
       label: { type: text, label: Label }
       url: { type: link, label: Link, help: 'A page ("contact"), a path ("/en/contact"), a full URL, #anchor, mailto: or tel:' }
-      style: { type: select, label: Style, default: primary, options: { primary: Primary, secondary: Secondary } }
+      style: { type: select, label: Style, default: primary, options: { primary: Primary, secondary: Secondary, text: Text } }
   highlights:
     type: repeater
     label: Highlights

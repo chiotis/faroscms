@@ -191,13 +191,14 @@
       ['light', 'dark'].forEach(function (mode) {
         var prefix = mode === 'light' ? '--n-' : '--d-';
         if (key === mode + '_accent') { token = mode === 'light' ? '--accent-l' : '--accent-d'; }
+        if (key === mode + '_secondary') { token = mode === 'light' ? '--secondary-l' : '--secondary-d'; }
         Object.keys(tokens).forEach(function (role) { if (key === mode + '_' + role) { token = prefix + tokens[role]; } });
         if (key === 'heading_color_' + mode) {
           token = headingMode === 'accent' ? (mode === 'light' ? '--accent-l' : '--accent-d') : prefix + 'text';
         }
       });
       var colour = token ? computed.getPropertyValue(token).trim() : '';
-      text.placeholder = HEX.test(colour) ? normalize(colour) : 'Theme';
+      text.placeholder = HEX.test(colour) ? normalize(colour) : (key.indexOf('_secondary') > 0 ? 'None' : 'Theme');
       if (HEX.test(colour)) { box.querySelector('input[type="color"]').value = normalize(colour); }
     });
   }

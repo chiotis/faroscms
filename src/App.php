@@ -2160,6 +2160,20 @@ final class App
             ]);
             return;
         }
+        // The palette studio of Branding asks for a palette made from two colours, and for the Duo colour pairings (JSON, nothing stored).
+        if ($branding && in_array($_GET['palette'] ?? '', ['generate', 'duo'], true)) {
+            $this->paletteRequest((string)$_GET['palette']);
+            return;
+        }
+        if ($branding && $_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['preview'] ?? '') === 'specimen') {
+            // The three button styles in their states and a paragraph with a link, in light and dark, drawn with the site's own styles.
+            header('Cache-Control: no-store');
+            header('X-Robots-Tag: noindex, nofollow');
+            echo $this->twig->render('@admin/theme-button-specimen.twig', [
+                'attributes' => Branding::attributes($this->themeSettings),
+            ]);
+            return;
+        }
         foreach ($schema as $key => $section) {
             // The sidebar card is part of Single Layouts when the theme has them.
             if ($key === 'sidebar' && $single->declared()) {
@@ -2266,6 +2280,19 @@ final class App
             'archive_columns' => ['2', '3', '4'],
             'sidebar_section' => $schema['sidebar'] ?? null,
         ]);
+    }
+
+    /** JSON for the palette studio: `generate` (POST) a palette from two colours, `duo` (GET) the colour pairings of Duo. */
+    private function paletteRequest(string $what): void
+    {
+        header('Content-Type: application/json; charset=utf-8');
+        header('Cache-Control: no-store');
+        if ($what === 'generate') {
+            $answer = $_SERVER['REQUEST_METHOD'] === 'POST' ? PaletteAdmin::generate($_POST) : ['ok' => false, 'message' => 'Use POST.'];
+        } else {
+            $answer = PaletteAdmin::duo($this->themeSettings, new DuoPairings($this->basePath . '/storage/cache'));
+        }
+        echo json_encode($answer, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG);
     }
 
     /** What the Branding tab needs besides the settings: the font stacks, the address of the preview, the state of the font file. */
