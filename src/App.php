@@ -2165,7 +2165,7 @@ final class App
             return;
         }
         // The palette studio of Branding asks for a palette made from two colours, and for the Duo colour pairings (JSON, nothing stored).
-        if ($branding && in_array($_GET['palette'] ?? '', ['generate', 'duo'], true)) {
+        if ($branding && in_array($_GET['palette'] ?? '', ['generate', 'duo', 'copy', 'fix'], true)) {
             $this->paletteRequest((string)$_GET['palette']);
             return;
         }
@@ -2369,8 +2369,9 @@ final class App
     {
         header('Content-Type: application/json; charset=utf-8');
         header('Cache-Control: no-store');
-        if ($what === 'generate') {
-            $answer = $_SERVER['REQUEST_METHOD'] === 'POST' ? PaletteAdmin::generate($_POST) : ['ok' => false, 'message' => 'Use POST.'];
+        if ($what === 'generate' || $what === 'copy' || $what === 'fix') {
+            $answer = $_SERVER['REQUEST_METHOD'] !== 'POST' ? ['ok' => false, 'message' => 'Use POST.']
+                : ($what === 'generate' ? PaletteAdmin::generate($_POST) : ($what === 'copy' ? PaletteAdmin::copy($_POST) : PaletteAdmin::fix($_POST)));
         } else {
             $answer = PaletteAdmin::duo($this->themeSettings, new DuoPairings($this->basePath . '/storage/cache'));
         }
@@ -2390,6 +2391,7 @@ final class App
         return [
             'stacks' => Branding::FONT_STACKS,
             'preview_url' => (string)($this->settings['base_url'] ?? '') . '/',
+            'palettes' => BuiltinPalettes::all(),
             'font_found' => $found,
             'backup' => $this->brandingTransfer()->backup(),
             'sections' => array_map(static fn(array $section): string => $section['label'], BrandingTransfer::SECTIONS),
@@ -2424,7 +2426,7 @@ final class App
     /** JSON for the live preview of the Branding tab: the CSS and attributes the submitted choices would give a page. */
     private function previewBranding(array $input): void
     {
-        $data = $this->theme->resolveSettings($this->theme->settingsFromInput($input, $this->loadThemeSettings()));
+        $data = SitePalettes::followSource(SitePalettes::fold($this->theme->resolveSettings($this->theme->settingsFromInput($input, $this->loadThemeSettings()))));
         $base = (string)($this->settings['base_url'] ?? '');
         $brand = is_array($data['brand'] ?? null) ? $data['brand'] : [];
         header('Content-Type: application/json; charset=utf-8');
@@ -3676,7 +3678,21 @@ final class App
             }
         }
         // The theme manifest decides what is valid: new fields get defaults, retired values fall back.
-        return $this->theme->resolveSettings($data);
+        $settings = $this->theme->resolveSettings($data);
+        // The per-role colour overrides of earlier versions live in a site palette now. The pages are the same either way, so
+        // the settings are folded here every time and stored once; a failed write only means the next load folds them again.
+        $folded = SitePalettes::fold($settings);
+        if ($folded !== $settings) {
+            $settings = $folded;
+            try {
+                if ($this->systemDatabase->isAvailable() && trim($raw) !== '') {
+                    $this->setSystemMeta('theme_settings', Yaml::dump($settings, 6, 2));
+                }
+            } catch (\Throwable) {
+                // Kept for the next load.
+            }
+        }
+        return $settings;
     }
 
     private function setSystemMeta(string $key, string $value): void
@@ -3703,7 +3719,7 @@ final class App
 
         // Keys the theme does not declare (hand-added options) are kept, not dropped.
         $current = $this->loadThemeSettings();
-        $data = $this->theme->settingsFromInput($input, $current);
+        $data = SitePalettes::followSource(SitePalettes::fold($this->theme->settingsFromInput($input, $current)));
         if ($singleInput !== null && $this->singleLayouts()->declared()) {
             $data['single_layouts'] = $this->singleLayouts()->fromInput($singleInput, $this->content->getTypes(), $current);
         }

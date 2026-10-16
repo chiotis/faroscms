@@ -82,6 +82,12 @@ final class SitePalettes
         if ($from['accent'] !== null && $from['base'] !== null) {
             $out['from'] = $from + ['role' => ($item['from']['role'] ?? '') === 'ink' ? 'ink' : 'background'];
         }
+        // The ready-made palette it was copied from or made on: it gives the colours the palette leaves out, and is what
+        // the site goes back to when the palette is deleted.
+        $source = strtolower(trim((string)($item['source'] ?? '')));
+        if (preg_match('/^[a-z][a-z0-9-]{0,31}$/', $source) === 1) {
+            $out['source'] = $source;
+        }
         $ink = self::hex($item['ink'] ?? null);
         if ($ink !== null) {
             $out['ink'] = $ink;
@@ -146,6 +152,120 @@ final class SitePalettes
         }
         $fill('ink', $palette['ink'] ?? null);
         return $design;
+    }
+
+    /**
+     * The palette that replaces the per-role overrides of earlier versions (`design.light_accent` and the like): they are folded
+     * into the palette in use, or, when none is in use, into a new one called "<Palette> (custom)" on top of the ready-made
+     * palette the site uses, which then becomes the one in use. The overrides are emptied. What a page gets is exactly what it
+     * got before: apply() fills the same values back in. Nothing happens when no override is set, so it can run again and again.
+     *
+     * @param array<string, mixed> $settings the resolved theme settings
+     * @return array<string, mixed> the settings, changed only when an override was set
+     */
+    public static function fold(array $settings): array
+    {
+        $design = is_array($settings['design'] ?? null) ? $settings['design'] : [];
+        $found = [];
+        $secondary = [];
+        $keys = [];
+        foreach (['light', 'dark'] as $mode) {
+            foreach (self::ROLES as $role) {
+                $hex = self::hex($design[$mode . '_' . $role] ?? null);
+                if ($hex !== null) {
+                    $found[$mode][$role] = $hex;
+                }
+                $keys[] = $mode . '_' . $role;
+            }
+            $hex = self::hex($design[$mode . '_secondary'] ?? null);
+            if ($hex !== null) {
+                $secondary[$mode] = $hex;
+            }
+            $keys[] = $mode . '_secondary';
+        }
+        $ink = self::hex($design['ink'] ?? null);
+        $keys[] = 'ink';
+        if ($found === [] && $secondary === [] && $ink === null) {
+            return $settings;
+        }
+        $palettes = self::parse($design['site_palettes'] ?? '');
+        $id = trim((string)($design['site_palette'] ?? ''));
+        $at = null;
+        foreach ($palettes as $i => $palette) {
+            if ($palette['id'] === $id) {
+                $at = $i;
+            }
+        }
+        if ($at === null) {
+            if (count($palettes) >= self::MAX) {
+                return $settings;
+            }
+            $source = (string)($settings['appearance']['palette'] ?? '');
+            $name = mb_substr(BuiltinPalettes::name($source !== '' ? $source : 'slate') . ' (custom)', 0, self::NAME_LENGTH);
+            $palette = ['id' => self::newId($name, $palettes), 'name' => $name, 'light' => [], 'dark' => []];
+            if ($source !== '') {
+                $palette['source'] = $source;
+            }
+            $palettes[] = $palette;
+            $at = count($palettes) - 1;
+        }
+        foreach ($found as $mode => $roles) {
+            // An override wins over the palette, as it did on the page.
+            foreach ($roles as $role => $hex) {
+                $palettes[$at][$mode][$role] = $hex;
+            }
+        }
+        foreach ($secondary as $mode => $hex) {
+            $palettes[$at]['secondary'][$mode] = $hex;
+        }
+        if ($ink !== null) {
+            $palettes[$at]['ink'] = $ink;
+        }
+        foreach ($keys as $key) {
+            $design[$key] = '';
+        }
+        $design['site_palettes'] = self::encode($palettes);
+        $design['site_palette'] = $palettes[$at]['id'];
+        $settings['design'] = $design;
+        return $settings;
+    }
+
+    /**
+     * A new palette that is a copy of a ready-made one, called "<Name> (custom)". It is not stored here.
+     *
+     * @param array<int, array<string, mixed>> $palettes the palettes of the site, so the id is unique
+     * @return array<string, mixed>|null null when the palette is not one this class knows
+     */
+    public static function copyOfBuiltin(string $builtin, array $palettes): ?array
+    {
+        $from = BuiltinPalettes::get($builtin);
+        if ($from === null) {
+            return null;
+        }
+        $name = mb_substr($from['name'] . ' (custom)', 0, self::NAME_LENGTH);
+        return [
+            'id' => self::newId($name, $palettes),
+            'name' => $name,
+            'source' => $builtin,
+            'light' => $from['light'],
+            'dark' => $from['dark'],
+            'ink' => $from['ink'],
+        ];
+    }
+
+    /**
+     * The settings with the ready-made palette set to the source of the palette in use (when it has one), so the two always agree.
+     *
+     * @param array<string, mixed> $settings
+     * @return array<string, mixed>
+     */
+    public static function followSource(array $settings): array
+    {
+        $palette = self::active(is_array($settings['design'] ?? null) ? $settings['design'] : []);
+        if ($palette !== null && isset($palette['source'])) {
+            $settings['appearance']['palette'] = $palette['source'];
+        }
+        return $settings;
     }
 
     /** A new id for a name, unique among the palettes. */

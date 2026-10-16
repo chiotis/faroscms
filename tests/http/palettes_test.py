@@ -76,7 +76,7 @@ check('editing a role changes the page and several palettes are kept', '--accent
 post_theme(d(site_palettes=encode([brand, second]), site_palette='second'))
 check('choosing another palette uses that one', '--accent-l:#0f766e;' in style())
 post_theme(d(site_palettes=encode([brand, second]), site_palette='second', light_accent='#7c3aed'))
-check('a colour set by hand wins over the palette', '--accent-l:#7c3aed;' in style() and '--accent-l:#0f766e;' not in style())
+check('an old per-role colour sent with the form is folded into the palette in use, and still wins', '--accent-l:#7c3aed;' in style() and '--accent-l:#0f766e;' not in style() and '#7c3aed' in stored().split('site_palettes')[1] and "light_accent: ''" in stored() or 'light_accent: \'\'' in stored(), stored()[:600])
 post_theme(d(site_palettes=encode([brand]), site_palette='second', light_accent=''))
 check('deleting the palette in use returns the page to the ready-made palette', '--accent-l:#0f766e;' not in style() and '--n-bg:' not in style(), style()[:200])
 post_theme(d(site_palettes=encode([brand]), site_palette=''))
@@ -120,7 +120,48 @@ post_theme(d(duo_url=DUO, duo_picker=None))  # the toggle is left out: off
 before = len(HITS)
 st, _, body = root.get('/admin/theme?palette=duo')
 check('switched off, the picker is not offered and nothing is asked', json.loads(body).get('ok') is False and len(HITS) == before, body[:200])
-check('and the screen hides it', 'data-pl-duo-box' not in root.get('/admin/theme?tab=branding')[2] or re.search(r'data-pl-duo-box[^>]*hidden', root.get('/admin/theme?tab=branding')[2]) is not None)
+check('and the screen shows the switch off', re.search(r'<input[^>]*type="checkbox"[^>]*name="theme_settings\[design\]\[duo_picker\]"[^>]*checked', root.get('/admin/theme?tab=branding')[2]) is None)
+
+# ---- one place for colours: the screen, Customise, Fix, the migration on load, and who may do it
+root.submit('/admin/users-edit', lambda f: any(x[0] == 'username' for x in f['fields']), {'username': 'ed2', 'email': 'ed2@example.test', 'display_name': 'ed2', 'role': 'editor', 'status': 'active', 'password': 'Sturdy-pass-99', 'password_confirm': 'Sturdy-pass-99'})
+ed = Client(); ed.login('ed2', 'Sturdy-pass-99')
+screen = root.get('/admin/theme?tab=branding')[2]
+check('the Colour card has the palette row with + Custom', 'data-pl-chips' in screen and '+ Custom' in screen)
+check('and no per-role override fields under it', 'name="theme_settings[design][light_accent]"' not in screen and 'name="theme_settings[design][dark_secondary]"' not in screen and 'Reset colour overrides' not in screen)
+check('the Duo settings are in the "+ Custom" flow, not a section of their own', 'Colour pairings settings' not in screen and 'pl-set-body' in screen)
+check('the ready-made palettes are still plain radio buttons of the form', screen.count('name="theme_settings[appearance][palette]"') == 7, screen.count('name="theme_settings[appearance][palette]"'))
+post_theme({})
+st, _, body = root.request('/admin/theme?palette=copy', data=[('_csrf', token), ('builtin', 'teal'), ('taken[]', 'teal-custom')])
+cp = json.loads(body)
+check('Customise: a copy of Teal with a new id, its source, and the colours of Teal', st == 200 and cp['ok'] and cp['palette']['id'] == 'teal-custom-2' and cp['palette']['name'] == 'Teal (custom)' and cp['palette']['source'] == 'teal' and cp['palette']['light']['accent'] == '#0f766e', body[:200])
+st, _, body = root.request('/admin/theme?palette=copy', data=[('_csrf', token), ('builtin', 'nope')])
+check('only a ready-made palette can be copied', json.loads(body).get('ok') is False)
+st, _, body = root.request('/admin/theme?palette=fix', data=[('_csrf', token), ('colour', '#34d5c3'), ('against', '#ffffff'), ('min', '4.5')])
+fx = json.loads(body)
+check('Fix answers with the nearest shade that reads at AA', st == 200 and fx['ok'] and fx['ratio_before'] == 1.83 and fx['ratio_after'] >= 4.5 and fx['after'] != fx['before'], body[:200])
+edtoken = ''
+for f in ed.forms('/admin/profile') + ed.forms('/admin'):
+    edtoken = edtoken or next((x[1] for x in f['fields'] if x[0] == '_csrf'), '')
+for what, data in (('copy', [('builtin', 'teal')]), ('fix', [('colour', '#34d5c3'), ('against', '#fff')])):
+    st, _, body = ed.request('/admin/theme?palette=' + what, data=data + [('_csrf', edtoken)])
+    check('%s is refused to an editor, who may not change the theme (token %s)' % (what, 'sent' if edtoken else 'missing'), edtoken != '' and st in (302, 403) and '"palette"' not in body and '"after"' not in body, st)
+    st, _, body = pub.request('/admin/theme?palette=' + what, data=data)
+    check('and to someone who is not signed in (%s)' % what, st in (302, 403, 419) and '"after"' not in body, st)
+st, _, body = root.request('/admin/theme?palette=fix', data=[('colour', '#34d5c3'), ('against', '#fff')])
+check('a request without the form token is refused (fix)', st in (302, 403, 419) and '"after"' not in body, st)
+
+# an old site: overrides under a ready-made palette are folded on load, the page does not change, and it is stored once
+def put_settings(text):
+    c = sqlite3.connect('app/storage/db/app.sqlite'); c.execute("insert or replace into system_meta(key, value, updated_at) values('theme_settings', ?, '2026-10-16T00:00:00+00:00')", (text,)); c.commit(); c.close()
+put_settings("appearance:\n  palette: teal\ndesign:\n  light_accent: '#0e7490'\n  dark_accent: '#67e8f9'\n  dark_background: '#0d1a24'\n  light_secondary: '#b45309'\n")
+screen = root.get('/admin/theme?tab=branding')[2]
+check('on load the old overrides are a site palette "Teal (custom)" in use, with Teal as its source', 'Teal (custom)' in screen and '&quot;source&quot;:&quot;teal&quot;' in screen and 'value="teal-custom"' in screen, screen[:100])
+saved = stored()
+check('and they are stored that way, without the overrides', 'teal-custom' in saved and "light_accent: ''" in saved and "dark_background: ''" in saved and '#0e7490' in saved, saved[:300])
+css = style()
+check('the page has the colours the overrides gave it', '--accent-l:#0e7490;' in css and '--accent-d:#67e8f9;' in css and '--d-bg:#0d1a24;' in css and '--secondary-l:#b45309;' in css and 'data-theme="teal"' in pub.get('/about')[2], css[:300])
+root.get('/admin/theme?tab=branding')
+check('loading again changes nothing', stored() == saved)
 
 print('\nALL PASSED' if not fails else '\n%d FAILED: %s' % (len(fails), fails))
 sys.exit(1 if fails else 0)

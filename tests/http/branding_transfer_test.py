@@ -72,7 +72,7 @@ mine = stored()
 st, hdr, data = get_raw(root, '/admin/theme?branding=export')
 z = zipfile.ZipFile(io.BytesIO(data)) if st == 200 else None
 doc = json.loads(z.read('branding.json')) if z else {}
-check('export is a zip with branding.json of all design settings', st == 200 and 'zip' in (hdr.get('Content-Type') or '') and doc.get('settings', {}).get('design', {}).get('h1_step') == '4' and doc['settings']['design']['light_accent'] == '#1d4ed8', (st, list(doc)))
+check('export is a zip with branding.json of all design settings (colours as a site palette, not as per-role overrides)', st == 200 and 'zip' in (hdr.get('Content-Type') or '') and doc.get('settings', {}).get('design', {}).get('h1_step') == '4' and doc['settings']['design']['light_accent'] == '' and '"accent":"#1d4ed8"' in doc['settings']['design']['site_palettes'] and doc['settings']['design']['site_palette'] == 'slate-custom', (st, list(doc)))
 check('and only people who may change the theme can download it', [get_raw(ed, '/admin/theme?branding=export')[0] in (302, 403), get_raw(pub, '/admin/theme?branding=export')[0] in (302, 403)] == [True, True])
 exported = data
 

@@ -57,8 +57,7 @@ st, _, html = root.get('/admin/theme')
 labels = re.findall(r'role="tab"[^>]*data-tab="([a-z_]+)"[^>]*>([^<]+)</button>', html)
 check('Branding is the first tab and replaces Appearance and Brand', st == 200 and labels[0] == ('branding', 'Branding') and not any(k in ('appearance', 'brand', 'design') for k, _ in labels), labels)
 check('it is open first', re.search(r'class="[^"]*\bactive\b[^"]*" data-tab="branding"', html) is not None and 'name="active_tab" value="branding"' in html)
-for key in ('light_accent', 'light_background', 'light_surface', 'light_text', 'light_muted', 'light_border', 'dark_accent', 'dark_background', 'dark_surface', 'dark_text', 'dark_muted', 'dark_border', 'ink',
-            'heading_font', 'body_font', 'font_file', 'base_size', 'line_height', 'scale', 'heading_weight', 'heading_tracking', 'heading_leading', 'heading_case', 'heading_color',
+for key in ('heading_font', 'body_font', 'font_file', 'base_size', 'line_height', 'scale', 'heading_weight', 'heading_tracking', 'heading_leading', 'heading_case', 'heading_color',
             'container', 'reading_width', 'gutter', 'section_space', 'header_height', 'spacing', 'radius', 'button_radius', 'shadows', 'button_height', 'button_pad', 'button_size', 'button_weight', 'button_case'):
     if ('name="theme_settings[design][%s]"' % key) not in html:
         check('a field for ' + key, False)
@@ -70,9 +69,10 @@ check('and for the logo, its dark version, the sizes, the icons, the browser col
     'logo', 'logo_dark', 'show_name', 'logo_height', 'logo_height_mobile', 'footer_logo_height', 'name_size', 'favicon', 'touch_icon', 'theme_color', 'share_image')))
 check('and for palette, mode, font pairing, corners and decoration', all(('name="theme_settings[appearance][%s]"' % k) in html for k in ('palette', 'mode', 'font', 'shape', 'glow')))
 check('the palettes are chips with a dot of their colour', html.count('class="bp-pal"') == 1 and len(re.findall(r'name="theme_settings\[appearance\]\[palette\]" value="[a-z]+"', html)) == 7)
-check('colours can be picked and typed and cleared', html.count('data-colour') >= 13 and 'type="color"' in html and 'lc-colour-x' in html)
+check('colours can be picked and typed and cleared', html.count('data-colour') >= 5 and 'type="color"' in html and 'lc-colour-x' in html)
 check('numbers say their unit and may be empty', 'class="bp-num"' in html and 'class="lc-unit"' in html and re.search(r'name="theme_settings\[design\]\[radius\]" value=""', html) is not None)
-check('the colours are a table that says what is light and what is dark', '<table class="bp-colours">' in html and 'scope="col">Light<' in html and 'scope="col">Dark<' in html and 'scope="row">Accent<' in html)
+check('the colours of a palette are a table that says what is light and what is dark', 'data-pl-roles' in html and 'scope="col">Light<' in html and 'scope="col">Dark<' in html)
+check('the Colour card has no colour fields of its own besides the palette and the headings', 'name="theme_settings[design][light_accent]"' not in html and 'name="theme_settings[design][dark_background]"' not in html and 'name="theme_settings[design][ink]"' not in html)
 check('the real site is shown in a frame beside it, with a size and a mode to choose', 'data-bp-frame' in html and 'title="Preview of the site"' in html and html.count('data-bp-size') >= 3 and html.count('data-bp-mode') >= 3)
 check('it asks for the preview at the address of the screen, and loads its script', 'data-endpoint="' in html and 'theme?preview=branding' in html and 'admin-branding.js' in html and html.count('js/admin-preview.js') == 1)
 js = root.get('/assets/js/admin-preview.js')
@@ -104,16 +104,16 @@ check('style samples require theme access', ed.get('/admin/theme?preview=styles'
 # ---- saving: colours
 (res, hdr, _), sent = post_theme({**d(light_accent='#C026D3', dark_accent='93c5fd', light_background='#fffdf8', ink='#323130'), **b(theme_color='#1e293b')})
 check('saving returns to the Branding tab', res == 302 and 'tab=branding' in (hdr.get('Location') or ''), (res, hdr.get('Location')))
-check('the colours are stored as #rrggbb in lower case', all(x in stored() for x in ("light_accent: '#c026d3'", "dark_accent: '#93c5fd'", "light_background: '#fffdf8'", "ink: '#323130'")), stored()[:600])
+check('colours sent the old way become a site palette on top of the ready-made one, stored as #rrggbb in lower case, and the override fields stay empty', all(x in stored() for x in ('"accent":"#c026d3"', '"accent":"#93c5fd"', '"background":"#fffdf8"', '"ink":"#323130"', 'Slate (custom)', "light_accent: ''", "ink: ''")), stored()[:900])
 css = style(page())
 check('the page has them in a style of its own, with the shades worked out', '--accent-l:#c026d3;' in css and '--accent-l-hover:' in css and '--accent-l-soft:' in css and '--accent-d:#93c5fd;' in css and '--n-bg:#fffdf8;' in css and '--ink:#323130;' in css and '--ink-rgb:50 49 48;' in css, css[:300])
 html = page()
 check('after the theme\'s style sheet and before the site\'s own', html.index('site.css') < html.index('id="faros-branding"'), None)
 check('and the browser colour is in the head', '<meta name="theme-color" content="#1e293b">' in html)
 (res, hdr, _), _ = post_theme(d(light_accent='not a colour', light_text='red', light_surface='#12'))
-check('a colour that is not hex keeps what was there', "light_accent: '#c026d3'" in stored() and 'light_text' in stored() and "light_text: ''" in stored() and "light_surface: ''" in stored(), stored()[:600])
-(res, hdr, _), _ = post_theme(d(light_accent='', dark_accent='', light_background='', ink=''))
-check('emptying a colour gives it back to the palette', style(page()) == '', style(page())[:200])
+check('a colour that is not hex changes nothing', '"accent":"#c026d3"' in stored() and 'not a colour' not in stored() and '"text"' not in stored().split('site_palettes')[1].split('site_palette:')[0], stored()[:900])
+(res, hdr, _), _ = post_theme(d(site_palette='', site_palettes=''))
+check('taking the site palette away gives the page back to the ready-made palette', style(page()) == '', style(page())[:200])
 
 # ---- saving: type, spacing, shape, buttons
 (res, hdr, _), _ = post_theme({**d(heading_font='geometric', body_font='slab', base_size='18', scale='1.25', line_height='1.8', heading_weight='800', heading_tracking='wide', heading_leading='tight', heading_case='uppercase',

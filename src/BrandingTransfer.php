@@ -9,7 +9,8 @@ namespace FarosCMS;
  *
  *  - export: a zip with `branding.json` (the `appearance` and `design` settings, whole) and the font files they refer to
  *    (`assets/...`, from the site's custom/assets). The tree is exported as it is, with no list of keys, so whatever fields
- *    the theme gains (fonts, site palettes, links, buttons) travel too.
+ *    the theme gains (fonts, site palettes, links, buttons) travel too. A file from before the palettes were the one place for
+ *    colours (per-role overrides under `design`) is converted on import into a site palette.
  *  - import: reads a zip or a JSON file, shows what would change (preview), and applies it. Only keys the theme declares are
  *    taken, each checked by the settings schema; the rest is reported as skipped. Settings that were there before are kept as a
  *    backup, and undo puts them back.
@@ -311,6 +312,8 @@ final class BrandingTransfer
             }
             $next[$tree] = FieldSchema::resolve($schema[$tree]['fields'], $values);
         }
+        // A file from before 0.1.143 carries per-role colour overrides; they become a site palette, as on the site they came from.
+        $next = SitePalettes::followSource(SitePalettes::fold($next));
         return [$next, $skipped];
     }
 

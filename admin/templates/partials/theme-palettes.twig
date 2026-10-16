@@ -1,83 +1,114 @@
 {#
-  The palette studio of Theme > Branding > Colour (public/assets/js/admin-palettes.js draws it):
-    - the palettes made on this site, as chips next to the ready-made ones, each with its six roles for light and dark to fine-tune;
-    - a generator: two colours (an accent and a base, the background or the ink) make a whole palette;
-    - the Duo colour pairings, fetched live by the server when the picker is opened (never part of the code or the public site).
-  Everything is in the Theme form: two hidden fields hold the palettes (JSON) and the one in use. Nothing is stored until Save.
+  The palette of Theme > Branding > Colour: the one place where the colours of the site are set (public/assets/js/admin-palettes.js draws it).
+    - one row of chips: the ready-made palettes, the palettes made on this site, and "+ Custom"; exactly one is in use;
+    - a ready-made palette is shown read-only, with a Customise button that copies it into a palette of the site;
+    - a palette of the site opens its editor right here (every colour role for light and dark, rename, delete), with the contrast panel;
+    - "+ Custom" starts a new one: from two colours, from a colour pair of Duo (fetched live by the server when opened), or as a copy of a ready-made one.
+  Everything is in the Theme form: two hidden fields hold the palettes (JSON) and the one in use, and the ready-made palettes are
+  the plain radio buttons of the form (hidden once the script runs). Nothing is stored until Save.
 
   vd   the design values       pd   the prefix of the design field names       d   the design fields
+  a, va, pa, dots   the appearance fields, values, prefix, and the dot colour of each ready-made palette (from theme-branding.twig)
 #}
 {% import '@admin/partials/layout-controls.twig' as c %}
-<section class="pl" data-pl data-pl-endpoint="{{ url('admin/theme') }}" data-pl-csrf="{{ csrf_token() }}" data-pl-duo="{{ vd.duo_picker ? '1' : '0' }}" aria-labelledby="pl-title">
+<section class="pl" data-pl data-pl-endpoint="{{ url('admin/theme') }}" data-pl-csrf="{{ csrf_token() }}" data-pl-builtin="{{ info.palettes|json_encode|e('html_attr') }}" data-pl-default="{{ a.palette.default|default('slate') }}" aria-labelledby="pl-title">
   <input type="hidden" name="{{ pd }}site_palette]" value="{{ vd.site_palette }}" data-pl-active>
   <input type="hidden" name="{{ pd }}site_palettes]" value="{{ vd.site_palettes }}" data-pl-store>
 
-  <div class="pl-head">
-    <h3 id="pl-title" class="pl-title">Site palettes</h3>
-    <button type="button" class="pl-btn" data-pl-new aria-expanded="false" aria-controls="pl-studio">+ New from two colours</button>
+  <h3 id="pl-title" class="pl-title">Palette</h3>
+  <div class="pl-row">
+    <div class="pl-chips" data-pl-chips role="radiogroup" aria-label="Palette in use"></div>
+    <button type="button" class="pl-chip pl-add" data-pl-new aria-expanded="false" aria-controls="pl-create">+ Custom</button>
   </div>
-  <div class="pl-chips" data-pl-chips role="group" aria-label="Palettes made on this site"></div>
-  <p class="pl-hint" data-pl-none>None yet. Make one from two colours, or pick a pair from Duo below.</p>
+  {# Without the script this is the whole choice: the ready-made palettes. #}
+  <div data-pl-native>
+    {% if a.palette is defined %}{{ c.palette(pa ~ 'palette]', a.palette.options, va.palette, dots) }}{% endif %}
+  </div>
 
-  <div class="pl-panel" id="pl-studio" data-pl-studio hidden>
-    <div class="pl-pair">
-      <div class="pl-field"><span class="pl-label" id="pl-l-accent">Accent</span>
-        {{ c.colour('Accent for the generator', 'pl_accent', '#4338ca') }}</div>
-      <button type="button" class="pl-swap" data-pl-swap aria-label="Swap the two colours" title="Swap the two colours">&#8644;</button>
-      <div class="pl-field"><span class="pl-label" id="pl-l-base">Base</span>
-        {{ c.colour('Base for the generator', 'pl_base', '#f8fafc') }}</div>
-    </div>
-    <div class="lc-seg pl-role" role="radiogroup" aria-label="The base colour is">
-      <label><input type="radio" name="pl_role" data-pl-role value="background" checked><span>Background</span></label>
-      <label><input type="radio" name="pl_role" data-pl-role value="ink"><span>Ink (text)</span></label>
-    </div>
-    <div class="pl-field"><span class="pl-label">Secondary (optional)</span>
-      {{ c.colour('Secondary for the generator', 'pl_secondary', '') }}</div>
-    <div class="pl-result" data-pl-result aria-live="polite"></div>
+  {# A ready-made palette: its colours, read-only #}
+  <div class="pl-panel" data-pl-view="builtin" hidden>
     <div class="pl-actions">
-      <label class="pl-name"><span class="pl-label">Name</span><input type="text" class="lc-input" maxlength="40" data-pl-name placeholder="My palette" autocomplete="off"></label>
-      <button type="button" class="pl-btn pl-primary" data-pl-save>Save palette</button>
-      <button type="button" class="pl-btn" data-pl-cancel>Discard</button>
+      <p class="pl-hint pl-grow" data-pl-builtin-note></p>
+      <button type="button" class="pl-btn pl-primary" data-pl-customise>Customise</button>
+    </div>
+    <div class="pl-ro" data-pl-ro></div>
+  </div>
+
+  {# "+ Custom": three ways to start #}
+  <div class="pl-panel" id="pl-create" data-pl-view="create" hidden>
+    <div class="lc-seg pl-start" role="radiogroup" aria-label="Start from">
+      <label><input type="radio" name="pl_start" value="colours" data-pl-start checked><span>Two colours</span></label>
+      <label><input type="radio" name="pl_start" value="duo" data-pl-start><span>Duo pairs</span></label>
+      <label><input type="radio" name="pl_start" value="copy" data-pl-start><span>Copy of a ready-made one</span></label>
+    </div>
+
+    <div class="pl-pane" data-pl-pane="colours">
+      <div class="pl-pair">
+        <div class="pl-field"><span class="pl-label" id="pl-l-accent">Accent</span>
+          {{ c.colour('Accent for the generator', 'pl_accent', '#4338ca') }}</div>
+        <button type="button" class="pl-swap" data-pl-swap aria-label="Swap the two colours" title="Swap the two colours">&#8644;</button>
+        <div class="pl-field"><span class="pl-label" id="pl-l-base">Base</span>
+          {{ c.colour('Base for the generator', 'pl_base', '#f8fafc') }}</div>
+        <div class="pl-field"><span class="pl-label">Secondary (optional)</span>
+          {{ c.colour('Secondary for the generator', 'pl_secondary', '') }}</div>
+      </div>
+      <div class="lc-seg pl-role" role="radiogroup" aria-label="The base colour is">
+        <label><input type="radio" name="pl_role" data-pl-role value="background" checked><span>Background</span></label>
+        <label><input type="radio" name="pl_role" data-pl-role value="ink"><span>Ink (text)</span></label>
+      </div>
+      <div class="pl-result" data-pl-result aria-live="polite"></div>
+      <div class="pl-actions">
+        <label class="pl-name"><span class="pl-label">Name</span><input type="text" class="lc-input" maxlength="40" data-pl-name placeholder="My palette" autocomplete="off"></label>
+        <button type="button" class="pl-btn pl-primary" data-pl-save>Create palette</button>
+        <button type="button" class="pl-btn" data-pl-cancel>Cancel</button>
+      </div>
+    </div>
+
+    <div class="pl-pane" data-pl-pane="duo" hidden>
+      <div data-pl-duo-box>
+        <label class="pl-aa"><input type="checkbox" data-pl-aa> Only AA pairs</label>
+        <p class="pl-hint" data-pl-duo-note>Opens the list from Duo.</p>
+        <div class="pl-grid" data-pl-grid role="group" aria-label="Colour pairs. Pick one to fill the two colours."></div>
+        <p class="pl-credit"><a href="https://duo.alexpate.com" target="_blank" rel="noopener noreferrer">Colour pairings from Duo by Alex Pate</a></p>
+      </div>
+      <div class="pl-set">
+        <button type="button" class="pl-disc" data-pl-disc aria-expanded="false" aria-controls="pl-set-body">Settings</button>
+        <div id="pl-set-body" hidden>
+          <dl class="m-0 space-y-2.5 mt-2">
+            {% if d.duo_picker is defined %}{{ c.toggles(d.duo_picker.label, [[pd ~ 'duo_picker]', 'Show the Duo pairs', vd.duo_picker]]) }}{% endif %}
+            {% if d.duo_url is defined %}{{ c.text(d.duo_url, pd ~ 'duo_url]', vd.duo_url) }}{% endif %}
+          </dl>
+          <p class="pl-hint">The list is fetched by the server when this tab is opened and kept for 7 days. The public site never contacts Duo.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="pl-pane" data-pl-pane="copy" hidden>
+      <p class="pl-hint">A copy of a ready-made palette that you can change. Pick one:</p>
+      <div class="pl-chips" data-pl-copy role="group" aria-label="Ready-made palettes to copy"></div>
     </div>
   </div>
 
-  <div class="pl-panel" data-pl-edit hidden>
+  {# A palette of the site: the one editor of the colours #}
+  <div class="pl-panel" data-pl-view="edit" hidden>
     <div class="pl-actions">
       <label class="pl-name"><span class="pl-label">Name</span><input type="text" class="lc-input" maxlength="40" data-pl-rename autocomplete="off"></label>
       <button type="button" class="pl-btn" data-pl-regen>Make again from two colours</button>
       <button type="button" class="pl-btn pl-danger" data-pl-delete>Delete palette</button>
     </div>
     <table class="bp-colours pl-roles" data-pl-roles>
-      <caption class="sr-only">The colours of this palette. Changing one changes the palette; the badge is its contrast on the background.</caption>
+      <caption class="sr-only">The colours of this palette. Changing one changes the palette and the preview; the badge is its contrast on the background.</caption>
       <thead><tr><th scope="col"><span class="sr-only">Role</span></th><th scope="col">Light</th><th scope="col">Dark</th></tr></thead>
       <tbody></tbody>
     </table>
-  </div>
-
-  {% if d.duo_picker is defined %}
-    <div class="pl-duo" data-pl-duo-box{% if not vd.duo_picker %} hidden{% endif %}>
-      <button type="button" class="pl-disc" data-pl-disc aria-expanded="false" aria-controls="pl-duo-body">Colour pairings from Duo</button>
-      <div class="pl-duo-body" id="pl-duo-body" hidden>
-        <label class="pl-aa"><input type="checkbox" data-pl-aa> Only AA pairs</label>
-        <p class="pl-hint" data-pl-duo-note>Opens the list from Duo.</p>
-        <div class="pl-grid" data-pl-grid role="group" aria-label="Colour pairs. Pick one to fill the generator."></div>
-        <p class="pl-credit"><a href="https://duo.alexpate.com" target="_blank" rel="noopener noreferrer">Colour pairings from Duo by Alex Pate</a></p>
-      </div>
-    </div>
-  {% endif %}
-  <div class="pl-set">
-    <button type="button" class="pl-disc" data-pl-disc aria-expanded="false" aria-controls="pl-set-body">Colour pairings settings</button>
-    <div id="pl-set-body" hidden>
-    <dl class="m-0 space-y-2.5 mt-2">
-      {% if d.duo_picker is defined %}{{ c.toggles(d.duo_picker.label, [[pd ~ 'duo_picker]', 'Show the Duo picker', vd.duo_picker]]) }}{% endif %}
-      {% if d.duo_url is defined %}{{ c.text(d.duo_url, pd ~ 'duo_url]', vd.duo_url) }}{% endif %}
-    </dl>
-    <p class="pl-hint">The list is fetched by the server when the picker is opened and kept for 7 days. The public site never contacts Duo.</p>
-    </div>
+    <p class="pl-hint">Hover and soft shades, and the text on the accent, are worked out from the colours. Empty optional colours stay as the theme has them.</p>
   </div>
 
   <div class="pl-contrast" data-pl-contrast aria-live="polite">
-    <h3 class="pl-title">Contrast</h3>
+    <div class="pl-head">
+      <h3 class="pl-title">Contrast</h3>
+      <button type="button" class="pl-btn" data-pl-fixall hidden>Fix all</button>
+    </div>
     <p class="pl-hint" data-pl-contrast-note>Reading the preview…</p>
     <div class="pl-cols" data-pl-contrast-rows></div>
   </div>
