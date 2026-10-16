@@ -32,6 +32,8 @@ In the admin: **Theme** has a tab per section plus *Branding* (identity, colours
 
 Colour and font choices go further than the palette: `design.light_accent`, `design.dark_accent`, `design.heading_font`, `design.body_font`, `design.scale`, `design.container`, `design.radius`… (`#rrggbb`; empty means "the theme's own").
 
+**Your own fonts** (a client's brand typeface) are a screen job for a person, because font files must be uploaded: Theme > Branding > Typography > *Your own fonts*. There they add the files of a family (WOFF2 is best; WOFF, TTF and OTF work), check the weight and style of each file (read from the file and editable), see which scripts it covers (Latin, Greek, Greek Extended, Cyrillic, symbols) and a Greek and Latin sample, then set Headings or Text to *Your own font* and choose the family. The settings are `design.fonts` (a list of `{family, file, weight, style, range, cover, adjust, v}`, the file being a path under `custom/assets/`, for example `fonts/acme/acme-400-1a2b3c4d.woff2`), `design.heading_family` and `design.body_family`; `design.heading_font: custom` / `design.body_font: custom` make a role use its family. Do not write `design.fonts` by hand: the upload fills in the rest. On a Greek site, tell the person if the chosen family has no Greek: the screen warns about it. The single `design.font_file` of earlier versions keeps working.
+
 ## Site settings: `site_settings`
 
 Admin > **Settings** (System menu), tabs General, Email / SMTP, Auth, Backups, Updates, APIs, Limits (superadmin only).

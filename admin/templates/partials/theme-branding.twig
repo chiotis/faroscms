@@ -35,7 +35,7 @@
 } %}
 {% set known_a = ['mode', 'palette', 'font', 'glow', 'shape'] %}
 {% set known_b = ['logo', 'logo_dark', 'show_name', 'logo_height', 'logo_height_mobile', 'footer_logo_height', 'name_size', 'favicon', 'touch_icon', 'theme_color', 'share_image'] %}
-{% set known_d = ['light_accent', 'light_background', 'light_surface', 'light_text', 'light_muted', 'light_border', 'dark_accent', 'dark_background', 'dark_surface', 'dark_text', 'dark_muted', 'dark_border', 'light_secondary', 'dark_secondary', 'site_palette', 'site_palettes', 'duo_picker', 'duo_url', 'ink', 'heading_font', 'body_font', 'font_file', 'base_size', 'line_height', 'scale', 'heading_weight', 'heading_tracking', 'heading_leading', 'heading_case', 'heading_color', 'heading_color_light', 'heading_color_dark', 'container', 'reading_width', 'gutter', 'section_space', 'header_height', 'spacing', 'radius', 'button_radius', 'shadows', 'button_height', 'button_pad', 'button_size', 'button_weight', 'button_case', 'link_color', 'link_hover', 'link_color_dark', 'link_hover_dark', 'link_underline', 'link_thickness', 'link_offset', 'btn_primary_bg', 'btn_primary_text', 'btn_primary_border', 'btn_primary_hover_bg', 'btn_primary_hover_text', 'btn_primary_hover_border', 'btn_primary_border_width', 'btn_primary_radius', 'btn_secondary_bg', 'btn_secondary_text', 'btn_secondary_border', 'btn_secondary_hover_bg', 'btn_secondary_hover_text', 'btn_secondary_hover_border', 'btn_secondary_border_width', 'btn_secondary_radius', 'btn_text_bg', 'btn_text_text', 'btn_text_border', 'btn_text_hover_bg', 'btn_text_hover_text', 'btn_text_hover_border', 'btn_text_border_width', 'btn_text_radius', 'light_secondary', 'dark_secondary', 'h1_step', 'h1_weight', 'h1_leading', 'h1_tracking', 'h2_step', 'h2_weight', 'h2_leading', 'h2_tracking', 'h3_step', 'h3_weight', 'h3_leading', 'h3_tracking', 'lead_step', 'lead_weight', 'lead_leading', 'lead_tracking', 'small_step', 'small_weight', 'small_leading', 'small_tracking', 'body_weight', 'paragraph_space', 'input_bg', 'input_border', 'input_border_width', 'label_size', 'label_weight', 'input_ring', 'error_style', 'radius_card', 'radius_image', 'radius_input', 'border_width', 'mobile_gutter', 'mobile_section_space'] %}
+{% set known_d = ['light_accent', 'light_background', 'light_surface', 'light_text', 'light_muted', 'light_border', 'dark_accent', 'dark_background', 'dark_surface', 'dark_text', 'dark_muted', 'dark_border', 'light_secondary', 'dark_secondary', 'site_palette', 'site_palettes', 'duo_picker', 'duo_url', 'ink', 'heading_font', 'body_font', 'font_file', 'heading_family', 'body_family', 'fonts', 'base_size', 'line_height', 'scale', 'heading_weight', 'heading_tracking', 'heading_leading', 'heading_case', 'heading_color', 'heading_color_light', 'heading_color_dark', 'container', 'reading_width', 'gutter', 'section_space', 'header_height', 'spacing', 'radius', 'button_radius', 'shadows', 'button_height', 'button_pad', 'button_size', 'button_weight', 'button_case', 'link_color', 'link_hover', 'link_color_dark', 'link_hover_dark', 'link_underline', 'link_thickness', 'link_offset', 'btn_primary_bg', 'btn_primary_text', 'btn_primary_border', 'btn_primary_hover_bg', 'btn_primary_hover_text', 'btn_primary_hover_border', 'btn_primary_border_width', 'btn_primary_radius', 'btn_secondary_bg', 'btn_secondary_text', 'btn_secondary_border', 'btn_secondary_hover_bg', 'btn_secondary_hover_text', 'btn_secondary_hover_border', 'btn_secondary_border_width', 'btn_secondary_radius', 'btn_text_bg', 'btn_text_text', 'btn_text_border', 'btn_text_hover_bg', 'btn_text_hover_text', 'btn_text_hover_border', 'btn_text_border_width', 'btn_text_radius', 'light_secondary', 'dark_secondary', 'h1_step', 'h1_weight', 'h1_leading', 'h1_tracking', 'h2_step', 'h2_weight', 'h2_leading', 'h2_tracking', 'h3_step', 'h3_weight', 'h3_leading', 'h3_tracking', 'lead_step', 'lead_weight', 'lead_leading', 'lead_tracking', 'small_step', 'small_weight', 'small_leading', 'small_tracking', 'body_weight', 'paragraph_space', 'input_bg', 'input_border', 'input_border_width', 'label_size', 'label_weight', 'input_ring', 'error_style', 'radius_card', 'radius_image', 'radius_input', 'border_width', 'mobile_gutter', 'mobile_section_space'] %}
 {% set roles = [['accent', 'Accent'], ['background', 'Background'], ['surface', 'Surface'], ['text', 'Text'], ['muted', 'Muted text'], ['border', 'Border'], ['secondary', 'Secondary (optional)']] %}
 {% set defaults = {} %}
 {# These defaults are known only for the bundled theme without a site stylesheet that may override them. #}
@@ -166,9 +166,9 @@
             {% if a.font is defined %}{{ c.choice(a.font, pa ~ 'font]', va.font, 'select', {}) }}{% endif %}
             {% if d.heading_font is defined %}{{ c.choice(d.heading_font, pd ~ 'heading_font]', vd.heading_font, 'select', {}) }}{% endif %}
             {% if d.body_font is defined %}{{ c.choice(d.body_font, pd ~ 'body_font]', vd.body_font, 'select', {}) }}{% endif %}
-            {% if d.font_file is defined %}
+            {% if d.font_file is defined and vd.font_file|trim != '' %}
               <div class="lc-row" data-bp-custom-font>
-                <dt><label for="f-font-file">{{ d.font_file.label }}</label></dt>
+                <dt><label for="f-font-file">{{ d.font_file.label }} <small>(earlier setting)</small></label></dt>
                 <dd class="m-0">
                   <input id="f-font-file" type="text" name="{{ pd }}font_file]" value="{{ vd.font_file }}" placeholder="{{ d.font_file.placeholder }}" class="lc-input">
                   <span class="mt-1 block text-[11px] leading-4 text-slate-500">{{ d.font_file.help }}
@@ -178,6 +178,7 @@
               </div>
             {% endif %}
           </dl>
+          {% if d.fonts is defined %}{% include '@admin/partials/theme-fonts.twig' %}{% endif %}
           <div class="bp-nums">
             {% if d.base_size is defined %}{{ c.num(d.base_size, pd ~ 'base_size]', vd.base_size, 'px') }}{% endif %}
             {% if d.line_height is defined %}{{ c.num(d.line_height, pd ~ 'line_height]', vd.line_height, '') }}{% endif %}
@@ -275,4 +276,5 @@
 <script src="{{ asset('js/admin-branding.js') }}" defer></script>
 <script src="{{ asset('js/admin-palettes.js') }}" defer></script>
 <script src="{{ asset('js/admin-branding-buttons.js') }}" defer></script>
+<script src="{{ asset('js/admin-branding-fonts.js') }}" defer></script>
 <script src="{{ asset('js/admin-branding-transfer.js') }}" defer></script>
