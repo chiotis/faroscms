@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.141 — 2026-10-16 — Branding: type per element, forms, corners, shadows, phones, export and import
+- **Type per element**: in *Typography > Sizes per element*, H1, H2, H3, the lead paragraph and small text can each take a size, weight, line height and letter spacing. The size is a *step* of the scale (5 largest to 0 for text), not pixels, so headings stay fluid and still follow *Text size* and *Heading scale*. H4 to H6 follow the scale. New: text weight and the space between paragraphs.
+- **Forms**: a new *Forms* card sets the field background, border colour and width, label size and weight, and how focus and errors look. They apply to the public forms, the form block and the search field. The choices are built from your palette, so the text keeps its contrast; focus is always a visible ring (the theme's, an accent outline, or a high-contrast outline), and errors do not rely on colour alone.
+- **Corners, borders and shadows**: separate corner radius for cards, images and form fields (empty follows *Corner radius*), a border width for cards (none, 1, 2 or 3 px) and four shadow choices: *None*, *Soft*, *Medium* and *Strong*. Shadows you had already chosen (*None*, *Strong*) look exactly as before.
+- **Phones**: an optional *Phones* card sets the side margin and the space between sections on screens up to 640 px. Left empty, the automatic sizes stay.
+- **Export, import and reset**: *Branding > Export, import and reset* downloads your whole Branding as a zip (with the custom font files it uses) to reuse on another site. Importing shows exactly what would change first, keeps a backup of the settings you had, and can be undone in one click. Each section (Colour, Typography, Layout, Shape, Forms, Buttons) can also be reset to the theme defaults and saved, and undone. Only people who may change the theme can use these.
+- **Nothing changes until you choose something.** A site that sets none of these gets exactly the CSS it had; the live preview follows every new choice. Documented in `docs/theming.md` and the FarosCMS skill.
+
 ## 0.1.140 — 2026-10-16 — Branding: your own font families
 - **Theme > Branding > Typography has *Your own fonts*.** Upload the files of a typeface (WOFF2 is best; WOFF, TTF and OTF work too, with a hint that WOFF2 downloads faster), give the family a name, and choose it for Headings and for Text by setting that font to *Your own font*. Headings and text can use different families.
 - **Each file is tagged with its weight and style**, read from the file (a variable font's weight range, the name such as *SemiBold*, or the font's own table) and editable. A family can have regular, bold, italic and any other weights.

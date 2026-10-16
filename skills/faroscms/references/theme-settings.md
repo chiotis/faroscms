@@ -1,4 +1,4 @@
-# Theme settings of this installation (FarosCMS 0.1.140)
+# Theme settings of this installation (FarosCMS 0.1.141)
 
 Set with `python3 scripts/site_settings.py set theme section.field=value`. A text marked *translatable* takes a plain text or a map `{default: …, en: …}`.
 
@@ -115,7 +115,7 @@ Set with `python3 scripts/site_settings.py set theme section.field=value`. A tex
 | `spacing` | select; one of `auto`, `tight`, `airy`, `roomy` | auto | Spacing |
 | `radius` | number; 0 to 48 | (empty) | Corner radius. Empty follows Corners. |
 | `button_radius` | select; one of `auto`, `pill`, `rounded`, `square` | auto | Button corners |
-| `shadows` | select; one of `auto`, `none`, `strong` | auto | Shadows |
+| `shadows` | select; one of `auto`, `none`, `soft`, `medium`, `strong` | auto | Shadows |
 | `button_height` | number; 28 to 80 | (empty) | Button height |
 | `button_pad` | number; 8 to 80 | (empty) | Button side padding |
 | `button_size` | number; 11 to 24 | (empty) | Button text size |
@@ -152,6 +152,41 @@ Set with `python3 scripts/site_settings.py set theme section.field=value`. A tex
 | `btn_text_hover_border` | text | (empty) | Text hover border |
 | `btn_text_border_width` | select; one of `auto`, `0`, `1`, `2`, `3` | auto | Text border width |
 | `btn_text_radius` | select; one of `auto`, `pill`, `rounded`, `square` | auto | Text corners |
+| `h1_step` | select; one of `auto`, `5`, `4`, `3`, `2`, `1`, `0`, `-1`, `-2` | auto | H1 size |
+| `h1_weight` | select; one of `auto`, `300`, `400`, `500`, `600`, `700`, `800` | auto | H1 weight |
+| `h1_leading` | select; one of `auto`, `tight`, `normal`, `relaxed`, `loose` | auto | H1 line height |
+| `h1_tracking` | select; one of `auto`, `tighter`, `tight`, `normal`, `wide` | auto | H1 letter spacing |
+| `h2_step` | select; one of `auto`, `5`, `4`, `3`, `2`, `1`, `0`, `-1`, `-2` | auto | H2 size |
+| `h2_weight` | select; one of `auto`, `300`, `400`, `500`, `600`, `700`, `800` | auto | H2 weight |
+| `h2_leading` | select; one of `auto`, `tight`, `normal`, `relaxed`, `loose` | auto | H2 line height |
+| `h2_tracking` | select; one of `auto`, `tighter`, `tight`, `normal`, `wide` | auto | H2 letter spacing |
+| `h3_step` | select; one of `auto`, `5`, `4`, `3`, `2`, `1`, `0`, `-1`, `-2` | auto | H3 size |
+| `h3_weight` | select; one of `auto`, `300`, `400`, `500`, `600`, `700`, `800` | auto | H3 weight |
+| `h3_leading` | select; one of `auto`, `tight`, `normal`, `relaxed`, `loose` | auto | H3 line height |
+| `h3_tracking` | select; one of `auto`, `tighter`, `tight`, `normal`, `wide` | auto | H3 letter spacing |
+| `lead_step` | select; one of `auto`, `5`, `4`, `3`, `2`, `1`, `0`, `-1`, `-2` | auto | Lead paragraph size |
+| `lead_weight` | select; one of `auto`, `300`, `400`, `500`, `600`, `700`, `800` | auto | Lead paragraph weight |
+| `lead_leading` | select; one of `auto`, `tight`, `normal`, `relaxed`, `loose` | auto | Lead paragraph line height |
+| `lead_tracking` | select; one of `auto`, `tighter`, `tight`, `normal`, `wide` | auto | Lead paragraph letter spacing |
+| `small_step` | select; one of `auto`, `5`, `4`, `3`, `2`, `1`, `0`, `-1`, `-2` | auto | Small text size |
+| `small_weight` | select; one of `auto`, `300`, `400`, `500`, `600`, `700`, `800` | auto | Small text weight |
+| `small_leading` | select; one of `auto`, `tight`, `normal`, `relaxed`, `loose` | auto | Small text line height |
+| `small_tracking` | select; one of `auto`, `tighter`, `tight`, `normal`, `wide` | auto | Small text letter spacing |
+| `body_weight` | select; one of `auto`, `300`, `400`, `500` | auto | Text weight |
+| `paragraph_space` | select; one of `auto`, `tight`, `normal`, `relaxed`, `loose` | auto | Space between paragraphs |
+| `input_bg` | select; one of `auto`, `background`, `surface`, `surface_2` | auto | Field background |
+| `input_border` | select; one of `auto`, `strong`, `muted`, `text`, `accent` | auto | Field border colour |
+| `input_border_width` | select; one of `auto`, `thin`, `medium` | auto | Field border width |
+| `label_size` | select; one of `auto`, `small`, `normal`, `large` | auto | Label size |
+| `label_weight` | select; one of `auto`, `400`, `500`, `600`, `700` | auto | Label weight |
+| `input_ring` | select; one of `auto`, `outline`, `high` | auto | Field focus |
+| `error_style` | select; one of `auto`, `strong`, `tinted` | auto | Errors |
+| `radius_card` | number; 0 to 48 | (empty) | Card corners |
+| `radius_image` | number; 0 to 48 | (empty) | Image corners |
+| `radius_input` | number; 0 to 48 | (empty) | Field corners |
+| `border_width` | select; one of `auto`, `none`, `thin`, `medium`, `thick` | auto | Card border |
+| `mobile_gutter` | number; 8 to 60 | (empty) | Side margin on phones |
+| `mobile_section_space` | number; 16 to 160 | (empty) | Space between sections on phones. Pixels on a typical phone; the sections grow a little on larger ones. |
 
 ## `social` — Social profiles
 
