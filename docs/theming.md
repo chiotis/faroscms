@@ -137,7 +137,7 @@ First block family:
 | `testimonials` | grid, featured | `<figure>`/`<blockquote>`; initials when there is no photo. |
 | `logos` | row, grid | Image logos or text wordmarks, spread over the whole width of the content however many there are (one row up to the most that fit; more in rows of the same length). `size`: the height of the logos, small (2.5 rem), medium (4 rem, the default), large or extra large; the taller they are the fewer fit in a row (7, 5, 4 or 3), and on a phone the heights are smaller. `colors`: black and white with colour on hover (the default), always black and white, or their own colours. |
 | `columns` | image-side, image-top | Two or three columns side by side, each with a label, a heading (a link when it has an address), a picture, text and a link; stacks on a phone. |
-| `faq` | stacked, split | Native `<details>`; adds `FAQPage` structured data. |
+| `faq` | stacked, split | Native `<details>`; adds `FAQPage` structured data. The page can open with all answers closed (default) or the first one open (`initial: first`, the same choice as the Accordion; the old `open_first: true` still works). |
 | `accordion` | (one layout) | Compact `<details>` items for narrow columns, with titles one small step above the body text; no structured data (use `faq` for a page of questions). Options in the Design tab: several open at once (default on; off adds a small script and a shared `name`), chevron or plus/minus icon, lines or separate cards. The page can open with the first item open. The height change is animated by a small script and skipped when a visitor asks for less motion. |
 | `cta` | band, card, split | Default tone: accent. |
 | `cards` | grid, list | Latest items of a content type, or hand-written cards. |

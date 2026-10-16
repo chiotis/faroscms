@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.135 — 2026-10-16 — FAQ block: how the page opens
+- **The FAQ block has the same choice as the Accordion: *When the page opens*, with *All closed* (the default) or *First item open*.** It replaces the old *Open the first answer* switch, in the same place (the *Content* tab), and works in every layout (single column and heading beside the questions), with or without JavaScript. The FAQ structured data for search engines is unchanged.
+- **Nothing changes for existing pages.** A page that had *Open the first answer* on still opens the first answer, and the editor shows it as *First item open*; the default writes nothing to the page. Described in `docs/theming.md` and the FarosCMS skill.
+
 ## 0.1.134 — 2026-10-16 — Image block: picture width
 - **The Image block can show a picture narrower than its column.** In the *Design* tab, *Picture width* offers chips (25, 33, 50, 66, 75, 100 %) and a number box with a **% / px** switch: a percentage of the column (10 to 100) or a fixed size in pixels (40 to 2000). The height always follows the picture, so nothing is cropped or stretched. A picture in pixels is never wider than its column.
 - **Position**: a narrower picture sits on the left, in the middle (the default) or on the right; the caption follows its width and position. Both choices appear only while the picture is narrower than its column.
