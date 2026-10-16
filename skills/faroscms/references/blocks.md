@@ -1,4 +1,4 @@
-# Blocks of this installation (FarosCMS 0.1.131)
+# Blocks of this installation (FarosCMS 0.1.133)
 
 ## Fields every block has
 
@@ -37,6 +37,24 @@ Container `settings` (all optional): `direction` (`row`, `row-reverse`), `justif
 Column `settings` (all optional): `width` (`fill` = an equal share, the default; `auto`; a fraction like `1/3` or `2/3`; a percentage like `37%`; a fixed size like `20rem` or `320px`), `min_width`, `max_width`, `grow`, `shrink`, `basis` (set any of these and the column is `flex: grow shrink basis`, replacing `width`), `align_self` (`auto start center end stretch baseline`), `valign` (`top center bottom`), `order` (-6 to 6), `padding` (`none xs s m l xl`), `tone`, `radius` (`none s m l`). Gaps and paddings are the theme's spacing steps, never free sizes.
 
 A block inside a column takes the room of the column: its own `width` is ignored there (and not shown in the editor). A `content` block inside a column places the page text. Presets in the editor: 50/50 (`1/2 1/2`), 33/67 (`1/3 2/3`), 67/33, 3×33 (`1/3 1/3 1/3`), 25/50/25 (`1/4 1/2 1/4`), 4×25. `validate_content.py` checks containers (settings, one to six columns, the blocks inside).
+
+### `accordion` — Accordion
+Compact titles that open and close, made to sit in a narrow column. Smaller than FAQ and without FAQ structured data; use FAQ for a page of questions.
+
+**Layouts** (`variant`): `default` (Default). First is the default.
+
+| field | kind and choices | notes |
+|---|---|---|
+| `eyebrow` | text |  |
+| `heading` | text |  |
+| `intro` | text (several lines) |  |
+| `items` | list of rows; at most 30 rows |  |
+| &nbsp;&nbsp;`items[].title` | text |  |
+| &nbsp;&nbsp;`items[].content` | Markdown |  |
+| `initial` | choice; one of `closed`, `first`; default `closed` |  |
+| `multiple` | true / false; default `true` |  |
+| `icon` | choice; one of `chevron`, `plus`; default `chevron` |  |
+| `style` | choice; one of `lines`, `cards`; default `lines` |  |
 
 ### `banner` — Banner
 An announcement or highlight, as a slim strip or a boxed callout with an optional button. Visitors can dismiss it if you allow that.

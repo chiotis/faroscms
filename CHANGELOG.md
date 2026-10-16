@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.133 — 2026-10-16 — Accordion block
+- **A new *Accordion* block (Content), made to sit in narrow columns.** Items open and close like the FAQ, but the titles are only a small step above the body text, the padding is tight and the icon is small, so it looks right at Width 25 % / 33 % / 50 % and inside the columns of a container. Use *FAQ* for a page of questions: the Accordion adds no FAQ structured data.
+- **Fields**: optional eyebrow, heading and introduction; items with a title and Markdown content (lists and links work); *When the page opens*: *All closed* (the default) or *First item open*.
+- **Design tab**: *Allow several open at once* (on by default), the icon (chevron, or plus and minus) and the items (lines between them, or separate cards).
+- **Works without JavaScript** (native `<details>`); a small script smooths the height change, is skipped when a visitor asks for less motion, and handles *one open at a time*. Titles are headings one level under the block's heading, and the focus is clearly visible.
+- A ready-made section, *Accordions in columns*, and an example in the blocks library page.
+
 ## 0.1.131 — 2026-10-15 — Containers: rows with columns in the block builder
 - **A new kind of entry in the builder, the *Container*: a row with one to six columns, and blocks inside each column.** Add one from *Add block* (the *Container* row offers the layouts 50 / 50, 33 / 67, 67 / 33, 3 × 33, 25 / 50 / 25 and 4 × 25) and use it for what a block's Width cannot do: a text beside a picture beside a form, or a band with a picture behind its columns. A container is a card in the list like a block. Open, it shows its columns side by side with their blocks inside, an *Add block* button in each column, and a *Design* tab. Pages without containers are drawn exactly as before.
 - **Drag and drop works across the whole page.** Containers move in the list; blocks move inside a column, between columns and containers, and in and out of a container to the top level. A container is never dropped into a column. With the keyboard, pick a block up with Space or Enter and use **Shift and the left or right arrow** to carry it to the next column or back to the top level; every step is announced ("Block Text moved to column 2 of 3 in container 1, position 1 of 2").
