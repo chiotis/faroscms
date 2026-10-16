@@ -1,10 +1,10 @@
 .logos-heading {
   margin: 0 0 var(--space-l);
   color: var(--color-muted);
-  font-family: var(--font-body);
+  font-family: var(--heading-font-custom, var(--font-body));
   font-size: var(--step--1);
-  font-weight: 600;
-  letter-spacing: 0.08em;
+  font-weight: var(--heading-weight-custom, 600);
+  letter-spacing: var(--heading-tracking-custom, 0.08em);
   text-align: center;
   text-transform: uppercase;
 }

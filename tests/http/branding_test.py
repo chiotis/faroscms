@@ -1,4 +1,5 @@
 import json, os, re, sys, sqlite3, urllib.parse
+from html import unescape
 sys.path.insert(0, '.')
 from client import Client
 
@@ -78,6 +79,19 @@ js = root.get('/assets/js/admin-preview.js')
 check('the script of the preview is served', js[0] == 200 and 'faros-branding' in js[2] and 'preview_path' in js[2], js[0])
 check('and the one of the colours and the resets', root.get('/assets/js/admin-branding.js')[0] == 200)
 check('the old tabs are gone, an old link opens the first', root.get('/admin/theme?tab=brand')[2].count('name="active_tab" value="branding"') == 1)
+defaults_match = re.search(r'data-bp-defaults="([^"]+)"', html)
+defaults = json.loads(unescape(defaults_match.group(1))) if defaults_match else {}
+check('reset metadata comes from the schema, including heading colour text', defaults.get('theme_settings[design][heading_color]', {}).get('value') == 'text' and defaults.get('theme_settings[design][radius]', {}).get('value') == '')
+cards = re.findall(r'<details class="bp-card"[^>]*>(.*?)</details>', html, re.S)
+buttons_card = next((card for card in cards if '<span>Buttons</span>' in card), '')
+colour_card = next((card for card in cards if '<span>Colour</span>' in card), '')
+check('button corners live with buttons and heading colour with its colours', 'name="theme_settings[design][button_radius]"' in buttons_card and 'name="theme_settings[design][heading_color]"' in colour_card)
+check('Branding can switch to style samples and preview controls have separate names per tab', 'data-bp-view' in html and 'theme?preview=styles' in html and all('name="bp_size_%s"' % tab in html for tab in ('branding', 'header', 'footer')))
+before_samples = stored()
+st, hdr, samples = root.get('/admin/theme?preview=styles')
+check('style samples use the real theme, typography, buttons, card and fields', st == 200 and '<body class="theme-body">' in samples and 'site.css' in samples and all(tag in samples for tag in ('<h1>', '<h6>', 'class="prose"', 'class="btn btn-primary"', 'class="content-item"', 'class="form-grid"', 'tone-accent', 'tone-contrast')))
+check('samples have no submit form, keep admin frame protection, cannot be indexed or cached, and store nothing', '<form' not in samples and hdr.get('X-Frame-Options') == 'DENY' and 'no-store' in (hdr.get('Cache-Control') or '') and 'noindex' in (hdr.get('X-Robots-Tag') or '') and stored() == before_samples)
+check('style samples require theme access', ed.get('/admin/theme?preview=styles')[0] in (302, 403) and pub.get('/admin/theme?preview=styles')[0] in (302, 403))
 
 # ---- saving: colours
 (res, hdr, _), sent = post_theme({**d(light_accent='#C026D3', dark_accent='93c5fd', light_background='#fffdf8', ink='#323130'), **b(theme_color='#1e293b')})

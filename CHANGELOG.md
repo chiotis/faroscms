@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.136 — 2026-10-16 — Branding: reliable controls and preview
+- **The Branding live preview follows unsaved choices again**, including cleared logos and resets. Computer, tablet and phone widths and light/dark preview choices stay independent of the Header and Footer tabs; Auto restores the site's mode, and custom CSS keeps its place after the branding styles.
+- **Resets use the theme's declared defaults.** Each override shows *Theme value* or *Your value*, with an individual reset. Group resets clear that group's overrides while keeping the selected palette, font pairing and shape. Empty colour swatches show the inherited colour without saving it as an override.
+- **Typography choices reach the actual text and headings**, including prose and Hero variants on phones: line height, heading font, weight, tracking and scale. An explicitly chosen accent also colours Slate's accent panels, keeping their automatically selected text colour readable. Sites with no overrides retain their existing appearance.
+- **Button corners are with the other Buttons controls**, and Heading colour is with Colour. The preview can switch between the site and *Style samples*: headings, Greek and Latin text, buttons, a card, form fields and contrasting backgrounds, using the theme's real styles and the current unsaved choices. The sample is available only inside the admin and stores nothing.
+
 ## 0.1.135 — 2026-10-16 — FAQ block: how the page opens
 - **The FAQ block has the same choice as the Accordion: *When the page opens*, with *All closed* (the default) or *First item open*.** It replaces the old *Open the first answer* switch, in the same place (the *Content* tab), and works in every layout (single column and heading beside the questions), with or without JavaScript. The FAQ structured data for search engines is unchanged.
 - **Nothing changes for existing pages.** A page that had *Open the first answer* on still opens the first answer, and the editor shows it as *First item open*; the default writes nothing to the page. Described in `docs/theming.md` and the FarosCMS skill.

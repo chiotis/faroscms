@@ -36,10 +36,16 @@
 {% set known_b = ['logo', 'logo_dark', 'show_name', 'logo_height', 'logo_height_mobile', 'footer_logo_height', 'name_size', 'favicon', 'touch_icon', 'theme_color', 'share_image'] %}
 {% set known_d = ['light_accent', 'light_background', 'light_surface', 'light_text', 'light_muted', 'light_border', 'dark_accent', 'dark_background', 'dark_surface', 'dark_text', 'dark_muted', 'dark_border', 'ink', 'heading_font', 'body_font', 'font_file', 'base_size', 'line_height', 'scale', 'heading_weight', 'heading_tracking', 'heading_leading', 'heading_case', 'heading_color', 'heading_color_light', 'heading_color_dark', 'container', 'reading_width', 'gutter', 'section_space', 'header_height', 'spacing', 'radius', 'button_radius', 'shadows', 'button_height', 'button_pad', 'button_size', 'button_weight', 'button_case'] %}
 {% set roles = [['accent', 'Accent'], ['background', 'Background'], ['surface', 'Surface'], ['text', 'Text'], ['muted', 'Muted text'], ['border', 'Border']] %}
+{% set defaults = {} %}
+{% for section in ['appearance', 'brand', 'design'] %}
+  {% for key, field in schema[section].fields %}
+    {% set defaults = defaults|merge({('theme_settings[' ~ section ~ '][' ~ key ~ ']'): {value: field.default ?? '', label: field.label}}) %}
+  {% endfor %}
+{% endfor %}
 
-<div class="bp" data-bp data-preview data-mode="css" data-endpoint="{{ url('admin/theme?preview=branding') }}">
+<div class="bp" data-bp data-bp-defaults="{{ defaults|json_encode }}" data-preview data-mode="css" data-endpoint="{{ url('admin/theme?preview=branding') }}">
   <h2 class="sr-only">Branding</h2>
-  <p class="mb-3 text-xs text-slate-500">Logo, colours, type, spacing, corners and buttons. Everything left empty or on “Theme” keeps the theme’s own value, so a site that changes nothing here looks as it always did.</p>
+  <p class="mb-3 text-xs text-slate-500">Logo, colours, type, spacing, corners and buttons. Empty fields and “Theme” follow the theme and your selected palette, font pairing and corners. Resetting a group’s overrides keeps those preset choices. Nothing changes on the site until you save.</p>
 
   <div class="bp-grid">
     <div class="bp-cards">
@@ -111,18 +117,27 @@
                   <td colspan="2">{{ c.colour('Dark panels and footer', pd ~ 'ink]', vd.ink) }}</td>
                 </tr>
               {% endif %}
-              {% if d.heading_color_light is defined %}
+            </tbody>
+          </table>
+          {% if d.heading_color is defined %}
+            <dl class="m-0 space-y-2.5">{{ c.choice(d.heading_color, pd ~ 'heading_color]', vd.heading_color, 'seg', short.heading_color) }}</dl>
+          {% endif %}
+          {% if d.heading_color_light is defined %}
+            <table class="bp-colours">
+              <caption class="sr-only">Heading colours for light and dark mode, used when Heading colour is Own.</caption>
+              <thead><tr><th scope="col"><span class="sr-only">Colour</span></th><th scope="col">Light</th><th scope="col">Dark</th></tr></thead>
+              <tbody>
                 <tr>
                   <th scope="row">Headings</th>
                   {% for mode in ['light', 'dark'] %}
                     <td>{{ c.colour('Headings, ' ~ mode, pd ~ 'heading_color_' ~ mode ~ ']', vd['heading_color_' ~ mode]) }}</td>
                   {% endfor %}
                 </tr>
-              {% endif %}
-            </tbody>
-          </table>
-          <p class="m-0 text-[11px] leading-4 text-slate-500">Empty keeps the palette’s colour. The hover and soft shades and the text colour on the accent are worked out from the accent you choose. The colours of headings count when Heading colour (under Typography) is on “Own”.</p>
-          <button type="button" class="bp-reset" data-bp-reset="colour">Back to the palette’s colours</button>
+              </tbody>
+            </table>
+          {% endif %}
+          <p class="m-0 text-[11px] leading-4 text-slate-500">Empty keeps the palette’s colour. The hover and soft shades and the text colour on the accent are worked out from the accent you choose. Heading colours apply when Heading colour is “Own”; an empty heading colour follows the text.</p>
+          <button type="button" class="bp-reset" data-bp-reset="colour">Reset colour overrides</button>
         </div>
       </details>
 
@@ -151,11 +166,11 @@
           </div>
           <dl class="m-0 space-y-2.5">
             {% if d.scale is defined %}{{ c.choice(d.scale, pd ~ 'scale]', vd.scale, 'select', {}) }}{% endif %}
-            {% for key in ['heading_weight', 'heading_tracking', 'heading_leading', 'heading_case', 'heading_color'] %}
+            {% for key in ['heading_weight', 'heading_tracking', 'heading_leading', 'heading_case'] %}
               {% if d[key] is defined %}{{ c.choice(d[key], pd ~ key ~ ']', vd[key], 'seg', short[key]) }}{% endif %}
             {% endfor %}
           </dl>
-          <button type="button" class="bp-reset" data-bp-reset="type">Back to the theme’s type</button>
+          <button type="button" class="bp-reset" data-bp-reset="type">Reset type overrides</button>
         </div>
       </details>
 
@@ -170,7 +185,7 @@
           <dl class="m-0 space-y-2.5">
             {% if d.spacing is defined %}{{ c.choice(d.spacing, pd ~ 'spacing]', vd.spacing, 'seg', short.spacing) }}{% endif %}
           </dl>
-          <button type="button" class="bp-reset" data-bp-reset="layout">Back to the theme’s layout</button>
+          <button type="button" class="bp-reset" data-bp-reset="layout">Reset layout overrides</button>
         </div>
       </details>
 
@@ -184,17 +199,17 @@
             {% if d.radius is defined %}{{ c.num(d.radius, pd ~ 'radius]', vd.radius, 'px') }}{% endif %}
           </div>
           <dl class="m-0 space-y-2.5">
-            {% for key in ['button_radius', 'shadows'] %}
+            {% for key in ['shadows'] %}
               {% if d[key] is defined %}{{ c.choice(d[key], pd ~ key ~ ']', vd[key], 'seg', short[key]) }}{% endif %}
             {% endfor %}
             {% if a.glow is defined %}{{ c.choice(a.glow, pa ~ 'glow]', va.glow, 'seg', short.glow) }}{% endif %}
           </dl>
-          <button type="button" class="bp-reset" data-bp-reset="shape">Back to the theme’s shape</button>
+          <button type="button" class="bp-reset" data-bp-reset="shape">Reset shape overrides</button>
         </div>
       </details>
 
       <details class="bp-card">
-        <summary><span>Buttons</span><small>Height, padding, text</small></summary>
+        <summary><span>Buttons</span><small>Height, padding, text, corners</small></summary>
         <div class="bp-body">
           <div class="bp-nums">
             {% for key in ['button_height', 'button_pad', 'button_size'] %}
@@ -202,11 +217,11 @@
             {% endfor %}
           </div>
           <dl class="m-0 space-y-2.5">
-            {% for key in ['button_weight', 'button_case'] %}
+            {% for key in ['button_weight', 'button_case', 'button_radius'] %}
               {% if d[key] is defined %}{{ c.choice(d[key], pd ~ key ~ ']', vd[key], 'seg', short[key]) }}{% endif %}
             {% endfor %}
           </dl>
-          <button type="button" class="bp-reset" data-bp-reset="buttons">Back to the theme’s buttons</button>
+          <button type="button" class="bp-reset" data-bp-reset="buttons">Reset button overrides</button>
         </div>
       </details>
 
@@ -225,7 +240,7 @@
       {% endif %}
     </div>
 
-    {% include '@admin/partials/theme-preview.twig' with {preview_url: info.preview_url} %}
+    {% include '@admin/partials/theme-preview.twig' with {preview_key: 'branding', preview_url: info.preview_url, branding_samples_url: url('admin/theme?preview=styles')} %}
   </div>
 </div>
 <script src="{{ asset('js/admin-branding.js') }}" defer></script>

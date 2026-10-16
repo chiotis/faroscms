@@ -26,11 +26,11 @@
 .accordion-title {
   min-width: 0;
   margin: 0;
-  font-family: inherit;
+  font-family: var(--heading-font-custom, inherit);
   font-size: calc((var(--step-0) + var(--step-1)) / 2);
-  font-weight: 600;
-  letter-spacing: 0;
-  line-height: 1.35;
+  font-weight: var(--heading-weight-custom, 600);
+  letter-spacing: var(--heading-tracking-custom, 0);
+  line-height: var(--heading-leading, 1.35);
   overflow-wrap: anywhere;
 }
 

@@ -487,13 +487,16 @@ html.dark .lc-input::placeholder { color: #94a3b8; }
 .bp-colours td { padding: .15rem .25rem; }
 .lc-colour { display: flex; align-items: center; gap: .25rem; min-width: 0; }
 .lc-colour input[type="color"] { flex: none; width: 1.75rem; height: 1.75rem; padding: 0; border: 1px solid #cbd5e1; border-radius: .375rem; background: none; cursor: pointer; }
-.lc-colour[data-empty] input[type="color"] { opacity: .4; }
 .lc-colour input[type="text"] { min-width: 0; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 .lc-colour-x { flex: none; width: 1.25rem; height: 1.25rem; padding: 0; border: 0; border-radius: 99px; background: none; color: #5f6f85; font-size: 1rem; line-height: 1; cursor: pointer; }
 .lc-colour-x:hover { background: #e2e8f0; color: #0f172a; }
 .lc-colour[data-empty] .lc-colour-x { visibility: hidden; }
 .bp-reset { justify-self: start; padding: 0; border: 0; background: none; color: #475569; font-size: .6875rem; text-decoration: underline; cursor: pointer; }
 .bp-reset:hover { color: #0f172a; }
+.bp-value { display: flex; flex-wrap: wrap; align-items: baseline; gap: .4rem; margin-top: .2rem; color: #5f6f85; font-size: .625rem; line-height: 1rem; }
+.bp-value[data-bp-value="custom"] > span { color: #1d4ed8; }
+.bp-value .bp-reset { font-size: inherit; }
+.bp-value .bp-reset[hidden] { display: none; }
 .bp-preview { display: grid; gap: .5rem; min-width: 0; }
 @media (min-width: 1180px) { .bp-preview { position: sticky; top: 4.25rem; } }
 .bp-bar { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
@@ -515,6 +518,8 @@ html.dark .lc-colour-x { color: #94a3b8; }
 html.dark .lc-colour-x:hover { background: #334155; color: #f8fafc; }
 html.dark .bp-reset { color: #94a3b8; }
 html.dark .bp-reset:hover { color: #f8fafc; }
+html.dark .bp-value { color: #94a3b8; }
+html.dark .bp-value[data-bp-value="custom"] > span { color: #93c5fd; }
 html.dark .bp-reload { border-color: #334155; background: #0f172a; color: #94a3b8; }
 html.dark .bp-reload:hover { background: #1e293b; }
 html.dark .bp-stage { border-color: #334155; background: #1e293b; }

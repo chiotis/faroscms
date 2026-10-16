@@ -37,7 +37,7 @@
 .col-title {
   margin: 0;
   font-size: var(--step-3);
-  line-height: 1.12;
+  line-height: var(--heading-leading, 1.12);
 }
 
 .col-title a {

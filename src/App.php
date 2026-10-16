@@ -2151,6 +2151,15 @@ final class App
         $tabs = [];
         // A theme that declares the design section has the Branding screen: appearance, brand and design in one tab.
         $branding = isset($schema['design']);
+        if ($branding && $_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['preview'] ?? '') === 'styles') {
+            // An admin-only specimen, using the site's actual styles. It is never content and stores nothing.
+            header('Cache-Control: no-store');
+            header('X-Robots-Tag: noindex, nofollow');
+            echo $this->twig->render('@admin/theme-style-samples.twig', [
+                'attributes' => Branding::attributes($this->themeSettings),
+            ]);
+            return;
+        }
         foreach ($schema as $key => $section) {
             // The sidebar card is part of Single Layouts when the theme has them.
             if ($key === 'sidebar' && $single->declared()) {

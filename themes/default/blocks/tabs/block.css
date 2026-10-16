@@ -88,8 +88,8 @@
 .tabs-panel-title {
   margin: 0;
   font-size: var(--step-3);
-  letter-spacing: -0.025em;
-  line-height: 1.15;
+  letter-spacing: var(--heading-tracking-custom, -0.025em);
+  line-height: var(--heading-leading, 1.15);
 }
 
 .tabs-panel-text .prose > :first-child { margin-top: 0; }

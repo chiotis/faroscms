@@ -48,6 +48,8 @@ check('an accent brings its hover and soft shades and a readable text colour, fo
 check('the rule beats the palette, font, shape and mode rules of the style sheet', str_starts_with($css, ':root[data-theme][data-mode]{'), true);
 $css = Branding::css(['design' => ['light_accent' => '#fde047']]);
 check('a light accent gets dark text', has($css, '--accent-contrast-l:#0b1220;'), true);
+check('the accent band uses that same chosen background, including Slate', has($css, '--accent-band-bg:#fde047;'), true);
+check('choosing only a dark accent keeps the default band background', has(Branding::css(['design' => ['dark_accent' => '#fde047']]), '--accent-band-bg:'), false);
 $css = Branding::css(['design' => ['light_background' => '#fffdf8', 'light_surface' => '#f8f1e4', 'light_text' => '#261b14', 'light_muted' => '#5b4a3d', 'light_border' => '#eadfca', 'ink' => '#323130']]);
 check('background, surface, text, muted and border set the neutrals; surface and border bring a second shade', [
     has($css, '--n-bg:#fffdf8;'), has($css, '--n-surface:#f8f1e4;'), has($css, '--n-surface-2:#'), has($css, '--n-text:#261b14;'), has($css, '--n-muted:#5b4a3d;'), has($css, '--n-border:#eadfca;'), has($css, '--n-border-strong:#'),
@@ -60,6 +62,8 @@ check('a colour that is not hex is ignored, never put in the style sheet', Brand
 // ---- type
 $css = Branding::css(['design' => ['heading_font' => 'geometric', 'body_font' => 'old_style']]);
 check('a font choice sets the family of headings and of text', [has($css, '--font-heading:Avenir, Montserrat'), has($css, '--font-body:"Iowan Old Style"')], [true, true]);
+check('an explicit heading font also reaches component titles with a body-font default', has($css, '--heading-font-custom:var(--font-heading);'), true);
+check('a body font on its own does not change component heading defaults', has(Branding::css(['design' => ['body_font' => 'old_style']]), '--heading-font-custom:'), false);
 check('"custom" without a font file is not used', Branding::css(['design' => ['heading_font' => 'custom']]), '');
 $css = Branding::css(['design' => ['heading_font' => 'custom', 'font_file' => 'fonts/brand.woff2']], '/site');
 check('with a font file it is loaded: the file of custom/assets, under the folder the site lives in', [
@@ -75,12 +79,18 @@ check('16 is the theme\'s own size: nothing', Branding::css(['design' => ['base_
 $css = Branding::css(['design' => ['scale' => '1.25']]);
 check('a heading scale works out five steps that grow with the window', preg_match_all('/--step-[1-5]:clamp\(/', $css), 5);
 check('the biggest is the text size times the ratio five times: 17 x 1.25^5 = 51.9 pixels', has($css, '3.2425rem)'), true);
+check('the custom scale reaches minimal and phone hero titles too', has($css, '--hero-title-size:var(--step-5);'), true);
 check('"theme" is no scale', Branding::css(['design' => ['scale' => 'auto']]), '');
 $css = Branding::css(['design' => ['heading_weight' => '800', 'heading_tracking' => 'wide', 'heading_leading' => 'relaxed', 'heading_case' => 'uppercase', 'line_height' => 1.8]]);
 check('heading weight, letter spacing, line height and case, and the line height of the text', [
     has($css, '--heading-weight:800;'), has($css, '--heading-tracking:0.025em;'), has($css, 'h1,h2,h3,h4,h5,h6{line-height:1.35;text-transform:uppercase}'), has($css, 'body.theme-body{line-height:1.8}'),
 ], [true, true, true, true]);
+check('component titles and prose get the selected type values without losing their own defaults when unset', [
+    has($css, '--heading-weight-custom:800;'), has($css, '--heading-tracking-custom:0.025em;'), has($css, '--heading-leading:1.35;'), has($css, '--body-leading:1.8;'),
+], [true, true, true, true]);
 check('capitals without a letter spacing of their own get a little', has(Branding::css(['design' => ['heading_case' => 'uppercase']]), '--heading-tracking:0.02em;'), true);
+check('that automatic spacing also reaches component titles', has(Branding::css(['design' => ['heading_case' => 'uppercase']]), '--heading-tracking-custom:0.02em;'), true);
+check('restoring the theme type removes every optional component override', Branding::css(['design' => ['heading_font' => 'pairing', 'heading_weight' => 'auto', 'heading_tracking' => 'auto', 'heading_leading' => 'auto', 'heading_case' => 'auto', 'scale' => 'auto', 'line_height' => '']]), '');
 $css = Branding::css(['design' => ['heading_color' => 'accent']]);
 check('headings in the palette colour follow the accent of the mode', [has($css, '--heading-color:var(--accent);'), has($css, ':root.dark')], [true, false]);
 $css = Branding::css(['design' => ['heading_color' => 'custom', 'heading_color_light' => '#b00020', 'heading_color_dark' => '#ff8a80']]);

@@ -5,7 +5,7 @@ One command runs everything:
 ```bash
 tests/run.sh          # all checks (about 10 seconds)
 tests/run.sh unit     # PHP checks only, no server
-tests/run.sh js       # JavaScript checks: the visual editor's serializer
+tests/run.sh js       # JavaScript checks: editors, branding controls and previews
 tests/run.sh http     # the browser-level tests
 tests/run.sh redirects   # one HTTP test: editor, roles, import, redirects, save, history, taxonomies, links, delete
 ```
@@ -21,6 +21,10 @@ It needs PHP, Python 3 (standard library only) and, for the JavaScript checks, N
 | `tests/unit/taxonomies.php` | Term addresses from names, address changes, removals, the layout choices a taxonomy stores |
 | `tests/js/serializer.test.js` | The visual editor's serializer (`public/assets/js/admin-editor.js`, the page back to Markdown), the real code run in jsdom over the texts in `tests/js/serializer-samples.js`, drawn by the server's own Markdown code. For each text: opened and left it is written back byte for byte; every block written again reads back as the same page; written twice it does not change. Also the HTML a browser leaves while typing (div, b, nbsp, empty lines), and an edit that must change one block and keep the others. When a text is found that the editor damages, add it to the samples |
 | `tests/js/editor-tools.test.js` | The visual editor's toolbar: the whole `admin-editor.js` run in jsdom. The picture dialog and the library it opens (a click in the library must not close the dialog), Insert, and the alignment buttons: one block, a selection over several, left taking the choice away, list items left alone, what is written in the Markdown |
+| `tests/unit/branding.php` | Branding CSS and attributes: validated colours and type, optional component tokens, Slate's custom accent background, and no overrides when theme defaults are restored |
+| `tests/js/branding-controls.test.js` | Theme/own value indicators, inherited colour swatches without storing overrides, schema-based field and group resets, preset choices kept, and preview refresh after reset |
+| `tests/js/branding-preview.test.js` | CSS-only Branding responses, custom CSS precedence, logo removal, mode resets, style samples and return to Site, with Header/Footer HTML previews still accepted |
+| `tests/http/branding_test.py` | Branding settings, saving and validation, schema reset data, control placement, style sample markup and access, preview responses storing nothing, and admin frame protection retained |
 | `tests/unit/twig-site-functions.php` | The template functions of `PageTwigFunctions` (analytics, SEO, branding) and `GeoTwigFunctions` (maps): present, settings and language read when a function runs and not before, HTML let through only where meant, nothing built for a page with no map |
 | `tests/unit/block-runtime.php` | What blocks need from the site (`BlockRuntime`): the registry and the choices it offers (types of content, types with a place, forms), which types can have a place, the maps and their addresses by language, the YouTube services, who is given a kept picture, nothing built before it is asked for |
 | `tests/unit/login-controller.php` | The addresses that need no sign-in (`LoginController`): the login screen, a password that is wrong, right, shipped or blocked, signing out (only by the form), signing in with Google at every step it can stop at (state, code, token, profile, domain, no user, switched-off user, success), and the first administrator |

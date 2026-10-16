@@ -43,6 +43,7 @@ Typing blocks as YAML into the **Advanced** tab (the raw front matter) does **no
 ## Other routine jobs
 
 - **Change the look**: Theme > the tab > change > Save. Check the live preview first. Branding colours accept `#rrggbb`.
+- **Check Branding**: switch the preview between *Site* and *Style samples* (headings, text, buttons, card and form fields). Computer/Tablet/Phone change only the preview width. *Theme value* follows the schema default; *Your value* marks an override. Empty colours show their inherited swatch without saving it. A field's *Reset* restores its default; *Reset … overrides* resets that group's design fields and keeps the chosen palette, font pairing and corners. Check the preview, then Save. Button corners are under *Buttons*; Heading colour is under *Colour*.
 - **Menus**: Menus > the menu > pick what the site has from the left panel, drag it into place, set each link's label for every language > Save. *Place* decides header/footer.
 - **Upload a picture**: Media > Upload (drag files), then open the file to write its description (alt text) and tags.
 - **SEO of one page**: the entry's SEO tab (title, description, canonical, share image, noindex) with a search-result preview and a character count.

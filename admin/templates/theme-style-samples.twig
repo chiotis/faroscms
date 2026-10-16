@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en"{% for name, value in attributes %} {{ name }}="{{ value }}"{% endfor %}>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Style samples</title>
+  <link rel="stylesheet" href="{{ theme_asset('css/site.css') }}">
+  <style>
+    /* Only the specimen's arrangement: its typography and components use the actual theme styles. */
+    .sample-intro { padding-block: var(--space-xl) var(--space-m); }
+    .sample-grid { display: grid; gap: var(--space-xl); }
+    .sample-group { min-width: 0; }
+    .sample-label { margin: 0 0 var(--space-m); color: var(--color-muted); font: 600 .875rem/1.5 var(--font-system); }
+    .sample-actions { display: flex; flex-wrap: wrap; gap: var(--space-s); align-items: center; }
+    .sample-panel { padding: var(--space-l); border: 1px solid var(--color-border); border-radius: var(--radius-m); }
+    .sample-swatches { display: grid; gap: var(--space-s); grid-template-columns: repeat(3, minmax(0, 1fr)); margin-block: var(--space-m); }
+    .sample-swatch { min-height: 4rem; border: 1px solid var(--color-border); border-radius: var(--radius-s); }
+    .sample-swatch:nth-child(1) { background: var(--color-bg); }
+    .sample-swatch:nth-child(2) { background: var(--color-surface); }
+    .sample-swatch:nth-child(3) { background: var(--accent); }
+    @media (min-width: 900px) { .sample-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  </style>
+  <style id="faros-branding">{{ branding_css()|raw }}</style>
+  {% set custom_css = custom_asset('css/custom.css') %}
+  {% if custom_css %}<link rel="stylesheet" href="{{ custom_css }}">{% endif %}
+</head>
+<body class="theme-body">
+  <main>
+    <div class="container sample-intro">
+      <p class="eyebrow">Style samples</p>
+      <p class="lead">Headings, text and controls with your current branding choices.</p>
+    </div>
+    <section class="block tone-default space-compact" aria-label="Typography and controls">
+      <div class="container sample-grid">
+        <div class="sample-group">
+          <p class="sample-label">Headings</p>
+          <div class="prose">
+            <h1>Heading one</h1>
+            <h2>Heading two</h2>
+            <h3>Heading three</h3>
+            <h4>Heading four</h4>
+            <h5>Heading five</h5>
+            <h6>Heading six</h6>
+          </div>
+          <p class="sample-label">Text</p>
+          <div class="prose">
+            <p>Good typography gives every page a clear rhythm. This paragraph includes <strong>bold text</strong>, <em>italic text</em> and <a href="about:srcdoc#sample-buttons">a text link</a>.</p>
+            <p lang="el">Καθαρή τυπογραφία, σωστές αποστάσεις και χρώματα που διαβάζονται εύκολα. Ελληνικοί χαρακτήρες: ά έ ή ί ό ύ ώ.</p>
+            <p><small>Small text · Dates, captions and supporting information.</small></p>
+          </div>
+        </div>
+        <div class="sample-group section-stack">
+          <div id="sample-buttons">
+            <p class="sample-label">Buttons — try hover and keyboard focus</p>
+            <div class="sample-actions">
+              <button type="button" class="btn btn-primary">Primary button</button>
+              <button type="button" class="btn">Outline button</button>
+              <a class="text-link" href="about:srcdoc#sample-fields">Text link</a>
+            </div>
+          </div>
+          <div>
+            <p class="sample-label">Card and surfaces</p>
+            <article class="content-item">
+              <div class="content-item-body">
+                <h3 class="content-item-title">A card title</h3>
+                <p>Corners, borders, shadows and text share the site's theme.</p>
+                <div class="sample-swatches" aria-label="Background, surface and accent colours"><span class="sample-swatch"></span><span class="sample-swatch"></span><span class="sample-swatch"></span></div>
+              </div>
+            </article>
+          </div>
+          <div id="sample-fields" class="sample-panel">
+            <p class="sample-label">Form fields — sample only</p>
+            <div class="form-grid">
+              <div class="form-field"><label for="sample-name"><span>Name</span></label><input id="sample-name" type="text" placeholder="Your name" autocomplete="off"></div>
+              <div class="form-field"><label for="sample-message"><span>Message</span></label><textarea id="sample-message" rows="2" placeholder="Your message"></textarea></div>
+              <button type="button">Submit button</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section class="block tone-accent space-compact" aria-label="Accent background">
+      <div class="container">
+        <h2 class="section-title">Accent background</h2>
+        <p>Text and controls should remain readable on the chosen accent colour.</p>
+        <button type="button" class="btn btn-primary">A call to action</button>
+      </div>
+    </section>
+    <section class="block tone-contrast space-compact" aria-label="Dark background">
+      <div class="container">
+        <h2 class="section-title">Dark background</h2>
+        <p>A contrasting panel with its own readable text and buttons.</p>
+        <button type="button" class="btn">Outline button</button>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

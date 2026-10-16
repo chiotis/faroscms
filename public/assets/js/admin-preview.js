@@ -31,21 +31,24 @@
     var sequence = 0;
     var timer = null;
     var scrollTo = 0;
-    var originals = typeof WeakMap === 'function' ? new WeakMap() : null;
+    var originalModes = new WeakMap();
+    var siteAddress = frame.getAttribute('src') || '';
+    var viewSequence = 0;
 
     function frameDocument() {
       try { return frame.contentDocument; } catch (e) { return null; }
     }
 
     function selected(name) {
-      var el = root.querySelector('input[name="' + name + '"]:checked');
+      var el = root.querySelector('[' + name + ']:checked');
       return el ? el.value : '';
     }
 
     function applyMode(doc) {
-      var forced = selected('bp_mode');
+      var forced = selected('data-bp-mode');
       var attributes = latest ? latest.attributes : {};
-      var colour = forced || attributes['data-mode'] || doc.documentElement.getAttribute('data-mode') || 'system';
+      if (!originalModes.has(doc)) { originalModes.set(doc, doc.documentElement.getAttribute('data-mode') || 'system'); }
+      var colour = forced || attributes['data-mode'] || originalModes.get(doc);
       var dark = colour === 'dark' || (colour === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
       doc.documentElement.setAttribute('data-mode', colour);
       doc.documentElement.classList.toggle('dark', dark);
@@ -61,15 +64,16 @@
 
     function applyBrand(doc) {
       var brand = doc.querySelector('.site-brand');
-      if (!brand || !latest || !originals) { return; }
-      if (!originals.has(brand)) { originals.set(brand, brand.innerHTML); }
+      if (!brand || !latest) { return; }
+      brand.textContent = '';
+      brand.removeAttribute('aria-label');
       if (latest.logo) {
-        brand.textContent = '';
         brand.appendChild(node(doc, 'img', { 'class': 'site-brand-logo' + (latest.logo_dark ? ' logo-on-light' : ''), alt: '', src: latest.logo }));
         if (latest.logo_dark) { brand.appendChild(node(doc, 'img', { 'class': 'site-brand-logo logo-on-dark', alt: '', src: latest.logo_dark })); }
         if (latest.show_name) { brand.appendChild(node(doc, 'span', { 'class': 'site-brand-title' }, latest.name)); }
+        else { brand.setAttribute('aria-label', latest.name); }
       } else {
-        brand.innerHTML = originals.get(brand);
+        brand.appendChild(node(doc, 'span', { 'class': 'site-brand-title' }, latest.name));
       }
     }
 
@@ -93,12 +97,14 @@
         .then(function (response) { return response.ok ? response.json() : null; })
         .then(function (answer) {
           if (!answer || mine !== sequence) { return; }
-          if (answer.error || typeof answer.html !== 'string') { return; } // the text cannot be drawn just now: the last picture stays
+          if (answer.error) { return; }
           if (mode === 'page' || mode === 'entry') {
+            if (typeof answer.html !== 'string') { return; }
             if (mode === 'page') { path = answer.path || path; }
             try { scrollTo = frame.contentWindow.scrollY || 0; } catch (e) { scrollTo = 0; }
             frame.srcdoc = answer.html;
           } else {
+            if (typeof answer.css !== 'string' || !answer.attributes || typeof answer.attributes !== 'object') { return; }
             latest = answer;
             apply();
           }
@@ -114,7 +120,9 @@
         if (!style) {
           style = doc.createElement('style');
           style.id = 'faros-branding';
-          doc.head.appendChild(style);
+          // Keep the same cascade as a saved page: the site's custom CSS still comes last.
+          var custom = doc.querySelector('link[rel="stylesheet"][href*="/_custom/css/custom.css"]');
+          doc.head.insertBefore(style, custom);
         }
         style.textContent = latest.css;
         Object.keys(latest.attributes).forEach(function (key) { doc.documentElement.setAttribute(key, latest.attributes[key]); });
@@ -123,6 +131,7 @@
       applyMode(doc);
       // The page may have been drawn at another width: let it lay itself out again (sticky header, slider).
       try { frame.contentWindow.dispatchEvent(new Event('resize')); } catch (e) { /* the frame went somewhere else */ }
+      root.dispatchEvent(new CustomEvent('preview:drawn', { bubbles: true }));
     }
 
     function onLoad() {
@@ -142,7 +151,6 @@
         }
       }
       apply();
-      root.dispatchEvent(new CustomEvent('preview:drawn', { bubbles: true }));
     }
 
     function schedule() {
@@ -156,7 +164,6 @@
       form.addEventListener('input', schedule);
       form.addEventListener('change', schedule);
       document.addEventListener('bk:change', schedule);
-      root.addEventListener('preview:refresh', function () { clearTimeout(timer); request(); });
     } else {
       var relevant = function (event) {
         return event.target.name && event.target.name.indexOf('theme_settings[') === 0;
@@ -164,10 +171,46 @@
       root.addEventListener('input', function (event) { if (relevant(event)) { schedule(); } });
       root.addEventListener('change', function (event) { if (relevant(event)) { schedule(); } });
     }
+    root.addEventListener('preview:refresh', function () { clearTimeout(timer); request(); });
+
+    root.querySelectorAll('[data-bp-view]').forEach(function (input) {
+      input.addEventListener('change', function () {
+        if (!input.checked) { return; }
+        var viewRequest = ++viewSequence;
+        if (input.value === 'styles') {
+          try {
+            var address = new URL(frame.contentWindow.location.href);
+            if (address.origin === window.location.origin) { siteAddress = address.href; }
+          } catch (e) { /* keep the last site address */ }
+          // Admin pages cannot be framed. Read the specimen and draw it like the other HTML previews,
+          // keeping the admin's frame protection intact and the visitor-facing site address separate.
+          fetch(input.getAttribute('data-url'), { credentials: 'same-origin' })
+            .then(function (response) {
+              if (!response.ok || response.redirected) { throw new Error('Preview unavailable'); }
+              return response.text();
+            })
+            .then(function (html) {
+              if (viewRequest !== viewSequence || !input.checked) { return; }
+              frame.title = 'Style samples';
+              frame.srcdoc = html;
+            })
+            .catch(function () {
+              if (viewRequest === viewSequence) {
+                var site = root.querySelector('[data-bp-view][value="site"]');
+                if (site) { site.checked = true; }
+              }
+            });
+        } else {
+          frame.title = 'Preview of the site';
+          frame.removeAttribute('srcdoc');
+          frame.src = siteAddress;
+        }
+      });
+    });
 
     // The frame shows the page at a computer, tablet or phone width, scaled down to fit the space.
     function fit() {
-      var width = parseInt(selected('bp_size'), 10) || 1280;
+      var width = parseInt(selected('data-bp-size'), 10) || 1280;
       var space = stage.clientWidth;
       var height = stage.clientHeight;
       if (!space || !height) { return; }

@@ -48,7 +48,7 @@
 .plan-name {
   margin: 0;
   font-size: var(--step-2);
-  letter-spacing: -0.02em;
+  letter-spacing: var(--heading-tracking-custom, -0.02em);
 }
 
 .plan-description {

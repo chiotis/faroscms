@@ -67,6 +67,8 @@ final class Branding
             $vars['--accent-l-hover'] = self::mix($a, '#000000', 0.18);
             $vars['--accent-l-soft'] = self::mix($a, '#ffffff', 0.9);
             $vars['--accent-contrast-l'] = self::contrast($a);
+            // Slate has its own default band background; an explicit accent must replace that background too.
+            $vars['--accent-band-bg'] = $a;
         }
         if (isset($light['background'])) {
             $vars['--n-bg'] = $light['background'];
@@ -127,6 +129,9 @@ final class Branding
             $choice = (string)($design[$key] ?? 'pairing');
             if (isset(self::FONT_STACKS[$choice]) && ($choice !== 'custom' || $customFont !== null)) {
                 $vars[$var] = self::FONT_STACKS[$choice];
+                if ($key === 'heading_font') {
+                    $vars['--heading-font-custom'] = 'var(--font-heading)';
+                }
             }
         }
         $uses = [(string)($design['heading_font'] ?? ''), (string)($design['body_font'] ?? '')];
@@ -146,18 +151,22 @@ final class Branding
             for ($step = 1; $step <= 5; $step++) {
                 $vars['--step-' . $step] = self::fluid($size * $phone ** $step, $size * 1.0625 * $ratio ** $step);
             }
+            $vars['--hero-title-size'] = 'var(--step-5)';
         }
         $weight = (string)($design['heading_weight'] ?? '');
         if (in_array($weight, ['400', '500', '600', '700', '800'], true)) {
             $vars['--heading-weight'] = $weight;
+            $vars['--heading-weight-custom'] = $weight;
         }
         $tracking = (string)($design['heading_tracking'] ?? '');
         if (isset(self::TRACKING[$tracking])) {
             $vars['--heading-tracking'] = self::TRACKING[$tracking];
+            $vars['--heading-tracking-custom'] = self::TRACKING[$tracking];
         }
         $uppercase = ($design['heading_case'] ?? '') === 'uppercase';
         if ($uppercase && !isset(self::TRACKING[$tracking])) {
             $vars['--heading-tracking'] = '0.02em';
+            $vars['--heading-tracking-custom'] = '0.02em';
         }
         // The colour of headings: the accent follows the palette and the mode; own colours are one for each mode (a mode left empty keeps the text).
         $headingColor = (string)($design['heading_color'] ?? 'text');
@@ -177,6 +186,7 @@ final class Branding
         $headings = [];
         $leading = (string)($design['heading_leading'] ?? '');
         if (isset(self::LEADING[$leading])) {
+            $vars['--heading-leading'] = self::LEADING[$leading];
             $headings[] = 'line-height:' . self::LEADING[$leading];
         }
         if ($uppercase) {
@@ -187,6 +197,7 @@ final class Branding
         }
         $lineHeight = self::number($design['line_height'] ?? '');
         if ($lineHeight !== null) {
+            $vars['--body-leading'] = self::fmt($lineHeight, 2);
             $rules[] = 'body.theme-body{line-height:' . self::fmt($lineHeight, 2) . '}';
         }
 

@@ -31,7 +31,7 @@
 .timeline-title {
   margin: 0;
   font-size: var(--step-1);
-  letter-spacing: -0.015em;
+  letter-spacing: var(--heading-tracking-custom, -0.015em);
 }
 
 .timeline-text {
