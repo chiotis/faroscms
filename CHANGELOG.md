@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.134 — 2026-10-16 — Image block: picture width
+- **The Image block can show a picture narrower than its column.** In the *Design* tab, *Picture width* offers chips (25, 33, 50, 66, 75, 100 %) and a number box with a **% / px** switch: a percentage of the column (10 to 100) or a fixed size in pixels (40 to 2000). The height always follows the picture, so nothing is cropped or stretched. A picture in pixels is never wider than its column.
+- **Position**: a narrower picture sits on the left, in the middle (the default) or on the right; the caption follows its width and position. Both choices appear only while the picture is narrower than its column.
+- **Full width on a phone** (on by default): on a screen up to 640 px the picture fills the column, so small columns stay readable. Turn it off to keep the chosen width on phones.
+- **Lighter downloads**: a narrower picture asks for a smaller file, matched to its width.
+- **Works everywhere the Image block does**: all three layouts (page width, text width, edge to edge), links, shapes and rounded corners, a block with a narrower *Width*, and the columns of a container. The live preview follows each change.
+- **Nothing changes for existing pages.** The default is the whole column, nothing is written to the page for it, and the markup is the same as before. Stored as `image_width`, `image_width_unit`, `image_align` and `image_full_mobile`; described in `docs/theming.md` and the FarosCMS skill.
+
 ## 0.1.133 — 2026-10-16 — Accordion block
 - **A new *Accordion* block (Content), made to sit in narrow columns.** Items open and close like the FAQ, but the titles are only a small step above the body text, the padding is tight and the icon is small, so it looks right at Width 25 % / 33 % / 50 % and inside the columns of a container. Use *FAQ* for a page of questions: the Accordion adds no FAQ structured data.
 - **Fields**: optional eyebrow, heading and introduction; items with a title and Markdown content (lists and links work); *When the page opens*: *All closed* (the default) or *First item open*.

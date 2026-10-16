@@ -1463,6 +1463,10 @@ html.dark .bk-link { color: #93c5fd; }
 .bk-sharing .bk-summary, .bk-sharing .bk-tag:not(.bk-width-tag) { display: none; }
 .bk-sharing .bk-actions { margin-left: auto; }
 .bk-choices.bk-widths { display: inline-flex; width: max-content; }
+.bk-field[hidden] { display: none; }
+.bk-size { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.bk-size[hidden], .bk-size [hidden] { display: none; }
+.bk-size-input { width: 5rem; min-height: 1.75rem; padding-block: .125rem; }
 .bk-width-tag { background: #dbeafe; color: #1e40af; }
 @media (max-width: 900px) { .bk-sharing { grid-template-columns: minmax(0, 1fr); } .bk-sharing > .bk-card { grid-column: auto !important; } }
 .bk-card { border: 1px solid #e2e8f0; border-radius: .625rem; background: #fff; }

@@ -94,6 +94,23 @@ final class FieldSchema
             // with it, for example to pick a readable text colour).
             if ($type === 'number') {
                 $field['blank'] = ($definition['blank'] ?? false) === true;
+                // A size whose range depends on a unit chosen in another field: `units: width_unit`, `ranges: {'%': [10, 100], px: [40, 2000]}`.
+                $units = (string)($definition['units'] ?? '');
+                $ranges = [];
+                foreach (is_array($definition['ranges'] ?? null) ? $definition['ranges'] : [] as $unit => $range) {
+                    if (is_array($range) && count($range) === 2 && is_numeric($range[0] ?? null) && is_numeric($range[1] ?? null)) {
+                        $ranges[(string)$unit] = [(int)$range[0], (int)$range[1]];
+                    }
+                }
+                if (preg_match('/^[a-z][a-z0-9_]*$/', $units) && $ranges !== []) {
+                    $field['units'] = $units;
+                    $field['ranges'] = $ranges;
+                }
+                // The editor offers these as one-click values; and `needs_size` shows a field only while that size is narrower than its column.
+                $field['presets'] = array_values(array_filter(array_map('intval', is_array($definition['presets'] ?? null) ? $definition['presets'] : []), static fn(int $n): bool => $n > 0));
+            }
+            if (preg_match('/^[a-z][a-z0-9_]*$/', (string)($definition['needs_size'] ?? ''))) {
+                $field['needs_size'] = (string)$definition['needs_size'];
             }
             if ($type === 'color') {
                 $field['hex'] = ($definition['hex'] ?? false) === true;
@@ -167,6 +184,34 @@ final class FieldSchema
         foreach ($fields as $key => $field) {
             $values[$key] = self::clean($field, $values[$key] ?? null);
         }
+        return self::settleUnits($fields, $values);
+    }
+
+    /**
+     * A size with a unit (`units` in its definition): kept inside the range of the unit chosen in the other field, and a size that
+     * fills the whole room (100 %) is the same as none, so a default is never written. Run after the fields are checked one by one.
+     *
+     * @param array<string, array<string, mixed>> $fields
+     * @param array<string, mixed> $values
+     * @return array<string, mixed>
+     */
+    public static function settleUnits(array $fields, array $values): array
+    {
+        foreach ($fields as $key => $field) {
+            if (!isset($field['units'], $fields[$field['units']]) || !array_key_exists($key, $values)) {
+                continue;
+            }
+            $unit = self::clean($fields[$field['units']], $values[$field['units']] ?? null);
+            $size = self::clean($field, $values[$key]);
+            if ($size === '' || !isset($field['ranges'][$unit])) {
+                $values[$key] = '';
+                continue;
+            }
+            [$min, $max] = $field['ranges'][$unit];
+            $size = max($min, min($max, (int)$size));
+            // Only a percentage can fill the room; the same number of pixels is a size like any other.
+            $values[$key] = $unit === '%' && $size >= 100 ? '' : $size;
+        }
         return $values;
     }
 
@@ -197,7 +242,7 @@ final class FieldSchema
                 ? self::sanitize($field, $input[$key], $currentValue)
                 : $currentValue;
         }
-        return $values;
+        return self::settleUnits($fields, $values);
     }
 
     /** @param array<string, mixed> $field */

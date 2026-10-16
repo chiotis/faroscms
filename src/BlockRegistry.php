@@ -243,6 +243,7 @@ final class BlockRegistry
                 continue;
             }
             $block = ['type' => $raw['type']];
+            $raw = FieldSchema::settleUnits($definition['fields'], $raw);
             foreach ([$definition['common'], $definition['fields']] as $fields) {
                 foreach ($fields as $key => $field) {
                     if (!array_key_exists($key, $raw)) {
