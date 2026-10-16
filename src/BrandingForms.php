@@ -66,7 +66,7 @@ final class BrandingForms
         }
 
         // Focus: the default is the theme's ring. An outline is a second, unmistakable ring that does not depend on a soft shadow.
-        $focus = (string)($design['focus_style'] ?? '');
+        $focus = (string)($design['input_ring'] ?? '');
         if ($focus === 'outline' || $focus === 'high') {
             $colour = $focus === 'high' ? 'var(--color-text)' : 'var(--accent)';
             $css .= self::scope(self::FIELD, ':focus')

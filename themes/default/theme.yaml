@@ -1124,9 +1124,9 @@ settings:
           '500': Medium
           '600': Semibold
           '700': Bold
-      focus_style:
+      input_ring:
         type: select
-        label: Focus
+        label: Field focus
         default: auto
         options:
           auto: Theme ring

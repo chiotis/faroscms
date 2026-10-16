@@ -39,7 +39,7 @@ final class BrandingTransfer
         'type' => ['label' => 'Typography', 'patterns' => ['/^(heading_font|body_font|font_file|fonts?|font_)/', '/^(base_size|line_height|scale)$/', '/^heading_(weight|tracking|leading|case)$/', '/^(h1|h2|h3|lead|small)_/', '/^(body_weight|paragraph_space)$/']],
         'layout' => ['label' => 'Layout and spacing', 'patterns' => ['/^(container|reading_width|gutter|section_space|header_height|spacing)$/', '/^mobile_/']],
         'shape' => ['label' => 'Shape and depth', 'patterns' => ['/^radius(_|$)/', '/^(border_width|shadows)$/']],
-        'forms' => ['label' => 'Forms', 'patterns' => ['/^(input_|label_)/', '/^(focus_style|error_style)$/']],
+        'forms' => ['label' => 'Forms', 'patterns' => ['/^(input_|label_)/', '/^(input_ring|error_style)$/']],
         'buttons' => ['label' => 'Buttons', 'patterns' => ['/^(button_|btn_|link_)/', '/^(buttons?|links?)$/']],
     ];
 

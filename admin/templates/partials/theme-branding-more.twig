@@ -8,7 +8,7 @@
   <summary><span>Forms</span><small>Fields, labels, focus, errors</small></summary>
   <div class="bp-body">
     <dl class="m-0 space-y-2.5">
-      {% for key in ['input_bg', 'input_border', 'input_border_width', 'label_size', 'label_weight', 'focus_style', 'error_style'] %}
+      {% for key in ['input_bg', 'input_border', 'input_border_width', 'label_size', 'label_weight', 'input_ring', 'error_style'] %}
         {% if d[key] is defined %}{{ c.choice(d[key], pd ~ key ~ ']', vd[key], 'select', {}) }}{% endif %}
       {% endfor %}
     </dl>

@@ -1,4 +1,4 @@
-# Theme settings of this installation (FarosCMS 0.1.138)
+# Theme settings of this installation (FarosCMS 0.1.139)
 
 Set with `python3 scripts/site_settings.py set theme section.field=value`. A text marked *translatable* takes a plain text or a map `{default: …, en: …}`.
 
@@ -170,7 +170,7 @@ Set with `python3 scripts/site_settings.py set theme section.field=value`. A tex
 | `input_border_width` | select; one of `auto`, `thin`, `medium` | auto | Field border width |
 | `label_size` | select; one of `auto`, `small`, `normal`, `large` | auto | Label size |
 | `label_weight` | select; one of `auto`, `400`, `500`, `600`, `700` | auto | Label weight |
-| `focus_style` | select; one of `auto`, `outline`, `high` | auto | Focus |
+| `input_ring` | select; one of `auto`, `outline`, `high` | auto | Field focus |
 | `error_style` | select; one of `auto`, `strong`, `tinted` | auto | Errors |
 | `radius_card` | number; 0 to 48 | (empty) | Card corners |
 | `radius_image` | number; 0 to 48 | (empty) | Image corners |

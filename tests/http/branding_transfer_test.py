@@ -54,13 +54,13 @@ def post_theme(overrides):
 
 # ---- the screen
 st, _, html = root.get('/admin/theme?tab=branding')
-check('the screen has the transfer card, the forms card and the phone card', all(s in html for s in ('data-bp-transfer', 'branding=export', 'data-bt-file', 'data-bt-reset="type"', 'data-bt-reset="forms"', 'name="theme_settings[design][focus_style]"', 'name="theme_settings[design][mobile_gutter]"', 'name="theme_settings[design][h1_step]"', 'name="theme_settings[design][radius_card]"', 'name="theme_settings[design][body_weight]"', 'name="theme_settings[design][radius_input]"', 'admin-branding-transfer.js')))
+check('the screen has the transfer card, the forms card and the phone card', all(s in html for s in ('data-bp-transfer', 'branding=export', 'data-bt-file', 'data-bt-reset="type"', 'data-bt-reset="forms"', 'name="theme_settings[design][input_ring]"', 'name="theme_settings[design][mobile_gutter]"', 'name="theme_settings[design][h1_step]"', 'name="theme_settings[design][radius_card]"', 'name="theme_settings[design][body_weight]"', 'name="theme_settings[design][radius_input]"', 'admin-branding-transfer.js')))
 check('shadows offer none, soft, medium and strong', re.findall(r'name="theme_settings\[design\]\[shadows\]" value="([^"]+)"', html) == ['auto', 'none', 'soft', 'medium', 'strong'], re.findall(r'name="theme_settings\[design\]\[shadows\]" value="([^"]+)"', html))
 check('the script is served', get_raw(root, '/assets/js/admin-branding-transfer.js')[0] == 200)
 check('nothing undoable yet, so no Undo row is shown', 'data-bt-undo-row hidden' in html)
 
 # ---- the new choices reach the public page
-post_theme({'theme_settings[design][h1_step]': '4', 'theme_settings[design][h1_weight]': '800', 'theme_settings[design][focus_style]': 'high', 'theme_settings[design][radius_card]': '24', 'theme_settings[design][shadows]': 'medium', 'theme_settings[design][mobile_gutter]': '14', 'theme_settings[design][light_accent]': '#1d4ed8'})
+post_theme({'theme_settings[design][h1_step]': '4', 'theme_settings[design][h1_weight]': '800', 'theme_settings[design][input_ring]': 'high', 'theme_settings[design][radius_card]': '24', 'theme_settings[design][shadows]': 'medium', 'theme_settings[design][mobile_gutter]': '14', 'theme_settings[design][light_accent]': '#1d4ed8'})
 css = style(pub.get('/about')[2])
 check('the page carries them', all(s in css for s in ('h1,:root[data-theme][data-mode] .hero-title', 'font-size:var(--step-4)', 'outline:3px solid var(--color-text)', 'border-radius:1.5rem', '--shadow-m:0 18px 40px -20px', '@media(max-width:640px)')), css[:300])
 st, _, body = root.request('/admin/theme?preview=branding', data=[('_csrf', token()), ('theme_settings[design][h2_step]', '3'), ('theme_settings[design][error_style]', 'tinted')])
