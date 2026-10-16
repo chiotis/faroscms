@@ -45,6 +45,8 @@ notifications:
   bcc: ''
   auto_reply: true
   auto_reply_include: false
+  attach_files: false
+  attach_max_mb: 10.0
   auto_reply_subject: Thanks
   auto_reply_message: 'We got it'
 success_message: Sent!
