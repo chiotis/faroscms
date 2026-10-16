@@ -30,7 +30,7 @@ python3 scripts/new_entry.py --type pages --lang en --title "Pricing" --slug tim
 
 Page layouts: home, about, contact, service, campaign, lead-generation, pricing, portfolio, case-study, careers, blog-home, help-center, resources, event, services-overview, legal, coming-soon, link-in-bio. Sections: hero + logos, alternating text/image, before/after, comparison, FAQ + CTA, contact + map, latest posts or projects. Each holds Greek and English blocks; read the result and replace the placeholder text and links. The same layouts are in the editor under *Add block > Page layouts / Ready-made sections*.
 
-FAQ or Accordion: use `faq` for a page of questions (large titles, FAQ structured data for search engines). Use `accordion` for compact details inside a narrow column (`width: 25|33|50`, or a column of a container): small titles, no structured data. Its `initial` is `closed` (default) or `first`; `multiple`, `icon` (`chevron`, `plus`) and `style` (`lines`, `cards`) are in the Design tab.
+FAQ or Accordion: use `faq` for a page of questions (large titles, FAQ structured data for search engines). Use `accordion` for compact details inside a narrow column (`width: 25|33|50`, or a column of a container): small titles, no structured data. Both take `initial`: `closed` (default) or `first` (the first item open); only the Accordion has `multiple`, `icon` (`chevron`, `plus`) and `style` (`lines`, `cards`), in the Design tab.
 
 ## Worked examples (valid for this version; `validate_content.py` passes on them)
 

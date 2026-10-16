@@ -137,6 +137,13 @@ final class BlockRegistry
             }
             unset($raw['width']);
         }
+        // The FAQ's "Open the first answer" toggle (`open_first`, until 0.1.135) is the "When the page opens" choice now.
+        if (($raw['type'] ?? null) === 'faq' && array_key_exists('open_first', $raw)) {
+            if (!array_key_exists('initial', $raw) && in_array($raw['open_first'], [true, 1, '1', 'true', 'yes', 'on'], true)) {
+                $raw['initial'] = 'first';
+            }
+            unset($raw['open_first']);
+        }
         foreach ($definition['variant_migrations'] ?? [] as $migration) {
             $matches = true;
             foreach ($migration['when'] as $key => $wanted) {
