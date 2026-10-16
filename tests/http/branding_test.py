@@ -82,6 +82,14 @@ check('the old tabs are gone, an old link opens the first', root.get('/admin/the
 defaults_match = re.search(r'data-bp-defaults="([^"]+)"', html)
 defaults = json.loads(unescape(defaults_match.group(1))) if defaults_match else {}
 check('reset metadata comes from the schema, including heading colour text', defaults.get('theme_settings[design][heading_color]', {}).get('value') == 'text' and defaults.get('theme_settings[design][radius]', {}).get('value') == '')
+check('equivalent choices preserve inheritance and only map supported shapes', defaults.get('theme_settings[design][button_weight]', {}).get('equivalent') == {'value': '600'} and defaults.get('theme_settings[design][button_radius]', {}).get('equivalent') == {'field': 'theme_settings[appearance][shape]', 'values': {'soft': 'pill', 'rounded': 'pill'}} and defaults.get('theme_settings[design][heading_weight]', {}).get('equivalent') is None)
+check('inherited choices explain their actual behavior', all(label in html for label in ('>By element<', '>Theme scale<', '>From shape<', '>Soft<', '>Normal<')) and 'Reset restores the theme value' in html)
+os.makedirs('app/custom/assets/css', exist_ok=True)
+with open('app/custom/assets/css/custom.css', 'w') as f: f.write(':root { --btn-weight: 700; --radius-button: 0; }')
+custom_html = root.get('/admin/theme')[2]
+custom_defaults = json.loads(unescape(re.search(r'data-bp-defaults="([^"]+)"', custom_html).group(1)))
+check('custom CSS keeps inherited choices explicit rather than guessing their value', custom_defaults['theme_settings[design][button_weight]']['equivalent'] is None and custom_defaults['theme_settings[design][button_radius]']['equivalent'] is None and '>By element<' not in custom_html)
+os.unlink('app/custom/assets/css/custom.css')
 cards = re.findall(r'<details class="bp-card"[^>]*>(.*?)</details>', html, re.S)
 buttons_card = next((card for card in cards if '<span>Buttons</span>' in card), '')
 colour_card = next((card for card in cards if '<span>Colour</span>' in card), '')

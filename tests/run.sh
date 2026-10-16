@@ -61,6 +61,7 @@ run_js() {
   report "entry-preview" "$(cd "$ROOT" && node tests/js/entry-preview.test.js 2>&1)"
   report "branding-preview" "$(cd "$ROOT" && node tests/js/branding-preview.test.js 2>&1)"
   report "branding-controls" "$(cd "$ROOT" && node tests/js/branding-controls.test.js 2>&1)"
+  report "branding-inheritance" "$(cd "$ROOT" && node tests/js/branding-inheritance.test.js 2>&1)"
   report "block-sortable" "$(cd "$ROOT" && node tests/js/sortable.test.js 2>&1)"
   report "block-containers" "$(cd "$ROOT" && node tests/js/block-containers.test.js 2>&1)"
   report "image-width-editor" "$(cd "$ROOT" && node tests/js/image-width.test.js 2>&1)"

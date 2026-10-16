@@ -497,6 +497,7 @@ html.dark .lc-input::placeholder { color: #94a3b8; }
 .bp-value[data-bp-value="custom"] > span { color: #1d4ed8; }
 .bp-value .bp-reset { font-size: inherit; }
 .bp-value .bp-reset[hidden] { display: none; }
+.bp [data-bp-inherited-option][hidden] { display: none; }
 .bp-preview { display: grid; gap: .5rem; min-width: 0; }
 @media (min-width: 1180px) { .bp-preview { position: sticky; top: 4.25rem; } }
 .bp-bar { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }

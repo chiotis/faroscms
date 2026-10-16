@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.137 — 2026-10-16 — Branding: clearer inherited styles
+- **Button controls show the matching concrete choice instead of a redundant Theme option**: Semi for the default text weight, and Pill for the Soft and Rounded shape presets. They still inherit until you explicitly choose a value; Reset restores inheritance. Sharp retains *From shape*, because its 4 px button radius differs from the fixed choices. Changing a shape keeps any button radius you chose yourself.
+- **Inherited styles have more useful names**: Normal spacing, Soft shadows, *By element* for heading weight, letter spacing and line height, and *Theme scale* for the theme's responsive heading sizes. The Theme value / Your value status also describes each control to assistive technology.
+- These shortcuts apply to the bundled default theme without Custom CSS. Other themes and sites with Custom CSS keep the explicit Theme choice. Existing saved settings and site appearance are unchanged; the form also works without JavaScript.
+
 ## 0.1.136 — 2026-10-16 — Branding: reliable controls and preview
 - **The Branding live preview follows unsaved choices again**, including cleared logos and resets. Computer, tablet and phone widths and light/dark preview choices stay independent of the Header and Footer tabs; Auto restores the site's mode, and custom CSS keeps its place after the branding styles.
 - **Resets use the theme's declared defaults.** Each override shows *Theme value* or *Your value*, with an individual reset. Group resets clear that group's overrides while keeping the selected palette, font pairing and shape. Empty colour swatches show the inherited colour without saving it as an override.

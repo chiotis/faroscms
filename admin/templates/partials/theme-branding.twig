@@ -37,15 +37,31 @@
 {% set known_d = ['light_accent', 'light_background', 'light_surface', 'light_text', 'light_muted', 'light_border', 'dark_accent', 'dark_background', 'dark_surface', 'dark_text', 'dark_muted', 'dark_border', 'ink', 'heading_font', 'body_font', 'font_file', 'base_size', 'line_height', 'scale', 'heading_weight', 'heading_tracking', 'heading_leading', 'heading_case', 'heading_color', 'heading_color_light', 'heading_color_dark', 'container', 'reading_width', 'gutter', 'section_space', 'header_height', 'spacing', 'radius', 'button_radius', 'shadows', 'button_height', 'button_pad', 'button_size', 'button_weight', 'button_case'] %}
 {% set roles = [['accent', 'Accent'], ['background', 'Background'], ['surface', 'Surface'], ['text', 'Text'], ['muted', 'Muted text'], ['border', 'Border']] %}
 {% set defaults = {} %}
+{# These defaults are known only for the bundled theme without a site stylesheet that may override them. #}
+{% set default_theme = theme_info.name|default('') == 'default' and custom_css|default('')|trim == '' %}
+{% set equivalents = default_theme ? {
+  button_weight: {value: '600'},
+  button_radius: {field: 'theme_settings[appearance][shape]', values: {soft: 'pill', rounded: 'pill'}}
+} : {} %}
+{% if default_theme %}
+  {% set short = short|merge({
+    heading_weight: short.heading_weight|map((label, option) => option == 'auto' ? 'By element' : label),
+    heading_tracking: short.heading_tracking|merge({auto: 'By element'}),
+    heading_leading: short.heading_leading|merge({auto: 'By element'}),
+    spacing: short.spacing|merge({auto: 'Normal'}),
+    shadows: short.shadows|merge({auto: 'Soft'}),
+    button_radius: short.button_radius|merge({auto: 'From shape'})
+  }) %}
+{% endif %}
 {% for section in ['appearance', 'brand', 'design'] %}
   {% for key, field in schema[section].fields %}
-    {% set defaults = defaults|merge({('theme_settings[' ~ section ~ '][' ~ key ~ ']'): {value: field.default ?? '', label: field.label}}) %}
+    {% set defaults = defaults|merge({('theme_settings[' ~ section ~ '][' ~ key ~ ']'): {value: field.default ?? '', label: field.label, equivalent: section == 'design' ? equivalents[key]|default(null) : null}}) %}
   {% endfor %}
 {% endfor %}
 
 <div class="bp" data-bp data-bp-defaults="{{ defaults|json_encode }}" data-preview data-mode="css" data-endpoint="{{ url('admin/theme?preview=branding') }}">
   <h2 class="sr-only">Branding</h2>
-  <p class="mb-3 text-xs text-slate-500">Logo, colours, type, spacing, corners and buttons. Empty fields and “Theme” follow the theme and your selected palette, font pairing and corners. Resetting a group’s overrides keeps those preset choices. Nothing changes on the site until you save.</p>
+  <p class="mb-3 text-xs text-slate-500">Logo, colours, type, spacing, corners and buttons. “Theme value” follows the selected presets, even when a concrete choice is shown. Choosing a value makes it your own; Reset restores the theme value. Group resets keep your preset choices. Nothing changes on the site until you save.</p>
 
   <div class="bp-grid">
     <div class="bp-cards">
@@ -165,11 +181,15 @@
             {% if d.line_height is defined %}{{ c.num(d.line_height, pd ~ 'line_height]', vd.line_height, '') }}{% endif %}
           </div>
           <dl class="m-0 space-y-2.5">
-            {% if d.scale is defined %}{{ c.choice(d.scale, pd ~ 'scale]', vd.scale, 'select', {}) }}{% endif %}
+            {% if d.scale is defined %}
+              {% set scale = default_theme ? d.scale|merge({options: d.scale.options|map((label, option) => option == 'auto' ? 'Theme scale' : label)}) : d.scale %}
+              {{ c.choice(scale, pd ~ 'scale]', vd.scale, 'select', {}) }}
+            {% endif %}
             {% for key in ['heading_weight', 'heading_tracking', 'heading_leading', 'heading_case'] %}
               {% if d[key] is defined %}{{ c.choice(d[key], pd ~ key ~ ']', vd[key], 'seg', short[key]) }}{% endif %}
             {% endfor %}
           </dl>
+          {% if default_theme %}<p class="m-0 text-[11px] leading-4 text-slate-500">“By element” keeps the weight, letter spacing and line height designed for each heading. “Theme scale” keeps the theme’s responsive sizes.</p>{% endif %}
           <button type="button" class="bp-reset" data-bp-reset="type">Reset type overrides</button>
         </div>
       </details>
@@ -221,6 +241,7 @@
               {% if d[key] is defined %}{{ c.choice(d[key], pd ~ key ~ ']', vd[key], 'seg', short[key]) }}{% endif %}
             {% endfor %}
           </dl>
+          {% if default_theme %}<p class="m-0 text-[11px] leading-4 text-slate-500">Inherited button corners follow the selected shape. “From shape” keeps its own radius when none of the fixed choices matches.</p>{% endif %}
           <button type="button" class="bp-reset" data-bp-reset="buttons">Reset button overrides</button>
         </div>
       </details>

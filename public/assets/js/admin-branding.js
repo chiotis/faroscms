@@ -31,6 +31,7 @@
   });
 
   function value(group) {
+    if (group.submitted) { return group.submitted.value; }
     var first = group.fields[0];
     if (first.type === 'checkbox') { return first.checked ? '1' : '0'; }
     if (first.type === 'radio') {
@@ -43,6 +44,52 @@
     var initial = group.definition.value;
     return typeof initial === 'boolean' ? (initial ? '1' : '0') : String(initial == null ? '' : initial);
   }
+  // Show a concrete choice when it exactly matches inheritance, but keep "auto" in the submitted form.
+  // Only the theme's declared equivalents are used; mixed component defaults keep their own option.
+  function enhanceChoice(group, name, host) {
+    var equivalent = group.definition.equivalent;
+    if (!equivalent || group.fields[0].type !== 'radio' || defaultValue(group) !== 'auto') { return; }
+    var options = group.fields.map(function (field) { return field.value; });
+    var candidates = equivalent.field ? Object.keys(equivalent.values || {}).map(function (key) { return equivalent.values[key]; }) : [equivalent.value];
+    var inherited = group.fields.find(function (field) { return field.value === 'auto'; });
+    if (!inherited || !inherited.closest('label') || !candidates.some(function (candidate) { return options.indexOf(candidate) !== -1; })) { return; }
+    var stored = value(group);
+    group.submitted = document.createElement('input');
+    group.submitted.type = 'hidden';
+    group.submitted.name = name;
+    group.submitted.value = stored;
+    host.appendChild(group.submitted);
+    group.fields.forEach(function (field) { field.name = 'bp_choice_' + name; });
+    group.drawChoice = function () {
+      var dependency = groups[equivalent.field];
+      var resolved = equivalent.field ? (dependency ? (equivalent.values || {})[value(dependency)] : '') : equivalent.value;
+      if (options.indexOf(resolved) === -1 || resolved === 'auto') { resolved = ''; }
+      var label = inherited.closest('label');
+      label.setAttribute('data-bp-inherited-option', '');
+      label.hidden = !!resolved;
+      var selected = value(group) === 'auto' && resolved ? resolved : value(group);
+      group.fields.forEach(function (field) { field.checked = field.value === selected; });
+    };
+    group.fields.forEach(function (field) {
+      var choose = function () {
+        if (!field.checked || value(group) === field.value) { return; }
+        group.submitted.value = field.value;
+        syncSource(group);
+        fire(group.submitted);
+      };
+      // Click also lets someone explicitly choose the currently inherited value; keyboard changes work too.
+      field.addEventListener('click', choose);
+      field.addEventListener('change', choose);
+    });
+    var dependency = groups[equivalent.field];
+    if (dependency) {
+      dependency.fields.forEach(function (field) {
+        field.addEventListener('input', group.drawChoice);
+        field.addEventListener('change', group.drawChoice);
+      });
+    }
+    group.drawChoice();
+  }
   function syncSource(group) {
     if (!group.source) { return; }
     var custom = value(group) !== defaultValue(group);
@@ -52,6 +99,14 @@
   }
   function reset(group) {
     var initial = defaultValue(group);
+    if (group.submitted) {
+      group.submitted.value = initial;
+      group.drawChoice();
+      fire(group.submitted);
+      group.submitted.dispatchEvent(new Event('change', { bubbles: true }));
+      syncSource(group);
+      return;
+    }
     group.fields.forEach(function (field) {
       if (field.type === 'radio') { field.checked = field.value === initial; }
       else if (field.type === 'checkbox') { field.checked = initial === '1'; }
@@ -63,15 +118,17 @@
   }
   function refresh() { root.dispatchEvent(new CustomEvent('preview:refresh', { bubbles: true })); }
 
-  Object.keys(groups).forEach(function (name) {
+  Object.keys(groups).forEach(function (name, index) {
     var group = groups[name];
     var field = group.fields[0];
     var colour = field.closest('[data-colour]');
     var host = colour ? colour.parentElement : field.closest('dd, .bp-num');
     if (!host) { return; }
+    enhanceChoice(group, name, host);
     group.source = document.createElement('span');
     group.source.className = 'bp-value';
     group.status = document.createElement('span');
+    group.status.id = 'bp-source-' + index;
     group.source.appendChild(group.status);
     // Colour boxes already have an individual reset beside the hex code.
     if (!colour) {
@@ -85,6 +142,7 @@
     }
     host.appendChild(group.source);
     group.fields.forEach(function (input) {
+      input.setAttribute('aria-describedby', ((input.getAttribute('aria-describedby') || '') + ' ' + group.status.id).trim());
       input.addEventListener('input', function () { syncSource(group); });
       input.addEventListener('change', function () { syncSource(group); });
     });
