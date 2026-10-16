@@ -56,6 +56,20 @@ For something the screen does not offer, override the tokens in `custom/assets/c
 
 Then run the token audit (see [Testing](#testing)). Text on the accent must reach 4.5:1, and the accent itself against the page background too. The palette is chosen in Admin > Theme > Branding, so the override applies wherever that palette is used.
 
+### The colour roles (a stable contract)
+
+Every palette, ready-made or made on a site, is made of the same six roles, separately for light and for dark: **accent**, **background**, **surface**, **text**, **muted** and **border**; a palette may also carry `ink` (the near-black of dark panels and the footer) and an optional **secondary**. Their names are stable: other parts of Branding (link colours, button styles) and exports use them as `design.light_<role>` and `design.dark_<role>` (`accent`, `background`, `surface`, `text`, `muted`, `border`, `secondary`), and a site palette is `{id, name, light: {...}, dark: {...}, ink, secondary: {light, dark}}` in `design.site_palettes` (`SitePalettes`). Branding works the derivatives out from them: the hover and soft shades of the accent and of the secondary, the second shade of the surface and of the border, and the text colour on the accent.
+
+The **secondary** is optional and unused by the default blocks. When a site sets it, `:root` has `--color-secondary`, `--color-secondary-hover`, `--color-secondary-soft` and `--color-secondary-contrast` (they follow light and dark like `--accent`), and `--secondary-l*`/`--secondary-d*` for each mode. When it is not set, none of them exists, so always give a fallback:
+
+```css
+.block-quote cite { color: var(--color-secondary, var(--accent)); }
+.my-tag { background: var(--color-secondary-soft, var(--accent-soft)); color: var(--color-secondary, var(--accent)); }
+.my-button-2 { background: var(--color-secondary, var(--accent)); color: var(--color-secondary-contrast, var(--accent-contrast)); }
+```
+
+Keep the same accessibility rules for it as for the accent: 4.5:1 as text on the page and on the surface, and for the text on it (`--color-secondary-contrast`, white or the near-black, is chosen for you). Palettes made by the generator meet them.
+
 ### Add a block
 
 A block is a folder with up to four files. This example adds a "Quote" block to one site.

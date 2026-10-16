@@ -96,7 +96,7 @@ foreach ([['light', '#b42318', '#ffffff', '#0e1726', '#1d4ed8'], ['dark', '#fda2
 // ---- export, then import on a clean site
 $store = ['settings' => $theme->resolveSettings($design([
     'light_accent' => '#1d4ed8', 'dark_accent' => '#93c5fd', 'heading_font' => 'custom', 'font_file' => 'fonts/brand.woff2', 'h1_step' => '4', 'h1_weight' => '800',
-    'input_border' => 'text', 'input_ring' => 'high', 'radius_card' => 22, 'shadows' => 'medium', 'mobile_gutter' => 14,
+    'input_border' => 'text', 'input_ring' => 'high', 'light_secondary' => '#aa3355', 'site_palettes' => '[{"id":"p1","name":"Mine"}]', 'duo_picker' => false, 'radius_card' => 22, 'shadows' => 'medium', 'mobile_gutter' => 14,
 ] ) + ['appearance' => ['palette' => 'rose', 'mode' => 'dark', 'shape' => 'sharp'] + $defaults['appearance']])];
 $metaDb = new SystemDatabase($dir . '/storage');
 $metaDb->initialize();
@@ -129,6 +129,7 @@ check('the preview lists what changes and changes nothing', [
 ], ['auto', '4', 'medium', 'rose', [['path' => 'fonts/brand.woff2', 'status' => 'new']], [], true, false]);
 $result = $import->apply($read);
 check('applying writes the settings and the font file', [$result['ok'], $result['files'], $result['changed'] > 5, file_get_contents($clean . '/custom/assets/fonts/brand.woff2')], [true, 1, true, 'FONTDATA']);
+check('what the other parts add (secondary colour, site palettes, Duo) travels without being listed anywhere', [$store2['settings']['design']['light_secondary'], $store2['settings']['design']['site_palettes'], $store2['settings']['design']['duo_picker']], ['#aa3355', '[{"id":"p1","name":"Mine"}]', false]);
 check('the CSS and the attributes of the clean site are now identical', [Branding::css($store2['settings'], ''), Branding::attributes($store2['settings'])], [Branding::css($store['settings'], ''), Branding::attributes($store['settings'])]);
 check('and the CSS before was empty', $cleanCss, '');
 check('importing again shows nothing to change', [$import->preview($import->read((string)file_get_contents($zipPath)))['changes'], $import->apply($import->read((string)file_get_contents($zipPath)))['changed']], [[], 0]);

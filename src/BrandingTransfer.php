@@ -35,7 +35,7 @@ final class BrandingTransfer
      * @var array<string, array{label: string, patterns: string[]}>
      */
     public const SECTIONS = [
-        'colour' => ['label' => 'Colour', 'patterns' => ['/^(light|dark)_/', '/^ink$/', '/^heading_color/', '/^secondary/', '/^palette/', '/^site_palette/']],
+        'colour' => ['label' => 'Colour', 'patterns' => ['/^(light|dark)_/', '/^ink$/', '/^heading_color/', '/^secondary/', '/^palette/', '/^site_palette/', '/^duo_/']],
         'type' => ['label' => 'Typography', 'patterns' => ['/^(heading_font|body_font|font_file|fonts?|font_)/', '/^(base_size|line_height|scale)$/', '/^heading_(weight|tracking|leading|case)$/', '/^(h1|h2|h3|lead|small)_/', '/^(body_weight|paragraph_space)$/']],
         'layout' => ['label' => 'Layout and spacing', 'patterns' => ['/^(container|reading_width|gutter|section_space|header_height|spacing)$/', '/^mobile_/']],
         'shape' => ['label' => 'Shape and depth', 'patterns' => ['/^radius(_|$)/', '/^(border_width|shadows)$/']],

@@ -477,6 +477,12 @@ settings:
       dark_text: {type: color, hex: true, label: Text, default: ''}
       dark_muted: {type: color, hex: true, label: Muted text, default: ''}
       dark_border: {type: color, hex: true, label: Border, default: ''}
+      light_secondary: {type: color, hex: true, label: Secondary, default: '', help: 'An optional second brand colour, available to blocks as --color-secondary.'}
+      dark_secondary: {type: color, hex: true, label: Secondary, default: ''}
+      site_palette: {type: text, label: Site palette in use, default: '', help: 'The id of the palette made on this site that is in use. Empty uses the palette chosen under Appearance.'}
+      site_palettes: {type: textarea, label: Site palettes, default: '', help: 'The palettes made on this site, as JSON; edited on the Branding screen.'}
+      duo_picker: {type: toggle, label: Colour pairings from Duo, default: true, help: 'Lets the palette studio show colour pairs fetched from Duo when it is opened. The public site never contacts Duo.'}
+      duo_url: {type: text, label: Address of the colour pairings, default: '', placeholder: 'https://duo.alexpate.com/colors.json'}
       ink:
         type: color
         hex: true
