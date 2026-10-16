@@ -1755,6 +1755,7 @@
   }
 
   var CATEGORY_ORDER = ['Openers', 'Content', 'Media', 'Showcase', 'Convert', 'Layout'];
+  var FIRST_BLOCKS = ['image', 'text'];
   var pickerCategory = '';
 
   function renderPicker() {
@@ -1792,8 +1793,9 @@
         return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib) || a.localeCompare(b);
       });
       Object.keys(definitions).filter(function (type) { return type !== 'container'; }).sort(function (x, y) {
+        var ix = FIRST_BLOCKS.indexOf(x), iy = FIRST_BLOCKS.indexOf(y);
         var cx = present.indexOf(categoryOf(definitions[x])), cy = present.indexOf(categoryOf(definitions[y]));
-        return cx - cy;
+        return (ix === -1 ? FIRST_BLOCKS.length : ix) - (iy === -1 ? FIRST_BLOCKS.length : iy) || cx - cy;
       }).forEach(function (type) {
         var def = definitions[type];
         var option = el('button', { type: 'button', class: 'bk-pcard bk-pchoose' }, [
@@ -1831,7 +1833,7 @@
         });
         row.appendChild(chipsRow);
         options.push({ node: row, category: 'Layout', text: 'container columns row layout flexbox grid' });
-        grid.insertBefore(row, grid.firstChild);
+        grid.insertBefore(row, grid.children[FIRST_BLOCKS.filter(function (type) { return !!definitions[type]; }).length] || null);
       }
       var none = el('p', { class: 'bk-help hidden', text: 'No block matches.' });
       var search = el('input', { type: 'search', class: 'lc-input bk-search', placeholder: 'Search blocks', 'aria-label': 'Search blocks' });
